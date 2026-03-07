@@ -82,14 +82,41 @@ export default function SettingsPage() {
             <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 28 }}>Configurações</h1>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 4, marginBottom: 28, background: 'var(--bg-card)', borderRadius: 12, padding: 4, width: 'fit-content' }}>
+            <div style={{ 
+                display: 'flex', 
+                gap: 4, 
+                marginBottom: 28, 
+                background: 'var(--bg-card)', 
+                borderRadius: 12, 
+                padding: 4, 
+                width: '100%',
+                overflowX: 'auto',
+                whiteSpace: 'nowrap',
+                scrollbarWidth: 'none', // Firefox
+                msOverflowStyle: 'none' // IE/Edge
+            }}>
+                <style jsx>{`
+                    div::-webkit-scrollbar {
+                        display: none;
+                    }
+                `}</style>
                 {tabs.map(t => (
                     <button key={t.key} onClick={() => setTab(t.key)} style={{
-                        padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                        padding: '10px 20px', 
+                        borderRadius: 10, 
+                        border: 'none', 
+                        cursor: 'pointer',
                         background: tab === t.key ? 'rgba(108,92,231,0.15)' : 'transparent',
                         color: tab === t.key ? 'var(--accent-secondary)' : 'var(--text-secondary)',
-                        fontWeight: 500, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8,
-                        transition: 'all 0.2s ease', fontFamily: 'Inter, sans-serif'
+                        fontWeight: 500, 
+                        fontSize: 13, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 8,
+                        transition: 'all 0.2s ease', 
+                        fontFamily: 'Inter, sans-serif',
+                        flexShrink: 0, // Impede que o botão encolha demais
+                        whiteSpace: 'nowrap'
                     }}>
                         {t.icon} {t.label}
                     </button>

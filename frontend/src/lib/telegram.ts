@@ -23,6 +23,28 @@ export const sendMessage = async (chatId: string | number, text: string) => {
 };
 
 /**
+ * Envia foto com legenda para um usuário do Telegram
+ * @param chatId - ID do chat do Telegram
+ * @param photoUrl - URL da imagem
+ * @param caption - Legenda da foto (suporta HTML)
+ */
+export const sendPhoto = async (chatId: string | number, photoUrl: string, caption: string) => {
+    try {
+        await axios.post(`${TELEGRAM_API}/sendPhoto`, {
+            chat_id: chatId,
+            photo: photoUrl,
+            caption: caption,
+            parse_mode: 'HTML'
+        });
+        return true;
+    } catch (error: any) {
+        console.error('Erro ao enviar foto Telegram:', error.response?.data || error.message);
+        // Fallback para texto se falhar a imagem
+        return sendMessage(chatId, caption);
+    }
+};
+
+/**
  * Processa webhook do Telegram (comando /start)
  * @param message - Objeto message do Telegram
  */
@@ -87,7 +109,11 @@ export const notifySale = async (userId: string, saleData: any) => {
 <i>GouPay Notificações</i>
 `;
 
-        await sendMessage(user.telegram_chat_id, message);
+        if (saleData.image_url) {
+            await sendPhoto(user.telegram_chat_id, saleData.image_url, message);
+        } else {
+            await sendMessage(user.telegram_chat_id, message);
+        }
     } catch (error) {
         console.error('Erro ao notificar venda:', error);
     }

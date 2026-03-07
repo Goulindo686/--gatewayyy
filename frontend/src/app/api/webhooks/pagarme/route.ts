@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
             if (order.product_id) {
                 const { data: product } = await supabase
                     .from('products')
-                    .select('id, name, sales_count, type')
+                    .select('id, name, sales_count, type, image_url')
                     .eq('id', order.product_id)
                     .single();
                 
@@ -159,7 +159,8 @@ export async function POST(req: NextRequest) {
                     product_name: productName,
                     amount: order.amount,
                     payment_method: paymentMethod,
-                    customer_name: customerName
+                    customer_name: customerName,
+                    image_url: productData?.image_url
                 });
             } catch (error) {
                 console.error('Error sending Telegram notification:', error);
