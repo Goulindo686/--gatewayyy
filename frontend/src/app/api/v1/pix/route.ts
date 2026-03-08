@@ -67,32 +67,18 @@ export async function POST(req: NextRequest) {
         } catch {}
 
         // 6. Create Transaction on Pagar.me
+        // PagarmeService.createOrder expects specific structure
         const orderData = {
             amount: amount,
             payment_method: 'pix',
             customer: {
                 name: customer.name,
                 email: customer.email,
-                type: 'individual',
-                document: customer.cpf.replace(/\D/g, ''),
-                phones: customer.phone ? { 
-                    mobile_phone: { 
-                        country_code: '55', 
-                        area_code: customer.phone.substring(0, 2), 
-                        number: customer.phone.substring(2) 
-                    } 
-                } : undefined
+                cpf: customer.cpf, // PagarmeService uses .cpf
+                phone: customer.phone // PagarmeService uses .phone string
             },
             seller_recipient_id: recipient.pagarme_recipient_id,
-            platform_fee_percentage: feePercentage,
-            items: [
-                {
-                    amount: amount,
-                    description: description || 'Pagamento via API',
-                    quantity: 1,
-                    code: 'API_PAYMENT'
-                }
-            ]
+            platform_fee_percentage: feePercentage
         };
 
         const pagarmeOrder = await PagarmeService.createOrder(orderData);
