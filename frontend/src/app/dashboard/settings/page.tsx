@@ -52,8 +52,9 @@ export default function SettingsPage() {
             });
             toast.success('Chave de API gerada com sucesso!');
             loadApiKeys();
-        } catch (err) {
-            toast.error('Erro ao gerar chave de API');
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.response?.data?.error || err.message || 'Erro ao gerar chave de API');
         }
     };
 
