@@ -118,6 +118,20 @@ export async function POST(req: NextRequest) {
 
         const pixData = extractPix(pagarmeOrder);
 
+        if (!pixData.qr_code) {
+            console.error('Pagar.me Order Response (Missing QR):', JSON.stringify(pagarmeOrder, null, 2));
+            // Tentar identificar o motivo na resposta
+            const status = pagarmeOrder.status;
+            const charges = pagarmeOrder.charges || [];
+            const lastChargeStatus = charges[0]?.status;
+            
+            if (status === 'failed' || lastChargeStatus === 'failed') {
+                throw new Error('Falha no Pagar.me: Pagamento recusado ou falhou na criação.');
+            }
+            
+            throw new Error('O Pagar.me recebeu o pedido mas não retornou o QR Code Pix. Verifique os logs.');
+        }
+
         // 8. Save Transaction Record (Optional but recommended)
         // We save it as 'api_sale' type
         const orderId = uuidv4();
