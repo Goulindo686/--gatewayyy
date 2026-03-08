@@ -3,9 +3,22 @@ import { supabase } from '@/lib/db';
 import { PagarmeService } from '@/lib/pagarme';
 import { v4 as uuidv4 } from 'uuid';
 
-// Helper for error responses
+// Helper for error responses with CORS headers
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
+};
+
+const jsonResponse = (data: any, status = 200) => 
+    NextResponse.json(data, { status, headers: corsHeaders });
+
 const jsonError = (message: string, status = 400) => 
-    NextResponse.json({ error: message, status: 'error' }, { status });
+    NextResponse.json({ error: message, status: 'error' }, { status, headers: corsHeaders });
+
+export async function OPTIONS() {
+    return NextResponse.json({}, { status: 200, headers: corsHeaders });
+}
 
 export async function POST(req: NextRequest) {
     try {
@@ -121,7 +134,7 @@ export async function POST(req: NextRequest) {
             customer_name: customer.name
         });
 
-        return NextResponse.json({
+        return jsonResponse({
             success: true,
             transaction_id: orderId,
             pix: {
