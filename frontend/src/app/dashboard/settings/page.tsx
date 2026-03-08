@@ -3,12 +3,15 @@
 import { useEffect, useState } from 'react';
 import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiSave, FiUser, FiCreditCard, FiKey, FiBell, FiCheckCircle } from 'react-icons/fi';
+import { FiSave, FiUser, FiCreditCard, FiKey, FiBell, FiCheckCircle, FiCode, FiCopy, FiPlus } from 'react-icons/fi';
+import axios from 'axios';
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [tab, setTab] = useState('profile');
+    const [apiKeys, setApiKeys] = useState<any[]>([]);
+    const [loadingKeys, setLoadingKeys] = useState(false);
     const [form, setForm] = useState({
         id: '', telegram_chat_id: '',
         name: '', phone: '', cpf_cnpj: '',
@@ -21,6 +24,38 @@ export default function SettingsPage() {
     useEffect(() => {
         loadProfile();
     }, []);
+
+    useEffect(() => {
+        if (tab === 'api') loadApiKeys();
+    }, [tab]);
+
+    const loadApiKeys = async () => {
+        setLoadingKeys(true);
+        try {
+            const token = localStorage.getItem('token');
+            const { data } = await axios.get('/api/auth/api-keys', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setApiKeys(data.keys || []);
+        } catch (err) {
+            console.error('Erro ao carregar chaves:', err);
+        } finally {
+            setLoadingKeys(false);
+        }
+    };
+
+    const generateApiKey = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post('/api/auth/api-keys', {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success('Chave de API gerada com sucesso!');
+            loadApiKeys();
+        } catch (err) {
+            toast.error('Erro ao gerar chave de API');
+        }
+    };
 
     const loadProfile = async () => {
         try {
@@ -65,7 +100,8 @@ export default function SettingsPage() {
         { key: 'profile', label: 'Perfil', icon: <FiUser size={16} /> },
         { key: 'bank', label: 'Dados Bancários', icon: <FiCreditCard size={16} /> },
         { key: 'pix', label: 'Chave Pix', icon: <FiKey size={16} /> },
-        { key: 'notifications', label: 'Notificações', icon: <FiBell size={16} /> }
+        { key: 'notifications', label: 'Notificações', icon: <FiBell size={16} /> },
+        { key: 'api', label: 'API & Integração', icon: <FiCode size={16} /> }
     ];
 
     if (loading) {
@@ -159,6 +195,124 @@ export default function SettingsPage() {
                                     <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>UF</label>
                                     <input className="input-field" maxLength={2} value={form.address_state} onChange={e => update('address_state', e.target.value)} />
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {tab === 'api' && (
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <h3 style={{ fontSize: 16, fontWeight: 600 }}>Chaves de API</h3>
+                            <button 
+                                onClick={generateApiKey} 
+                                style={{ 
+                                    background: 'var(--primary)', 
+                                    color: 'white', 
+                                    border: 'none', 
+                                    padding: '8px 16px', 
+                                    borderRadius: 8, 
+                                    fontSize: 13, 
+                                    fontWeight: 500, 
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6
+                                }}
+                            >
+                                <FiPlus size={16} /> Gerar Nova Chave
+                            </button>
+                        </div>
+
+                        {loadingKeys ? (
+                            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Carregando chaves...</p>
+                        ) : (
+                            <div style={{ display: 'grid', gap: 12 }}>
+                                {apiKeys.map(key => (
+                                    <div key={key.id} style={{ 
+                                        padding: 16, 
+                                        background: 'var(--bg-hover)', 
+                                        borderRadius: 8, 
+                                        border: '1px solid var(--border)',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center'
+                                    }}>
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                                <code style={{ 
+                                                    background: 'rgba(0,0,0,0.1)', 
+                                                    padding: '2px 6px', 
+                                                    borderRadius: 4, 
+                                                    fontSize: 13, 
+                                                    fontFamily: 'monospace',
+                                                    color: 'var(--text-primary)'
+                                                }}>{key.api_key}</code>
+                                                {key.is_active ? (
+                                                    <span style={{ fontSize: 10, background: '#dcfce7', color: '#166534', padding: '2px 6px', borderRadius: 99 }}>ATIVA</span>
+                                                ) : (
+                                                    <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '2px 6px', borderRadius: 99 }}>INATIVA</span>
+                                                )}
+                                            </div>
+                                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Criada em: {new Date(key.created_at).toLocaleDateString()}</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(key.api_key);
+                                                toast.success('Copiada!');
+                                            }} 
+                                            style={{ 
+                                                background: 'transparent', 
+                                                border: 'none', 
+                                                color: 'var(--text-secondary)', 
+                                                cursor: 'pointer',
+                                                padding: 8 
+                                            }}
+                                            title="Copiar Chave"
+                                        >
+                                            <FiCopy size={18} />
+                                        </button>
+                                    </div>
+                                ))}
+                                {apiKeys.length === 0 && (
+                                    <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13, background: 'var(--bg-hover)', borderRadius: 8, border: '1px dashed var(--border)' }}>
+                                        Nenhuma chave de API gerada. Gere uma para começar a integrar.
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div style={{ marginTop: 32, padding: 20, background: 'rgba(59, 130, 246, 0.05)', borderRadius: 12, border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+                            <h4 style={{ fontSize: 14, fontWeight: 600, color: '#2563eb', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <FiCode /> Como integrar?
+                            </h4>
+                            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
+                                Use sua chave de API para gerar Pix em seus projetos externos. O dinheiro cairá na sua conta GouPay com o split já aplicado.
+                            </p>
+                            
+                            <div style={{ background: '#1e293b', padding: 16, borderRadius: 8, overflowX: 'auto' }}>
+                                <code style={{ color: '#e2e8f0', fontSize: 12, fontFamily: 'monospace', whiteSpace: 'pre' }}>
+{`// Exemplo de requisição (POST)
+const response = await fetch('https://www.goupay.com.br/api/v1/pix', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-api-key': 'SUA_CHAVE_AQUI'
+  },
+  body: JSON.stringify({
+    amount: 1000, // R$ 10,00 (em centavos)
+    description: "Venda Loja X",
+    customer: {
+      name: "Cliente Teste",
+      email: "cliente@email.com",
+      cpf: "12345678900"
+    }
+  })
+});
+
+const data = await response.json();
+console.log(data.pix.qr_code); // Pix Copia e Cola`}
+                                </code>
                             </div>
                         </div>
                     </div>
