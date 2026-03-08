@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GouPay - Teste de Integração</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h1 { font-size: 1.5rem; margin-bottom: 1.5rem; color: #1f2937; text-align: center; }
+        .input-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-size: 0.875rem; color: #4b5563; font-weight: 500; }
+        input { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        button { width: 100%; background: #2563eb; color: white; padding: 0.75rem; border: none; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #1d4ed8; }
+        button:disabled { background: #9ca3af; cursor: not-allowed; }
+        #result { margin-top: 1.5rem; border-top: 1px solid #e5e7eb; padding-top: 1.5rem; display: none; }
+        .qr-code { text-align: center; margin-bottom: 1rem; }
+        .qr-code img { max-width: 200px; }
+        .copy-paste { background: #f3f4f6; padding: 0.75rem; border-radius: 6px; word-break: break-all; font-family: monospace; font-size: 0.875rem; color: #374151; border: 1px dashed #d1d5db; }
+        .error { color: #dc2626; background: #fee2e2; padding: 0.75rem; border-radius: 6px; margin-top: 1rem; display: none; font-size: 0.875rem; }
+        .environment { margin-bottom: 1.5rem; padding: 0.75rem; background: #eff6ff; border-radius: 6px; font-size: 0.875rem; color: #1e40af; border: 1px solid #dbeafe; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Teste de Integração Pix</h1>
+        
+        <div class="input-group">
+            <label>Ambiente de Teste</label>
+            <select id="envSelect" style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem;">
+                <option value="prod">Produção (goupay.com.br)</option>
+                <option value="local">Local (localhost:3000)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Sua Chave de API (x-api-key)</label>
+            <input type="text" id="apiKey" placeholder="gou_live_..." required>
+        </div>
+
+        <div class="input-group">
+            <label>Valor (R$)</label>
+            <input type="number" id="amount" value="10.00" step="0.01">
+        </div>
+
+        <button id="payBtn" onclick="generatePix()">Gerar Pix de Teste</button>
+
+        <div id="error" class="error"></div>
+
+        <div id="result">
+            <div class="qr-code">
+                <img id="qrImage" src="" alt="QR Code Pix">
+            </div>
+            <label>Copia e Cola:</label>
+            <div class="copy-paste" id="copyPaste"></div>
+            <p style="text-align: center; font-size: 0.875rem; color: #6b7280; margin-top: 1rem;">
+                Abra seu app do banco e pague para testar o split.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        async function generatePix() {
+            const btn = document.getElementById('payBtn');
+            const env = document.getElementById('envSelect').value;
+            const apiKey = document.getElementById('apiKey').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const amountInCents = Math.round(amount * 100);
+
+            if (!apiKey) {
+                alert('Por favor, insira sua chave de API.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Gerando...';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('result').style.display = 'none';
+
+            try {
+                const baseUrl = env === 'local' ? 'http://localhost:3000' : 'https://www.goupay.com.br';
+                const endpoint = `${baseUrl}/api/v1/pix`;
+                
+                console.log('Enviando requisição para:', endpoint);
+                
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey
+                    },
+                    body: JSON.stringify({
+                        amount: amountInCents,
+                        description: "Teste de Integração via HTML",
+                        customer: {
+                            name: "Cliente Teste",
+                            email: "cliente.teste@exemplo.com",
+                            cpf: "12345678900",
+                            phone: "11999999999"
+                        }
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erro desconhecido ao processar pagamento');
+                }
+
+                if (data.pix) {
+                    const qrCodeUrl = data.pix.qr_code_url || `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.pix.qr_code)}`;
+                    document.getElementById('qrImage').src = qrCodeUrl;
+                    document.getElementById('copyPaste').textContent = data.pix.qr_code;
+                    document.getElementById('result').style.display = 'block';
+                } else {
+                    throw new Error('Dados do Pix não retornados pela API');
+                }
+
+            } catch (err) {
+                errorDiv.textContent = `Erro: ${err.message}`;
+                errorDiv.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Gerar Pix de Teste';
+            }
+        }
+    </script>
+</body>
+</html>
