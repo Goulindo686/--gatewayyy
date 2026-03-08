@@ -44,6 +44,12 @@
             <input type="number" id="amount" value="10.00" step="0.01">
         </div>
 
+        <div class="input-group">
+            <label>CPF do Cliente (Teste)</label>
+            <input type="text" id="cpf" value="06994324683" placeholder="CPF válido (apenas números)">
+            <small style="color: #666; display: block; margin-top: 5px;">Use um CPF válido real, senão o Pagar.me recusa.</small>
+        </div>
+
         <button id="payBtn" onclick="generatePix()">Gerar Pix de Teste</button>
 
         <div id="error" class="error"></div>
@@ -96,7 +102,7 @@
                         customer: {
                             name: "Cliente Teste",
                             email: "cliente.teste@exemplo.com",
-                            cpf: "06994324683", // CPF valido para teste
+                            cpf: document.getElementById('cpf').value.replace(/\D/g, ''), // CPF do input
                             phone: "11999999999"
                         }
                     })
