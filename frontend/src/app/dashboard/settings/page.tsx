@@ -207,7 +207,7 @@ export default function SettingsPage() {
                             <button 
                                 onClick={generateApiKey} 
                                 style={{ 
-                                    background: 'var(--primary)', 
+                                    background: '#2563eb', 
                                     color: 'white', 
                                     border: 'none', 
                                     padding: '8px 16px', 
