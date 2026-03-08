@@ -217,7 +217,8 @@ export default function SettingsPage() {
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: 6
+                                    gap: 6,
+                                    whiteSpace: 'nowrap'
                                 }}
                             >
                                 <FiPlus size={16} /> Gerar Nova Chave
@@ -275,8 +276,27 @@ export default function SettingsPage() {
                                     </div>
                                 ))}
                                 {apiKeys.length === 0 && (
-                                    <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13, background: 'var(--bg-hover)', borderRadius: 8, border: '1px dashed var(--border)' }}>
-                                        Nenhuma chave de API gerada. Gere uma para começar a integrar.
+                                    <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13, background: 'var(--bg-hover)', borderRadius: 8, border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                                        <p>Nenhuma chave de API gerada. Gere uma para começar a integrar.</p>
+                                        <button 
+                                            onClick={generateApiKey} 
+                                            style={{ 
+                                                background: '#2563eb', 
+                                                color: 'white', 
+                                                border: 'none', 
+                                                padding: '10px 20px', 
+                                                borderRadius: 8, 
+                                                fontSize: 14, 
+                                                fontWeight: 600, 
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 8,
+                                                boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
+                                            }}
+                                        >
+                                            <FiPlus size={18} /> Gerar Minha Primeira Chave
+                                        </button>
                                     </div>
                                 )}
                             </div>
