@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiSave, FiUser, FiCreditCard, FiKey, FiBell, FiCheckCircle, FiCode, FiCopy, FiPlus, FiGlobe } from 'react-icons/fi';
+import { FiSave, FiUser, FiCreditCard, FiKey, FiBell, FiCheckCircle, FiCode, FiCopy, FiPlus, FiGlobe, FiZap } from 'react-icons/fi';
 import axios from 'axios';
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [testingWebhook, setTestingWebhook] = useState(false);
     const [tab, setTab] = useState('profile');
     const [apiKeys, setApiKeys] = useState<any[]>([]);
     const [loadingKeys, setLoadingKeys] = useState(false);
@@ -55,6 +56,22 @@ export default function SettingsPage() {
         } catch (err: any) {
             console.error(err);
             toast.error(err.response?.data?.error || err.message || 'Erro ao gerar chave de API');
+        }
+    };
+
+    const testWebhook = async () => {
+        if (!form.webhook_url) return toast.error('Configure uma URL primeiro');
+        setTestingWebhook(true);
+        try {
+            const token = localStorage.getItem('token');
+            const { data } = await axios.post('/api/webhooks/test', {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success(data.message || 'Teste enviado com sucesso!');
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Erro ao testar webhook');
+        } finally {
+            setTestingWebhook(false);
         }
     };
 
@@ -332,6 +349,18 @@ export default function SettingsPage() {
                                         }}
                                     >
                                         <FiSave /> {saving ? 'Salvando...' : 'Salvar'}
+                                    </button>
+                                    <button 
+                                        onClick={testWebhook}
+                                        disabled={testingWebhook || !form.webhook_url}
+                                        style={{ 
+                                            background: form.webhook_url ? '#f59e0b' : '#d1d5db', color: 'white', border: 'none', 
+                                            borderRadius: 8, padding: '0 20px', cursor: form.webhook_url ? 'pointer' : 'not-allowed', fontWeight: 500,
+                                            display: 'flex', alignItems: 'center', gap: 8
+                                        }}
+                                        title="Enviar teste para o Webhook"
+                                    >
+                                        <FiZap /> {testingWebhook ? 'Enviando...' : 'Testar'}
                                     </button>
                                 </div>
                                 <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
