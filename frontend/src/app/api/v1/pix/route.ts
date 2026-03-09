@@ -79,6 +79,16 @@ export async function POST(req: NextRequest) {
             }
         } catch {}
 
+        // Helper to format currency
+        const formatCurrency = (cents: number) => {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(cents / 100);
+        };
+
+        const amountDisplay = formatCurrency(amount);
+
         // 6. Create Transaction on Pagar.me
         // PagarmeService.createOrder expects specific structure
         const orderData = {
@@ -170,6 +180,7 @@ export async function POST(req: NextRequest) {
             buyer_cpf: customer.cpf,
             buyer_phone: customer.phone,
             amount: amount,
+            amount_display: amountDisplay,
             payment_method: 'pix',
             status: 'pending',
             pagarme_order_id: pagarmeOrder.id,
@@ -194,6 +205,7 @@ export async function POST(req: NextRequest) {
             user_id: userId,
             order_id: orderId,
             amount: amount,
+            amount_display: amountDisplay,
             status: 'pending',
             type: 'api_sale',
             description: description || 'Venda via API',
