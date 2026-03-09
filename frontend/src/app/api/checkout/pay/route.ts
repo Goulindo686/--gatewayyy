@@ -93,6 +93,18 @@ export async function POST(req: NextRequest) {
         });
 
         const charge = pagarmeOrder.charges?.[0];
+
+        // --- ERROR DETECTION ---
+        if (charge?.status === 'failed' || pagarmeOrder.status === 'failed') {
+            const lastTransaction = charge?.last_transaction;
+            const gatewayErrors = lastTransaction?.gateway_response?.errors;
+            const msg = gatewayErrors?.map((e: any) => e.message).join('; ') || lastTransaction?.acquirer_message || 'Transação recusada.';
+            
+            console.error('Pagar.me Order Failed:', JSON.stringify(pagarmeOrder, null, 2));
+
+            return jsonError(`Pagamento Recusado: ${msg}`, 400);
+        }
+
         const orderId = uuidv4();
 
         let pix: { qr_code?: string; qr_code_url?: string; expires_at?: string } | null = null;
@@ -108,11 +120,14 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // Calculate amount display safely
+        const amountDisplay = product.price_display || (product.price / 100).toFixed(2);
+
         // Save order
         await supabase.from('orders').insert({
             id: orderId, seller_id: product.user_id, product_id: product.id,
             buyer_name: buyer.name, buyer_email: buyer.email, buyer_cpf: buyer.cpf,
-            amount: product.price, amount_display: product.price_display,
+            amount: product.price, // amount_display removed to prevent schema errors
             payment_method: normalizedPaymentMethod, status: charge?.status === 'paid' ? 'paid' : 'pending',
             pagarme_order_id: pagarmeOrder.id, pagarme_charge_id: charge?.id,
             pix_qr_code: pix?.qr_code,
@@ -124,7 +139,7 @@ export async function POST(req: NextRequest) {
         await supabase.from('transactions').insert({
             id: uuidv4(), user_id: product.user_id, order_id: orderId,
             type: 'sale', amount: product.price,
-            amount_display: product.price_display,
+            // amount_display removed to prevent schema errors
             status: charge?.status === 'paid' ? 'confirmed' : 'pending',
             description: `Venda: ${product.name}`
         });
@@ -201,7 +216,7 @@ export async function POST(req: NextRequest) {
 
         // Build response
         const response: any = {
-            order: { id: orderId, status: charge?.status || 'pending', amount_display: product.price_display }
+            order: { id: orderId, status: charge?.status || 'pending', amount_display: amountDisplay }
         };
 
         // If paid immediately, include auto-login token for buyer
@@ -242,7 +257,15 @@ export async function POST(req: NextRequest) {
         }, null, 2));
 
         // Return a more descriptive error if it's a Pagar.me validation error
-        const message = errorData.message || errorData.errors?.[0]?.message || 'Erro ao processar pagamento';
+        let message = 'Erro ao processar pagamento';
+        if (typeof errorData === 'string') {
+            message = errorData;
+        } else if (errorData?.message) {
+            message = errorData.message;
+        } else if (errorData?.errors?.[0]?.message) {
+            message = errorData.errors[0].message;
+        }
+        
         return jsonError(message, 500);
     }
 }
