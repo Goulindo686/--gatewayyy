@@ -107,6 +107,26 @@ if ($httpCode === 200) {
 }
 ?>`;
 
+    const exampleWebhook = `{
+  "event": "order.paid",
+  "data": {
+    "id": "8a40135d-e021-456d-a94f-3122c525d5d9",
+    "status": "paid",
+    "amount": 1000,
+    "amount_display": "10.00",
+    "description": "Venda #12345",
+    "payment_method": "pix",
+    "customer": {
+      "name": "João Silva",
+      "email": "joao@email.com",
+      "cpf": "12345678900",
+      "phone": "11999999999"
+    },
+    "created_at": "2023-10-27T10:00:00.000Z",
+    "updated_at": "2023-10-27T10:05:00.000Z"
+  }
+}`;
+
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-8 font-sans">
             <div className="max-w-4xl mx-auto">
@@ -209,6 +229,32 @@ if ($httpCode === 200) {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                <section className="mb-12 border-t border-gray-200 dark:border-gray-700 pt-8">
+                    <h2 className="text-2xl font-semibold mb-4 text-purple-600 dark:text-purple-400">6. Webhooks (Notificações)</h2>
+                    <p className="mb-4 text-gray-700 dark:text-gray-300">
+                        Configure uma URL de Webhook no seu painel para receber notificações automáticas sempre que uma venda mudar de status (paga, recusada, estornada).
+                    </p>
+                    
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 mb-6">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                            <strong>Como configurar:</strong> Vá em <em>Configurações &gt; API & Integração</em> e cole a URL do seu sistema que receberá o POST.
+                        </p>
+                    </div>
+
+                    <h3 className="text-lg font-medium mb-3">Payload enviado (POST JSON)</h3>
+                    <div className="relative">
+                        <pre className="bg-gray-800 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
+                            <code>{exampleWebhook}</code>
+                        </pre>
+                        <button 
+                            onClick={() => copyToClipboard(exampleWebhook, 'webhook')}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-white transition"
+                        >
+                            {copied === 'webhook' ? <FiCheck /> : <FiCopy />}
+                        </button>
                     </div>
                 </section>
             </div>
