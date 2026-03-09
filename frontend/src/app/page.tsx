@@ -283,14 +283,14 @@ export default function LandingPage() {
               </div>
             </div>
             <div style={{ position: 'relative' }} className="apiPreview">
-              <div style={{ borderRadius: 22, border: '1px solid var(--border-color)', background: 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(243,244,246,0.92) 100%)', overflow: 'hidden' }}>
+              <div style={{ borderRadius: 22, border: '1px solid var(--border-color)', background: 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(243,244,246,0.92) 100%)', overflow: 'hidden', width: '100%', boxSizing: 'border-box' }}>
                 <div style={{ padding: 18, borderBottom: '1px solid var(--border-color)', background: 'rgba(245,246,248,0.76)', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 10, height: 10, borderRadius: 999, background: '#ff5f56' }} />
                   <div style={{ width: 10, height: 10, borderRadius: 999, background: '#ffbd2e' }} />
                   <div style={{ width: 10, height: 10, borderRadius: 999, background: '#27c93f' }} />
                   <div style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-secondary)' }}>curl -X POST /api/v1/pix</div>
                 </div>
-                <pre style={{ padding: 16, margin: 0, fontSize: 12, overflow: 'auto', background: 'rgba(249,250,251,0.88)' }}>
+                <pre style={{ padding: 16, margin: 0, fontSize: 12, overflowX: 'auto', overflowY: 'hidden', background: 'rgba(249,250,251,0.88)', width: '100%', boxSizing: 'border-box', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
 {`POST ${typeof window !== 'undefined' ? window.location.origin : 'https://seu-dominio.com'}/api/v1/pix
 Headers:
   x-api-key: sk_live_...
@@ -720,6 +720,7 @@ Body:
           @media (max-width: 980px) {
             #api .apiGrid {
               grid-template-columns: 1fr !important;
+              gap: 18px !important;
             }
             #api .apiCopy {
               text-align: center;
@@ -743,6 +744,9 @@ Body:
             }
             #api .apiCopy p {
               font-size: 14px !important;
+            }
+            #api .apiPreview pre {
+              font-size: 11px !important;
             }
             #api .apiActions a {
               padding: 12px 16px !important;
