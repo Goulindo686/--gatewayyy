@@ -246,8 +246,8 @@ export default function LandingPage() {
       {/* API Pix */}
       <section id="api" style={{ padding: '20px 24px 80px', maxWidth: 1200, margin: '0 auto' }}>
         <div className="glass-card" style={{ padding: 48 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 32, alignItems: 'center' }}>
-            <div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 32, alignItems: 'center' }} className="apiGrid">
+            <div className="apiCopy">
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 999, background: 'rgba(108,92,231,0.10)', border: '1px solid rgba(108,92,231,0.18)', color: 'var(--accent-secondary)', fontSize: 12, fontWeight: 800, letterSpacing: 0.4, marginBottom: 14 }}>
                 API para Desenvolvedores
               </div>
@@ -257,7 +257,7 @@ export default function LandingPage() {
               <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.75, maxWidth: 640, marginBottom: 20 }}>
                 Gere Pix com QR Code via requisição HTTP e consulte o status em tempo real. Simples, seguro e com split automático.
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }} className="apiItems">
                 {[
                   { icon: <FiZap size={18} />, title: 'POST /api/v1/pix', desc: 'Crie um pedido Pix e receba QR Code e validade.' },
                   { icon: <FiLock size={18} />, title: 'GET /api/v1/pix/{id}', desc: 'Consulte status do pagamento com sua chave API.' },
@@ -273,7 +273,7 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }} className="apiActions">
                 <Link href="/docs" className="btn-primary" style={{ padding: '14px 28px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                   Ver documentação <FiArrowRight size={16} />
                 </Link>
@@ -282,7 +282,7 @@ export default function LandingPage() {
                 </Link>
               </div>
             </div>
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative' }} className="apiPreview">
               <div style={{ borderRadius: 22, border: '1px solid var(--border-color)', background: 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(243,244,246,0.92) 100%)', overflow: 'hidden' }}>
                 <div style={{ padding: 18, borderBottom: '1px solid var(--border-color)', background: 'rgba(245,246,248,0.76)', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 10, height: 10, borderRadius: 999, background: '#ff5f56' }} />
@@ -714,6 +714,39 @@ Body:
             .landingFooterBottom {
               justify-content: center !important;
               text-align: center;
+            }
+          }
+          /* API Pix responsive */
+          @media (max-width: 980px) {
+            #api .apiGrid {
+              grid-template-columns: 1fr !important;
+            }
+            #api .apiCopy {
+              text-align: center;
+            }
+            #api .apiItems {
+              grid-template-columns: 1fr !important;
+            }
+            #api .apiActions {
+              justify-content: center;
+            }
+            #api .apiPreview {
+              margin-top: 18px;
+            }
+          }
+          @media (max-width: 640px) {
+            #api .glass-card {
+              padding: 24px !important;
+            }
+            #api .apiCopy h2 {
+              font-size: 28px !important;
+            }
+            #api .apiCopy p {
+              font-size: 14px !important;
+            }
+            #api .apiActions a {
+              padding: 12px 16px !important;
+              font-size: 13px !important;
             }
           }
         `}</style>
