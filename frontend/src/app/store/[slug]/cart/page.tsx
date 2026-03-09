@@ -28,37 +28,7 @@ export default function CartPage() {
     });
     const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card'>('pix');
     const [loading, setLoading] = useState(false);
-    const [address, setAddress] = useState({
-        cep: '',
-        street: '',
-        number: '',
-        complement: '',
-        neighborhood: '',
-        city: '',
-        state: ''
-    });
-
-    const handleCepLookup = async (cep: string) => {
-        const cleanCep = cep.replace(/\D/g, '');
-        setAddress(prev => ({ ...prev, cep: cleanCep }));
-        if (cleanCep.length === 8) {
-            try {
-                const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
-                const data = await response.json();
-                if (!data.erro) {
-                    setAddress(prev => ({
-                        ...prev,
-                        street: data.logradouro,
-                        neighborhood: data.bairro,
-                        city: data.localidade,
-                        state: data.uf
-                    }));
-                }
-            } catch (err) {
-                console.error('CEP lookup error:', err);
-            }
-        }
-    };
+    // Endereço removido: não obrigatório na integração atual
 
     const formatCardNumber = (value: string) => {
         const digits = value.replace(/\D/g, '');
@@ -83,17 +53,7 @@ export default function CartPage() {
                     name,
                     email,
                     cpf,
-                    phone,
-                    address: {
-                        line_1: `${address.street}, ${address.number}${address.complement ? ', ' + address.complement : ''}`,
-                        zip_code: address.cep.replace(/\D/g, ''),
-                        city: address.city,
-                        state: address.state,
-                        country: 'BR',
-                        street: address.street,
-                        number: address.number,
-                        neighborhood: address.neighborhood
-                    }
+                    phone
                 },
                 items: items.map(i => ({ id: i.id, quantity: i.quantity, price: i.price, name: i.name })),
                 payment_method: methodToSend,
@@ -228,73 +188,7 @@ export default function CartPage() {
                                 </div>
                             </div>
 
-                            <div style={{ marginTop: 24, padding: 20, background: 'rgba(255,255,255,0.02)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.05)' }}>
-                                <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: '#00cec9' }}>Endereço de Cobrança (Obrigatório para Produção)</h3>
-
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12, marginBottom: 16 }} className="storeCartGrid2">
-                                    <div>
-                                        <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 6 }}>CEP</label>
-                                        <input
-                                            placeholder="00000-000"
-                                            value={address.cep}
-                                            onChange={e => handleCepLookup(e.target.value)}
-                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '12px 14px', color: 'white', boxSizing: 'border-box' }}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 6 }}>Rua</label>
-                                        <input
-                                            placeholder="Av. Brasil"
-                                            value={address.street}
-                                            onChange={e => setAddress({ ...address, street: e.target.value })}
-                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '12px 14px', color: 'white', boxSizing: 'border-box' }}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12, marginBottom: 16 }} className="storeCartGrid2">
-                                    <div>
-                                        <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 6 }}>Número</label>
-                                        <input
-                                            placeholder="123"
-                                            value={address.number}
-                                            onChange={e => setAddress({ ...address, number: e.target.value })}
-                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '12px 14px', color: 'white', boxSizing: 'border-box' }}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 6 }}>Bairro</label>
-                                        <input
-                                            placeholder="Centro"
-                                            value={address.neighborhood}
-                                            onChange={e => setAddress({ ...address, neighborhood: e.target.value })}
-                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '12px 14px', color: 'white', boxSizing: 'border-box' }}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }} className="storeCartGrid2">
-                                    <div>
-                                        <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 6 }}>Cidade</label>
-                                        <input
-                                            placeholder="São Paulo"
-                                            value={address.city}
-                                            onChange={e => setAddress({ ...address, city: e.target.value })}
-                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '12px 14px', color: 'white', boxSizing: 'border-box' }}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 6 }}>UF</label>
-                                        <input
-                                            placeholder="SP"
-                                            maxLength={2}
-                                            value={address.state}
-                                            onChange={e => setAddress({ ...address, state: e.target.value.toUpperCase() })}
-                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '12px 14px', color: 'white', boxSizing: 'border-box' }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
+                            {/* Endereço removido: não obrigatório na integração atual */}
 
                             {/* Credit Card Fields */}
                             {enableCreditCard && paymentMethod === 'card' && (
