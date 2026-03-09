@@ -20,6 +20,7 @@ export async function OPTIONS() {
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
+        const lookupId = String(id || '').trim();
 
         const apiKey = req.headers.get('x-api-key') || req.headers.get('authorization')?.replace('Bearer ', '');
         if (!apiKey) return jsonError('Chave de API não fornecida (Header: x-api-key)', 401);
@@ -33,13 +34,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         if (keyError || !keyRecord) return jsonError('Chave de API inválida', 401);
         if (!keyRecord.is_active) return jsonError('Chave de API inativa', 403);
 
-        const { data: transaction } = await supabase
-            .from('transactions')
-            .select('id, status, amount, description, payment_method, pagarme_id, customer_name, customer_email, created_at')
-            .eq('id', id)
-            .eq('user_id', keyRecord.user_id)
-            .eq('type', 'api_sale')
-            .single();
+        let transaction: any = null;
+
+        {
+            const { data: tx } = await supabase
+                .from('transactions')
+                .select('id, status, amount, description, payment_method, pagarme_id, customer_name, customer_email, created_at')
+                .eq('id', lookupId)
+                .eq('user_id', keyRecord.user_id)
+                .eq('type', 'api_sale')
+                .single();
+            if (tx) transaction = tx;
+        }
+
+        if (!transaction) {
+            const { data: tx } = await supabase
+                .from('transactions')
+                .select('id, status, amount, description, payment_method, pagarme_id, customer_name, customer_email, created_at')
+                .eq('pagarme_id', lookupId)
+                .eq('user_id', keyRecord.user_id)
+                .eq('type', 'api_sale')
+                .single();
+            if (tx) transaction = tx;
+        }
 
         if (!transaction) return jsonError('Transação não encontrada', 404);
 
