@@ -178,7 +178,7 @@ export default function SettingsPage() {
                 ))}
             </div>
 
-            <div className="glass-card" style={{ padding: 32, maxWidth: 600 }}>
+            <div className={`glass-card ${tab === 'api' ? 'settings-api' : ''}`} style={{ padding: 32, maxWidth: 600, margin: '0 auto' }}>
                 {tab === 'profile' && (
                     <div>
                         <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 20 }}>Informações Pessoais</h3>
@@ -221,7 +221,7 @@ export default function SettingsPage() {
 
                 {tab === 'api' && (
                     <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                        <div className="api-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                             <h3 style={{ fontSize: 16, fontWeight: 600 }}>Chaves de API</h3>
                             <button 
                                 onClick={generateApiKey} 
@@ -247,9 +247,9 @@ export default function SettingsPage() {
                         {loadingKeys ? (
                             <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Carregando chaves...</p>
                         ) : (
-                            <div style={{ display: 'grid', gap: 12 }}>
+                            <div className="api-keys-list" style={{ display: 'grid', gap: 12 }}>
                                 {apiKeys.map(key => (
-                                    <div key={key.id} style={{ 
+                                    <div key={key.id} className="api-key-row" style={{ 
                                         padding: 16, 
                                         background: 'var(--bg-hover)', 
                                         borderRadius: 8, 
@@ -332,7 +332,7 @@ export default function SettingsPage() {
                             
                             <div>
                                 <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>URL do Webhook</label>
-                                <div style={{ display: 'flex', gap: 8 }}>
+                                <div className="webhook-row" style={{ display: 'flex', gap: 8 }}>
                                     <input 
                                         className="input-field" 
                                         placeholder="https://seu-sistema.com/webhook" 
@@ -377,7 +377,7 @@ export default function SettingsPage() {
                                 Use sua chave de API para gerar Pix em seus projetos externos. O dinheiro cairá na sua conta GouPay com o split já aplicado.
                             </p>
                             
-                            <div style={{ background: '#1e293b', padding: 16, borderRadius: 8, overflowX: 'auto' }}>
+                            <div className="integration-code" style={{ background: '#1e293b', padding: 16, borderRadius: 8, overflowX: 'auto' }}>
                                 <code style={{ color: '#e2e8f0', fontSize: 12, fontFamily: 'monospace', whiteSpace: 'pre' }}>
 {`// Exemplo de requisição (POST)
 const response = await fetch('https://www.goupay.com.br/api/v1/pix', {
@@ -508,6 +508,21 @@ console.log(data.pix.qr_code); // Pix Copia e Cola`}
                     <FiSave size={16} /> {saving ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
             </div>
+            <style jsx global>{`
+              @media (max-width: 768px) {
+                .settings-api { width: 90% !important; }
+                .api-header { flex-direction: column !important; gap: 12px !important; align-items: stretch !important; }
+                .api-header h3 { text-align: center !important; }
+                .api-keys-list { max-width: 640px; margin: 0 auto; }
+                .api-key-row { flex-direction: column !important; gap: 10px !important; align-items: stretch !important; }
+                .api-key-row > div { width: 100% !important; }
+                .api-key-row > button { align-self: center !important; }
+                .webhook-row { flex-direction: column !important; }
+                .webhook-row .input-field { width: 100% !important; }
+                .webhook-row button { width: 100% !important; justify-content: center !important; }
+                .integration-code code { font-size: 11px !important; }
+              }
+            `}</style>
         </div>
     );
 }
