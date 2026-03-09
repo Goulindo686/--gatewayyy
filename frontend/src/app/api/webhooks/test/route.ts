@@ -14,8 +14,10 @@ export async function POST(req: NextRequest) {
 
     const payload = {
         event: 'test.notification',
+        id: 'test_transaction_123', // Alguns sistemas buscam ID na raiz
         data: {
             id: 'test_transaction_123',
+            transaction_id: 'test_transaction_123', // Compatibilidade extra
             status: 'paid',
             amount: 1000,
             amount_display: '10.00',

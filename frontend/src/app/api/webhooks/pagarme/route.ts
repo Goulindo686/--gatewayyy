@@ -198,6 +198,7 @@ export async function POST(req: NextRequest) {
                         event: `order.${newStatus}`,
                         data: {
                             id: order.id,
+                            transaction_id: order.id, // Adicionado para compatibilidade
                             status: newStatus,
                             amount: order.amount,
                             amount_display: (order.amount / 100).toFixed(2),
