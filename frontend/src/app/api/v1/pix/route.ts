@@ -161,10 +161,10 @@ export async function POST(req: NextRequest) {
         const transactionId = uuidv4();
 
         // 8.1 Create Order
-        const { error: orderError } = await supabase.from('orders').insert({
+        const orderPayload: any = {
             id: orderId,
             seller_id: userId,
-            product_id: null, // API sale has no specific product
+            // product_id omitido pois é API Sale
             buyer_name: customer.name,
             buyer_email: customer.email,
             buyer_cpf: customer.cpf,
@@ -177,11 +177,15 @@ export async function POST(req: NextRequest) {
             pix_qr_code: pixData.qr_code,
             pix_qr_code_url: pixData.qr_code_url,
             pix_expires_at: pixData.expires_at
-        });
+        };
+
+        console.log('Inserting Order:', JSON.stringify(orderPayload, null, 2));
+
+        const { error: orderError } = await supabase.from('orders').insert(orderPayload);
 
         if (orderError) {
             console.error('CRITICAL ERROR: Failed to save API order:', orderError);
-            return jsonError('Erro interno ao salvar pedido. Contate o suporte.', 500);
+            return jsonError(`Erro interno ao salvar pedido: ${orderError.message} (Code: ${orderError.code})`, 500);
         }
 
         // 8.2 Create Transaction
@@ -199,7 +203,7 @@ export async function POST(req: NextRequest) {
         if (insertError) {
             console.error('CRITICAL ERROR: Failed to save API transaction:', insertError);
             console.error('Transaction details:', { orderId, userId, amount, pagarme_id: pagarmeOrder.id });
-            return jsonError('Erro interno: Pagamento criado mas falha ao registrar transação. Contate o suporte.', 500);
+            return jsonError(`Erro interno ao salvar transação: ${insertError.message}`, 500);
         }
 
         return jsonResponse({
