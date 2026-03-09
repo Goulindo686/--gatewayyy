@@ -137,7 +137,7 @@ export default function SettingsPage() {
             <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 28 }}>Configurações</h1>
 
             {/* Tabs */}
-            <div style={{ 
+            <div className="settings-tabs" style={{ 
                 display: 'flex', 
                 gap: 4, 
                 marginBottom: 28, 
@@ -147,14 +147,8 @@ export default function SettingsPage() {
                 width: '100%',
                 overflowX: 'auto',
                 whiteSpace: 'nowrap',
-                scrollbarWidth: 'none', // Firefox
-                msOverflowStyle: 'none' // IE/Edge
+                /* hide scrollbar via CSS below */
             }}>
-                <style jsx>{`
-                    div::-webkit-scrollbar {
-                        display: none;
-                    }
-                `}</style>
                 {tabs.map(t => (
                     <button key={t.key} onClick={() => setTab(t.key)} style={{
                         padding: '10px 20px', 
@@ -522,6 +516,9 @@ console.log(data.pix.qr_code); // Pix Copia e Cola`}
                 .webhook-row button { width: 100% !important; justify-content: center !important; }
                 .integration-code code { font-size: 11px !important; }
               }
+              /* hide scrollbar across browsers */
+              .settings-tabs { -ms-overflow-style: none; scrollbar-width: none; }
+              .settings-tabs::-webkit-scrollbar { display: none; }
             `}</style>
         </div>
     );
