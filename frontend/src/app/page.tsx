@@ -109,6 +109,7 @@ export default function LandingPage() {
                   {[
                     { href: '#inicio', label: 'Início' },
                     { href: '#features', label: 'Recursos' },
+                    { href: '#api', label: 'API Pix' },
                     { href: '#loja', label: 'Loja' },
                     { href: '#footer', label: 'Sobre nós' },
                   ].map((item) => (
@@ -239,6 +240,69 @@ export default function LandingPage() {
               <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.7 }}>{feature.desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* API Pix */}
+      <section id="api" style={{ padding: '20px 24px 80px', maxWidth: 1200, margin: '0 auto' }}>
+        <div className="glass-card" style={{ padding: 48 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 32, alignItems: 'center' }}>
+            <div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 999, background: 'rgba(108,92,231,0.10)', border: '1px solid rgba(108,92,231,0.18)', color: 'var(--accent-secondary)', fontSize: 12, fontWeight: 800, letterSpacing: 0.4, marginBottom: 14 }}>
+                API para Desenvolvedores
+              </div>
+              <h2 style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.15, letterSpacing: -1.0, marginBottom: 12 }}>
+                Integre a <span className="gradient-text">API Pix</span> ao seu sistema
+              </h2>
+              <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.75, maxWidth: 640, marginBottom: 20 }}>
+                Gere Pix com QR Code via requisição HTTP e consulte o status em tempo real. Simples, seguro e com split automático.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
+                {[
+                  { icon: <FiZap size={18} />, title: 'POST /api/v1/pix', desc: 'Crie um pedido Pix e receba QR Code e validade.' },
+                  { icon: <FiLock size={18} />, title: 'GET /api/v1/pix/{id}', desc: 'Consulte status do pagamento com sua chave API.' },
+                ].map((item, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 12, padding: 16, borderRadius: 16, border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.75)' }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 12, background: 'rgba(108,92,231,0.14)', color: 'var(--accent-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {item.icon}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, color: 'var(--text-primary)' }}>{item.title}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{item.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                <Link href="/docs" className="btn-primary" style={{ padding: '14px 28px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  Ver documentação <FiArrowRight size={16} />
+                </Link>
+                <Link href="/register" className="btn-secondary" style={{ padding: '14px 28px', fontSize: 14 }}>
+                  Gerar chave da API
+                </Link>
+              </div>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <div style={{ borderRadius: 22, border: '1px solid var(--border-color)', background: 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(243,244,246,0.92) 100%)', overflow: 'hidden' }}>
+                <div style={{ padding: 18, borderBottom: '1px solid var(--border-color)', background: 'rgba(245,246,248,0.76)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: 999, background: '#ff5f56' }} />
+                  <div style={{ width: 10, height: 10, borderRadius: 999, background: '#ffbd2e' }} />
+                  <div style={{ width: 10, height: 10, borderRadius: 999, background: '#27c93f' }} />
+                  <div style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-secondary)' }}>curl -X POST /api/v1/pix</div>
+                </div>
+                <pre style={{ padding: 16, margin: 0, fontSize: 12, overflow: 'auto', background: 'rgba(249,250,251,0.88)' }}>
+{`POST ${typeof window !== 'undefined' ? window.location.origin : 'https://seu-dominio.com'}/api/v1/pix
+Headers:
+  x-api-key: sk_live_...
+Body:
+{
+  "amount": 1000,
+  "customer": { "name": "Cliente", "email": "cliente@email.com", "cpf": "00000000000" }
+}`}
+                </pre>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
