@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
 
     // Recent orders
     const { data: recent_orders_raw } = await supabase
-        .from('orders').select('id, buyer_name, amount, amount_display, payment_method, status, created_at, description, products(name)')
+        .from('orders').select('id, product_id, buyer_name, amount, amount_display, payment_method, status, created_at, products(name)')
         .eq('seller_id', userId).order('created_at', { ascending: false }).limit(10);
 
     return jsonSuccess({
@@ -103,7 +103,7 @@ export async function GET(req: NextRequest) {
         recent_orders: (recent_orders_raw || []).map((o: any) => ({
             ...o,
             amount_display: o.amount_display || (o.amount !== undefined ? (o.amount / 100).toFixed(2) : '0.00'),
-            product_name: o.products?.name || o.description || (o.payment_method === 'pix' ? 'API Pix' : '—')
+            product_name: o.products?.name || (!o.product_id && o.payment_method === 'pix' ? 'API Pix' : '—')
         }))
     });
 }
