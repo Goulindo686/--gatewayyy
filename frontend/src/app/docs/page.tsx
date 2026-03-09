@@ -1,11 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { FiCopy, FiCheck, FiCode, FiArrowLeft } from 'react-icons/fi';
 
 export default function DocsPage() {
     const [copied, setCopied] = useState('');
+    const [baseUrl, setBaseUrl] = useState('https://seu-dominio.com');
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setBaseUrl(window.location.origin);
+        }
+    }, []);
 
     const copyToClipboard = (text: string, id: string) => {
         navigator.clipboard.writeText(text);
@@ -13,7 +20,7 @@ export default function DocsPage() {
         setTimeout(() => setCopied(''), 2000);
     };
 
-    const endpoint = 'https://seu-dominio.com/api/v1/pix';
+    const endpoint = `${baseUrl}/api/v1/pix`;
 
     const exampleJson = `{
   "amount": 1000,
