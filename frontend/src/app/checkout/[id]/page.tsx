@@ -305,7 +305,7 @@ export default function CheckoutPage() {
             {/* Banner */}
             {(settings.banner_url || settings.banner_text) && (
                 <div style={{
-                    height: settings.banner_url ? 160 : 'auto', position: 'relative',
+                    height: settings.banner_url ? 300 : 'auto', position: 'relative',
                     background: settings.banner_url ? `url(${settings.banner_url}) center/cover no-repeat` : `linear-gradient(135deg, ${accent}44, ${accent}11)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}>

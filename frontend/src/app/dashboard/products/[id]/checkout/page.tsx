@@ -314,7 +314,7 @@ export default function CheckoutCustomizationPage() {
                         {/* Banner Preview */}
                         {(settings.banner_url || settings.banner_text) && (
                             <div style={{
-                                height: settings.banner_url ? 120 : 'auto', position: 'relative',
+                                height: settings.banner_url ? 220 : 'auto', position: 'relative',
                                 background: settings.banner_url ? `url(${settings.banner_url}) center/cover no-repeat` : `linear-gradient(135deg, ${settings.accent_color}44, ${settings.accent_color}11)`,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center'
                             }}>
