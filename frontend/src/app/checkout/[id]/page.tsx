@@ -19,6 +19,11 @@ const DEFAULT_SETTINGS = {
     notice_type: 'warning',
     accent_color: '#6C5CE7',
     hide_product_image: false,
+    banner_mode_desktop: 'cover',
+    banner_mode_mobile: 'contain',
+    banner_height_desktop: 300,
+    banner_height_mobile: 200,
+    banner_position: 'center',
 };
 
 export default function CheckoutPage() {
@@ -176,6 +181,11 @@ export default function CheckoutPage() {
         info: { bg: 'rgba(116,185,255,0.12)', border: 'rgba(116,185,255,0.3)', text: '#74B9FF' },
         success: { bg: 'rgba(85,239,196,0.12)', border: 'rgba(85,239,196,0.3)', text: '#55EFC4' },
     };
+    const bannerModeDesktop = settings.banner_mode_desktop === 'contain' ? 'contain' : 'cover';
+    const bannerModeMobile = settings.banner_mode_mobile === 'contain' ? 'contain' : 'cover';
+    const bannerPos = settings.banner_position || 'center';
+    const bannerHeightDesktop = settings.banner_height_desktop || 300;
+    const bannerHeightMobile = settings.banner_height_mobile || 200;
 
     if (loading) {
         return (
@@ -305,8 +315,8 @@ export default function CheckoutPage() {
             {/* Banner */}
             {(settings.banner_url || settings.banner_text) && (
                 <div className="checkoutBanner" style={{
-                    height: settings.banner_url ? 300 : 'auto', position: 'relative',
-                    background: settings.banner_url ? `url(${settings.banner_url}) center/cover no-repeat` : `linear-gradient(135deg, ${accent}44, ${accent}11)`,
+                    height: settings.banner_url ? bannerHeightDesktop : 'auto', position: 'relative',
+                    background: settings.banner_url ? `url(${settings.banner_url}) ${bannerPos}/${bannerModeDesktop} no-repeat` : `linear-gradient(135deg, ${accent}44, ${accent}11)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}>
                     {settings.banner_url && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />}
@@ -504,9 +514,9 @@ export default function CheckoutPage() {
                         height: 160px !important;
                     }
                     .checkoutBanner {
-                        height: 200px !important;
-                        background-size: contain !important;
-                        background-position: center !important;
+                        height: ${bannerHeightMobile}px !important;
+                        background-size: ${bannerModeMobile} !important;
+                        background-position: ${bannerPos} !important;
                         background-repeat: no-repeat !important;
                     }
                     .checkoutCardBody {

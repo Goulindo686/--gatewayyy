@@ -21,6 +21,11 @@ const DEFAULT_SETTINGS = {
     notice_type: 'warning',
     accent_color: '#6C5CE7',
     hide_product_image: false,
+    banner_mode_desktop: 'cover',
+    banner_mode_mobile: 'contain',
+    banner_height_desktop: 300,
+    banner_height_mobile: 200,
+    banner_position: 'center',
 };
 
 export default function CheckoutCustomizationPage() {
@@ -220,6 +225,77 @@ export default function CheckoutCustomizationPage() {
                             <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Texto sobreposto</label>
                             <input className="input-field" placeholder="Ex: Oferta Especial!" value={settings.banner_text} onChange={e => update('banner_text', e.target.value)} />
                         </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+                            <div>
+                                <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Altura (desktop, px)</label>
+                                <input type="number" min={120} max={600} className="input-field"
+                                    value={settings.banner_height_desktop}
+                                    onChange={e => update('banner_height_desktop', Math.max(120, Math.min(600, parseInt(e.target.value || '0'))))} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Altura (mobile, px)</label>
+                                <input type="number" min={120} max={400} className="input-field"
+                                    value={settings.banner_height_mobile}
+                                    onChange={e => update('banner_height_mobile', Math.max(120, Math.min(400, parseInt(e.target.value || '0'))))} />
+                            </div>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+                            <div>
+                                <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Modo (desktop)</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                                    {[
+                                        { key: 'cover', label: 'Preencher' },
+                                        { key: 'contain', label: 'Completo' },
+                                    ].map(opt => (
+                                        <button key={opt.key} onClick={() => update('banner_mode_desktop', opt.key)} style={{
+                                            padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                                            background: settings.banner_mode_desktop === opt.key ? `${settings.accent_color}22` : 'var(--bg-secondary)',
+                                            border: `1px solid ${settings.banner_mode_desktop === opt.key ? settings.accent_color : 'var(--border-color)'}`,
+                                            color: settings.banner_mode_desktop === opt.key ? settings.accent_color : 'var(--text-muted)',
+                                        }}>
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Modo (mobile)</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                                    {[
+                                        { key: 'contain', label: 'Completo' },
+                                        { key: 'cover', label: 'Preencher' },
+                                    ].map(opt => (
+                                        <button key={opt.key} onClick={() => update('banner_mode_mobile', opt.key)} style={{
+                                            padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                                            background: settings.banner_mode_mobile === opt.key ? `${settings.accent_color}22` : 'var(--bg-secondary)',
+                                            border: `1px solid ${settings.banner_mode_mobile === opt.key ? settings.accent_color : 'var(--border-color)'}`,
+                                            color: settings.banner_mode_mobile === opt.key ? settings.accent_color : 'var(--text-muted)',
+                                        }}>
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ marginTop: 12 }}>
+                            <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Posição</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                                {[
+                                    { key: 'top', label: 'Topo' },
+                                    { key: 'center', label: 'Centro' },
+                                    { key: 'bottom', label: 'Base' },
+                                ].map(opt => (
+                                    <button key={opt.key} onClick={() => update('banner_position', opt.key)} style={{
+                                        padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                                        background: settings.banner_position === opt.key ? `${settings.accent_color}22` : 'var(--bg-secondary)',
+                                        border: `1px solid ${settings.banner_position === opt.key ? settings.accent_color : 'var(--border-color)'}`,
+                                        color: settings.banner_position === opt.key ? settings.accent_color : 'var(--text-muted)',
+                                    }}>
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Countdown */}
@@ -314,8 +390,8 @@ export default function CheckoutCustomizationPage() {
                         {/* Banner Preview */}
                         {(settings.banner_url || settings.banner_text) && (
                             <div className="checkoutBannerPreview" style={{
-                                height: settings.banner_url ? 220 : 'auto', position: 'relative',
-                                background: settings.banner_url ? `url(${settings.banner_url}) center/cover no-repeat` : `linear-gradient(135deg, ${settings.accent_color}44, ${settings.accent_color}11)`,
+                                height: settings.banner_url ? (settings.banner_height_desktop || 220) : 'auto', position: 'relative',
+                                background: settings.banner_url ? `url(${settings.banner_url}) ${(settings.banner_position || 'center')}/${settings.banner_mode_desktop === 'contain' ? 'contain' : 'cover'} no-repeat` : `linear-gradient(135deg, ${settings.accent_color}44, ${settings.accent_color}11)`,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center'
                             }}>
                                 {settings.banner_text && (
@@ -386,9 +462,9 @@ export default function CheckoutCustomizationPage() {
                 .input-field:focus { border-color: ${settings.accent_color} !important; }
                 @media (max-width: 640px) {
                     .checkoutBannerPreview {
-                        height: 200px !important;
-                        background-size: contain !important;
-                        background-position: center !important;
+                        height: ${(settings.banner_height_mobile || 200)}px !important;
+                        background-size: ${settings.banner_mode_mobile === 'contain' ? 'contain' : 'cover'} !important;
+                        background-position: ${settings.banner_position || 'center'} !important;
                         background-repeat: no-repeat !important;
                     }
                 }
