@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
     show_countdown: false,
     countdown_minutes: 15,
     countdown_text: 'Oferta expira em:',
+    countdown_color: '#6C5CE7',
     notice_text: '',
     notice_type: 'warning',
     accent_color: '#6C5CE7',
@@ -277,25 +278,7 @@ export default function CheckoutCustomizationPage() {
                                 </div>
                             </div>
                         </div>
-                        <div style={{ marginTop: 12 }}>
-                            <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Posição</label>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-                                {[
-                                    { key: 'top', label: 'Topo' },
-                                    { key: 'center', label: 'Centro' },
-                                    { key: 'bottom', label: 'Base' },
-                                ].map(opt => (
-                                    <button key={opt.key} onClick={() => update('banner_position', opt.key)} style={{
-                                        padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 600,
-                                        background: settings.banner_position === opt.key ? `${settings.accent_color}22` : 'var(--bg-secondary)',
-                                        border: `1px solid ${settings.banner_position === opt.key ? settings.accent_color : 'var(--border-color)'}`,
-                                        color: settings.banner_position === opt.key ? settings.accent_color : 'var(--text-muted)',
-                                    }}>
-                                        {opt.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                        {/* Seção de Posição removida conforme solicitado */}
                     </div>
 
                     {/* Countdown */}
@@ -329,6 +312,23 @@ export default function CheckoutCustomizationPage() {
                                 <div>
                                     <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Minutos</label>
                                     <input type="number" className="input-field" min={1} max={60} value={settings.countdown_minutes} onChange={e => update('countdown_minutes', parseInt(e.target.value) || 15)} />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Cor do contador</label>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                        <input type="color" value={settings.countdown_color} onChange={e => update('countdown_color', e.target.value)}
+                                            style={{ width: 40, height: 40, border: 'none', borderRadius: 8, cursor: 'pointer', background: 'none' }} />
+                                        <input className="input-field" value={settings.countdown_color} onChange={e => update('countdown_color', e.target.value)}
+                                            style={{ flex: 1, fontFamily: 'monospace' }} />
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                                        {['#6C5CE7', '#00CEC9', '#E17055', '#00B894', '#FDCB6E', '#E84393', '#0984E3', '#FF6B6B', '#222222'].map(c => (
+                                            <button key={c} onClick={() => update('countdown_color', c)} style={{
+                                                width: 24, height: 24, borderRadius: 6, border: settings.countdown_color === c ? '2px solid white' : '2px solid transparent',
+                                                background: c, cursor: 'pointer', transition: 'transform 0.15s'
+                                            }} />
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -378,7 +378,7 @@ export default function CheckoutCustomizationPage() {
                         {/* Countdown Preview */}
                         {settings.show_countdown && (
                             <div style={{
-                                background: settings.accent_color, color: 'white', padding: '8px 16px',
+                                background: settings.countdown_color || settings.accent_color, color: 'white', padding: '8px 16px',
                                 textAlign: 'center', fontSize: 12, fontWeight: 600,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
                             }}>
@@ -470,7 +470,7 @@ export default function CheckoutCustomizationPage() {
                     .checkoutBannerPreview {
                         height: ${(settings.banner_height_mobile || 200)}px !important;
                         background-size: ${settings.banner_mode_mobile === 'contain' ? 'contain' : 'cover'} !important;
-                        background-position: ${settings.banner_position || 'center'} !important;
+                        background-position: center !important;
                         background-repeat: no-repeat !important;
                     }
                 }

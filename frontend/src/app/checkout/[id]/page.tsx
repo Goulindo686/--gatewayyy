@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS = {
     show_countdown: false,
     countdown_minutes: 15,
     countdown_text: 'Oferta expira em:',
+    countdown_color: '#6C5CE7',
     notice_text: '',
     notice_type: 'warning',
     accent_color: '#6C5CE7',
@@ -175,6 +176,7 @@ export default function CheckoutPage() {
     const textMuted = isLight ? '#888' : 'var(--text-muted)';
     const inputBg = isLight ? '#fff' : 'var(--bg-secondary)';
     const accent = settings.accent_color || '#6C5CE7';
+    const countdownColor = settings.countdown_color || accent;
 
     const noticeColors: any = {
         warning: { bg: 'rgba(253,203,110,0.12)', border: 'rgba(253,203,110,0.3)', text: '#FDCB6E' },
@@ -296,7 +298,7 @@ export default function CheckoutPage() {
             {/* Countdown Timer */}
             {settings.show_countdown && timerSeconds > 0 && (
                 <div style={{
-                    background: accent, color: 'white', padding: '10px 16px',
+                    background: countdownColor, color: 'white', padding: '10px 16px',
                     textAlign: 'center', fontSize: 14, fontWeight: 600,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                     position: 'sticky', top: 0, zIndex: 50
