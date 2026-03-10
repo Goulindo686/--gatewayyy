@@ -48,7 +48,7 @@ class PagarmeService {
      */
     async createMultiItemOrder({ items, buyer, paymentMethod, cardData, sellerId, platformRecipientId, sellerRecipientId, feePercentage }) {
         try {
-            const sellerPercentage = 100 - feePercentage;
+            const sellerPercentage = Math.max(0, Math.min(100, 100 - (feePercentage || 0)));
 
             const orderData = {
                 items: items.map(item => ({
@@ -73,29 +73,29 @@ class PagarmeService {
                 payments: []
             };
 
-            // Setup split rules ONLY if both IDs exist
-            const shouldSplit = platformRecipientId && sellerRecipientId && feePercentage > 0 && platformRecipientId !== sellerRecipientId;
-            const splitRules = shouldSplit ? [
+            const hasSellerRecipient = !!sellerRecipientId;
+            const includePlatformFee = !!(platformRecipientId && (feePercentage || 0) > 0 && platformRecipientId !== sellerRecipientId);
+            const splitRules = hasSellerRecipient ? [
                 {
                     amount: sellerPercentage,
                     recipient_id: sellerRecipientId,
                     type: 'percentage',
                     options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true }
                 },
-                {
+                ...(includePlatformFee ? [{
                     amount: feePercentage,
                     recipient_id: platformRecipientId,
                     type: 'percentage',
                     options: { charge_processing_fee: false, liable: false }
-                }
+                }] : [])
             ] : undefined;
 
             console.log('[BACKEND PAGARME] MultiItem Split:', {
-                shouldSplit,
+                sellerPercentage,
                 platformRecipientId,
                 sellerRecipientId,
                 feePercentage,
-                sellerPercentage
+                includePlatformFee
             });
 
             // Add payment method
@@ -143,7 +143,7 @@ class PagarmeService {
      */
     async createOrder({ product, buyer, paymentMethod, cardData, sellerId, platformRecipientId, sellerRecipientId, feePercentage }) {
         try {
-            const sellerPercentage = 100 - (feePercentage || 0);
+            const sellerPercentage = Math.max(0, Math.min(100, 100 - (feePercentage || 0)));
 
             const orderData = {
                 items: [{
@@ -168,29 +168,29 @@ class PagarmeService {
                 payments: []
             };
 
-            // Setup split rules ONLY if both IDs exist
-            const shouldSplit = platformRecipientId && sellerRecipientId && feePercentage > 0 && platformRecipientId !== sellerRecipientId;
-            const splitRules = shouldSplit ? [
+            const hasSellerRecipient = !!sellerRecipientId;
+            const includePlatformFee = !!(platformRecipientId && (feePercentage || 0) > 0 && platformRecipientId !== sellerRecipientId);
+            const splitRules = hasSellerRecipient ? [
                 {
                     amount: sellerPercentage,
                     recipient_id: sellerRecipientId,
                     type: 'percentage',
                     options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true }
                 },
-                {
+                ...(includePlatformFee ? [{
                     amount: feePercentage,
                     recipient_id: platformRecipientId,
                     type: 'percentage',
                     options: { charge_processing_fee: false, liable: false }
-                }
+                }] : [])
             ] : undefined;
 
             console.log('[BACKEND PAGARME] SingleOrder Split:', {
-                shouldSplit,
+                sellerPercentage,
                 platformRecipientId,
                 sellerRecipientId,
                 feePercentage,
-                sellerPercentage
+                includePlatformFee
             });
 
             // Add payment method

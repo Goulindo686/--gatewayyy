@@ -36,8 +36,17 @@ class CheckoutController {
                 .select('*')
                 .single();
 
-            const feePercentage = settings?.fee_percentage || 15;
             const platformRecipientId = settings?.platform_recipient_id || process.env.PLATFORM_RECIPIENT_ID;
+            const { data: sellerUser } = await supabase
+                .from('users')
+                .select('id, role')
+                .eq('id', product.user_id)
+                .single();
+            let feePercentage = settings?.fee_percentage || 15;
+            let sellerRecipientId = recipient.pagarme_recipient_id;
+            if (sellerUser?.role === 'admin') {
+                feePercentage = 0;
+            }
 
             // Create order on Pagar.me
             const pagarmeOrder = await pagarmeService.createOrder({
@@ -47,7 +56,7 @@ class CheckoutController {
                 cardData: card_data,
                 sellerId: product.user_id,
                 platformRecipientId,
-                sellerRecipientId: recipient.pagarme_recipient_id,
+                sellerRecipientId,
                 feePercentage
             });
 
@@ -141,21 +150,21 @@ class CheckoutController {
             description: `Venda: ${product.name}`
         });
 
-        // Platform fee record
-        await supabase.from('transactions').insert({
-            order_id: order.id,
-            user_id: order.seller_id,
-            type: 'fee',
-            amount: feeAmount,
-            status: 'confirmed',
-            description: `Taxa plataforma: ${feePercentage}%`
-        });
-
-        await supabase.from('platform_fees').insert({
-            order_id: order.id,
-            amount: feeAmount,
-            percentage: feePercentage
-        });
+            if (feeAmount > 0) {
+                await supabase.from('transactions').insert({
+                    order_id: order.id,
+                    user_id: order.seller_id,
+                    type: 'fee',
+                    amount: feeAmount,
+                    status: 'confirmed',
+                    description: `Taxa plataforma: ${feePercentage}%`
+                });
+                await supabase.from('platform_fees').insert({
+                    order_id: order.id,
+                    amount: feeAmount,
+                    percentage: feePercentage
+                });
+            }
 
         // Update product sales count
         await supabase.rpc('increment_sales_count', { p_id: product.id }).catch(() => {
@@ -205,8 +214,16 @@ class CheckoutController {
 
             // Get platform settings & fees
             const { data: settings } = await supabase.from('platform_settings').select('*').single();
-            const feePercentage = settings?.fee_percentage || 15;
             const platformRecipientId = settings?.platform_recipient_id || process.env.PLATFORM_RECIPIENT_ID;
+            const { data: sellerUser } = await supabase
+                .from('users')
+                .select('id, role')
+                .eq('id', sellerId)
+                .single();
+            let feePercentage = settings?.fee_percentage || 15;
+            if (sellerUser?.role === 'admin') {
+                feePercentage = 0;
+            }
 
             // Create Pagarme Cart Order
             const pagarmeOrder = await pagarmeService.createMultiItemOrder({
