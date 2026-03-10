@@ -363,6 +363,21 @@ export default function CheckoutPage() {
             >
                 {/* Product Info */}
                 <div style={{ padding: 0, overflow: 'hidden', background: bgCard, borderRadius: 16, border: `1px solid ${borderColor}` }}>
+                    <div className="productMobileHeader" style={{ display: 'none', alignItems: 'center', gap: 12, padding: 12, borderBottom: `1px solid ${borderColor}` }}>
+                        {!settings.hide_product_image && (
+                            <div style={{ width: 60, height: 60, borderRadius: 10, overflow: 'hidden', background: `linear-gradient(135deg, ${accent}22, ${accent}0a)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {product.image_url ? (
+                                    <img src={product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                    <FiShoppingCart size={28} style={{ opacity: 0.3, color: textMuted }} />
+                                )}
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: textPrimary }}>{product.name}</div>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: accent }}>R$ {product.price_display}</div>
+                        </div>
+                    </div>
                     {!settings.hide_product_image && (
                         <div className="checkoutProductImage" style={{
                             height: 220, background: `linear-gradient(135deg, ${accent}22, ${accent}0a)`,
@@ -511,7 +526,10 @@ export default function CheckoutPage() {
                         padding: 0 14px 28px !important;
                     }
                     .checkoutProductImage {
-                        height: 160px !important;
+                        display: none !important;
+                    }
+                    .productMobileHeader {
+                        display: flex !important;
                     }
                     .checkoutBanner {
                         height: ${bannerHeightMobile}px !important;
