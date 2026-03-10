@@ -17,6 +17,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const [salesTotal, setSalesTotal] = useState<number | null>(null);
     const profileRef = useRef<HTMLDivElement>(null);
     const avatarRef = useRef<HTMLButtonElement>(null);
+    const [rangePreset, setRangePreset] = useState('last7');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [applying, setApplying] = useState(false);
 
     useEffect(() => {
         const userData = localStorage.getItem('user');
@@ -79,6 +83,48 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         router.push('/login');
+    };
+
+    const applyDashboardFilters = async () => {
+        if (pathname !== '/dashboard') return;
+        setApplying(true);
+        try {
+            const now = new Date();
+            const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+            const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+            const params: Record<string, string> = {};
+            if (rangePreset !== 'custom') {
+                if (rangePreset === 'today') {
+                    params.start = startOfDay(now).toISOString();
+                    params.end = endOfDay(now).toISOString();
+                } else if (rangePreset === 'yesterday') {
+                    const y = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                    params.start = startOfDay(y).toISOString();
+                    params.end = endOfDay(y).toISOString();
+                } else if (rangePreset === 'last7') {
+                    const s = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    params.start = startOfDay(s).toISOString();
+                    params.end = endOfDay(now).toISOString();
+                } else if (rangePreset === 'thisMonth') {
+                    const s = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+                    const e = endOfDay(now);
+                    params.start = s.toISOString();
+                    params.end = e.toISOString();
+                } else if (rangePreset === 'lastMonth') {
+                    const s = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
+                    const e = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+                    params.start = s.toISOString();
+                    params.end = e.toISOString();
+                }
+            } else {
+                if (startDate) params.start = new Date(startDate + 'T00:00:00').toISOString();
+                if (endDate) params.end = new Date(endDate + 'T23:59:59').toISOString();
+            }
+            const qs = new URLSearchParams(params).toString();
+            router.replace(qs ? `/dashboard?${qs}` : '/dashboard');
+        } finally {
+            setApplying(false);
+        }
     };
 
     const navItems = [
@@ -208,6 +254,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <div style={{ height: 10, borderRadius: 999, background: 'rgba(108,92,231,0.14)', overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent-gradient)', transition: 'width 0.35s ease' }} />
                         </div>
+                        {pathname === '/dashboard' && (
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, alignItems: 'flex-end', marginTop: 12, flexWrap: 'wrap' }}>
+                                <div style={{ minWidth: 200 }}>
+                                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Período</label>
+                                    <select className="input-field" value={rangePreset} onChange={(e) => setRangePreset(e.target.value)}>
+                                        <option value="today">Hoje</option>
+                                        <option value="yesterday">Ontem</option>
+                                        <option value="last7">Últimos 7 dias</option>
+                                        <option value="thisMonth">Este mês</option>
+                                        <option value="lastMonth">Mês passado</option>
+                                        <option value="custom">Personalizado</option>
+                                    </select>
+                                </div>
+                                {rangePreset === 'custom' && (
+                                    <>
+                                        <div style={{ minWidth: 170 }}>
+                                            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Início</label>
+                                            <input type="date" className="input-field" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                                        </div>
+                                        <div style={{ minWidth: 170 }}>
+                                            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Fim</label>
+                                            <input type="date" className="input-field" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                                        </div>
+                                    </>
+                                )}
+                                <button className="btn-primary" onClick={applyDashboardFilters} disabled={applying} style={{ padding: '10px 18px' }}>
+                                    {applying ? 'Filtrando...' : 'Aplicar Filtros'}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </header>
 

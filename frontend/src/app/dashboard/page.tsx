@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { dashboardAPI } from '@/lib/api';
 import { FiDollarSign, FiTrendingUp, FiPackage, FiShoppingCart, FiArrowDown, FiPercent } from 'react-icons/fi';
 import { Line } from 'react-chartjs-2';
+import { useSearchParams } from 'next/navigation';
 import {
     Chart as ChartJS, CategoryScale, LinearScale, PointElement,
     LineElement, Title, Tooltip, Filler, Legend
@@ -18,10 +19,20 @@ export default function DashboardPage() {
     const [rangePreset, setRangePreset] = useState('last7');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         loadStats();
     }, []);
+
+    useEffect(() => {
+        const start = searchParams.get('start') || undefined;
+        const end = searchParams.get('end') || undefined;
+        if (start || end) {
+            loadStats({ start, end });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
 
     const loadStats = async (params?: any) => {
         try {
