@@ -31,6 +31,7 @@ export default function DashboardPage() {
     }, [searchParams]);
 
     const loadStats = async (params?: any) => {
+        setLoading(true);
         try {
             const { data } = await dashboardAPI.getStats(params || {});
             setStats(data);

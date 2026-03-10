@@ -41,32 +41,32 @@ export async function GET(req: NextRequest) {
     // Initial available balance is Gross - Fees - Withdrawn
     availableDec = totalSoldDec - totalFeesDec - totalWithdrawnDec;
 
-    // 2. Overlay with real-time Pagar.me balance if available
-    const { data: recipient } = await supabase
-        .from('recipients').select('pagarme_recipient_id').eq('user_id', userId).single();
+    // 2. Overlay com saldo em tempo real da Pagar.me apenas quando NÃO há filtros de período
+    if (!start && !end) {
+        const { data: recipient } = await supabase
+            .from('recipients').select('pagarme_recipient_id').eq('user_id', userId).single();
 
-    if (recipient?.pagarme_recipient_id) {
-        try {
-            const balance = await PagarmeService.getRecipientBalance(recipient.pagarme_recipient_id);
-            console.log(`[STATS] Balance for ${recipient.pagarme_recipient_id}:`, JSON.stringify(balance, null, 2));
+        if (recipient?.pagarme_recipient_id) {
+            try {
+                const balance = await PagarmeService.getRecipientBalance(recipient.pagarme_recipient_id);
+                console.log(`[STATS] Balance for ${recipient.pagarme_recipient_id}:`, JSON.stringify(balance, null, 2));
 
-            const getAmount = (field: any) => {
-                if (!field) return 0;
-                if (Array.isArray(field)) {
-                    // Search for amount in array (standard v5)
-                    const item = field.find((i: any) => i.amount !== undefined) || field[0];
-                    return item?.amount || 0;
-                }
-                return field.amount || 0;
-            };
+                const getAmount = (field: any) => {
+                    if (!field) return 0;
+                    if (Array.isArray(field)) {
+                        const item = field.find((i: any) => i.amount !== undefined) || field[0];
+                        return item?.amount || 0;
+                    }
+                    return field.amount || 0;
+                };
 
-            // Overlay local values with Real-time Pagar.me values
-            availableDec = (balance.available_amount !== undefined ? balance.available_amount : getAmount(balance.available)) / 100;
-            pendingDec = (balance.waiting_funds_amount !== undefined ? balance.waiting_funds_amount : getAmount(balance.waiting_funds)) / 100;
-            totalWithdrawnDec = (balance.transferred_amount !== undefined ? balance.transferred_amount : getAmount(balance.transferred)) / 100;
-            usedPagarme = true;
-        } catch (pErr: any) {
-            console.error('[STATS] Pagar.me balance error:', pErr.response?.data || pErr.message);
+                availableDec = (balance.available_amount !== undefined ? balance.available_amount : getAmount(balance.available)) / 100;
+                pendingDec = (balance.waiting_funds_amount !== undefined ? balance.waiting_funds_amount : getAmount(balance.waiting_funds)) / 100;
+                totalWithdrawnDec = (balance.transferred_amount !== undefined ? balance.transferred_amount : getAmount(balance.transferred)) / 100;
+                usedPagarme = true;
+            } catch (pErr: any) {
+                console.error('[STATS] Pagar.me balance error:', pErr.response?.data || pErr.message);
+            }
         }
     }
 

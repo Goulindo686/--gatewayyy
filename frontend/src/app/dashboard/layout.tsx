@@ -127,6 +127,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             }
             const qs = new URLSearchParams(params).toString();
             router.replace(qs ? `/dashboard?${qs}` : '/dashboard');
+            setShowConfig(false);
+            try { router.refresh?.(); } catch {}
         } finally {
             setApplying(false);
         }
