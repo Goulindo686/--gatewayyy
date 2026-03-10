@@ -32,9 +32,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         { href: '/admin/transactions', icon: <FiList size={18} />, label: 'Transações' },
         { href: '/admin/settings', icon: <FiSettings size={18} />, label: 'Configurações' },
         // Abas do vendedor acessíveis pelo admin
-        { href: '/dashboard/products', icon: <FiPackage size={18} />, label: 'Produtos' },
-        { href: '/dashboard/store/settings', icon: <FiShoppingBag size={18} />, label: 'Minha Loja' },
-        { href: '/dashboard/withdrawals', icon: <FiDollarSign size={18} />, label: 'Saques' },
+        { href: '/admin/products', icon: <FiPackage size={18} />, label: 'Produtos' },
+        { href: '/admin/store', icon: <FiShoppingBag size={18} />, label: 'Minha Loja' },
+        { href: '/admin/withdrawals', icon: <FiDollarSign size={18} />, label: 'Saques' },
     ];
 
     if (!user) return null;
