@@ -304,7 +304,7 @@ export default function CheckoutPage() {
 
             {/* Banner */}
             {(settings.banner_url || settings.banner_text) && (
-                <div style={{
+                <div className="checkoutBanner" style={{
                     height: settings.banner_url ? 300 : 'auto', position: 'relative',
                     background: settings.banner_url ? `url(${settings.banner_url}) center/cover no-repeat` : `linear-gradient(135deg, ${accent}44, ${accent}11)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
@@ -502,6 +502,12 @@ export default function CheckoutPage() {
                     }
                     .checkoutProductImage {
                         height: 160px !important;
+                    }
+                    .checkoutBanner {
+                        height: 200px !important;
+                        background-size: contain !important;
+                        background-position: center !important;
+                        background-repeat: no-repeat !important;
                     }
                     .checkoutCardBody {
                         padding: 18px !important;

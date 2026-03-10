@@ -313,7 +313,7 @@ export default function CheckoutCustomizationPage() {
 
                         {/* Banner Preview */}
                         {(settings.banner_url || settings.banner_text) && (
-                            <div style={{
+                            <div className="checkoutBannerPreview" style={{
                                 height: settings.banner_url ? 220 : 'auto', position: 'relative',
                                 background: settings.banner_url ? `url(${settings.banner_url}) center/cover no-repeat` : `linear-gradient(135deg, ${settings.accent_color}44, ${settings.accent_color}11)`,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center'
@@ -384,6 +384,14 @@ export default function CheckoutCustomizationPage() {
 
             <style jsx>{`
                 .input-field:focus { border-color: ${settings.accent_color} !important; }
+                @media (max-width: 640px) {
+                    .checkoutBannerPreview {
+                        height: 200px !important;
+                        background-size: contain !important;
+                        background-position: center !important;
+                        background-repeat: no-repeat !important;
+                    }
+                }
             `}</style>
         </div>
     );
