@@ -23,6 +23,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const [applying, setApplying] = useState(false);
     const [showConfig, setShowConfig] = useState(false);
     const [viewDate, setViewDate] = useState<Date>(new Date());
+    const [popoverPos, setPopoverPos] = useState<{ top: number; right: number } | null>(null);
+    const periodAnchorRef = useRef<HTMLButtonElement>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const userData = localStorage.getItem('user');
@@ -163,12 +166,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         };
         return `${fmt(s)} - ${fmt(e)}`;
     };
+
     const toISODate = (d: Date) => {
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
         return `${y}-${m}-${day}`;
     };
+
     const setPresetRange = (preset: string) => {
         const now = new Date();
         if (preset === 'today') {
@@ -214,10 +219,44 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setRangePreset(preset);
         setViewDate(now);
     };
+
     const monthLabelPT = (d: Date) => {
         const month = d.toLocaleString('pt-BR', { month: 'long' }).toLowerCase();
         return `${month} ${d.getFullYear()}`;
     };
+
+    useEffect(() => {
+        if (!showConfig) return;
+        const updatePos = () => {
+            const rect = periodAnchorRef.current?.getBoundingClientRect();
+            if (rect) {
+                setPopoverPos({
+                    top: Math.round(rect.bottom + 8),
+                    right: Math.round(window.innerWidth - rect.right),
+                });
+            }
+        };
+        updatePos();
+        const onResize = () => updatePos();
+        const onScroll = () => updatePos();
+        window.addEventListener('resize', onResize);
+        window.addEventListener('scroll', onScroll, true);
+        return () => {
+            window.removeEventListener('resize', onResize);
+            window.removeEventListener('scroll', onScroll, true);
+        };
+    }, [showConfig]);
+
+    useEffect(() => {
+        if (!showConfig) return;
+        const onDown = (e: MouseEvent) => {
+            const insidePanel = popoverRef.current && popoverRef.current.contains(e.target as Node);
+            const insideAnchor = periodAnchorRef.current && periodAnchorRef.current.contains(e.target as Node);
+            if (!insidePanel && !insideAnchor) setShowConfig(false);
+        };
+        document.addEventListener('mousedown', onDown);
+        return () => document.removeEventListener('mousedown', onDown);
+    }, [showConfig]);
     const navItems = [
         { href: '/dashboard', icon: <FiHome size={18} />, label: 'Dashboard' },
         { href: '/dashboard/products', icon: <FiPackage size={18} />, label: 'Produtos' },
@@ -353,6 +392,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <div style={{ padding: '12px 32px', display: 'flex', justifyContent: 'flex-end' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                             <button
+                                ref={periodAnchorRef}
                                 onClick={() => setShowConfig(!showConfig)}
                                 style={{
                                     display: 'inline-flex',
@@ -383,12 +423,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
                 )}
 
-                {pathname === '/dashboard' && showConfig && (
-                    <div style={{ padding: '0 32px 12px', display: 'flex', justifyContent: 'flex-end' }}>
-                        <div style={{
-                            display: 'flex', gap: 16, background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+                {showConfig && createPortal(
+                    <div
+                        ref={popoverRef}
+                        style={{
+                            position: 'fixed', top: (popoverPos?.top ?? 80), right: (popoverPos?.right ?? 24), zIndex: 99999,
+                            width: 560, background: 'var(--bg-card)', border: '1px solid var(--border-color)',
                             borderRadius: 16, boxShadow: '0 16px 48px rgba(0,0,0,0.45)', padding: 16
-                        }}>
+                        }}
+                    >
+                        <div style={{ display: 'flex', gap: 16 }}>
                             <div style={{ width: 180, borderRight: '1px solid var(--border-color)', paddingRight: 12 }}>
                                 {[
                                     {key:'today', label:'Hoje'},
@@ -480,7 +524,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
 
                 {/* Profile Dropdown - rendered via portal */}
