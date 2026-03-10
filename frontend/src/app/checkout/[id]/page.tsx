@@ -177,6 +177,7 @@ export default function CheckoutPage() {
     const inputBg = isLight ? '#fff' : 'var(--bg-secondary)';
     const accent = settings.accent_color || '#6C5CE7';
     const countdownColor = settings.countdown_color || accent;
+    const hasCountdown = settings.show_countdown && timerSeconds > 0;
 
     const noticeColors: any = {
         warning: { bg: 'rgba(253,203,110,0.12)', border: 'rgba(253,203,110,0.3)', text: '#FDCB6E' },
@@ -296,7 +297,7 @@ export default function CheckoutPage() {
             <FacebookPixel pixelId={product?.facebook_pixel_id} product={product} />
 
             {/* Countdown Timer */}
-            {settings.show_countdown && timerSeconds > 0 && (
+            {hasCountdown && (
                 <div style={{
                     background: countdownColor, color: 'white', padding: '10px 16px',
                     textAlign: 'center', fontSize: 14, fontWeight: 600,
@@ -354,7 +355,7 @@ export default function CheckoutPage() {
             {/* Header removido: logo será exibida abaixo do botão de pagar */}
 
             <div
-                style={{ maxWidth: 1000, margin: '0 auto', padding: '0 24px 40px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}
+                style={{ maxWidth: 1000, margin: `${hasCountdown ? '32px' : '0'} auto`, padding: '0 24px 40px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}
                 className="checkoutLayout"
             >
                 {/* Product Info */}
