@@ -10,6 +10,9 @@ export async function GET(req: NextRequest) {
     if (!auth) return jsonError('Não autorizado', 401);
 
     const userId = auth.user.id;
+    const url = new URL(req.url);
+    const start = url.searchParams.get('start') || '';
+    const end = url.searchParams.get('end') || '';
 
     // Base stats
     const { data: products } = await supabase
@@ -67,11 +70,16 @@ export async function GET(req: NextRequest) {
         }
     }
 
-    // Monthly sales
-    const { data: monthlySales } = await supabase
+    // Monthly sales (with optional period filters)
+    let monthlyQuery = supabase
         .from('orders').select('amount, created_at')
         .eq('seller_id', userId).eq('status', 'paid')
         .order('created_at', { ascending: true });
+
+    if (start) monthlyQuery = monthlyQuery.gte('created_at', new Date(start).toISOString());
+    if (end) monthlyQuery = monthlyQuery.lte('created_at', new Date(end).toISOString());
+
+    const { data: monthlySales } = await monthlyQuery;
 
     const monthlyMap: Record<string, number> = {};
     (monthlySales || []).forEach((o: any) => {
@@ -84,10 +92,17 @@ export async function GET(req: NextRequest) {
         month, amount: (amount / 100).toFixed(2)
     }));
 
-    // Recent orders
-    const { data: recent_orders_raw } = await supabase
+    // Recent orders (with optional period filters)
+    let recentQuery = supabase
         .from('orders').select('id, product_id, buyer_name, amount, amount_display, payment_method, status, created_at, products(name)')
-        .eq('seller_id', userId).order('created_at', { ascending: false }).limit(10);
+        .eq('seller_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+    if (start) recentQuery = recentQuery.gte('created_at', new Date(start).toISOString());
+    if (end) recentQuery = recentQuery.lte('created_at', new Date(end).toISOString());
+
+    const { data: recent_orders_raw } = await recentQuery;
 
     return jsonSuccess({
         stats: {

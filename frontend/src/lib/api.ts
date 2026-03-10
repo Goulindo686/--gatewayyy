@@ -56,7 +56,7 @@ export const productsAPI = {
 
 // Dashboard
 export const dashboardAPI = {
-    getStats: () => api.get('/dashboard/stats'),
+    getStats: (params?: any) => api.get('/dashboard/stats', { params }),
     getSales: (params?: any) => api.get('/dashboard/sales', { params }),
 };
 
