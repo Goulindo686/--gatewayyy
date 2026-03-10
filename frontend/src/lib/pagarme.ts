@@ -94,20 +94,21 @@ export class PagarmeService {
             sellerPercentage
         });
 
-        const shouldSplit = !!(platId && sellId && fee > 0 && platId.toLowerCase() !== sellId.toLowerCase());
-        const splitRules = shouldSplit ? [
+        const hasSellerRecipient = !!sellId;
+        const includePlatformFee = !!(platId && fee > 0 && platId.toLowerCase() !== sellId.toLowerCase());
+        const splitRules = hasSellerRecipient ? [
             {
                 amount: sellerPercentage,
                 recipient_id: sellId,
                 type: 'percentage',
                 options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true }
             },
-            {
+            ...(includePlatformFee ? [{
                 amount: fee,
                 recipient_id: platId,
                 type: 'percentage',
                 options: { charge_processing_fee: false, liable: false }
-            }
+            }] : [])
         ] : undefined;
 
         if (data.payment_method === 'pix') {
@@ -208,20 +209,21 @@ export class PagarmeService {
             sellerPercentage
         });
 
-        const shouldSplit = !!(platId && sellId && fee > 0 && platId.toLowerCase() !== sellId.toLowerCase());
-        const splitRules = shouldSplit ? [
+        const hasSellerRecipient2 = !!sellId;
+        const includePlatformFee2 = !!(platId && fee > 0 && platId.toLowerCase() !== sellId.toLowerCase());
+        const splitRules = hasSellerRecipient2 ? [
             {
                 amount: sellerPercentage,
                 recipient_id: sellId,
                 type: 'percentage',
                 options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true }
             },
-            {
+            ...(includePlatformFee2 ? [{
                 amount: fee,
                 recipient_id: platId,
                 type: 'percentage',
                 options: { charge_processing_fee: false, liable: false }
-            }
+            }] : [])
         ] : undefined;
 
         if (data.payment_method === 'pix') {
