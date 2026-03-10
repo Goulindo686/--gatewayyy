@@ -15,10 +15,6 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 export default function DashboardPage() {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [rangePreset, setRangePreset] = useState('last7');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
     const searchParams = useSearchParams();
 
     useEffect(() => {
@@ -45,47 +41,7 @@ export default function DashboardPage() {
         }
     };
 
-    const handleApplyFilters = async () => {
-        setRefreshing(true);
-        try {
-            const now = new Date();
-            const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-            const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
-
-            const params: any = {};
-            if (rangePreset !== 'custom') {
-                if (rangePreset === 'today') {
-                    params.start = startOfDay(now).toISOString();
-                    params.end = endOfDay(now).toISOString();
-                } else if (rangePreset === 'yesterday') {
-                    const y = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-                    params.start = startOfDay(y).toISOString();
-                    params.end = endOfDay(y).toISOString();
-                } else if (rangePreset === 'last7') {
-                    const s = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                    params.start = startOfDay(s).toISOString();
-                    params.end = endOfDay(now).toISOString();
-                } else if (rangePreset === 'thisMonth') {
-                    const s = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-                    const e = endOfDay(now);
-                    params.start = s.toISOString();
-                    params.end = e.toISOString();
-                } else if (rangePreset === 'lastMonth') {
-                    const s = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
-                    const e = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-                    params.start = s.toISOString();
-                    params.end = e.toISOString();
-                }
-            } else {
-                if (startDate) params.start = new Date(startDate + 'T00:00:00').toISOString();
-                if (endDate) params.end = new Date(endDate + 'T23:59:59').toISOString();
-            }
-
-            await loadStats(params);
-        } finally {
-            setRefreshing(false);
-        }
-    };
+ 
 
     const chartData = {
         labels: stats?.monthly_sales?.map((m: any) => m.month) || [],
@@ -189,37 +145,7 @@ export default function DashboardPage() {
                 background: 'var(--bg-card)', border: '1px solid var(--border-color)',
                 borderRadius: 16, padding: 24, marginBottom: 32
             }}>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                    <h3 style={{ fontSize: 16, fontWeight: 600 }}>Vendas por Mês</h3>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                        <div style={{ minWidth: 200 }}>
-                            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Período</label>
-                            <select className="input-field" value={rangePreset} onChange={(e) => setRangePreset(e.target.value)}>
-                                <option value="today">Hoje</option>
-                                <option value="yesterday">Ontem</option>
-                                <option value="last7">Últimos 7 dias</option>
-                                <option value="thisMonth">Este mês</option>
-                                <option value="lastMonth">Mês passado</option>
-                                <option value="custom">Personalizado</option>
-                            </select>
-                        </div>
-                        {rangePreset === 'custom' && (
-                            <>
-                                <div style={{ minWidth: 170 }}>
-                                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Início</label>
-                                    <input type="date" className="input-field" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                                </div>
-                                <div style={{ minWidth: 170 }}>
-                                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Fim</label>
-                                    <input type="date" className="input-field" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                                </div>
-                            </>
-                        )}
-                        <button className="btn-primary" onClick={handleApplyFilters} disabled={refreshing} style={{ padding: '10px 18px' }}>
-                            {refreshing ? 'Filtrando...' : 'Aplicar Filtros'}
-                        </button>
-                    </div>
-                </div>
+                <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 24 }}>Vendas por Mês</h3>
                 <div style={{ height: 300 }}>
                     <Line data={chartData} options={chartOptions as any} />
                 </div>
