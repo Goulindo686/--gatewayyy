@@ -254,38 +254,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <div style={{ height: 10, borderRadius: 999, background: 'rgba(108,92,231,0.14)', overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent-gradient)', transition: 'width 0.35s ease' }} />
                         </div>
-                        {pathname === '/dashboard' && (
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, alignItems: 'flex-end', marginTop: 12, flexWrap: 'wrap' }}>
-                                <div style={{ minWidth: 200 }}>
-                                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Período</label>
-                                    <select className="input-field" value={rangePreset} onChange={(e) => setRangePreset(e.target.value)}>
-                                        <option value="today">Hoje</option>
-                                        <option value="yesterday">Ontem</option>
-                                        <option value="last7">Últimos 7 dias</option>
-                                        <option value="thisMonth">Este mês</option>
-                                        <option value="lastMonth">Mês passado</option>
-                                        <option value="custom">Personalizado</option>
-                                    </select>
-                                </div>
-                                {rangePreset === 'custom' && (
-                                    <>
-                                        <div style={{ minWidth: 170 }}>
-                                            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Início</label>
-                                            <input type="date" className="input-field" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                                        </div>
-                                        <div style={{ minWidth: 170 }}>
-                                            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Fim</label>
-                                            <input type="date" className="input-field" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                                        </div>
-                                    </>
-                                )}
-                                <button className="btn-primary" onClick={applyDashboardFilters} disabled={applying} style={{ padding: '10px 18px' }}>
-                                    {applying ? 'Filtrando...' : 'Aplicar Filtros'}
-                                </button>
-                            </div>
-                        )}
                     </div>
                 </header>
+
+                {/* Dashboard Filters below header (right aligned) */}
+                {pathname === '/dashboard' && (
+                    <div style={{ padding: '12px 32px', display: 'flex', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                            <div style={{ minWidth: 200 }}>
+                                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Período</label>
+                                <select className="input-field" value={rangePreset} onChange={(e) => setRangePreset(e.target.value)}>
+                                    <option value="today">Hoje</option>
+                                    <option value="yesterday">Ontem</option>
+                                    <option value="last7">Últimos 7 dias</option>
+                                    <option value="thisMonth">Este mês</option>
+                                    <option value="lastMonth">Mês passado</option>
+                                    <option value="custom">Personalizado</option>
+                                </select>
+                            </div>
+                            {rangePreset === 'custom' && (
+                                <>
+                                    <div style={{ minWidth: 170 }}>
+                                        <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Início</label>
+                                        <input type="date" className="input-field" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                                    </div>
+                                    <div style={{ minWidth: 170 }}>
+                                        <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Fim</label>
+                                        <input type="date" className="input-field" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                                    </div>
+                                </>
+                            )}
+                            <button className="btn-primary" onClick={applyDashboardFilters} disabled={applying} style={{ padding: '10px 18px' }}>
+                                {applying ? 'Filtrando...' : 'Aplicar Filtros'}
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Profile Dropdown - rendered via portal */}
                 {profileOpen && createPortal(
