@@ -204,8 +204,8 @@ export default function CartPage() {
                                     ) : (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                                             {items.map(item => (
-                                                <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 16, background: '#0a0a0c', padding: 12, borderRadius: 16, border: '1px solid rgba(255,255,255,0.03)' }}>
-                                                    <div style={{ width: 80, height: 80, borderRadius: 12, overflow: 'hidden', background: '#141417' }}>
+                                                <div key={item.id} className="storeCartItemRow" style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 16, background: '#0a0a0c', padding: 12, borderRadius: 16, border: '1px solid rgba(255,255,255,0.03)' }}>
+                                                    <div className="storeCartItemImage" style={{ width: 80, height: 80, borderRadius: 12, overflow: 'hidden', background: '#141417' }}>
                                                         {item.image_url ? <img src={item.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <FiPackage style={{ margin: 28, opacity: 0.1 }} />}
                                                     </div>
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -282,8 +282,8 @@ export default function CartPage() {
                                     ) : (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                                             {items.map(item => (
-                                                <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 16, background: '#0a0a0c', padding: 12, borderRadius: 16, border: '1px solid rgba(255,255,255,0.03)' }}>
-                                                    <div style={{ width: 80, height: 80, borderRadius: 12, overflow: 'hidden', background: '#141417' }}>
+                                                <div key={item.id} className="storeCartItemRow" style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 16, background: '#0a0a0c', padding: 12, borderRadius: 16, border: '1px solid rgba(255,255,255,0.03)' }}>
+                                                    <div className="storeCartItemImage" style={{ width: 80, height: 80, borderRadius: 12, overflow: 'hidden', background: '#141417' }}>
                                                         {item.image_url ? <img src={item.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <FiPackage style={{ margin: 28, opacity: 0.1 }} />}
                                                     </div>
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -463,9 +463,19 @@ export default function CartPage() {
                     .storeCartPage {
                         padding: 24px 14px !important;
                     }
+                    .storeCartPage h1 {
+                        font-size: 20px !important;
+                    }
+                    .storeCartPage p {
+                        margin-bottom: 24px !important;
+                    }
                     .storeCartCard {
-                        padding: 18px !important;
+                        padding: 16px !important;
                         border-radius: 20px !important;
+                    }
+                    .storeCartCard h2 {
+                        font-size: 16px !important;
+                        margin-bottom: 16px !important;
                     }
                     .storeCartPayMethods {
                         flex-direction: column !important;
@@ -473,6 +483,17 @@ export default function CartPage() {
                     .storeCartGrid2 {
                         grid-template-columns: 1fr !important;
                         gap: 12px !important;
+                    }
+                    .storeCartItemRow {
+                        grid-template-columns: 64px 1fr !important;
+                        gap: 12px !important;
+                        padding: 10px !important;
+                        border-radius: 14px !important;
+                    }
+                    .storeCartItemImage {
+                        width: 64px !important;
+                        height: 64px !important;
+                        border-radius: 10px !important;
                     }
                 }
             `}</style>
