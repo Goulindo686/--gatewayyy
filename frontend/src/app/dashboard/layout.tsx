@@ -14,6 +14,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const [user, setUser] = useState<any>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
     const [salesTotal, setSalesTotal] = useState<number | null>(null);
     const profileRef = useRef<HTMLDivElement>(null);
@@ -42,6 +43,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     useEffect(() => {
         try { localStorage.setItem('sidebarCollapsed', sidebarCollapsed ? '1' : '0'); } catch {}
     }, [sidebarCollapsed]);
+
+    useEffect(() => {
+        const update = () => setIsMobile(window.innerWidth <= 768);
+        update();
+        window.addEventListener('resize', update);
+        return () => window.removeEventListener('resize', update);
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -283,6 +291,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const target = targets.find(t => current < t) ?? 1_000_000;
     const pct = target > 0 ? Math.max(0, Math.min(100, (current / target) * 100)) : 0;
     const formatBRL = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const effectiveCollapsed = !isMobile && sidebarCollapsed;
+    const asideWidth = effectiveCollapsed ? 72 : 260;
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
@@ -296,7 +306,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Sidebar */}
             <aside style={{
-                width: sidebarCollapsed ? 72 : 260, background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-color)',
+                width: isMobile ? 260 : asideWidth, background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-color)',
                 display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, bottom: 0, left: 0, zIndex: 50,
                 transition: 'transform 0.3s ease',
             }} className={`dashboard-aside${sidebarOpen ? ' open' : ''}`}>
@@ -304,19 +314,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div style={{ padding: '24px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <img src="/logo.png" alt="GouPay Logo" style={{ width: 56, height: 56, objectFit: 'contain', flexShrink: 0 }} />
-                        <span style={{ fontSize: 18, fontWeight: 700, display: sidebarCollapsed ? 'none' : 'inline' }}>Gou<span className="gradient-text">Pay</span></span>
+                        <span style={{ fontSize: 18, fontWeight: 700, display: effectiveCollapsed ? 'none' : 'inline' }}>Gou<span className="gradient-text">Pay</span></span>
                     </div>
-                    <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} style={{
-                        width: 32, height: 32, borderRadius: 8, border: '1px solid var(--border-color)',
-                        background: 'var(--bg-card)', color: 'var(--text-primary)', display: 'flex',
-                        alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
-                    }}>
-                        {sidebarCollapsed ? <FiChevronRight size={16} /> : <FiChevronLeft size={16} />}
-                    </button>
+                    {!isMobile && (
+                        <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} style={{
+                            width: 32, height: 32, borderRadius: 8, border: '1px solid var(--border-color)',
+                            background: 'var(--bg-card)', color: 'var(--text-primary)', display: 'flex',
+                            alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                        }}>
+                            {sidebarCollapsed ? <FiChevronRight size={16} /> : <FiChevronLeft size={16} />}
+                        </button>
+                    )}
                 </div>
 
                 {/* Sidebar Progress Card */}
-                {!sidebarCollapsed && (
+                {!effectiveCollapsed && (
                 <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)' }}>
                     <div style={{
                         background: 'var(--bg-card)',
@@ -366,13 +378,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             title={item.label}
                             style={{
                                 display: 'flex', alignItems: 'center',
-                                justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                                gap: sidebarCollapsed ? 0 : 12,
-                                paddingLeft: sidebarCollapsed ? 0 : 12,
-                                paddingRight: sidebarCollapsed ? 0 : 12,
+                                justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
+                                gap: effectiveCollapsed ? 0 : 12,
+                                paddingLeft: effectiveCollapsed ? 0 : 12,
+                                paddingRight: effectiveCollapsed ? 0 : 12,
                             }}>
                             <span style={{ display: 'inline-flex', alignItems: 'center' }}>{item.icon}</span>
-                            <span style={{ display: sidebarCollapsed ? 'none' : 'inline' }}>{item.label}</span>
+                            <span style={{ display: effectiveCollapsed ? 'none' : 'inline' }}>{item.label}</span>
                         </Link>
                     ))}
                 </nav>
@@ -381,7 +393,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </aside>
 
             {/* Main content */}
-            <main style={{ flex: 1, paddingLeft: sidebarCollapsed ? 72 : 260, minHeight: '100vh', overflowX: 'hidden' }}>
+            <main style={{ flex: 1, paddingLeft: isMobile ? 0 : asideWidth, minHeight: '100vh', overflowX: 'hidden' }}>
                 {/* Top bar */}
                 <header style={{
                     borderBottom: '1px solid var(--border-color)',
