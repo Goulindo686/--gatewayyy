@@ -1,16 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import { FiArrowLeft, FiTrash2, FiMinus, FiPlus, FiZap, FiCreditCard, FiTag, FiPackage } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { storeAPI } from '@/lib/api';
+import { storeAPI, productsAPI } from '@/lib/api';
 
 export default function CartPage() {
     const params = useParams();
     const router = useRouter();
-    const { items, updateQuantity, removeItem, totalAmount, clearCart } = useCart();
+    const searchParams = useSearchParams();
+    const { items, addItem, updateQuantity, removeItem, totalAmount, clearCart } = useCart();
     const enableCreditCard = process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD === 'true';
 
     const [name, setName] = useState('');
@@ -29,6 +30,23 @@ export default function CartPage() {
     const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card'>('pix');
     const [loading, setLoading] = useState(false);
     // Endereço removido: não obrigatório na integração atual
+    useEffect(() => {
+        const addId = searchParams.get('add');
+        const run = async () => {
+            if (!addId) return;
+            try {
+                const { data } = await productsAPI.getPublic(addId);
+                const p = data.product;
+                if (p) {
+                    const priceNumber = typeof p.price === 'number' ? p.price : parseFloat(p.price);
+                    addItem({ id: p.id, name: p.name, price: priceNumber, price_display: p.price_display, image_url: p.image_url });
+                    toast.success(`${p.name} adicionado!`);
+                }
+            } catch {}
+            router.replace(`/store/${params.slug}/cart`);
+        };
+        run();
+    }, [searchParams]);
 
     const formatCardNumber = (value: string) => {
         const digits = value.replace(/\D/g, '');

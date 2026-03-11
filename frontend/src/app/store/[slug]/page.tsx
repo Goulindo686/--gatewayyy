@@ -241,7 +241,7 @@ export default function StorePage() {
 
                                 <div style={{ display: 'flex', gap: 12 }}>
                                     <button
-                                        onClick={() => router.push(`/store/${params.slug}/cart?add=${product.id}`)}
+                                        onClick={() => { handleAddToCart(product); router.push(`/store/${params.slug}/cart`); }}
                                         style={{
                                             flex: 1, background: 'white', color: '#0a0a0c', border: 'none',
                                             padding: '12px', borderRadius: 12, fontWeight: 800, fontSize: 14,
