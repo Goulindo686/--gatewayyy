@@ -309,35 +309,147 @@ export default function StorePage() {
             </main>
 
             {quickOpen && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-                    <div style={{ width: '100%', maxWidth: 520, background: '#141417', borderRadius: 24, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 16, padding: 20 }}>
-                            <div style={{ width: 120, height: 120, borderRadius: 16, overflow: 'hidden', background: '#0a0a0c' }}>
-                                {quickProduct?.image_url ? (
-                                    <img src={quickProduct.image_url} alt={quickProduct?.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1e1e24, #0a0a0c)' }}>
-                                        <FiPackage size={32} style={{ color: 'rgba(255,255,255,0.08)' }} />
-                                    </div>
-                                )}
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                <div style={{ fontSize: 16, fontWeight: 800, color: 'white' }}>{quickProduct?.name}</div>
-                                <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.5, maxHeight: 80, overflow: 'auto' }}>{quickProduct?.description || 'Sem descrição'}</div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#0a0a0c', borderRadius: 10, padding: '6px 10px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                                        <button onClick={() => setQuickQty(Math.max(1, quickQty - 1))} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: 800 }}>-</button>
-                                        <span style={{ fontSize: 14, fontWeight: 800, color: 'white' }}>{quickQty}</span>
-                                        <button onClick={() => setQuickQty(quickQty + 1)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: 800 }}>+</button>
-                                    </div>
-                                    <div style={{ fontSize: 18, fontWeight: 900, color: 'white', marginLeft: 'auto' }}>R$ {quickProduct?.price_display}</div>
+                <div
+                    onClick={closeQuick}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.85)',
+                        zIndex: 9999,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 20
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            width: '100%',
+                            maxWidth: 940,
+                            background: '#141417',
+                            borderRadius: 28,
+                            border: '1px solid rgba(255,255,255,0.06)',
+                            overflow: 'hidden',
+                            boxShadow: '0 30px 80px rgba(0,0,0,0.65)'
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 22, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <div style={{ fontSize: 18, fontWeight: 900, color: 'white' }}>{quickProduct?.name}</div>
+                                <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#00cec9' }}>
+                                        <FiZap size={14} /> À vista no Pix
+                                    </span>
+                                    <span style={{ opacity: 0.35 }}>•</span>
+                                    <span style={{ color: '#64748b' }}>Compra segura</span>
                                 </div>
                             </div>
+                            <button
+                                type="button"
+                                onClick={closeQuick}
+                                style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 12,
+                                    background: '#0a0a0c',
+                                    border: '1px solid rgba(255,255,255,0.06)',
+                                    color: '#94a3b8',
+                                    cursor: 'pointer',
+                                    fontWeight: 900
+                                }}
+                            >
+                                ×
+                            </button>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: 20, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                            <button onClick={quickBuyNow} style={{ padding: 14, borderRadius: 12, background: 'white', color: '#0a0a0c', border: 'none', fontWeight: 800, cursor: 'pointer' }}>Comprar agora</button>
-                            <button onClick={quickAdd} style={{ padding: 14, borderRadius: 12, background: '#0a0a0c', color: 'white', border: '1px solid rgba(255,255,255,0.06)', fontWeight: 800, cursor: 'pointer' }}>Adicionar ao carrinho</button>
-                            <button onClick={closeQuick} style={{ gridColumn: '1 / -1', padding: 12, borderRadius: 12, background: 'transparent', color: '#94a3b8', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Fechar</button>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 22, padding: 22 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 18, alignItems: 'start' }}>
+                                <div style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: 22, overflow: 'hidden', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                    {quickProduct?.image_url ? (
+                                        <img src={quickProduct.image_url} alt={quickProduct?.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1e1e24, #0a0a0c)' }}>
+                                            <FiPackage size={52} style={{ color: 'rgba(255,255,255,0.08)' }} />
+                                        </div>
+                                    )}
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                    <div style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.7, maxHeight: 210, overflow: 'auto', paddingRight: 6 }}>
+                                        {quickProduct?.description || 'Sem descrição'}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#00cec9' }} />
+                                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#6c5ce7' }} />
+                                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff7675' }} />
+                                        <div style={{ marginLeft: 10, fontSize: 13, color: '#64748b', fontWeight: 600 }}>Pix • Cartão • Boleto</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ background: '#0a0a0c', borderRadius: 22, border: '1px solid rgba(255,255,255,0.06)', padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+                                    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, letterSpacing: 0.3 }}>Preço</div>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, color: 'white', fontWeight: 900, fontSize: 28, whiteSpace: 'nowrap' }}>
+                                        <span style={{ fontSize: 16, opacity: 0.9 }}>R$</span>
+                                        <span>{quickProduct?.price_display}</span>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                                    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700 }}>Quantidade</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#141417', borderRadius: 12, padding: '8px 10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setQuickQty(Math.max(1, quickQty - 1))}
+                                            style={{ width: 34, height: 34, borderRadius: 10, background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.06)', color: '#94a3b8', cursor: 'pointer', fontWeight: 900 }}
+                                        >
+                                            −
+                                        </button>
+                                        <span style={{ minWidth: 28, textAlign: 'center', fontSize: 14, fontWeight: 900, color: 'white' }}>{quickQty}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setQuickQty(quickQty + 1)}
+                                            style={{ width: 34, height: 34, borderRadius: 10, background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.06)', color: '#94a3b8', cursor: 'pointer', fontWeight: 900 }}
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />
+
+                                <button
+                                    onClick={quickBuyNow}
+                                    style={{
+                                        width: '100%',
+                                        padding: 14,
+                                        borderRadius: 14,
+                                        background: 'white',
+                                        color: '#0a0a0c',
+                                        border: 'none',
+                                        fontWeight: 900,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Comprar agora
+                                </button>
+                                <button
+                                    onClick={quickAdd}
+                                    style={{
+                                        width: '100%',
+                                        padding: 14,
+                                        borderRadius: 14,
+                                        background: 'transparent',
+                                        color: 'white',
+                                        border: '1px solid rgba(255,255,255,0.12)',
+                                        fontWeight: 900,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Adicionar ao carrinho
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
