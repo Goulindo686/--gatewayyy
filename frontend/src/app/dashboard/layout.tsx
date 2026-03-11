@@ -407,9 +407,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             }} className="mobile-menu-btn">
                                 {sidebarOpen ? <FiX size={22} /> : <FiMenu size={22} />}
                             </button>
-                            <h2 style={{ fontSize: 18, fontWeight: 600, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} className="dashboard-topbar-title">
-                                {navItems.find(n => n.href === pathname)?.label || 'Dashboard'}
-                            </h2>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, position: 'relative' }} className="dashboard-topbar-right">
