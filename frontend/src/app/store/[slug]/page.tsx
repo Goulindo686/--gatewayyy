@@ -308,6 +308,7 @@ export default function StorePage() {
 
             {quickOpen && (
                 <div
+                    className="quickModalOverlay"
                     onClick={closeQuick}
                     style={{
                         position: 'fixed',
@@ -321,6 +322,7 @@ export default function StorePage() {
                     }}
                 >
                     <div
+                        className="quickModalContent"
                         onClick={(e) => e.stopPropagation()}
                         style={{
                             width: '100%',
@@ -332,7 +334,7 @@ export default function StorePage() {
                             boxShadow: '0 30px 80px rgba(0,0,0,0.65)'
                         }}
                     >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 22, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div className="quickModalHeader" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 22, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 <div style={{ fontSize: 18, fontWeight: 900, color: 'white' }}>{quickProduct?.name}</div>
                                 <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -361,8 +363,8 @@ export default function StorePage() {
                             </button>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 22, padding: 22 }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 18, alignItems: 'start' }}>
+                        <div className="quickModalGrid" style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 22, padding: 22 }}>
+                            <div className="quickModalSubGrid" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 18, alignItems: 'start' }}>
                                 <div style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: 22, overflow: 'hidden', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)' }}>
                                     {quickProduct?.image_url ? (
                                         <img src={quickProduct.image_url} alt={quickProduct?.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -383,7 +385,7 @@ export default function StorePage() {
                                 </div>
                             </div>
 
-                            <div style={{ background: '#0a0a0c', borderRadius: 22, border: '1px solid rgba(255,255,255,0.06)', padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <div className="quickModalRightBox" style={{ background: '#0a0a0c', borderRadius: 22, border: '1px solid rgba(255,255,255,0.06)', padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
                                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
                                     <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, letterSpacing: 0.3 }}>Preço</div>
                                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, color: 'white', fontWeight: 900, fontSize: 28, whiteSpace: 'nowrap' }}>
@@ -458,6 +460,14 @@ export default function StorePage() {
                     box-shadow: 0 20px 40px rgba(0,0,0,0.4);
                 }
                 @media (max-width: 900px) {
+                    .quickModalContent {
+                        max-width: 92vw !important;
+                    }
+                    .quickModalGrid {
+                        grid-template-columns: 1fr !important;
+                    }
+                }
+                @media (max-width: 900px) {
                     .storeHeaderInner {
                         flex-wrap: wrap;
                     }
@@ -468,6 +478,28 @@ export default function StorePage() {
                     }
                 }
                 @media (max-width: 640px) {
+                    .quickModalHeader {
+                        padding: 16px !important;
+                    }
+                    .quickModalContent {
+                        max-width: 92vw !important;
+                        border-radius: 22px !important;
+                        transform: scale(0.94);
+                        transform-origin: top center;
+                    }
+                    .quickModalGrid {
+                        grid-template-columns: 1fr !important;
+                        gap: 14px !important;
+                        padding: 16px !important;
+                    }
+                    .quickModalSubGrid {
+                        grid-template-columns: 1fr !important;
+                        gap: 12px !important;
+                    }
+                    .quickModalRightBox {
+                        border-radius: 18px !important;
+                        padding: 14px !important;
+                    }
                     .storeHeader {
                         padding: 12px 14px !important;
                     }
