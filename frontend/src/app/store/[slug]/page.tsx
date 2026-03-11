@@ -327,6 +327,8 @@ export default function StorePage() {
                         style={{
                             width: '100%',
                             maxWidth: 940,
+                            maxHeight: 'calc(100vh - 40px)',
+                            overflowY: 'auto',
                             background: '#141417',
                             borderRadius: 28,
                             border: '1px solid rgba(255,255,255,0.06)',
@@ -387,8 +389,8 @@ export default function StorePage() {
 
                             <div className="quickModalRightBox" style={{ background: '#0a0a0c', borderRadius: 22, border: '1px solid rgba(255,255,255,0.06)', padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
                                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-                                    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, letterSpacing: 0.3 }}>Preço</div>
-                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, color: 'white', fontWeight: 900, fontSize: 28, whiteSpace: 'nowrap' }}>
+                                <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, letterSpacing: 0.3 }}>Preço</div>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, color: 'white', fontWeight: 900, fontSize: 24, whiteSpace: 'nowrap' }}>
                                         <span style={{ fontSize: 16, opacity: 0.9 }}>R$</span>
                                         <span>{quickProduct?.price_display}</span>
                                     </div>
@@ -484,8 +486,6 @@ export default function StorePage() {
                     .quickModalContent {
                         max-width: 92vw !important;
                         border-radius: 22px !important;
-                        transform: scale(0.94);
-                        transform-origin: top center;
                     }
                     .quickModalGrid {
                         grid-template-columns: 1fr !important;
