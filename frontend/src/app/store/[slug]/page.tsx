@@ -94,7 +94,7 @@ export default function StorePage() {
                 image_url: quickProduct.image_url
             });
         }
-        router.push(`/store/${params.slug}/cart`);
+        router.push(`/store/${params.slug}/cart?overlay=1`);
     };
 
     if (loading && !store) {
