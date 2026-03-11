@@ -300,6 +300,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <span style={{ fontSize: 18, fontWeight: 700 }}>Gou<span className="gradient-text">Pay</span></span>
                 </div>
 
+                {/* Sidebar Progress Card */}
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)' }}>
+                    <div style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 14,
+                        padding: 12,
+                        boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
+                        display: 'grid',
+                        gap: 10
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div style={{
+                                    width: 30, height: 30, borderRadius: 8,
+                                    background: 'rgba(108,92,231,0.16)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    color: 'var(--accent-primary)'
+                                }}>
+                                    <FiDollarSign size={16} />
+                                </div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>Faturamento</div>
+                            </div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>{pct.toFixed(0)}%</div>
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                            R$ {formatBRL(current)} / R$ {formatBRL(target)}
+                        </div>
+                        <div style={{ height: 8, borderRadius: 999, background: 'rgba(108,92,231,0.16)', overflow: 'hidden' }}>
+                            <div style={{
+                                height: '100%',
+                                width: `${pct}%`,
+                                background: 'var(--accent-gradient)',
+                                transition: 'width 0.35s ease',
+                                borderRadius: 999
+                            }} />
+                        </div>
+                    </div>
+                </div>
+
                 {/* Navigation */}
                 <nav style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {navItems.map((item) => (
@@ -376,17 +416,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </div>
                     </div>
 
-                    <div style={{ padding: '0 32px 12px' }} className="dashboard-sales-progress">
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }} className="dashboard-sales-progress-labels">
-                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>Progresso de Vendas</div>
-                            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
-                                R$ {formatBRL(current)} / R$ {formatBRL(target)} ({pct.toFixed(0)}%)
-                            </div>
-                        </div>
-                        <div style={{ height: 10, borderRadius: 999, background: 'rgba(108,92,231,0.14)', overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent-gradient)', transition: 'width 0.35s ease' }} />
-                        </div>
-                    </div>
+                    
                 </header>
 
                 {/* Dashboard Filters below header (right aligned) */}
