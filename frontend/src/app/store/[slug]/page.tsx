@@ -333,10 +333,11 @@ export default function StorePage() {
                             maxHeight: 'calc(100vh - 80px)',
                             margin: '0 auto',
                             overflowY: 'auto',
+                            overflowX: 'hidden',
+                            WebkitOverflowScrolling: 'touch',
                             background: '#141417',
                             borderRadius: 28,
                             border: '1px solid rgba(255,255,255,0.06)',
-                            overflow: 'hidden',
                             boxShadow: '0 30px 80px rgba(0,0,0,0.65)'
                         }}
                     >
