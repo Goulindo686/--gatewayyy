@@ -612,15 +612,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                         {/* Menu Items */}
                         <div style={{ padding: '8px' }}>
-                            <Link href="/area-membros" onClick={() => setProfileOpen(false)} style={{
-                                display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px',
-                                borderRadius: 10, color: 'var(--text-primary)', textDecoration: 'none',
-                                fontSize: 14, fontWeight: 500, transition: 'background 0.15s',
-                                background: 'transparent'
-                            }} className="profile-menu-item">
-                                <FiBookOpen size={16} style={{ color: 'var(--accent-secondary)' }} />
-                                Painel do Aluno
-                            </Link>
+                            {user?.role === 'admin' ? (
+                                <Link href="/dashboard" onClick={() => setProfileOpen(false)} style={{
+                                    display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px',
+                                    borderRadius: 10, color: 'var(--text-primary)', textDecoration: 'none',
+                                    fontSize: 14, fontWeight: 500, transition: 'background 0.15s',
+                                    background: 'transparent'
+                                }} className="profile-menu-item">
+                                    <FiShoppingBag size={16} style={{ color: 'var(--accent-secondary)' }} />
+                                    Painel do Vendedor
+                                </Link>
+                            ) : (
+                                <Link href="/area-membros" onClick={() => setProfileOpen(false)} style={{
+                                    display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px',
+                                    borderRadius: 10, color: 'var(--text-primary)', textDecoration: 'none',
+                                    fontSize: 14, fontWeight: 500, transition: 'background 0.15s',
+                                    background: 'transparent'
+                                }} className="profile-menu-item">
+                                    <FiBookOpen size={16} style={{ color: 'var(--accent-secondary)' }} />
+                                    Painel do Aluno
+                                </Link>
+                            )}
                             <button onClick={() => { setProfileOpen(false); handleLogout(); }} style={{
                                 display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px',
                                 borderRadius: 10, color: 'var(--danger)', textDecoration: 'none',
