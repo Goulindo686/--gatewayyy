@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FiHome, FiPackage, FiDollarSign, FiSettings, FiLogOut, FiMenu, FiX, FiPercent, FiBookOpen, FiUser, FiMessageCircle, FiShoppingBag, FiShoppingCart, FiCalendar, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiHome, FiPackage, FiDollarSign, FiSettings, FiLogOut, FiMenu, FiX, FiPercent, FiBookOpen, FiUser, FiMessageCircle, FiShoppingBag, FiShoppingCart, FiCalendar, FiChevronLeft, FiChevronRight, FiShield } from 'react-icons/fi';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { dashboardAPI } from '@/lib/api';
 
@@ -377,30 +377,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     ))}
                 </nav>
 
-                {/* User info */}
-                <div style={{
-                    padding: '16px 12px', borderTop: '1px solid var(--border-color)',
-                }}>
-                    <div style={{
-                        display: 'flex', alignItems: 'center', gap: 12, padding: '12px',
-                        borderRadius: 10, background: 'rgba(108,92,231,0.06)', marginBottom: 8
-                    }}>
-                        <div style={{
-                            width: 36, height: 36, borderRadius: 10, background: 'var(--accent-gradient)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 14, fontWeight: 700, color: 'white', flexShrink: 0
-                        }}>
-                            {user.name?.charAt(0)?.toUpperCase()}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name}</div>
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</div>
-                        </div>
-                    </div>
-                    <button onClick={handleLogout} className="sidebar-link" style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
-                        <FiLogOut size={18} /> Sair
-                    </button>
-                </div>
+                
             </aside>
 
             {/* Main content */}
@@ -613,6 +590,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         {/* Menu Items */}
                         <div style={{ padding: '8px' }}>
                             {user?.role === 'admin' ? (
+                                <>
+                                <Link href="/admin" onClick={() => setProfileOpen(false)} style={{
+                                    display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px',
+                                    borderRadius: 10, color: 'var(--text-primary)', textDecoration: 'none',
+                                    fontSize: 14, fontWeight: 500, transition: 'background 0.15s',
+                                    background: 'transparent'
+                                }} className="profile-menu-item">
+                                    <FiShield size={16} style={{ color: 'var(--accent-secondary)' }} />
+                                    Painel Admin
+                                </Link>
                                 <Link href="/dashboard" onClick={() => setProfileOpen(false)} style={{
                                     display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px',
                                     borderRadius: 10, color: 'var(--text-primary)', textDecoration: 'none',
@@ -622,6 +609,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     <FiShoppingBag size={16} style={{ color: 'var(--accent-secondary)' }} />
                                     Painel do Vendedor
                                 </Link>
+                                </>
                             ) : (
                                 <Link href="/area-membros" onClick={() => setProfileOpen(false)} style={{
                                     display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px',
