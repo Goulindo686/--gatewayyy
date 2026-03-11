@@ -432,6 +432,41 @@ export default function CartPage() {
 
                 </div>
             </div>
+            <style jsx>{`
+                @media (max-width: 980px) {
+                    .storeCartGrid {
+                        grid-template-columns: 1fr !important;
+                        justify-content: center !important;
+                        justify-items: stretch !important;
+                        gap: 18px !important;
+                    }
+                    .storeCartSummaryWrap {
+                        position: static !important;
+                        top: auto !important;
+                    }
+                    .storeCartCard {
+                        width: 100% !important;
+                        max-width: 560px !important;
+                        margin: 0 auto !important;
+                    }
+                }
+                @media (max-width: 640px) {
+                    .storeCartPage {
+                        padding: 24px 14px !important;
+                    }
+                    .storeCartCard {
+                        padding: 18px !important;
+                        border-radius: 20px !important;
+                    }
+                    .storeCartPayMethods {
+                        flex-direction: column !important;
+                    }
+                    .storeCartGrid2 {
+                        grid-template-columns: 1fr !important;
+                        gap: 12px !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 }
