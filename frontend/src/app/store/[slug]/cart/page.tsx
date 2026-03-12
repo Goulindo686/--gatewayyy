@@ -33,6 +33,23 @@ export default function CartPage() {
     const [cardExpYear, setCardExpYear] = useState('');
     const [cardCvv, setCardCvv] = useState('');
     const [installments, setInstallments] = useState(1);
+    const sanitizeCard = (v: string) => (v || '').replace(/\D/g, '');
+    const isValidCard = (v: string) => {
+        const num = sanitizeCard(v);
+        if (num.length < 13 || num.length > 19) return false;
+        let sum = 0;
+        let dbl = false;
+        for (let i = num.length - 1; i >= 0; i--) {
+            let d = parseInt(num[i]);
+            if (dbl) {
+                d *= 2;
+                if (d > 9) d -= 9;
+            }
+            sum += d;
+            dbl = !dbl;
+        }
+        return sum % 10 === 0;
+    };
     const isValidCPF = (v: string) => {
         const s = (v || '').replace(/\D/g, '');
         if (!s || s.length !== 11 || /^(\d)\1+$/.test(s)) return false;
@@ -102,6 +119,7 @@ export default function CartPage() {
             if (!isValidCEP(cep)) return toast.error("CEP inválido!");
             if (!city || !isValidUF(state) || !street || !number) return toast.error("Preencha o endereço completo.");
             if (!cardNumber || !cardHolder || !cardExpMonth || !cardExpYear || !cardCvv) return toast.error("Preencha os dados do cartão.");
+            if (!isValidCard(cardNumber)) return toast.error("Número de cartão inválido");
         }
 
         try {
@@ -128,7 +146,7 @@ export default function CartPage() {
                 items: items.map(i => ({ id: i.id, quantity: i.quantity, price: i.price, name: i.name })),
                 payment_method: methodToSend,
                 card_data: methodToSend === 'credit_card' ? {
-                    number: (cardNumber || '').replace(/\s/g, ''),
+                    number: sanitizeCard(cardNumber),
                     holder_name: cardHolder,
                     exp_month: parseInt(cardExpMonth),
                     exp_year: parseInt(cardExpYear.length === 2 ? `20${cardExpYear}` : cardExpYear),
