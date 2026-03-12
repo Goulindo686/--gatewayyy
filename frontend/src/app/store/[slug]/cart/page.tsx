@@ -151,7 +151,7 @@ export default function CartPage() {
                     exp_month: parseInt(cardExpMonth),
                     exp_year: parseInt(cardExpYear.length === 2 ? `20${cardExpYear}` : cardExpYear),
                     cvv: cardCvv,
-                    installments
+                    installments: 1
                 } : undefined,
                 total: totalAmount
             };
@@ -393,17 +393,6 @@ export default function CartPage() {
                                                             maxLength={4}
                                                             value={cardCvv}
                                                             onChange={e => setCardCvv(e.target.value)}
-                                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Parcelas</label>
-                                                        <input
-                                                            type="number"
-                                                            min={1}
-                                                            max={12}
-                                                            value={installments}
-                                                            onChange={e => setInstallments(parseInt(e.target.value) || 1)}
                                                             style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
                                                         />
                                                     </div>
