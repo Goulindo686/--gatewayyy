@@ -124,8 +124,13 @@ export async function POST(req: NextRequest) {
         if (charge?.status === 'failed' || pagarmeOrder.status === 'failed') {
             const lt = charge?.last_transaction;
             const ge = lt?.gateway_response?.errors;
+            const af = lt?.antifraud_response;
             let msg = '';
-            if (ge && Array.isArray(ge) && ge.length) {
+            if (af && typeof af === 'object') {
+                msg = 'Transação reprovada pelo Antifraude.';
+                if (typeof af.status === 'string') msg += ` Status: ${af.status}.`;
+                if (typeof af.reason === 'string') msg += ` Motivo: ${af.reason}.`;
+            } else if (ge && Array.isArray(ge) && ge.length) {
                 msg = ge.map((e: any) => e.message).join('; ');
             } else if (typeof lt?.acquirer_message === 'string') {
                 msg = /aprovad/i.test(lt.acquirer_message) ? 'Transação não capturada. Aguarde confirmação ou tente novamente.' : lt.acquirer_message;
