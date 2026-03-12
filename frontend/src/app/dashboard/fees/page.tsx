@@ -22,18 +22,9 @@ export default function FeesPage() {
     ];
 
     const cardMdr = [
-        { label: 'Crédito à vista', value: '3,19%' },
-        { label: 'Parcelado 2–6', value: '4,49%' },
-        { label: 'Parcelado 7–12', value: '4,99%' }
-    ];
-
-    const extraFees = [
-        { label: 'Antecipação Autom.', value: '2,89%' },
-        { label: 'Pix', value: '1,09%' },
-        { label: 'Boleto', value: '3,19%' },
-        { label: 'Gateway', value: 'R$ 0,55' },
-        { label: 'Antifraude', value: 'R$ 0,44' },
-        { label: 'Taxa de saque', value: 'R$ 3,67' }
+        { label: 'Crédito à vista', value: '5,19%' },
+        { label: 'Crédito parcelado 2–6x', value: '6,49%' },
+        { label: 'Crédito parcelado 7–12x', value: '6,99%' }
     ];
 
     const cet15Days = [
@@ -93,16 +84,16 @@ export default function FeesPage() {
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                                    <span style={{ color: 'var(--text-muted)' }}>Crédito à vista</span>
-                                    <span style={{ fontWeight: 700 }}>3,19%</span>
+                                    <span style={{ color: 'var(--text-muted)' }}>Crédito à vista (inclui 2% plataforma)</span>
+                                    <span style={{ fontWeight: 700 }}>5,19%</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                                    <span style={{ color: 'var(--text-muted)' }}>Crédito parcelado 2–6x</span>
-                                    <span style={{ fontWeight: 700 }}>4,49%</span>
+                                    <span style={{ color: 'var(--text-muted)' }}>Crédito parcelado 2–6x (inclui 2% plataforma)</span>
+                                    <span style={{ fontWeight: 700 }}>6,49%</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                                    <span style={{ color: 'var(--text-muted)' }}>Crédito parcelado 7–12x</span>
-                                    <span style={{ fontWeight: 700 }}>4,99%</span>
+                                    <span style={{ color: 'var(--text-muted)' }}>Crédito parcelado 7–12x (inclui 2% plataforma)</span>
+                                    <span style={{ fontWeight: 700 }}>6,99%</span>
                                 </div>
                             </div>
                         )}
@@ -110,44 +101,7 @@ export default function FeesPage() {
                 ))}
             </div>
 
-            <div className="glass-card" style={{ padding: 24, textAlign: 'center' }}>
-                <FiCheckCircle size={32} color="var(--success)" style={{ marginBottom: 16, opacity: 0.8 }} />
-                <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Sem Taxas Ocultas</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-                    Você só paga quando vende. Não cobramos mensalidade, taxa de adesão ou taxas por saque.
-                </p>
-            </div>
-
-            <div style={{ height: 18 }} />
-
-            <div className="glass-card" style={{ padding: 24 }}>
-                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Taxa por tipo de transação (Cartão)</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {cardMdr.map((row, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                            <span style={{ color: 'var(--text-muted)' }}>{row.label}</span>
-                            <span style={{ fontWeight: 700 }}>{row.value}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            <div style={{ height: 18 }} />
-
-            <div className="glass-card" style={{ padding: 24 }}>
-                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Custos por transação</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                    {extraFees.map((row, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: 10 }}>
-                            <span style={{ color: 'var(--text-muted)' }}>{row.label}</span>
-                            <span style={{ fontWeight: 700 }}>{row.value}</span>
-                        </div>
-                    ))}
-                </div>
-                <div style={{ marginTop: 10, color: 'var(--text-secondary)', fontSize: 12 }}>
-                    Liberação do cartão em D+30. Limite de parcelamento até 12x.
-                </div>
-            </div>
+            {/* Removed final sections as requested */}
 
         </div>
     );
