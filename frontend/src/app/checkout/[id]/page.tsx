@@ -561,7 +561,11 @@ export default function CheckoutPage() {
                                     </div>
                                     <div>
                                         <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Parcelas</label>
-                                        <input type="number" min={1} max={12} required value={String(form.installments)} onChange={e => update('installments', e.target.value)}
+                                        <input type="number" min={1} max={12} required value={String(form.installments)} onChange={e => {
+                                            const v = parseInt(e.target.value) || 1;
+                                            const clamped = Math.max(1, Math.min(12, v));
+                                            update('installments', String(clamped));
+                                        }}
                                             style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                                     </div>
                                 </div>

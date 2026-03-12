@@ -133,13 +133,14 @@ export class PagarmeService {
             const rawYear = String(card.exp_year || '0');
             const expYear = parseInt(rawYear.length === 2 ? `20${rawYear}` : rawYear) || 2030;
             const installments = parseInt(String(card.installments || '1')) || 1;
+            const finalInstallments = Math.max(1, Math.min(12, installments));
 
             orderData.payments.push({
                 payment_method: 'credit_card',
                 split: splitRules,
                 credit_card: {
                     operation_type: 'auth_and_capture',
-                    installments: installments,
+                    installments: finalInstallments,
                     statement_descriptor: 'PEDIDO',
                     card: {
                         number: cleanNumber,
@@ -252,13 +253,14 @@ export class PagarmeService {
             const rawYear = String(card.exp_year || '0');
             const expYear = parseInt(rawYear.length === 2 ? `20${rawYear}` : rawYear) || 2030;
             const installments = parseInt(String(card.installments || '1')) || 1;
+            const finalInstallments = Math.max(1, Math.min(12, installments));
 
             orderData.payments.push({
                 payment_method: 'credit_card',
                 split: splitRules,
                 credit_card: {
                     operation_type: 'auth_and_capture',
-                    installments: installments,
+                    installments: finalInstallments,
                     statement_descriptor: 'LOJA',
                     card: {
                         number: cleanNumber,

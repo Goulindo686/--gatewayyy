@@ -398,14 +398,18 @@ export default function CartPage() {
                                                     </div>
                  <div>
                      <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Parcelas</label>
-                     <input
-                         type="number"
-                         min={1}
-                         max={12}
-                         value={installments}
-                         onChange={e => setInstallments(parseInt(e.target.value) || 1)}
-                         style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                     />
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            max={12}
+                                                            value={installments}
+                                                            onChange={e => {
+                                                                const v = parseInt(e.target.value) || 1;
+                                                                const clamped = Math.max(1, Math.min(12, v));
+                                                                setInstallments(clamped);
+                                                            }}
+                                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
+                                                        />
                  </div>
                                                 </div>
                                             </div>
