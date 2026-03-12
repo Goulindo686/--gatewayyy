@@ -27,6 +27,8 @@ const DEFAULT_SETTINGS = {
     banner_height_desktop: 300,
     banner_height_mobile: 200,
     banner_position: 'center',
+    hide_phone: false,
+    hide_address_pix: false,
 };
 
 export default function CheckoutCustomizationPage() {
@@ -157,6 +159,44 @@ export default function CheckoutCustomizationPage() {
                                     {t === 'dark' ? <><FiMoon size={14} /> Escuro</> : <><FiSun size={14} /> Claro</>}
                                 </button>
                             ))}
+                        </div>
+                    </div>
+
+                    <div className="glass-card" style={{ padding: 20 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                            <h3 style={{ fontSize: 14, fontWeight: 600 }}>Campos do Checkout</h3>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+                            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Não pedir Telefone</span>
+                                <button onClick={() => update('hide_phone', !settings.hide_phone)} style={{
+                                    width: 40, height: 22, borderRadius: 11, cursor: 'pointer',
+                                    background: settings.hide_phone ? settings.accent_color : 'var(--bg-secondary)',
+                                    border: `1px solid ${settings.hide_phone ? settings.accent_color : 'var(--border-color)'}`,
+                                    position: 'relative'
+                                }}>
+                                    <div style={{
+                                        width: 16, height: 16, borderRadius: '50%', background: 'white',
+                                        position: 'absolute', top: 2, transition: 'left 0.2s',
+                                        left: settings.hide_phone ? 20 : 2
+                                    }} />
+                                </button>
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Não pedir Endereço no Pix</span>
+                                <button onClick={() => update('hide_address_pix', !settings.hide_address_pix)} style={{
+                                    width: 40, height: 22, borderRadius: 11, cursor: 'pointer',
+                                    background: settings.hide_address_pix ? settings.accent_color : 'var(--bg-secondary)',
+                                    border: `1px solid ${settings.hide_address_pix ? settings.accent_color : 'var(--border-color)'}`,
+                                    position: 'relative'
+                                }}>
+                                    <div style={{
+                                        width: 16, height: 16, borderRadius: '50%', background: 'white',
+                                        position: 'absolute', top: 2, transition: 'left 0.2s',
+                                        left: settings.hide_address_pix ? 20 : 2
+                                    }} />
+                                </button>
+                            </label>
                         </div>
                     </div>
 
@@ -446,7 +486,7 @@ export default function CheckoutCustomizationPage() {
                             {/* Form mini */}
                             <div style={{ background: previewCard, borderRadius: 12, border: `1px solid ${previewBorder}`, padding: 12 }}>
                                 <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: previewText }}>Finalizar Compra</div>
-                                {['Nome', 'Email', 'CPF'].map(f => (
+                                {['Nome', 'Email', 'CPF', ...(settings.hide_phone ? [] : ['Telefone']), ...(settings.hide_address_pix ? [] : ['Endereço'])].map(f => (
                                     <div key={f} style={{
                                         background: settings.theme === 'light' ? '#f0f0f0' : 'rgba(255,255,255,0.05)',
                                         borderRadius: 6, padding: '6px 8px', marginBottom: 6, fontSize: 10, color: previewMuted

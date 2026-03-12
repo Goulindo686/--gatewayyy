@@ -25,6 +25,8 @@ const DEFAULT_SETTINGS = {
     banner_height_desktop: 300,
     banner_height_mobile: 200,
     banner_position: 'center',
+    hide_phone: false,
+    hide_address_pix: false,
 };
 
 export default function CheckoutPage() {
@@ -135,32 +137,36 @@ export default function CheckoutPage() {
         try {
             const methodToSend = enableCreditCard ? paymentMethod : 'pix';
             if (!isValidCPF(form.cpf)) { toast.error('CPF inválido'); setProcessing(false); return; }
-            if (!isValidPhone(form.phone)) { toast.error('Telefone inválido'); setProcessing(false); return; }
+            if (!settings.hide_phone && !isValidPhone(form.phone)) { toast.error('Telefone inválido'); setProcessing(false); return; }
             if (methodToSend === 'credit_card') {
                 if (!isValidCEP(form.cep)) { toast.error('CEP inválido'); setProcessing(false); return; }
                 if (!isValidUF(form.state)) { toast.error('UF inválida'); setProcessing(false); return; }
                 if (!form.street || !form.number || !form.neighborhood || !form.city) { toast.error('Endereço incompleto'); setProcessing(false); return; }
             }
-            const payload: any = {
+            const includeAddress = methodToSend === 'credit_card' || !settings.hide_address_pix;
+            const buyer: any = {
                 product_id: params.id,
                 payment_method: methodToSend,
                 buyer: {
                     name: form.name,
                     email: form.email,
                     cpf: form.cpf,
-                    phone: form.phone,
-                    address: {
-                        line_1: `${form.street || ''}, ${form.number || ''}, ${form.neighborhood || ''}`.trim(),
-                        zip_code: form.cep?.replace(/\D/g, ''),
-                        city: form.city,
-                        state: form.state,
-                        country: 'BR',
-                        street: form.street,
-                        number: form.number,
-                        neighborhood: form.neighborhood
-                    }
+                    ...(settings.hide_phone ? {} : { phone: form.phone }),
+                    ...(includeAddress ? {
+                        address: {
+                            line_1: `${form.street || ''}, ${form.number || ''}, ${form.neighborhood || ''}`.trim(),
+                            zip_code: form.cep?.replace(/\D/g, ''),
+                            city: form.city,
+                            state: form.state,
+                            country: 'BR',
+                            street: form.street,
+                            number: form.number,
+                            neighborhood: form.neighborhood
+                        }
+                    } : {})
                 }
             };
+            const payload: any = buyer;
             if (methodToSend === 'credit_card') {
                 payload.card_data = {
                     number: form.card_number.replace(/\s/g, ''), holder_name: form.card_holder,
@@ -447,12 +453,15 @@ export default function CheckoutPage() {
                                     style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                             </div>
                         </div>
-                        <div style={{ marginBottom: 20 }}>
-                            <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Telefone</label>
-                            <input placeholder="(11) 99999-9999" required value={form.phone} onChange={e => update('phone', e.target.value)}
-                                style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                        </div>
+                        {!settings.hide_phone && (
+                            <div style={{ marginBottom: 20 }}>
+                                <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Telefone</label>
+                                <input placeholder="(11) 99999-9999" required value={form.phone} onChange={e => update('phone', e.target.value)}
+                                    style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                            </div>
+                        )}
 
+                        {(paymentMethod === 'credit_card' || !settings.hide_address_pix) && (
                         <div style={{ marginBottom: 16 }}>
                             <h3 style={{ fontSize: 14, fontWeight: 700, color: textSecondary, marginBottom: 10 }}>Endereço de cobrança</h3>
                             <div className="checkoutGrid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -498,6 +507,7 @@ export default function CheckoutPage() {
                                 </div>
                             </div>
                         </div>
+                        )}
 
                         {/* Payment method */}
                         <div style={{ marginBottom: 20 }}>
