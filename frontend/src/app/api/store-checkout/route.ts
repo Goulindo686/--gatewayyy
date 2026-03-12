@@ -147,9 +147,16 @@ export async function POST(req: Request) {
 
         // --- ERROR DETECTION ---
         if (charge?.status === 'failed' || pagarmeOrder.status === 'failed') {
-            const gatewayErrors = lastTransaction?.gateway_response?.errors;
-            const msg = gatewayErrors?.map((e: any) => e.message).join('; ') || lastTransaction?.acquirer_message || 'Transação recusada.';
-
+            const lt = lastTransaction;
+            const ge = lt?.gateway_response?.errors;
+            let msg = '';
+            if (ge && Array.isArray(ge) && ge.length) {
+                msg = ge.map((e: any) => e.message).join('; ');
+            } else if (typeof lt?.acquirer_message === 'string') {
+                msg = /aprovad/i.test(lt.acquirer_message) ? 'Transação não capturada. Aguarde confirmação ou tente novamente.' : lt.acquirer_message;
+            } else {
+                msg = 'Transação recusada.';
+            }
             return NextResponse.json({
                 error: `Pagamento Recusado: ${msg}`,
                 status: charge?.status || pagarmeOrder.status,

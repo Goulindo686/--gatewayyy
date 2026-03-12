@@ -114,12 +114,17 @@ export async function POST(req: NextRequest) {
 
         // --- ERROR DETECTION ---
         if (charge?.status === 'failed' || pagarmeOrder.status === 'failed') {
-            const lastTransaction = charge?.last_transaction;
-            const gatewayErrors = lastTransaction?.gateway_response?.errors;
-            const msg = gatewayErrors?.map((e: any) => e.message).join('; ') || lastTransaction?.acquirer_message || 'Transação recusada.';
-            
+            const lt = charge?.last_transaction;
+            const ge = lt?.gateway_response?.errors;
+            let msg = '';
+            if (ge && Array.isArray(ge) && ge.length) {
+                msg = ge.map((e: any) => e.message).join('; ');
+            } else if (typeof lt?.acquirer_message === 'string') {
+                msg = /aprovad/i.test(lt.acquirer_message) ? 'Transação não capturada. Aguarde confirmação ou tente novamente.' : lt.acquirer_message;
+            } else {
+                msg = 'Transação recusada.';
+            }
             console.error('Pagar.me Order Failed:', JSON.stringify(pagarmeOrder, null, 2));
-
             return jsonError(`Pagamento Recusado: ${msg}`, 400);
         }
 
