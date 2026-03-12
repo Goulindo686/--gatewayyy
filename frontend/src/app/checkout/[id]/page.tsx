@@ -45,9 +45,9 @@ export default function CheckoutPage() {
     const timerRef = useRef<any>(null);
     const [form, setForm] = useState({
         name: '', email: '', cpf: '', phone: '',
+        cep: '', street: '', number: '', neighborhood: '', city: '', state: '',
         card_number: '', card_holder: '', card_exp_month: '', card_exp_year: '', card_cvv: '', installments: 1
     });
-    // Endereço não é necessário para Pagar.me na nossa integração
 
     useEffect(() => {
         if (params.id) loadProduct(params.id as string);
@@ -125,7 +125,17 @@ export default function CheckoutPage() {
                     name: form.name,
                     email: form.email,
                     cpf: form.cpf,
-                    phone: form.phone
+                    phone: form.phone,
+                    address: {
+                        line_1: `${form.street || ''}, ${form.number || ''}, ${form.neighborhood || ''}`.trim(),
+                        zip_code: form.cep?.replace(/\D/g, ''),
+                        city: form.city,
+                        state: form.state,
+                        country: 'BR',
+                        street: form.street,
+                        number: form.number,
+                        neighborhood: form.neighborhood
+                    }
                 }
             };
             if (methodToSend === 'credit_card') {
@@ -420,7 +430,51 @@ export default function CheckoutPage() {
                                 style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                         </div>
 
-                        {/* Endereço removido: não obrigatório na integração atual */}
+                        <div style={{ marginBottom: 16 }}>
+                            <h3 style={{ fontSize: 14, fontWeight: 700, color: textSecondary, marginBottom: 10 }}>Endereço de cobrança</h3>
+                            <div className="checkoutGrid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                <div>
+                                    <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>CEP</label>
+                                    <input placeholder="00000-000" value={form.cep} onChange={e => update('cep', e.target.value)}
+                                        required={enableCreditCard && paymentMethod === 'credit_card'}
+                                        style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Cidade</label>
+                                    <input placeholder="Cidade" value={form.city} onChange={e => update('city', e.target.value)}
+                                        required={enableCreditCard && paymentMethod === 'credit_card'}
+                                        style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                                </div>
+                            </div>
+                            <div className="checkoutGrid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+                                <div>
+                                    <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Estado</label>
+                                    <input placeholder="UF" maxLength={2} value={form.state} onChange={e => update('state', e.target.value.toUpperCase())}
+                                        required={enableCreditCard && paymentMethod === 'credit_card'}
+                                        style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Bairro</label>
+                                    <input placeholder="Bairro" value={form.neighborhood} onChange={e => update('neighborhood', e.target.value)}
+                                        required={enableCreditCard && paymentMethod === 'credit_card'}
+                                        style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                                </div>
+                            </div>
+                            <div className="checkoutGrid2" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12, marginTop: 12 }}>
+                                <div>
+                                    <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Rua</label>
+                                    <input placeholder="Rua" value={form.street} onChange={e => update('street', e.target.value)}
+                                        required={enableCreditCard && paymentMethod === 'credit_card'}
+                                        style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Número</label>
+                                    <input placeholder="Nº" value={form.number} onChange={e => update('number', e.target.value)}
+                                        required={enableCreditCard && paymentMethod === 'credit_card'}
+                                        style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                                </div>
+                            </div>
+                        </div>
 
                         {/* Payment method */}
                         <div style={{ marginBottom: 20 }}>
