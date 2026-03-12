@@ -94,8 +94,11 @@ export async function POST(req: NextRequest) {
 
         let pagarmeOrder;
         try {
+            const amountCents = typeof product.price === 'number'
+                ? (product.price >= 100 ? Math.round(product.price) : Math.round(product.price * 100))
+                : Math.round(parseFloat(product.price_display) * 100);
             pagarmeOrder = await PagarmeService.createOrder({
-                amount: product.price,
+                amount: amountCents,
                 payment_method: normalizedPaymentMethod,
                 customer: buyer,
                 card_data: normalizedPaymentMethod === 'credit_card' ? card_data : undefined,
@@ -144,13 +147,18 @@ export async function POST(req: NextRequest) {
         }
 
         // Calculate amount display safely
-        const amountDisplay = product.price_display || (product.price / 100).toFixed(2);
+        const amountDisplay = product.price_display || (() => {
+            const cents = typeof product.price === 'number'
+                ? (product.price >= 100 ? product.price : Math.round(product.price * 100))
+                : Math.round(parseFloat(product.price) * 100);
+            return (cents / 100).toFixed(2);
+        })();
 
         // Save order
         await supabase.from('orders').insert({
             id: orderId, seller_id: product.user_id, product_id: product.id,
             buyer_name: buyer.name, buyer_email: buyer.email, buyer_cpf: buyer.cpf,
-            amount: product.price, // amount_display removed to prevent schema errors
+            amount: Math.round(parseFloat(amountDisplay) * 100),
             payment_method: normalizedPaymentMethod, status: charge?.status === 'paid' ? 'paid' : 'pending',
             pagarme_order_id: pagarmeOrder.id, pagarme_charge_id: charge?.id,
             pix_qr_code: pix?.qr_code,
@@ -161,7 +169,7 @@ export async function POST(req: NextRequest) {
         // Save transaction
         await supabase.from('transactions').insert({
             id: uuidv4(), user_id: product.user_id, order_id: orderId,
-            type: 'sale', amount: product.price,
+            type: 'sale', amount: Math.round(parseFloat(amountDisplay) * 100),
             // amount_display removed to prevent schema errors
             status: charge?.status === 'paid' ? 'confirmed' : 'pending',
             description: `Venda: ${product.name}`
@@ -170,7 +178,7 @@ export async function POST(req: NextRequest) {
         // If paid immediately, create fee transaction and update sales count
         let buyerUser: any = null;
         if (charge?.status === 'paid') {
-            const feeAmount = Math.round(product.price * (feePercentage / 100));
+            const feeAmount = Math.round(Math.round(parseFloat(amountDisplay) * 100) * (feePercentage / 100));
             if (feeAmount > 0) {
                 await supabase.from('transactions').insert({
                     id: uuidv4(), user_id: product.user_id, order_id: orderId,
