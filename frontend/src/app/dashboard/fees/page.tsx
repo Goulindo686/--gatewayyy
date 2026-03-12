@@ -15,12 +15,9 @@ export default function FeesPage() {
         },
         {
             method: 'Cartão de crédito',
-            platform: '2.00%',
-            gateway: '3.99%',
-            total: '5.99%',
             payout: 'D+30',
             icon: <FiCreditCard size={24} color="#6366f1" />,
-            description: 'Aceite crédito com proteção antifraude e possibilidade de parcelamento.'
+            description: 'Liberação em D+30. Limite de parcelamento até 12x.'
         }
     ];
 
@@ -77,21 +74,38 @@ export default function FeesPage() {
                         <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{fee.method}</h3>
                         <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 24, height: 40 }}>{fee.description}</p>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                                <span style={{ color: 'var(--text-muted)' }}>Taxa Plataforma</span>
-                                <span style={{ fontWeight: 600 }}>{fee.platform}</span>
+                        {fee.method !== 'Cartão de crédito' ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Taxa Plataforma</span>
+                                    <span style={{ fontWeight: 600 }}>2.00%</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Taxa Gateway</span>
+                                    <span style={{ fontWeight: 600 }}>1.09%</span>
+                                </div>
+                                <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 0' }} />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700 }}>
+                                    <span>Total Estimado</span>
+                                    <span className="gradient-text">3.09%</span>
+                                </div>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                                <span style={{ color: 'var(--text-muted)' }}>Taxa Gateway</span>
-                                <span style={{ fontWeight: 600 }}>{fee.gateway}</span>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Crédito à vista</span>
+                                    <span style={{ fontWeight: 700 }}>3,19%</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Crédito parcelado 2–6x</span>
+                                    <span style={{ fontWeight: 700 }}>4,49%</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Crédito parcelado 7–12x</span>
+                                    <span style={{ fontWeight: 700 }}>4,99%</span>
+                                </div>
                             </div>
-                            <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 0' }} />
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700 }}>
-                                <span>Total Estimado</span>
-                                <span className="gradient-text">{fee.total}</span>
-                            </div>
-                        </div>
+                        )}
                     </div>
                 ))}
             </div>
@@ -107,7 +121,7 @@ export default function FeesPage() {
             <div style={{ height: 18 }} />
 
             <div className="glass-card" style={{ padding: 24 }}>
-                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Cartão de crédito — Taxa MDR</h3>
+                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Taxa por tipo de transação (Cartão)</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {cardMdr.map((row, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
@@ -121,7 +135,7 @@ export default function FeesPage() {
             <div style={{ height: 18 }} />
 
             <div className="glass-card" style={{ padding: 24 }}>
-                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Outros custos</h3>
+                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Custos por transação</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
                     {extraFees.map((row, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: 10 }}>
@@ -130,24 +144,11 @@ export default function FeesPage() {
                         </div>
                     ))}
                 </div>
-            </div>
-
-            <div style={{ height: 18 }} />
-
-            <div className="glass-card" style={{ padding: 24 }}>
-                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Custo Efetivo Total para recebimento em 15 dias</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
-                    {cet15Days.map((row, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: 10, background: 'rgba(255,255,255,0.02)' }}>
-                            <span style={{ color: 'var(--text-muted)' }}>{row.label}</span>
-                            <span style={{ fontWeight: 700 }}>{row.value}</span>
-                        </div>
-                    ))}
-                </div>
-                <div style={{ marginTop: 12, color: 'var(--text-secondary)', fontSize: 12 }}>
-                    O CET combina taxa MDR, antecipação automática e taxa de garantia de chargeback. Os custos fixos por transação são acrescidos ao CET e podem ocorrer pequenas variações conforme a liquidação em dias úteis.
+                <div style={{ marginTop: 10, color: 'var(--text-secondary)', fontSize: 12 }}>
+                    Liberação do cartão em D+30. Limite de parcelamento até 12x.
                 </div>
             </div>
+
         </div>
     );
 }
