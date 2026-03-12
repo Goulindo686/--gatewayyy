@@ -132,6 +132,7 @@ export class PagarmeService {
                 payment_method: 'credit_card',
                 split: splitRules,
                 credit_card: {
+                    operation_type: 'auth_and_capture',
                     installments: installments,
                     statement_descriptor: 'PEDIDO',
                     card: {
@@ -244,6 +245,7 @@ export class PagarmeService {
                 payment_method: 'credit_card',
                 split: splitRules,
                 credit_card: {
+                    operation_type: 'auth_and_capture',
                     installments: installments,
                     statement_descriptor: 'LOJA',
                     card: {
