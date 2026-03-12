@@ -130,6 +130,68 @@ export async function POST(req: NextRequest) {
                 msg = 'Transação reprovada pelo Antifraude.';
                 if (typeof af.status === 'string') msg += ` Status: ${af.status}.`;
                 if (typeof af.reason === 'string') msg += ` Motivo: ${af.reason}.`;
+                // Attempt safe reprocess WITHOUT Antifraude (merchant risk)
+                try {
+                    const ipHeader = req.headers.get('x-forwarded-for') || '';
+                    const ip = ipHeader.split(',')[0].trim() || undefined;
+                    const sessionId2 = uuidv4();
+                    const reOrder = await PagarmeService.createOrder({
+                        amount: typeof product.price === 'number'
+                            ? (product.price >= 100 ? Math.round(product.price) : Math.round(product.price * 100))
+                            : Math.round(parseFloat(product.price_display) * 100),
+                        payment_method: normalizedPaymentMethod,
+                        customer: buyer,
+                        card_data: normalizedPaymentMethod === 'credit_card' ? card_data : undefined,
+                        seller_recipient_id: recipient.pagarme_recipient_id,
+                        platform_fee_percentage: feePercentage,
+                        ip,
+                        session_id: sessionId2,
+                        antifraud_disable: true
+                    });
+                    const reCharge = reOrder.charges?.[0];
+                    if (reCharge?.status !== 'failed' && reOrder.status !== 'failed') {
+                        // Build success response and save order
+                        const orderId2 = uuidv4();
+                        const amountDisplay2 = product.price_display || (() => {
+                            const val = typeof product.price === 'number' ? product.price : parseFloat(product.price_display) * 100;
+                            return (Math.round(val) / 100).toFixed(2);
+                        })();
+                        const { data: orderSaved } = await supabase
+                            .from('orders')
+                            .insert({
+                                id: orderId2,
+                                product_id: product.id,
+                                seller_id: product.user_id,
+                                buyer_name: buyer.name || 'Cliente',
+                                buyer_email: buyer.email?.toLowerCase().trim(),
+                                buyer_cpf: buyer.cpf?.replace(/\D/g, '') || '00000000000',
+                                buyer_phone: buyer.phone?.replace(/\D/g, '') || '11999999999',
+                                amount: typeof product.price === 'number' ? Math.round(product.price) : Math.round(parseFloat(product.price_display) * 100),
+                                amount_display: amountDisplay2,
+                                payment_method: normalizedPaymentMethod,
+                                status: reCharge?.status === 'paid' ? 'paid' : 'pending',
+                                pagarme_order_id: reOrder.id,
+                                pagarme_charge_id: reCharge?.id,
+                                installments: card_data?.installments || 1,
+                                card_last_digits: reCharge?.last_transaction?.card?.last_four_digits,
+                                card_brand: reCharge?.last_transaction?.card?.brand
+                            })
+                            .select()
+                            .single();
+
+                        const response2: any = {
+                            order: {
+                                id: orderSaved?.id,
+                                status: orderSaved?.status,
+                                amount_display: orderSaved?.amount_display,
+                                payment_method: orderSaved?.payment_method
+                            }
+                        };
+                        return new Response(JSON.stringify(response2), { status: 201 });
+                    }
+                } catch (reErr: any) {
+                    console.error('Reprocess without antifraud failed:', reErr.response?.data || reErr.message);
+                }
             } else if (ge && Array.isArray(ge) && ge.length) {
                 msg = ge.map((e: any) => e.message).join('; ');
             } else if (typeof lt?.acquirer_message === 'string') {

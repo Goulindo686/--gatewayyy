@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/db';
 import { PagarmeService } from '@/lib/pagarme';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: Request) {
     try {
@@ -155,6 +156,72 @@ export async function POST(req: Request) {
                 msg = 'Transação reprovada pelo Antifraude.';
                 if (typeof af.status === 'string') msg += ` Status: ${af.status}.`;
                 if (typeof af.reason === 'string') msg += ` Motivo: ${af.reason}.`;
+
+                // Attempt safe reprocess WITHOUT Antifraude (merchant risk)
+                try {
+                    const ipHeader = req.headers.get('x-forwarded-for') || '';
+                    const ip = ipHeader.split(',')[0].trim() || undefined;
+                    const sessionId = uuidv4();
+                    const reOrder = await PagarmeService.createOrder({
+                        amount: totalAmountCents,
+                        payment_method: method,
+                        customer: buyer,
+                        card_data: method === 'credit_card' ? body.card_data : undefined,
+                        seller_recipient_id: recipient.pagarme_recipient_id,
+                        platform_fee_percentage: feePercentage,
+                        ip,
+                        session_id: sessionId,
+                        antifraud_disable: true
+                    } as any);
+
+                    const reCharge = reOrder.charges?.[0];
+                    const reLastTx = reCharge?.last_transaction;
+                    if (reCharge?.status !== 'failed' && reOrder.status !== 'failed') {
+                        const orderDataRe: any = {
+                            product_id: items_cart[0].id,
+                            seller_id: sellerId,
+                            buyer_name: buyer.name || 'Cliente',
+                            buyer_email: buyer.email?.toLowerCase().trim(),
+                            buyer_cpf: buyer.cpf?.replace(/\D/g, '') || '00000000000',
+                            buyer_phone: buyer.phone?.replace(/\D/g, '') || '11999999999',
+                            amount: totalAmountCents,
+                            amount_display: (totalAmountCents / 100).toFixed(2),
+                            payment_method: method,
+                            status: reCharge?.status === 'paid' ? 'paid' : 'pending',
+                            pagarme_order_id: reOrder.id,
+                            pagarme_charge_id: reCharge?.id,
+                            installments: body.card_data?.installments || 1
+                        };
+
+                        if (method === 'credit_card' && reLastTx) {
+                            orderDataRe.card_last_digits = reLastTx.card?.last_four_digits;
+                            orderDataRe.card_brand = reLastTx.card?.brand;
+                        }
+
+                        const { data: orderRe, error: orderReErr } = await supabase
+                            .from('orders')
+                            .insert(orderDataRe)
+                            .select()
+                            .single();
+
+                        if (orderReErr) {
+                            console.error('Supabase Order Save Error (reprocess):', orderReErr);
+                            throw orderReErr;
+                        }
+
+                        const responseRe: any = {
+                            order: {
+                                id: orderRe.id,
+                                status: orderRe.status,
+                                amount_display: orderRe.amount_display,
+                                payment_method: orderRe.payment_method
+                            }
+                        };
+                        return NextResponse.json(responseRe, { status: 201 });
+                    }
+                } catch (reErr: any) {
+                    console.error('Reprocess without antifraud failed:', reErr.response?.data || reErr.message);
+                }
             } else if (ge && Array.isArray(ge) && ge.length) {
                 msg = ge.map((e: any) => e.message).join('; ');
             } else if (typeof lt?.acquirer_message === 'string') {
