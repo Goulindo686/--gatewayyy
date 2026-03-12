@@ -1,6 +1,6 @@
 'use client';
 
-import { FiCheckCircle, FiZap } from 'react-icons/fi';
+import { FiCheckCircle, FiZap, FiCreditCard } from 'react-icons/fi';
 
 export default function FeesPage() {
     const fees = [
@@ -12,7 +12,46 @@ export default function FeesPage() {
             payout: 'Na hora',
             icon: <FiZap size={24} color="#00cec9" />,
             description: 'O método mais rápido e barato para você e para o cliente.'
+        },
+        {
+            method: 'Cartão de crédito',
+            platform: '2.00%',
+            gateway: '3.99%',
+            total: '5.99%',
+            payout: 'D+30',
+            icon: <FiCreditCard size={24} color="#6366f1" />,
+            description: 'Aceite crédito com proteção antifraude e possibilidade de parcelamento.'
         }
+    ];
+
+    const cardMdr = [
+        { label: 'Crédito à vista', value: '3,19%' },
+        { label: 'Parcelado 2–6', value: '4,49%' },
+        { label: 'Parcelado 7–12', value: '4,99%' }
+    ];
+
+    const extraFees = [
+        { label: 'Antecipação Autom.', value: '2,89%' },
+        { label: 'Pix', value: '1,09%' },
+        { label: 'Boleto', value: '3,19%' },
+        { label: 'Gateway', value: 'R$ 0,55' },
+        { label: 'Antifraude', value: 'R$ 0,44' },
+        { label: 'Taxa de saque', value: 'R$ 3,67' }
+    ];
+
+    const cet15Days = [
+        { label: 'Crédito à vista', value: '4,59%' },
+        { label: 'Parcelado em 2x', value: '7,41%' },
+        { label: 'Parcelado em 3x', value: '8,79%' },
+        { label: 'Parcelado em 4x', value: '10,17%' },
+        { label: 'Parcelado em 5x', value: '11,55%' },
+        { label: 'Parcelado em 6x', value: '12,93%' },
+        { label: 'Parcelado em 7x', value: '14,76%' },
+        { label: 'Parcelado em 8x', value: '16,13%' },
+        { label: 'Parcelado em 9x', value: '17,50%' },
+        { label: 'Parcelado em 10x', value: '18,88%' },
+        { label: 'Parcelado em 11x', value: '20,25%' },
+        { label: 'Parcelado em 12x', value: '21,62%' }
     ];
 
     return (
@@ -63,6 +102,51 @@ export default function FeesPage() {
                 <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
                     Você só paga quando vende. Não cobramos mensalidade, taxa de adesão ou taxas por saque.
                 </p>
+            </div>
+
+            <div style={{ height: 18 }} />
+
+            <div className="glass-card" style={{ padding: 24 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Cartão de crédito — Taxa MDR</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {cardMdr.map((row, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                            <span style={{ color: 'var(--text-muted)' }}>{row.label}</span>
+                            <span style={{ fontWeight: 700 }}>{row.value}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div style={{ height: 18 }} />
+
+            <div className="glass-card" style={{ padding: 24 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Outros custos</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                    {extraFees.map((row, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: 10 }}>
+                            <span style={{ color: 'var(--text-muted)' }}>{row.label}</span>
+                            <span style={{ fontWeight: 700 }}>{row.value}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div style={{ height: 18 }} />
+
+            <div className="glass-card" style={{ padding: 24 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Custo Efetivo Total para recebimento em 15 dias</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+                    {cet15Days.map((row, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: 10, background: 'rgba(255,255,255,0.02)' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>{row.label}</span>
+                            <span style={{ fontWeight: 700 }}>{row.value}</span>
+                        </div>
+                    ))}
+                </div>
+                <div style={{ marginTop: 12, color: 'var(--text-secondary)', fontSize: 12 }}>
+                    O CET combina taxa MDR, antecipação automática e taxa de garantia de chargeback. Os custos fixos por transação são acrescidos ao CET e podem ocorrer pequenas variações conforme a liquidação em dias úteis.
+                </div>
             </div>
         </div>
     );
