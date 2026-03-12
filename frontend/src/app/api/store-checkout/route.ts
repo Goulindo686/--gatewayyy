@@ -115,13 +115,18 @@ export async function POST(req: Request) {
         let pagarmeOrder;
         try {
             // we use the same "createOrder" used by the standalone system that works
+            const ipHeader = (typeof (req as any)?.headers?.get === 'function' ? (req as any).headers.get('x-forwarded-for') : '') || '';
+            const ip = (ipHeader || '').split(',')[0].trim() || undefined;
+            const sessionId = uuidv4();
             pagarmeOrder = await PagarmeService.createOrder({
                 amount: totalAmountCents,
                 payment_method: method,
                 customer: buyer,
                 seller_recipient_id: recipient.pagarme_recipient_id,
                 platform_fee_percentage: feePercentage,
-                card_data: method === 'credit_card' ? body.card_data : undefined
+                card_data: method === 'credit_card' ? body.card_data : undefined,
+                ip,
+                session_id: sessionId
             } as any);
         } catch (pagarmeErr: any) {
             const errorBody = pagarmeErr.response?.data;
