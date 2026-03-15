@@ -197,9 +197,6 @@ class CheckoutController {
 
             const sellerId = firstProduct.user_id;
 
-            // Verify if all products belong to the same seller (optional security)
-            // For now assume they do as they come from the same store slug
-
             // Get seller's recipient
             const { data: recipient } = await supabase
                 .from('recipients')
@@ -240,11 +237,6 @@ class CheckoutController {
             const charge = pagarmeOrder.charges?.[0];
             const totalAmountCents = pagarmeOrder.amount;
 
-            // Create order record in DB
-            // Note: Since we have multiple products, we might need an 'order_items' table 
-            // but for now we store the first product_id or a generic reference, 
-            // or just save the cart JSON in a metadata field if we don't want to change schema too much.
-            // Let's assume we use 'product_id' as the main ref but save full cart in metadata.
             const orderData = {
                 product_id: items_cart[0].id,
                 seller_id: sellerId,
@@ -257,7 +249,6 @@ class CheckoutController {
                 status: charge?.status === 'paid' ? 'paid' : 'pending',
                 pagarme_order_id: pagarmeOrder.id,
                 pagarme_charge_id: charge?.id
-                // metadata: { cart: items_cart, store_slug } -- This column doesn't exist in schema yet
             };
 
             if (payment_method === 'pix' && charge?.last_transaction) {
@@ -303,12 +294,33 @@ class CheckoutController {
         try {
             const { data: order, error } = await supabase
                 .from('orders')
-                .select('id, status, payment_method, amount, pix_qr_code, pix_qr_code_url, pix_expires_at, created_at')
+                .select('id, status, payment_method, amount, pix_qr_code, pix_qr_code_url, pix_expires_at, created_at, seller_id, buyer_email')
                 .eq('id', req.params.id)
                 .single();
 
             if (error || !order) {
                 return res.status(404).json({ error: 'Pedido não encontrado.' });
+            }
+
+            // --- AUTHORIZATION CHECK ---
+            const isSeller = req.user && req.user.id === order.seller_id;
+            const isAdmin = req.user && req.user.role === 'admin';
+            const isBuyer = req.user && req.user.email?.toLowerCase().trim() === order.buyer_email?.toLowerCase().trim();
+
+            if (!isSeller && !isAdmin && !isBuyer) {
+                if (!req.user) {
+                   return res.json({ 
+                       order: { 
+                           id: order.id, 
+                           status: order.status, 
+                           amount_display: (order.amount / 100).toFixed(2),
+                           payment_method: order.payment_method,
+                           pix_qr_code: order.pix_qr_code,
+                           pix_qr_code_url: order.pix_qr_code_url
+                       } 
+                   });
+                }
+                return res.status(403).json({ error: 'Acesso não autorizado a este pedido.' });
             }
 
             res.json({ order: { ...order, amount_display: (order.amount / 100).toFixed(2) } });

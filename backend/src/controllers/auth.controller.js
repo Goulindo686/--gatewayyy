@@ -42,42 +42,9 @@ class AuthController {
 
             console.log(`[AUTH] User created: ${user.id} (${user.email})`);
 
-            // --- LINK EXISTING ORDERS ---
-            // Find all paid orders for this email that don't have an enrollment yet
-            try {
-                const normalizedEmail = email.toLowerCase().trim();
-                console.log(`[AUTH-DEBUG] Linking orders for: ${normalizedEmail}`);
-
-                const { data: relevantOrders, error: fetchErr } = await supabase
-                    .from('orders')
-                    .select('id, product_id, buyer_email')
-                    .eq('status', 'paid')
-                    .ilike('buyer_email', normalizedEmail);
-
-                if (fetchErr) {
-                    console.error('[AUTH-DEBUG] Fetch error:', fetchErr.message);
-                } else if (relevantOrders && relevantOrders.length > 0) {
-                    console.log(`[AUTH-DEBUG] Found ${relevantOrders.length} paid orders to link.`);
-                    const enrollments = relevantOrders.map(order => ({
-                        user_id: user.id,
-                        product_id: order.product_id,
-                        order_id: order.id,
-                        status: 'active'
-                    }));
-
-                    const { error: enrollError } = await supabase
-                        .from('enrollments')
-                        .upsert(enrollments);
-
-                    if (enrollError) console.error('[AUTH-DEBUG] Link error:', enrollError.message);
-                    else console.log('[AUTH-DEBUG] All orders linked to user successfully.');
-                } else {
-                    console.log('[AUTH-DEBUG] No matching paid orders found during registration.');
-                }
-            } catch (linkErr) {
-                console.error('[AUTH-DEBUG] Critical linking error:', linkErr.message);
-            }
-            // ----------------------------
+            // --- ORDER LINKING MOVED TO EMAIL VERIFICATION ---
+            // This prevents unauthorized users from claiming orders before proving email ownership.
+            // -------------------------------------------------
 
             // Create Pagar.me recipient
             try {
@@ -242,6 +209,33 @@ class AuthController {
             }
 
             res.json({ message: 'Email verificado com sucesso!' });
+
+            // --- LINK EXISTING ORDERS AFTER VERIFICATION ---
+            try {
+                const normalizedEmail = data.email.toLowerCase().trim();
+                console.log(`[AUTH-DEBUG] Linking orders for newly verified user: ${normalizedEmail}`);
+
+                const { data: relevantOrders } = await supabase
+                    .from('orders')
+                    .select('id, product_id')
+                    .eq('status', 'paid')
+                    .ilike('buyer_email', normalizedEmail);
+
+                if (relevantOrders && relevantOrders.length > 0) {
+                    const enrollments = relevantOrders.map(order => ({
+                        user_id: data.id,
+                        product_id: order.product_id,
+                        order_id: order.id,
+                        status: 'active'
+                    }));
+
+                    await supabase.from('enrollments').upsert(enrollments);
+                    console.log(`[AUTH-DEBUG] Linked ${relevantOrders.length} orders for user ${data.id}`);
+                }
+            } catch (linkErr) {
+                console.error('[AUTH-DEBUG] Order linking error during verification:', linkErr.message);
+            }
+            // -----------------------------------------------
         } catch (error) {
             next(error);
         }

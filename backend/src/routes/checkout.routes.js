@@ -2,6 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const checkoutController = require('../controllers/checkout.controller');
 const { validate } = require('../middlewares/validation.middleware');
+const { auth } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
 
@@ -21,6 +22,16 @@ router.post('/store-checkout', [
     validate
 ], checkoutController.processStoreCheckout);
 
-router.get('/order/:id', checkoutController.getOrderStatus);
+router.get('/order/:id', (req, res, next) => {
+    // We try to authenticate but don't block if it fails (for public order tracking)
+    // The controller will handle specific field masking/permissions
+    if (req.headers.authorization) {
+        auth(req, res, () => {
+            checkoutController.getOrderStatus(req, res, next);
+        });
+    } else {
+        checkoutController.getOrderStatus(req, res, next);
+    }
+});
 
 module.exports = router;

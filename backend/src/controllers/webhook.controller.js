@@ -5,9 +5,29 @@ const TelegramService = require('../services/telegram.service');
 class WebhookController {
     async handlePagarme(req, res, next) {
         try {
-            const event = req.body;
+            // Verify signature
+            const signature = req.headers['x-pagarme-signature'];
+            const webhookSecret = process.env.PAGARME_WEBHOOK_SECRET;
 
-            console.log('Webhook received:', event.type, event.data?.id);
+            if (webhookSecret && signature) {
+                const crypto = require('crypto');
+                const rawBody = req.rawBody || JSON.stringify(req.body);
+                const expectedSignature = crypto
+                    .createHmac('sha256', webhookSecret)
+                    .update(rawBody)
+                    .digest('hex');
+
+                if (signature !== expectedSignature) {
+                    console.log('[SECURITY-WARNING] Invalid webhook signature detected!');
+                    return res.status(401).json({ error: 'Assinatura inválida.' });
+                }
+            } else if (process.env.NODE_ENV === 'production') {
+                console.log('[SECURITY-WARNING] Missing webhook signature or secret in production!');
+                return res.status(401).json({ error: 'Assinatura necessária.' });
+            }
+
+            const event = req.body;
+            console.log('Webhook received (verified):', event.type, event.data?.id);
 
             switch (event.type) {
                 case 'charge.paid':

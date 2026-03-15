@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 const { errorHandler } = require('./middlewares/error.middleware');
+const { loginLimiter, registerLimiter, forgotPasswordLimiter } = require('./middlewares/rate-limit.middleware');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
@@ -65,6 +66,9 @@ app.get('/api/health', (req, res) => {
 });
 
 // API Routes
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/register', registerLimiter);
+app.use('/api/auth/forgot-password', forgotPasswordLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/checkout', checkoutRoutes);
