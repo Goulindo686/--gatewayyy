@@ -7,7 +7,7 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { items: items_cart, buyer, store_slug } = body;
-        const enableCreditCard = process.env.ENABLE_CREDIT_CARD ? (process.env.ENABLE_CREDIT_CARD === 'true') : true;
+        const enableCreditCard = process.env.ENABLE_CREDIT_CARD ? (process.env.ENABLE_CREDIT_CARD === 'true') : false;
         const normalizedPaymentMethod = (body.payment_method === 'card' ? 'credit_card' : body.payment_method) || 'pix';
 
         const extractPix = (pagarmeOrder: any) => {

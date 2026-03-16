@@ -13,7 +13,7 @@ export default function CartPage() {
     const searchParams = useSearchParams();
     const { items, addItem, updateQuantity, removeItem, totalAmount, clearCart } = useCart();
 
-    const enableCreditCard = process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD ? (process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD === 'true') : true;
+    const enableCreditCard = process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD ? (process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD === 'true') : false;
     const [paymentMethod, setPaymentMethod] = useState<'pix' | 'credit_card'>('pix');
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
