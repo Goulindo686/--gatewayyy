@@ -34,6 +34,8 @@ export default function CheckoutPage() {
     const router = useRouter();
     const enableCreditCard = process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD ? (process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD === 'true') : true;
     const [product, setProduct] = useState<any>(null);
+    const [plans, setPlans] = useState<any[]>([]);
+    const [selectedPlan, setSelectedPlan] = useState<any>(null);
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
@@ -80,6 +82,9 @@ export default function CheckoutPage() {
         try {
             const { data } = await productsAPI.getPublic(id);
             setProduct(data.product);
+            const pl = Array.isArray(data.product?.plans) ? data.product.plans : [];
+            setPlans(pl);
+            setSelectedPlan(pl.length > 0 ? pl[0] : null);
             const s = { ...DEFAULT_SETTINGS, ...(data.product.checkout_settings || {}) };
             setSettings(s);
             // Start countdown timer if enabled
@@ -146,6 +151,7 @@ export default function CheckoutPage() {
             const includeAddress = methodToSend === 'credit_card' || !settings.hide_address_pix;
             const buyer: any = {
                 product_id: params.id,
+                plan_id: selectedPlan?.id,
                 payment_method: methodToSend,
                 buyer: {
                     name: form.name,
@@ -399,7 +405,7 @@ export default function CheckoutPage() {
             >
                 {/* Product Info */}
                 <div style={{ padding: 0, overflow: 'hidden', background: bgCard, borderRadius: 16, border: `1px solid ${borderColor}` }}>
-                    <div className="productMobileHeader" style={{ display: 'none', alignItems: 'center', gap: 12, padding: 12, borderBottom: `1px solid ${borderColor}` }}>
+                        <div className="productMobileHeader" style={{ display: 'none', alignItems: 'center', gap: 12, padding: 12, borderBottom: `1px solid ${borderColor}` }}>
                         {!settings.hide_product_image && (
                             <div style={{ width: 60, height: 60, borderRadius: 10, overflow: 'hidden', background: `linear-gradient(135deg, ${accent}22, ${accent}0a)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 {product.image_url ? (
@@ -411,7 +417,7 @@ export default function CheckoutPage() {
                         )}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
                             <div style={{ fontSize: 16, fontWeight: 700, color: textPrimary }}>{product.name}</div>
-                            <div style={{ fontSize: 16, fontWeight: 800, color: accent }}>R$ {product.price_display}</div>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: accent }}>R$ {selectedPlan ? selectedPlan.price_display : product.price_display}</div>
                         </div>
                     </div>
                     {!settings.hide_product_image && (
@@ -428,7 +434,33 @@ export default function CheckoutPage() {
                     )}
                     <div style={{ padding: 28 }} className="checkoutCardBody">
                         <h1 style={{ fontSize: 24, fontWeight: 700, marginTop: 8, marginBottom: 12, color: textPrimary }}>{product.name}</h1>
-                        <div style={{ fontSize: 32, fontWeight: 800, color: accent }}>R$ {product.price_display}</div>
+                        {plans.length > 0 ? (
+                            <div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+                                    {plans.map(p => (
+                                        <button
+                                            key={p.id}
+                                            type="button"
+                                            onClick={() => setSelectedPlan(p)}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                padding: '10px 12px', borderRadius: 10,
+                                                background: selectedPlan?.id === p.id ? `${accent}1a` : 'transparent',
+                                                border: `1px solid ${selectedPlan?.id === p.id ? accent : borderColor}`,
+                                                color: selectedPlan?.id === p.id ? accent : textSecondary,
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            <span style={{ fontWeight: 700 }}>{p.name}</span>
+                                            <span style={{ fontWeight: 800, color: textPrimary }}>R$ {p.price_display}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <div style={{ fontSize: 28, fontWeight: 800, color: accent }}>R$ {selectedPlan?.price_display}</div>
+                            </div>
+                        ) : (
+                            <div style={{ fontSize: 32, fontWeight: 800, color: accent }}>R$ {product.price_display}</div>
+                        )}
                     </div>
                 </div>
 
@@ -591,7 +623,7 @@ export default function CheckoutPage() {
                             {processing ? 'Processando...' : (
                                 <>
                                     {paymentMethod === 'pix' ? <FiSmartphone size={18} /> : <FiCreditCard size={18} />}
-                                    Pagar R$ {product.price_display}
+                                    Pagar R$ {selectedPlan ? selectedPlan.price_display : product.price_display}
                                 </>
                             )}
                         </button>

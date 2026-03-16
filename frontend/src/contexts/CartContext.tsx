@@ -8,6 +8,8 @@ export interface CartItem {
     price: number;
     price_display?: string;
     image_url?: string;
+    plan_id?: string;
+    plan_name?: string;
     quantity: number;
 }
 

@@ -14,6 +14,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (!product) return jsonError('Produto não encontrado', 404);
 
+    const { data: plans } = await supabase
+        .from('product_plans')
+        .select('*')
+        .eq('product_id', product.id)
+        .order('sort_order', { ascending: true });
+
+    const firstPlan = (plans && plans.length > 0) ? plans[0] : null;
+    const effectivePrice = firstPlan ? firstPlan.price : product.price;
+
     // Get seller name
     const { data: seller } = await supabase
         .from('users')
@@ -24,9 +33,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return jsonSuccess({
         product: {
             ...product,
-            price: product.price / 100,
-            price_display: (product.price / 100).toFixed(2),
-            seller_name: seller?.name || 'Vendedor'
+            price: effectivePrice / 100,
+            price_display: (effectivePrice / 100).toFixed(2),
+            seller_name: seller?.name || 'Vendedor',
+            plans: (plans || []).map(p => ({
+                ...p,
+                price_display: (p.price / 100).toFixed(2)
+            }))
         }
     });
 }

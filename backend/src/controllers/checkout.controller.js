@@ -150,21 +150,21 @@ class CheckoutController {
             description: `Venda: ${product.name}`
         });
 
-            if (feeAmount > 0) {
-                await supabase.from('transactions').insert({
-                    order_id: order.id,
-                    user_id: order.seller_id,
-                    type: 'fee',
-                    amount: feeAmount,
-                    status: 'confirmed',
-                    description: `Taxa plataforma: ${feePercentage}%`
-                });
-                await supabase.from('platform_fees').insert({
-                    order_id: order.id,
-                    amount: feeAmount,
-                    percentage: feePercentage
-                });
-            }
+        if (feeAmount > 0) {
+            await supabase.from('transactions').insert({
+                order_id: order.id,
+                user_id: order.seller_id,
+                type: 'fee',
+                amount: feeAmount,
+                status: 'confirmed',
+                description: `Taxa plataforma: ${feePercentage}%`
+            });
+            await supabase.from('platform_fees').insert({
+                order_id: order.id,
+                amount: feeAmount,
+                percentage: feePercentage
+            });
+        }
 
         // Update product sales count
         await supabase.rpc('increment_sales_count', { p_id: product.id }).catch(() => {
@@ -309,16 +309,16 @@ class CheckoutController {
 
             if (!isSeller && !isAdmin && !isBuyer) {
                 if (!req.user) {
-                   return res.json({ 
-                       order: { 
-                           id: order.id, 
-                           status: order.status, 
-                           amount_display: (order.amount / 100).toFixed(2),
-                           payment_method: order.payment_method,
-                           pix_qr_code: order.pix_qr_code,
-                           pix_qr_code_url: order.pix_qr_code_url
-                       } 
-                   });
+                    return res.json({
+                        order: {
+                            id: order.id,
+                            status: order.status,
+                            amount_display: (order.amount / 100).toFixed(2),
+                            payment_method: order.payment_method,
+                            pix_qr_code: order.pix_qr_code,
+                            pix_qr_code_url: order.pix_qr_code_url
+                        }
+                    });
                 }
                 return res.status(403).json({ error: 'Acesso não autorizado a este pedido.' });
             }

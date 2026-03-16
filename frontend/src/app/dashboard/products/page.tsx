@@ -21,6 +21,7 @@ export default function ProductsPage() {
         name: '', price: '', image_url: '', type: 'digital', status: 'active',
         facebook_pixel_id: '', facebook_api_token: ''
     });
+    const [plans, setPlans] = useState<Array<{ name: string; price: string }>>([{ name: 'Padrão', price: '' }]);
     const [uploading, setUploading] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -43,23 +44,46 @@ export default function ProductsPage() {
         setForm({ name: '', price: '', image_url: '', type: 'digital', status: 'active', facebook_pixel_id: '', facebook_api_token: '' });
         setSelectedFile(null);
         setImagePreview(null);
+        setPlans([{ name: 'Padrão', price: '' }]);
         setShowModal(true);
     };
 
-    const openEdit = (product: any) => {
+    const openEdit = async (product: any) => {
         setEditing(product);
-        setForm({
-            name: product.name,
-            price: product.price_display || (product.price / 100).toFixed(2),
-            image_url: product.image_url || '',
-            type: product.type,
-            status: product.status,
-            facebook_pixel_id: product.facebook_pixel_id || '',
-            facebook_api_token: product.facebook_api_token || ''
-        });
-        setSelectedFile(null);
-        setImagePreview(product.image_url || null);
-        setShowModal(true);
+        try {
+            const { data } = await productsAPI.getById(product.id);
+            const p = data.product || product;
+            setForm({
+                name: p.name,
+                price: p.price_display || (p.price / 100).toFixed(2),
+                image_url: p.image_url || '',
+                type: p.type,
+                status: p.status,
+                facebook_pixel_id: p.facebook_pixel_id || '',
+                facebook_api_token: p.facebook_api_token || ''
+            });
+            const loadedPlans = Array.isArray(p.plans) && p.plans.length > 0
+                ? p.plans.map((pl: any) => ({ name: pl.name, price: pl.price_display || (pl.price / 100).toFixed(2) }))
+                : [{ name: 'Padrão', price: p.price_display || (p.price / 100).toFixed(2) }];
+            setPlans(loadedPlans);
+            setSelectedFile(null);
+            setImagePreview(p.image_url || null);
+            setShowModal(true);
+        } catch {
+            setForm({
+                name: product.name,
+                price: product.price_display || (product.price / 100).toFixed(2),
+                image_url: product.image_url || '',
+                type: product.type,
+                status: product.status,
+                facebook_pixel_id: product.facebook_pixel_id || '',
+                facebook_api_token: product.facebook_api_token || ''
+            });
+            setPlans([{ name: 'Padrão', price: product.price_display || (product.price / 100).toFixed(2) }]);
+            setSelectedFile(null);
+            setImagePreview(product.image_url || null);
+            setShowModal(true);
+        }
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,11 +119,17 @@ export default function ProductsPage() {
                 finalImageUrl = data.url;
             }
 
-            const productData = {
+            const normalizedPlans = plans
+                .map(p => ({ name: p.name.trim(), price: parseFloat(p.price) }))
+                .filter(p => p.name && !isNaN(p.price) && p.price > 0);
+            const productData: any = {
                 ...form,
                 image_url: finalImageUrl,
-                price: parseFloat(form.price)
+                plans: normalizedPlans
             };
+            if (!editing && normalizedPlans[0]) {
+                productData.price = normalizedPlans[0].price;
+            }
 
             if (editing) {
                 await productsAPI.update(editing.id, productData);
@@ -268,12 +298,46 @@ export default function ProductsPage() {
                                     value={form.name} onChange={e => update('name', e.target.value)} />
                             </div>
 
-
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Preço (R$)</label>
-                                    <input type="number" step="0.01" min="0.01" className="input-field" placeholder="99.90" required
-                                        value={form.price} onChange={e => update('price', e.target.value)} />
+                                    <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Plano e preço</label>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                        {plans.map((pl, idx) => (
+                                            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 8 }}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Nome do plano (ex: Diário, Semanal)"
+                                                    className="input-field"
+                                                    value={pl.name}
+                                                    onChange={e => setPlans(prev => prev.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))}
+                                                />
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0.01"
+                                                    placeholder="Preço (R$)"
+                                                    className="input-field"
+                                                    value={pl.price}
+                                                    onChange={e => setPlans(prev => prev.map((p, i) => i === idx ? { ...p, price: e.target.value } : p))}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn-danger"
+                                                    onClick={() => setPlans(prev => prev.filter((_, i) => i !== idx))}
+                                                    disabled={plans.length <= 1}
+                                                >
+                                                    Remover
+                                                </button>
+                                            </div>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            className="btn-secondary"
+                                            onClick={() => setPlans(prev => [...prev, { name: '', price: '' }])}
+                                        >
+                                            Adicionar plano
+                                        </button>
+                                    </div>
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Tipo</label>

@@ -30,23 +30,51 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { name, description, price, image_url, type, status, facebook_pixel_id, facebook_api_token } = body;
+        const { name, description, price, image_url, type, status, facebook_pixel_id, facebook_api_token, plans } = body;
 
-        if (!name || !price) return jsonError('Nome e preço são obrigatórios');
+        if (!name) return jsonError('Nome é obrigatório');
 
-        const priceInCents = Math.round(parseFloat(price) * 100);
+        const normalizedPlans: Array<{ name: string; price: number }> = Array.isArray(plans) && plans.length > 0
+            ? plans.map((p: any) => ({
+                name: String(p.name || 'Plano'),
+                price: Math.round(parseFloat(String(p.price)) * 100)
+            })).filter(p => p.name && p.price > 0)
+            : (price ? [{ name: 'Padrão', price: Math.round(parseFloat(String(price)) * 100) }] : []);
+
+        if (normalizedPlans.length === 0) return jsonError('Informe ao menos um plano de preço válido');
+        const basePrice = normalizedPlans[0].price;
+        const basePriceDisplay = (basePrice / 100).toFixed(2);
 
         const { data: product, error } = await supabase.from('products').insert({
-            id: uuidv4(), user_id: auth.user.id,
-            name, description, price: priceInCents,
-            price_display: parseFloat(price).toFixed(2),
-            image_url, type: type || 'digital', status: status || 'active',
-            facebook_pixel_id, facebook_api_token
+            id: uuidv4(),
+            user_id: auth.user.id,
+            name,
+            description,
+            price: basePrice,
+            price_display: basePriceDisplay,
+            image_url,
+            type: type || 'digital',
+            status: status || 'active',
+            facebook_pixel_id,
+            facebook_api_token
         }).select().single();
 
         if (error) {
             console.error('Supabase product insert error:', error);
             return jsonError('Erro no banco: ' + error.message);
+        }
+
+        if (product && normalizedPlans.length > 0) {
+            const rows = normalizedPlans.map((p, idx) => ({
+                product_id: product.id,
+                name: p.name,
+                price: p.price,
+                sort_order: idx
+            }));
+            const { error: plansErr } = await supabase.from('product_plans').insert(rows);
+            if (plansErr) {
+                console.error('Supabase product_plans insert error:', plansErr);
+            }
         }
 
         return jsonSuccess({ product }, 201);

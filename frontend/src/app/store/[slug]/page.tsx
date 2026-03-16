@@ -21,6 +21,7 @@ export default function StorePage() {
     const activeCategory = searchParams.get('category') || '';
     const [quickOpen, setQuickOpen] = useState(false);
     const [quickProduct, setQuickProduct] = useState<any>(null);
+    const [quickPlan, setQuickPlan] = useState<any>(null);
     const [quickQty, setQuickQty] = useState(1);
 
     useEffect(() => {
@@ -54,17 +55,21 @@ export default function StorePage() {
     );
 
     const handleAddToCart = (product: any) => {
+        const plan = product.plans && product.plans.length > 0 ? product.plans[0] : null;
         addItem({
             id: product.id,
             name: product.name,
-            price: product.price,
-            price_display: product.price_display,
-            image_url: product.image_url
-        });
+            price: plan ? (plan.price / 100) : product.price,
+            price_display: plan ? plan.price_display : product.price_display,
+            image_url: product.image_url,
+            plan_id: plan ? plan.id : undefined,
+            plan_name: plan ? plan.name : undefined
+        } as any);
         toast.success(`${product.name} adicionado!`);
     };
     const openQuick = (product: any) => {
         setQuickProduct(product);
+        setQuickPlan(product.plans && product.plans.length > 0 ? product.plans[0] : null);
         setQuickQty(1);
         setQuickOpen(true);
     };
@@ -72,13 +77,16 @@ export default function StorePage() {
     const quickAdd = () => {
         if (!quickProduct) return;
         for (let i = 0; i < quickQty; i++) {
+            const plan = quickPlan || (quickProduct.plans && quickProduct.plans[0]);
             addItem({
                 id: quickProduct.id,
                 name: quickProduct.name,
-                price: quickProduct.price,
-                price_display: quickProduct.price_display,
-                image_url: quickProduct.image_url
-            });
+                price: plan ? (plan.price / 100) : quickProduct.price,
+                price_display: plan ? plan.price_display : quickProduct.price_display,
+                image_url: quickProduct.image_url,
+                plan_id: plan ? plan.id : undefined,
+                plan_name: plan ? plan.name : undefined
+            } as any);
         }
         toast.success(`${quickProduct.name} adicionado!`);
         setQuickOpen(false);
@@ -86,13 +94,16 @@ export default function StorePage() {
     const quickBuyNow = () => {
         if (!quickProduct) return;
         for (let i = 0; i < quickQty; i++) {
+            const plan = quickPlan || (quickProduct.plans && quickProduct.plans[0]);
             addItem({
                 id: quickProduct.id,
                 name: quickProduct.name,
-                price: quickProduct.price,
-                price_display: quickProduct.price_display,
-                image_url: quickProduct.image_url
-            });
+                price: plan ? (plan.price / 100) : quickProduct.price,
+                price_display: plan ? plan.price_display : quickProduct.price_display,
+                image_url: quickProduct.image_url,
+                plan_id: plan ? plan.id : undefined,
+                plan_name: plan ? plan.name : undefined
+            } as any);
         }
         router.push(`/store/${params.slug}/cart?overlay=1`);
     };
@@ -265,7 +276,9 @@ export default function StorePage() {
                                 <h3 style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 16 }}>{product.name}</h3>
 
                                 <div style={{ marginBottom: 20 }}>
-                                    <div style={{ fontSize: 24, fontWeight: 800, color: 'white', letterSpacing: '-0.5px' }}>R$ {product.price_display}</div>
+                                    <div style={{ fontSize: 24, fontWeight: 800, color: 'white', letterSpacing: '-0.5px' }}>
+                                        {product.has_plans ? 'A partir de ' : ''}R$ {product.price_display}
+                                    </div>
                                     <div style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>À vista no PIX</div>
                                 </div>
 
@@ -392,12 +405,37 @@ export default function StorePage() {
                                 </div>
                             </div>
 
-                            <div className="quickModalRightBox" style={{ background: '#0a0a0c', borderRadius: 22, border: '1px solid rgba(255,255,255,0.06)', padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                <div className="quickModalRightBox" style={{ background: '#0a0a0c', borderRadius: 22, border: '1px solid rgba(255,255,255,0.06)', padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                {Array.isArray(quickProduct?.plans) && quickProduct.plans.length > 0 && (
+                                    <div>
+                                        <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, letterSpacing: 0.3, marginBottom: 8 }}>Selecionar plano</div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            {quickProduct.plans.map((pl: any) => (
+                                                <button
+                                                    key={pl.id}
+                                                    type="button"
+                                                    onClick={() => setQuickPlan(pl)}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                        padding: '10px 12px', borderRadius: 10,
+                                                        background: quickPlan?.id === pl.id ? 'rgba(0, 206, 201, 0.12)' : '#0a0a0c',
+                                                        border: `1px solid ${quickPlan?.id === pl.id ? '#00cec9' : 'rgba(255,255,255,0.08)'}`,
+                                                        color: quickPlan?.id === pl.id ? '#00cec9' : '#94a3b8',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    <span style={{ fontWeight: 800 }}>{pl.name}</span>
+                                                    <span style={{ fontWeight: 900, color: 'white' }}>R$ {pl.price_display}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
                                 <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, letterSpacing: 0.3 }}>Preço</div>
                                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, color: 'white', fontWeight: 900, fontSize: 24, whiteSpace: 'nowrap' }}>
                                         <span style={{ fontSize: 16, opacity: 0.9 }}>R$</span>
-                                        <span>{quickProduct?.price_display}</span>
+                                        <span>{quickPlan ? quickPlan.price_display : quickProduct?.price_display}</span>
                                     </div>
                                 </div>
 

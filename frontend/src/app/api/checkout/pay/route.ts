@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { product_id, buyer, card_data } = body;
+        const { product_id, buyer, card_data, plan_id } = body;
         const enableCreditCard = process.env.ENABLE_CREDIT_CARD ? (process.env.ENABLE_CREDIT_CARD === 'true') : true;
         const normalizedPaymentMethod = (body.payment_method === 'card' ? 'credit_card' : body.payment_method) || 'pix';
 
@@ -56,6 +56,18 @@ export async function POST(req: NextRequest) {
 
         if (!product) return jsonError('Produto não encontrado', 404);
 
+        // Optional plan
+        let selectedPlan: any = null;
+        if (plan_id) {
+            const { data: plan } = await supabase
+                .from('product_plans')
+                .select('*')
+                .eq('id', plan_id)
+                .eq('product_id', product.id)
+                .single();
+            if (plan) selectedPlan = plan;
+        }
+
         // Get seller recipient
         const { data: recipient } = await supabase
             .from('recipients').select('pagarme_recipient_id').eq('user_id', product.user_id).single();
@@ -94,14 +106,16 @@ export async function POST(req: NextRequest) {
 
         let pagarmeOrder;
         try {
-            const amountCents = typeof product.price === 'number'
-                ? (product.price >= 100 ? Math.round(product.price) : Math.round(product.price * 100))
-                : Math.round(parseFloat(product.price_display) * 100);
+            const baseCents = selectedPlan
+                ? selectedPlan.price
+                : (typeof product.price === 'number'
+                    ? (product.price >= 100 ? Math.round(product.price) : Math.round(product.price * 100))
+                    : Math.round(parseFloat(product.price_display) * 100));
             const ipHeader = req.headers.get('x-forwarded-for') || '';
             const ip = ipHeader.split(',')[0].trim() || undefined;
             const sessionId = uuidv4();
             pagarmeOrder = await PagarmeService.createOrder({
-                amount: amountCents,
+                amount: baseCents,
                 payment_method: normalizedPaymentMethod,
                 customer: buyer,
                 card_data: normalizedPaymentMethod === 'credit_card' ? card_data : undefined,
@@ -156,13 +170,12 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // Calculate amount display safely
-        const amountDisplay = product.price_display || (() => {
-            const cents = typeof product.price === 'number'
+        const priceCents = selectedPlan
+            ? selectedPlan.price
+            : (typeof product.price === 'number'
                 ? (product.price >= 100 ? product.price : Math.round(product.price * 100))
-                : Math.round(parseFloat(product.price) * 100);
-            return (cents / 100).toFixed(2);
-        })();
+                : Math.round(parseFloat(product.price) * 100));
+        const amountDisplay = (priceCents / 100).toFixed(2);
 
         // Save order
         await supabase.from('orders').insert({
@@ -180,9 +193,8 @@ export async function POST(req: NextRequest) {
         await supabase.from('transactions').insert({
             id: uuidv4(), user_id: product.user_id, order_id: orderId,
             type: 'sale', amount: Math.round(parseFloat(amountDisplay) * 100),
-            // amount_display removed to prevent schema errors
             status: charge?.status === 'paid' ? 'confirmed' : 'pending',
-            description: `Venda: ${product.name}`
+            description: `Venda: ${product.name}${selectedPlan ? ` - ${selectedPlan.name}` : ''}`
         });
 
         // If paid immediately, create fee transaction and update sales count

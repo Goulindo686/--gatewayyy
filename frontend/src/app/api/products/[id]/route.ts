@@ -14,11 +14,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (!product) return jsonError('Produto não encontrado', 404);
 
+    const { data: plans } = await supabase
+        .from('product_plans')
+        .select('*')
+        .eq('product_id', id)
+        .order('sort_order', { ascending: true });
+
     return jsonSuccess({
         product: {
             ...product,
             price: product.price / 100,
-            price_display: (product.price / 100).toFixed(2)
+            price_display: (product.price / 100).toFixed(2),
+            plans: (plans || []).map(p => ({
+                ...p,
+                price_display: (p.price / 100).toFixed(2)
+            }))
         }
     });
 }
@@ -55,6 +65,29 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         const product = products?.[0];
 
         if (error || !product) return jsonError('Erro ao atualizar produto');
+
+        if (Array.isArray(body.plans)) {
+            const normalizedPlans = body.plans.map((p: any) => ({
+                name: String(p.name || 'Plano'),
+                price: Math.round(parseFloat(String(p.price)) * 100)
+            })).filter((p: any) => p.name && p.price > 0);
+            await supabase.from('product_plans').delete().eq('product_id', id);
+            if (normalizedPlans.length > 0) {
+                const rows = normalizedPlans.map((p: any, idx: number) => ({
+                    product_id: id,
+                    name: p.name,
+                    price: p.price,
+                    sort_order: idx
+                }));
+                await supabase.from('product_plans').insert(rows);
+                const first = normalizedPlans[0];
+                await supabase.from('products').update({
+                    price: first.price,
+                    price_display: (first.price / 100).toFixed(2)
+                }).eq('id', id);
+            }
+        }
+
         return jsonSuccess({ product });
     } catch (err) {
         return jsonError('Erro interno', 500);

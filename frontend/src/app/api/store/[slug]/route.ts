@@ -60,12 +60,32 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
 
         if (prodError) throw prodError;
 
-        // Format products for store
-        const formattedProducts = products?.map(p => ({
-            ...p,
-            price: p.price / 100, // Important: Frontend expects real currency value
-            price_display: (p.price / 100).toFixed(2)
-        })) || [];
+        let formattedProducts: any[] = [];
+        if (products && products.length > 0) {
+            const productIds = products.map(p => p.id);
+            const { data: plans } = await supabase
+                .from('product_plans')
+                .select('id, product_id, name, price, sort_order')
+                .in('product_id', productIds)
+                .order('sort_order', { ascending: true });
+            const plansByProduct: Record<string, any[]> = {};
+            (plans || []).forEach(p => {
+                if (!plansByProduct[p.product_id]) plansByProduct[p.product_id] = [];
+                plansByProduct[p.product_id].push(p);
+            });
+            formattedProducts = products.map(p => {
+                const plansFor = plansByProduct[p.id] || [];
+                const candidate = plansFor.length > 0 ? plansFor[0] : null;
+                const eff = candidate ? candidate.price : p.price;
+                return {
+                    ...p,
+                    price: eff / 100,
+                    price_display: (eff / 100).toFixed(2),
+                    has_plans: plansFor.length > 1,
+                    plans: plansFor.map(x => ({ ...x, price_display: (x.price / 100).toFixed(2) }))
+                };
+            });
+        }
 
         return jsonSuccess({
             store: {
