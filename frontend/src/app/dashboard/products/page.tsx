@@ -298,7 +298,7 @@ export default function ProductsPage() {
                                     value={form.name} onChange={e => update('name', e.target.value)} />
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                            <div style={{ marginBottom: 16 }}>
                                 <div style={{ width: '100%' }}>
                                     <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Plano e preço</label>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -309,14 +309,15 @@ export default function ProductsPage() {
                                                     display: 'flex',
                                                     gap: 10,
                                                     alignItems: 'center',
-                                                    width: '100%'
+                                                    width: '100%',
+                                                    flexWrap: 'wrap'
                                                 }}
                                             >
                                                 <input
                                                     type="text"
                                                     placeholder="Nome do plano (ex: Diário, Semanal)"
                                                     className="input-field"
-                                                    style={{ height: 48, pointerEvents: 'auto', flex: 1, minWidth: 220 }}
+                                                    style={{ height: 48, pointerEvents: 'auto', flex: 1, minWidth: 260 }}
                                                     value={pl.name}
                                                     onChange={e => setPlans(prev => prev.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))}
                                                 />
@@ -351,13 +352,13 @@ export default function ProductsPage() {
                                         </button>
                                     </div>
                                 </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Tipo</label>
-                                    <select className="input-field" value={form.type} onChange={e => update('type', e.target.value)}>
-                                        <option value="digital">Digital</option>
-                                        <option value="physical">Físico</option>
-                                    </select>
-                                </div>
+                            </div>
+                            <div style={{ marginBottom: 16 }}>
+                                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Tipo</label>
+                                <select className="input-field" value={form.type} onChange={e => update('type', e.target.value)}>
+                                    <option value="digital">Digital</option>
+                                    <option value="physical">Físico</option>
+                                </select>
                             </div>
 
                             <div style={{ marginBottom: 16 }}>
