@@ -75,8 +75,9 @@ export default function CartPage() {
                 const { data } = await productsAPI.getPublic(addId);
                 const p = data.product;
                 if (p) {
-                    const priceNumber = typeof p.price === 'number' ? p.price : parseFloat(p.price);
-                    addItem({ id: p.id, name: p.name, price: priceNumber, price_display: p.price_display, image_url: p.image_url });
+                    const plan = Array.isArray(p.plans) && p.plans.length > 0 ? p.plans[0] : null;
+                    const priceNumber = plan ? (plan.price / 100) : (typeof p.price === 'number' ? p.price : parseFloat(p.price));
+                    addItem({ id: p.id, name: p.name, price: priceNumber, price_display: plan ? plan.price_display : p.price_display, image_url: p.image_url, plan_id: plan ? plan.id : undefined, plan_name: plan ? plan.name : undefined } as any);
                     toast.success(`${p.name} adicionado!`);
                 }
             } catch {}
@@ -440,6 +441,7 @@ export default function CartPage() {
                                                     </div>
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                                         <div style={{ fontSize: 15, fontWeight: 700, color: 'white' }}>{item.name}</div>
+                                                        {('plan_name' in item) && (item as any).plan_name ? <div style={{ fontSize: 12, color: '#00cec9', fontWeight: 700 }}>{(item as any).plan_name}</div> : null}
                                                         <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>
                                                             {(details[item.id]?.description || 'Sem descrição')}
                                                         </div>
@@ -518,6 +520,7 @@ export default function CartPage() {
                                                     </div>
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                                         <div style={{ fontSize: 15, fontWeight: 700, color: 'white' }}>{item.name}</div>
+                                                        {('plan_name' in item) && (item as any).plan_name ? <div style={{ fontSize: 12, color: '#00cec9', fontWeight: 700 }}>{(item as any).plan_name}</div> : null}
                                                         <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>
                                                             {(details[item.id]?.description || 'Sem descrição')}
                                                         </div>
