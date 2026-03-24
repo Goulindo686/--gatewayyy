@@ -311,8 +311,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 transition: 'transform 0.3s ease',
             }} className={`dashboard-aside${sidebarOpen ? ' open' : ''}`}>
                 {/* Logo */}
-                <div style={{ padding: '24px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ padding: effectiveCollapsed ? '20px 8px' : '24px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: effectiveCollapsed ? 'center' : 'space-between', gap: 10, position: 'relative' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: effectiveCollapsed ? '100%' : 'auto', justifyContent: effectiveCollapsed ? 'center' : 'flex-start' }}>
                         {effectiveCollapsed ? (
                             <div style={{
                                 width: 56,
@@ -357,7 +357,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} style={{
                             width: 32, height: 32, borderRadius: 8, border: '1px solid var(--border-color)',
                             background: 'var(--bg-card)', color: 'var(--text-primary)', display: 'flex',
-                            alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                            alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                            position: effectiveCollapsed ? 'absolute' : 'relative',
+                            right: effectiveCollapsed ? 10 : undefined,
+                            top: effectiveCollapsed ? '50%' : undefined,
+                            transform: effectiveCollapsed ? 'translateY(-50%)' : undefined
                         }}>
                             {sidebarCollapsed ? <FiChevronRight size={16} /> : <FiChevronLeft size={16} />}
                         </button>
