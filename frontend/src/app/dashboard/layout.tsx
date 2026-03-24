@@ -338,9 +338,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     onError={(e) => {
                                         (e.currentTarget as HTMLImageElement).src = '/logo.png';
                                     }}
-                                    style={{ width: 72, height: 72, objectFit: 'contain', flexShrink: 0 }}
+                                    style={{ width: 160, height: 56, objectFit: 'contain', flexShrink: 0 }}
                                 />
-                                <span style={{ fontSize: 18, fontWeight: 700 }}>Gou<span className="gradient-text">Pay</span></span>
                             </>
                         )}
                     </div>
