@@ -313,14 +313,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {/* Logo */}
                 <div style={{ padding: '24px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <img
-                            src="https://i.imgur.com/vXgH6Mn.png"
-                            alt="GouPay Logo"
-                            onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src = '/logo.png';
-                            }}
-                            style={{ width: 72, height: 72, objectFit: 'contain', flexShrink: 0 }}
-                        />
+                        {effectiveCollapsed ? (
+                            <div style={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: 14,
+                                border: '1px solid rgba(108,92,231,0.25)',
+                                background: 'rgba(108,92,231,0.14)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                fontSize: 28,
+                                fontWeight: 900,
+                                color: 'var(--accent-primary)'
+                            }}>
+                                G
+                            </div>
+                        ) : (
+                            <>
+                                <img
+                                    src="https://i.imgur.com/vXgH6Mn.png"
+                                    alt="GouPay Logo"
+                                    onError={(e) => {
+                                        (e.currentTarget as HTMLImageElement).src = '/logo.png';
+                                    }}
+                                    style={{ width: 72, height: 72, objectFit: 'contain', flexShrink: 0 }}
+                                />
+                                <span style={{ fontSize: 18, fontWeight: 700 }}>Gou<span className="gradient-text">Pay</span></span>
+                            </>
+                        )}
                     </div>
                     {!isMobile && (
                         <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} style={{
