@@ -324,11 +324,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 flexShrink: 0,
-                                fontSize: 28,
-                                fontWeight: 900,
-                                color: 'var(--accent-primary)'
+                                overflow: 'hidden'
                             }}>
-                                G
+                                <img
+                                    src="https://i.imgur.com/vXgH6Mn.png"
+                                    alt="GouPay"
+                                    onError={(e) => {
+                                        (e.currentTarget as HTMLImageElement).src = '/logo.png';
+                                    }}
+                                    style={{
+                                        height: 56,
+                                        width: 160,
+                                        objectFit: 'contain',
+                                        transform: 'translateX(-8px)',
+                                        display: 'block'
+                                    }}
+                                />
                             </div>
                         ) : (
                             <>
