@@ -327,16 +327,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 overflow: 'hidden'
                             }}>
                                 <img
-                                    src="https://i.imgur.com/vXgH6Mn.png"
+                                    src="https://i.imgur.com/m8FJnz2.png"
                                     alt="GouPay"
                                     onError={(e) => {
                                         (e.currentTarget as HTMLImageElement).src = '/logo.png';
                                     }}
                                     style={{
+                                        width: 56,
                                         height: 56,
-                                        width: 160,
                                         objectFit: 'contain',
-                                        transform: 'translateX(-8px)',
                                         display: 'block'
                                     }}
                                 />
