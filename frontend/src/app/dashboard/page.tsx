@@ -143,29 +143,9 @@ export default function DashboardPage() {
                 border: '1px solid var(--border-color)',
                 background: 'var(--bg-card)',
                 marginBottom: 24,
-                height: 'clamp(140px, 18vw, 240px)',
+                height: 'clamp(160px, 20vw, 260px)',
                 position: 'relative'
             }}>
-                <img
-                    src="https://i.imgur.com/mJLULn8.jpeg"
-                    alt=""
-                    aria-hidden="true"
-                    style={{
-                        position: 'absolute',
-                        inset: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        filter: 'blur(18px)',
-                        transform: 'scale(1.08)',
-                        opacity: 0.95
-                    }}
-                />
-                <div style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: 'linear-gradient(90deg, rgba(0,0,0,0.35), rgba(0,0,0,0.15), rgba(0,0,0,0.35))'
-                }} />
                 <img
                     src="https://i.imgur.com/mJLULn8.jpeg"
                     alt="Banner do Dashboard"
@@ -177,7 +157,8 @@ export default function DashboardPage() {
                         position: 'relative',
                         width: '100%',
                         height: '100%',
-                        objectFit: 'contain',
+                        objectFit: 'cover',
+                        objectPosition: 'center',
                         display: 'block'
                     }}
                 />
