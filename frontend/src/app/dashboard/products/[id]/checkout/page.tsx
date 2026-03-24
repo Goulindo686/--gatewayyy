@@ -270,15 +270,18 @@ export default function CheckoutCustomizationPage() {
                         {settings.show_video && (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                         <div>
-                                            <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Link do vídeo (MP4)</label>
-                                            <input 
-                                                className="input-field" 
-                                                placeholder="https://exemplo.com/video.mp4" 
-                                                value={settings.video_url} 
-                                                onChange={e => update('video_url', e.target.value)}
-                                                style={{ width: '100%', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
-                                            />
-                                        </div>
+                                             <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Link do vídeo (MP4)</label>
+                                             <input 
+                                                 className="input-field" 
+                                                 placeholder="https://exemplo.com/video.mp4" 
+                                                 value={settings.video_url} 
+                                                 onChange={e => update('video_url', e.target.value)}
+                                                 style={{ width: '100%', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                                             />
+                                             <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
+                                                 Dica: Links do Google Drive e Dropbox são convertidos automaticamente.
+                                             </p>
+                                         </div>
 
                                         {settings.video_url && (
                                             <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-color)', background: '#000' }}>
@@ -528,7 +531,8 @@ export default function CheckoutCustomizationPage() {
                     </div>
                     <div style={{
                         background: previewBg, padding: 0, minHeight: 500, color: previewText,
-                        fontSize: 12, position: 'relative', overflow: 'hidden'
+                        fontSize: 12, position: 'relative', overflow: 'hidden',
+                        display: 'flex', flexDirection: 'column'
                     }}>
                         {/* Countdown Preview */}
                         {settings.show_countdown && (
@@ -582,7 +586,14 @@ export default function CheckoutCustomizationPage() {
                         )}
 
                         {/* Mini Checkout Preview */}
-                        <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div style={{ 
+                            padding: '16px', 
+                            display: 'grid', 
+                            gridTemplateColumns: '1fr 1fr', 
+                            gap: 12,
+                            flex: 1,
+                            alignContent: (settings.banner_url || settings.banner_text) ? 'start' : 'center'
+                        }}>
                             {/* Product card mini */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                 {settings.show_video && settings.video_position === 'above_product' && (

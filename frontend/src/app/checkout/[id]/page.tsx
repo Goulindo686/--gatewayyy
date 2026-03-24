@@ -39,6 +39,20 @@ const DEFAULT_SETTINGS = {
 function VideoPlayer({ settings, borderColor }: { settings: any, borderColor: string }) {
     if (!settings.show_video || !settings.video_url) return null;
 
+    const getDirectLink = (url: string) => {
+        if (!url) return '';
+        if (url.includes('drive.google.com')) {
+            const id = url.split('/d/')[1]?.split('/')[0] || url.split('id=')[1]?.split('&')[0];
+            if (id) return `https://drive.google.com/uc?id=${id}&export=download`;
+        }
+        if (url.includes('dropbox.com')) {
+            return url.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('?dl=0', '').replace('&dl=0', '');
+        }
+        return url;
+    };
+
+    const videoSrc = getDirectLink(settings.video_url);
+
     return (
         <div style={{ 
             width: '100%', 
@@ -50,15 +64,18 @@ function VideoPlayer({ settings, borderColor }: { settings: any, borderColor: st
             marginBottom: 16
         }}>
             <video
-                key={settings.video_url}
-                src={settings.video_url}
+                key={videoSrc}
                 controls={settings.video_controls}
                 autoPlay={settings.video_autoplay}
                 loop={settings.video_loop}
                 muted={settings.video_muted}
                 playsInline
+                preload="metadata"
                 style={{ width: '100%', display: 'block' }}
-            />
+            >
+                <source src={videoSrc} />
+                Seu navegador não suporta a tag de vídeo.
+            </video>
         </div>
     );
 }
@@ -256,6 +273,7 @@ export default function CheckoutPage() {
     const inputBg = isLight ? '#fff' : 'var(--bg-secondary)';
     const accent = settings.accent_color || '#6C5CE7';
     const countdownColor = settings.countdown_color || accent;
+    const hasBanner = !!(settings.banner_url || settings.banner_text);
     const hasCountdown = settings.show_countdown && timerSeconds > 0;
 
     const noticeColors: any = {
@@ -372,7 +390,13 @@ export default function CheckoutPage() {
     }
 
     return (
-        <div style={{ minHeight: '100vh', background: bgPrimary, color: textPrimary }}>
+        <div style={{ 
+            minHeight: '100vh', 
+            background: bgPrimary, 
+            color: textPrimary,
+            display: 'flex',
+            flexDirection: 'column'
+        }}>
             <FacebookPixel pixelId={product?.facebook_pixel_id} product={product} />
 
             {/* Countdown Timer */}
@@ -417,7 +441,7 @@ export default function CheckoutPage() {
             {/* Notice */}
             {settings.notice_text && (
                 <div style={{
-                    maxWidth: 1000, margin: '16px auto 0', padding: '0 24px'
+                    maxWidth: 1000, margin: '16px auto 0', padding: '0 24px', width: '100%'
                 }}>
                     <div style={{
                         padding: '14px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600,
@@ -434,7 +458,18 @@ export default function CheckoutPage() {
             {/* Header removido: logo será exibida abaixo do botão de pagar */}
 
             <div
-                style={{ maxWidth: 1000, margin: `${hasCountdown ? '32px' : '0'} auto`, padding: '0 24px 40px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}
+                style={{ 
+                    maxWidth: 1000, 
+                    margin: `${hasBanner ? (hasCountdown ? '32px' : '0') : '0'} auto`, 
+                    padding: hasBanner ? '0 24px 40px' : '40px 24px', 
+                    display: 'grid', 
+                    gridTemplateColumns: '1fr 1fr', 
+                    gap: 32, 
+                    alignItems: 'start',
+                    flex: 1,
+                    alignContent: hasBanner ? 'start' : 'center',
+                    width: '100%'
+                }}
                 className="checkoutLayout"
             >
                 {/* Product Info */}
