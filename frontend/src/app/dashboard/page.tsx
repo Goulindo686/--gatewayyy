@@ -171,12 +171,14 @@ export default function DashboardPage() {
 
                 @media (max-width: 640px) {
                     .dashboardBanner {
-                        height: 160px;
+                        height: auto;
+                        aspect-ratio: 16 / 9;
+                        background: #0b0b12;
                     }
 
                     .dashboardBannerImg {
-                        object-fit: cover;
-                        object-position: right 32%;
+                        object-fit: contain;
+                        object-position: center;
                     }
                 }
             `}</style>
