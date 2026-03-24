@@ -50,6 +50,7 @@ function VideoPlayer({ settings, borderColor }: { settings: any, borderColor: st
             marginBottom: 16
         }}>
             <video
+                key={settings.video_url}
                 src={settings.video_url}
                 controls={settings.video_controls}
                 autoPlay={settings.video_autoplay}
@@ -272,7 +273,7 @@ export default function CheckoutPage() {
         return (
             <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: bgPrimary }}>
                 <div style={{ width: 40, height: 40, border: `3px solid ${borderColor}`, borderTopColor: accent, borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
         );
     }
@@ -689,7 +690,7 @@ export default function CheckoutPage() {
                 </div>
             </div>
 
-            <style jsx>{`
+            <style>{`
                 input:focus { border-color: ${accent} !important; box-shadow: 0 0 0 3px ${accent}22 !important; }
                 @media (max-width: 920px) {
                     .checkoutLayout {

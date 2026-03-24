@@ -49,7 +49,6 @@ export default function CheckoutCustomizationPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [uploadingBanner, setUploadingBanner] = useState(false);
-    const [uploadingVideo, setUploadingVideo] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
@@ -94,41 +93,36 @@ export default function CheckoutCustomizationPage() {
     const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        // Limite de 4.5MB para o Vercel
+        if (file.size > 4.5 * 1024 * 1024) {
+            toast.error('A imagem é muito grande (máximo 4.5MB)');
+            return;
+        }
+
         setUploadingBanner(true);
         try {
             const formData = new FormData();
             formData.append('file', file);
             const token = localStorage.getItem('token');
             const { data } = await axios.post('/api/upload', formData, {
-                headers: { 'Content-Type': 'multipart/form-data', 'Authorization': `Bearer ${token}` }
+                headers: { 
+                    'Content-Type': 'multipart/form-data', 
+                    'Authorization': `Bearer ${token}` 
+                },
+                timeout: 30000
             });
-            update('banner_url', data.url);
-            toast.success('Banner enviado!');
-        } catch (err) {
-            toast.error('Erro ao enviar imagem');
-        } finally {
-            setUploadingBanner(false);
-        }
-    };
-
-    const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setUploadingVideo(true);
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-            const token = localStorage.getItem('token');
-            const { data } = await axios.post('/api/upload', formData, {
-                headers: { 'Content-Type': 'multipart/form-data', 'Authorization': `Bearer ${token}` }
-            });
-            update('video_url', data.url);
-            toast.success('Vídeo enviado!');
+            if (data && data.url) {
+                update('banner_url', data.url);
+                toast.success('Banner enviado!');
+            }
         } catch (err: any) {
-            const msg = err.response?.data?.error || 'Erro ao enviar vídeo';
+            console.error('Erro no upload do banner:', err);
+            const msg = err.response?.data?.error || 'Erro ao enviar imagem';
             toast.error(msg);
         } finally {
-            setUploadingVideo(false);
+            setUploadingBanner(false);
+            e.target.value = '';
         }
     };
 
@@ -136,7 +130,7 @@ export default function CheckoutCustomizationPage() {
         return (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
                 <div style={{ width: 40, height: 40, border: '3px solid var(--border-color)', borderTopColor: 'var(--accent-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
         );
     }
@@ -274,41 +268,37 @@ export default function CheckoutCustomizationPage() {
                         </div>
 
                         {settings.show_video && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                <div>
-                                    <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Arquivo de vídeo (MP4)</label>
-                                    {settings.video_url ? (
-                                        <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-color)', background: '#000' }}>
-                                            <video src={settings.video_url} style={{ width: '100%', height: 120, objectFit: 'contain' }} />
-                                            <button onClick={() => update('video_url', '')} style={{
-                                                position: 'absolute', top: 6, right: 6, width: 28, height: 28, borderRadius: 8,
-                                                background: 'rgba(0,0,0,0.7)', border: 'none', cursor: 'pointer', color: '#ff6b6b',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                            }}>
-                                                <FiTrash2 size={13} />
-                                            </button>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                        <div>
+                                            <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Link do vídeo (MP4)</label>
+                                            <input 
+                                                className="input-field" 
+                                                placeholder="https://exemplo.com/video.mp4" 
+                                                value={settings.video_url} 
+                                                onChange={e => update('video_url', e.target.value)}
+                                                style={{ width: '100%', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                                            />
                                         </div>
-                                    ) : (
-                                        <div
-                                            onClick={() => document.getElementById('videoUpload')?.click()}
-                                            style={{
-                                                border: '2px dashed var(--border-color)', borderRadius: 10, padding: '20px 16px',
-                                                textAlign: 'center', cursor: uploadingVideo ? 'not-allowed' : 'pointer',
-                                                transition: 'border-color 0.2s', opacity: uploadingVideo ? 0.6 : 1
-                                            }}
-                                        >
-                                            {uploadingVideo ? (
-                                                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Enviando...</div>
-                                            ) : (
-                                                <>
-                                                    <FiUpload size={20} style={{ marginBottom: 6, color: 'var(--accent-secondary)' }} />
-                                                    <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Clique para enviar um vídeo</p>
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-                                    <input id="videoUpload" type="file" accept="video/mp4,video/webm" style={{ display: 'none' }} onChange={handleVideoUpload} />
-                                </div>
+
+                                        {settings.video_url && (
+                                            <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-color)', background: '#000' }}>
+                                                <video 
+                                                    key={settings.video_url}
+                                                    src={settings.video_url} 
+                                                    controls 
+                                                    muted
+                                                    playsInline
+                                                    style={{ width: '100%', height: 120, objectFit: 'contain' }} 
+                                                />
+                                                <button onClick={() => update('video_url', '')} style={{
+                                                    position: 'absolute', top: 6, right: 6, width: 28, height: 28, borderRadius: 8,
+                                                    background: 'rgba(0,0,0,0.7)', border: 'none', cursor: 'pointer', color: '#ff6b6b',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10
+                                                }}>
+                                                    <FiTrash2 size={13} />
+                                                </button>
+                                            </div>
+                                        )}
 
                                 <div>
                                     <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Posição do vídeo</label>
@@ -653,7 +643,7 @@ export default function CheckoutCustomizationPage() {
                 </div>
             </div>
 
-            <style jsx>{`
+            <style>{`
                 .input-field:focus { border-color: ${settings.accent_color} !important; }
                 @media (max-width: 640px) {
                     .checkoutBannerPreview {
