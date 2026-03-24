@@ -158,7 +158,7 @@ export default function DashboardPage() {
                         width: '100%',
                         height: '100%',
                         objectFit: 'cover',
-                        objectPosition: 'center',
+                        objectPosition: 'right 32%',
                         display: 'block'
                     }}
                 />
