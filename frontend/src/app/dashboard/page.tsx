@@ -137,15 +137,13 @@ export default function DashboardPage() {
                 <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Visão geral do seu negócio</p>
             </div>
 
-            <div style={{
-                borderRadius: 18,
-                overflow: 'hidden',
-                border: '1px solid var(--border-color)',
-                background: 'var(--bg-card)',
-                marginBottom: 24,
-                height: 'clamp(160px, 20vw, 260px)',
-                position: 'relative'
-            }}>
+            <div className="dashboardBanner">
+                <img
+                    src="https://i.imgur.com/mJLULn8.jpeg"
+                    alt=""
+                    aria-hidden="true"
+                    className="dashboardBannerBg"
+                />
                 <img
                     src="https://i.imgur.com/mJLULn8.jpeg"
                     alt="Banner do Dashboard"
@@ -153,16 +151,52 @@ export default function DashboardPage() {
                     onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src = 'https://i.imgur.com/20tNSps.jpg';
                     }}
-                    style={{
-                        position: 'relative',
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        objectPosition: 'right 32%',
-                        display: 'block'
-                    }}
+                    className="dashboardBannerImg"
                 />
             </div>
+
+            <style>{`
+                .dashboardBanner {
+                    border-radius: 18px;
+                    overflow: hidden;
+                    border: 1px solid var(--border-color);
+                    background: var(--bg-card);
+                    margin-bottom: 24px;
+                    height: clamp(160px, 20vw, 260px);
+                    position: relative;
+                }
+
+                .dashboardBannerBg {
+                    position: absolute;
+                    inset: 0;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    filter: blur(18px);
+                    transform: scale(1.08);
+                    opacity: 0.95;
+                }
+
+                .dashboardBannerImg {
+                    position: relative;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    object-position: right 32%;
+                    display: block;
+                }
+
+                @media (max-width: 640px) {
+                    .dashboardBanner {
+                        height: 160px;
+                    }
+
+                    .dashboardBannerImg {
+                        object-fit: contain;
+                        object-position: center;
+                    }
+                }
+            `}</style>
 
             {/* Stat Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 32 }}>
