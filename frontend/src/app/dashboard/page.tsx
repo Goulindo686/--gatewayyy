@@ -143,7 +143,7 @@ export default function DashboardPage() {
                 border: '1px solid var(--border-color)',
                 background: 'var(--bg-card)',
                 marginBottom: 24,
-                height: 'clamp(120px, 18vw, 200px)',
+                padding: '10px 14px',
                 position: 'relative'
             }}>
                 <img
@@ -155,8 +155,9 @@ export default function DashboardPage() {
                     }}
                     style={{
                         width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
+                        height: 'auto',
+                        maxHeight: 'clamp(140px, 18vw, 240px)',
+                        objectFit: 'contain',
                         display: 'block'
                     }}
                 />
