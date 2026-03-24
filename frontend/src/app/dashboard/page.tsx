@@ -140,12 +140,6 @@ export default function DashboardPage() {
             <div className="dashboardBanner">
                 <img
                     src="https://i.imgur.com/mJLULn8.jpeg"
-                    alt=""
-                    aria-hidden="true"
-                    className="dashboardBannerBg"
-                />
-                <img
-                    src="https://i.imgur.com/mJLULn8.jpeg"
                     alt="Banner do Dashboard"
                     loading="eager"
                     onError={(e) => {
@@ -166,17 +160,6 @@ export default function DashboardPage() {
                     position: relative;
                 }
 
-                .dashboardBannerBg {
-                    position: absolute;
-                    inset: 0;
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                    filter: blur(18px);
-                    transform: scale(1.08);
-                    opacity: 0.95;
-                }
-
                 .dashboardBannerImg {
                     position: relative;
                     width: 100%;
@@ -192,8 +175,8 @@ export default function DashboardPage() {
                     }
 
                     .dashboardBannerImg {
-                        object-fit: contain;
-                        object-position: center;
+                        object-fit: cover;
+                        object-position: right 32%;
                     }
                 }
             `}</style>
