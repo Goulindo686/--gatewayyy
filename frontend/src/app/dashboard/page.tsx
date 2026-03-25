@@ -139,7 +139,7 @@ export default function DashboardPage() {
 
             <div className="dashboardBanner">
                 <img
-                    src="https://i.imgur.com/YCfndJ9.png"
+                    src="https://i.imgur.com/lHeTUiJ.jpeg"
                     alt="Banner do Dashboard"
                     loading="eager"
                     onError={(e) => {
@@ -171,14 +171,7 @@ export default function DashboardPage() {
 
                 @media (max-width: 640px) {
                     .dashboardBanner {
-                        height: auto;
-                        background: transparent;
-                    }
-
-                    .dashboardBannerImg {
-                        height: auto;
-                        object-fit: initial;
-                        object-position: initial;
+                        display: none;
                     }
                 }
             `}</style>
