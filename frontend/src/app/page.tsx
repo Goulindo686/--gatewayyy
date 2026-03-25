@@ -612,6 +612,32 @@ Body:
             --tx: 0px;
             --ty: 0px;
           }
+          @media (max-width: 640px) {
+            .landingHeaderContainer {
+              padding: 0 14px !important;
+            }
+            .landingHeaderBar {
+              flex-direction: column !important;
+              border-radius: 22px !important;
+              padding: 12px 14px !important;
+              gap: 10px !important;
+            }
+            .landingHeaderCenter {
+              display: none !important;
+            }
+            .landingLogo {
+              width: 100% !important;
+              justify-content: center !important;
+            }
+            .landingLogo img {
+              height: 44px !important;
+              width: 170px !important;
+            }
+            .landingActions {
+              width: 100% !important;
+              justify-content: center !important;
+            }
+          }
           .landingHero::before {
             content: '';
             position: absolute;
