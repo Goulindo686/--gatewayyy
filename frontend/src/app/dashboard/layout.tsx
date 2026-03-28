@@ -312,19 +312,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             }} className={`dashboard-aside${sidebarOpen ? ' open' : ''}`}>
                 {/* Logo */}
                 <div style={{
-                    padding: effectiveCollapsed ? '20px 10px' : '20px 16px',
+                    padding: '16px',
                     borderBottom: '1px solid var(--border-color)',
-                    display: 'flex',
+                    display: 'grid',
+                    gridTemplateColumns: '32px 1fr 32px',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative',
-                    gap: 10
+                    gap: 8
                 }}>
+                    <div />
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 10,
                         justifyContent: 'center',
+                        gap: 8,
                     }}>
                         {effectiveCollapsed ? (
                             <div style={{
@@ -366,11 +366,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             width: 32, height: 32, borderRadius: 8, border: '1px solid var(--border-color)',
                             background: 'var(--bg-card)', color: 'var(--text-primary)', display: 'flex',
                             alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                            position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)'
                         }}>
                             {sidebarCollapsed ? <FiChevronRight size={16} /> : <FiChevronLeft size={16} />}
                         </button>
                     )}
+                    {isMobile && <div />}
                 </div>
 
                 {/* Sidebar Progress Card */}
