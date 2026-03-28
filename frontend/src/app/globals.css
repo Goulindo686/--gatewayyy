@@ -401,22 +401,20 @@ body {
   }
 
   .landingLogo {
-    gap: 8px !important;
-    flex-shrink: 0 !important;
+    gap: 0 !important;
     display: inline-flex !important;
     width: auto !important;
     justify-content: center !important;
     align-items: center !important;
   }
 
-  .landingLogo img {
-    width: 30px !important;
-    height: 30px !important;
+  .landingLogoText {
+    display: none !important;
   }
 
-  .landingLogoText {
-    font-size: 20px !important;
-    font-weight: 800 !important;
+  .landingLogo img {
+    width: 36px !important;
+    height: 36px !important;
   }
 
   .landingActions a {
