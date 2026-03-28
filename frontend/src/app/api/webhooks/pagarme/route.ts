@@ -137,6 +137,20 @@ export async function POST(req: NextRequest) {
         await supabase.from('orders').update({ status: newStatus }).eq('id', order.id);
 
         if (newStatus === 'paid') {
+            // IDEMPOTÊNCIA: verifica se a taxa já foi inserida para este pedido
+            const { data: existingFee } = await supabase
+                .from('transactions')
+                .select('id')
+                .eq('order_id', order.id)
+                .eq('type', 'fee')
+                .maybeSingle();
+
+            if (existingFee) {
+                // Pagamento já foi processado completamente — ignora reenvio
+                console.log('Webhook duplicado ignorado para pedido:', order.id);
+                return jsonSuccess({ received: true });
+            }
+
             // Get platform fee percentage
             let feePercentage = parseFloat(process.env.PLATFORM_FEE_PERCENTAGE || '2');
             try {

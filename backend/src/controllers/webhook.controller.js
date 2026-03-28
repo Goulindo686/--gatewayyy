@@ -79,11 +79,24 @@ class WebhookController {
         }
 
         if (order.status === 'paid') {
-            console.log(`[WEBHOOK-DEBUG] Order ${order.id} is already marked as paid. Skipping.`);
+            console.log(`[WEBHOOK] Order ${order.id} is already marked as paid. Skipping.`);
             return;
         }
 
-        console.log(`[WEBHOOK-DEBUG] Marking order ${order.id} as paid...`);
+        // IDEMPOTÊNCIA: verifica se fee já foi registrada para evitar duplicatas em reenvios
+        const { data: existingFee } = await supabase
+            .from('transactions')
+            .select('id')
+            .eq('order_id', order.id)
+            .eq('type', 'fee')
+            .maybeSingle();
+
+        if (existingFee) {
+            console.log(`[WEBHOOK] Duplicata ignorada para pedido: ${order.id}`);
+            return;
+        }
+
+        console.log(`[WEBHOOK] Marcando pedido ${order.id} como pago...`);
         // Update order status
         await supabase
             .from('orders')

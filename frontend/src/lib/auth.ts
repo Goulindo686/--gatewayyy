@@ -3,7 +3,10 @@ import bcrypt from 'bcryptjs';
 import { NextRequest } from 'next/server';
 import { supabase } from './db';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-me';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is not defined. Set it in your .env file.');
+}
 
 export function generateToken(payload: any): string {
     return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
