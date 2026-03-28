@@ -5,6 +5,7 @@ import { supabase } from '@/lib/db';
 import { jsonError, jsonSuccess } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 import { notifySale } from '@/lib/telegram';
+import { sendPushNotification } from '@/lib/webpush';
 
 export async function POST(req: NextRequest) {
     try {
@@ -247,6 +248,22 @@ export async function POST(req: NextRequest) {
                 });
             } catch (error) {
                 console.error('Error sending Telegram notification:', error);
+            }
+
+            // Send Web Push Notification
+            try {
+                const amountFormatted = new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                }).format(order.amount / 100);
+
+                await sendPushNotification(order.seller_id, {
+                    title: '💰 Venda Aprovada!',
+                    body: `${productName} • ${amountFormatted}`,
+                    url: '/dashboard',
+                });
+            } catch (pushError) {
+                console.error('Error sending Push notification:', pushError);
             }
         } else {
             // For other statuses (failed, etc.)

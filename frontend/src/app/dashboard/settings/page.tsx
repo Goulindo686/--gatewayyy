@@ -3,8 +3,16 @@
 import { useEffect, useState } from 'react';
 import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiSave, FiUser, FiCreditCard, FiKey, FiBell, FiCheckCircle, FiCode, FiCopy, FiPlus, FiGlobe, FiZap } from 'react-icons/fi';
+import { FiSave, FiUser, FiCreditCard, FiKey, FiBell, FiCheckCircle, FiCode, FiCopy, FiPlus, FiGlobe, FiZap, FiSmartphone, FiXCircle } from 'react-icons/fi';
 import axios from 'axios';
+
+// Converte a VAPID public key de base64url para Uint8Array (necessario para subscribe)
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+}
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
@@ -13,6 +21,9 @@ export default function SettingsPage() {
     const [tab, setTab] = useState('profile');
     const [apiKeys, setApiKeys] = useState<any[]>([]);
     const [loadingKeys, setLoadingKeys] = useState(false);
+    const [pushSubscribed, setPushSubscribed] = useState(false);
+    const [pushLoading, setPushLoading] = useState(false);
+    const [pushSubscription, setPushSubscription] = useState<PushSubscription | null>(null);
     const [form, setForm] = useState({
         id: '', telegram_chat_id: '', webhook_url: '',
         name: '', phone: '', cpf_cnpj: '',
@@ -24,11 +35,84 @@ export default function SettingsPage() {
 
     useEffect(() => {
         loadProfile();
+        checkPushStatus();
     }, []);
 
     useEffect(() => {
         if (tab === 'api') loadApiKeys();
     }, [tab]);
+
+    const checkPushStatus = async () => {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) {
+                setPushSubscribed(true);
+                setPushSubscription(sub);
+            }
+        } catch {}
+    };
+
+    const enablePush = async () => {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            return toast.error('Seu navegador nao suporta notificacoes push.');
+        }
+        setPushLoading(true);
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                toast.error('Permissao de notificacao negada.');
+                return;
+            }
+
+            const { data: vapidData } = await axios.get('/api/push/vapid-public-key');
+            const applicationServerKey = urlBase64ToUint8Array(vapidData.publicKey);
+
+            const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+            await navigator.serviceWorker.ready;
+
+            const sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey,
+            });
+
+            const token = localStorage.getItem('token');
+            await axios.post('/api/push/subscribe', sub.toJSON(), {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            setPushSubscribed(true);
+            setPushSubscription(sub);
+            toast.success('Notificacoes push ativadas!');
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.response?.data?.error || 'Erro ao ativar notificacoes push.');
+        } finally {
+            setPushLoading(false);
+        }
+    };
+
+    const disablePush = async () => {
+        setPushLoading(true);
+        try {
+            if (pushSubscription) {
+                await pushSubscription.unsubscribe();
+                const token = localStorage.getItem('token');
+                await axios.delete('/api/push/subscribe', {
+                    headers: { Authorization: `Bearer ${token}` },
+                    data: { endpoint: pushSubscription.endpoint },
+                });
+            }
+            setPushSubscribed(false);
+            setPushSubscription(null);
+            toast.success('Notificacoes push desativadas.');
+        } catch (err: any) {
+            toast.error('Erro ao desativar notificacoes push.');
+        } finally {
+            setPushLoading(false);
+        }
+    };
 
     const loadApiKeys = async () => {
         setLoadingKeys(true);
@@ -459,7 +543,9 @@ console.log(data.pix.qr_code); // Pix Copia e Cola`}
                 {tab === 'notifications' && (
                     <div>
                         <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 20 }}>Notificações</h3>
-                        <div style={{ padding: 24, background: 'rgba(0, 136, 204, 0.05)', borderRadius: 12, border: '1px solid rgba(0, 136, 204, 0.1)' }}>
+
+                        {/* Telegram */}
+                        <div style={{ padding: 24, background: 'rgba(0, 136, 204, 0.05)', borderRadius: 12, border: '1px solid rgba(0, 136, 204, 0.1)', marginBottom: 16 }}>
                             <div style={{ display: 'flex', gap: 20 }}>
                                 <div style={{ width: 56, height: 56, background: '#0088cc', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0 }}>
                                     <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
@@ -491,6 +577,64 @@ console.log(data.pix.qr_code); // Pix Copia e Cola`}
                                             Conectar Telegram Agora
                                         </a>
                                     )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Web Push */}
+                        <div style={{ padding: 24, background: 'rgba(108, 92, 231, 0.05)', borderRadius: 12, border: '1px solid rgba(108, 92, 231, 0.15)' }}>
+                            <div style={{ display: 'flex', gap: 20 }}>
+                                <div style={{ width: 56, height: 56, background: 'linear-gradient(135deg, #6c5ce7, #a29bfe)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0 }}>
+                                    <FiSmartphone size={26} />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <h4 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>Notificações Push no Celular</h4>
+                                    <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 16 }}>
+                                        Receba notificações nativas no seu celular ou computador — igual à Kiwify e Cakto. Funciona em Chrome, Edge, Firefox e Safari (iOS 16.4+).
+                                    </p>
+
+                                    {pushSubscribed ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(74, 222, 128, 0.15)', color: '#4ade80', padding: '10px 20px', borderRadius: 8, fontWeight: 600, fontSize: 14 }}>
+                                                <FiCheckCircle size={18} /> Push ativo neste dispositivo
+                                            </div>
+                                            <button
+                                                onClick={disablePush}
+                                                disabled={pushLoading}
+                                                style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                                                    background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444',
+                                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                                    padding: '10px 20px', borderRadius: 8,
+                                                    fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                                                    opacity: pushLoading ? 0.6 : 1
+                                                }}
+                                            >
+                                                <FiXCircle size={16} /> {pushLoading ? 'Desativando...' : 'Desativar'}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={enablePush}
+                                            disabled={pushLoading}
+                                            style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: 10,
+                                                background: 'linear-gradient(135deg, #6c5ce7, #a29bfe)',
+                                                color: '#fff', border: 'none',
+                                                padding: '12px 24px', borderRadius: 8,
+                                                fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                                                opacity: pushLoading ? 0.7 : 1,
+                                                transition: 'opacity 0.2s'
+                                            }}
+                                        >
+                                            <FiSmartphone size={18} />
+                                            {pushLoading ? 'Ativando...' : 'Ativar Notificações Push'}
+                                        </button>
+                                    )}
+
+                                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 12, lineHeight: 1.5 }}>
+                                        Compativel com Chrome, Edge e Firefox (desktop e Android). No iPhone, requer Safari e iOS 16.4+. Voce precisara aceitar a permissao de notificacao no navegador.
+                                    </p>
                                 </div>
                             </div>
                         </div>
