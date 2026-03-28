@@ -91,15 +91,13 @@ export default function LandingPage() {
               backdropFilter: 'blur(18px)',
               boxShadow: '0 14px 44px rgba(17, 24, 39, 0.10)'
             }} className="landingHeaderBar">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }} className="landingLogo">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} className="landingLogo">
                 <img
-                  src="https://i.imgur.com/vXgH6Mn.png"
+                  src="/favicon.png"
                   alt="GouPay"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src = '/logo.png';
-                  }}
-                  style={{ height: 38, width: 140, objectFit: 'contain', flexShrink: 0, display: 'block' }}
+                  style={{ height: 32, width: 32, objectFit: 'contain', flexShrink: 0, display: 'block' }}
                 />
+                <span style={{ fontWeight: 800, fontSize: 18, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>GouPay</span>
               </div>
 
               <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }} className="landingHeaderCenter">
