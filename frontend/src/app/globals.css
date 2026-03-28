@@ -403,6 +403,8 @@ body {
   .landingLogo {
     gap: 8px !important;
     flex-shrink: 0 !important;
+    display: inline-flex !important;
+    width: auto !important;
     justify-content: center !important;
     align-items: center !important;
   }
