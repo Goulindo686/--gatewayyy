@@ -74,7 +74,7 @@ export default function SettingsPage() {
 
             const sub = await reg.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey,
+                applicationServerKey: applicationServerKey as BufferSource,
             });
 
             const token = localStorage.getItem('token');
