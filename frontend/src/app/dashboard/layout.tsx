@@ -353,14 +353,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 />
                             </div>
                         ) : (
-                            <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                 <img
                                     src="/favicon.png"
                                     alt="GouPay Logo"
-                                    style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0 }}
+                                    style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0, display: 'block' }}
                                 />
-                                <span style={{ fontWeight: 800, fontSize: 20, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>GouPay</span>
-                            </>
+                                <span style={{ fontWeight: 800, fontSize: 20, color: 'var(--text-primary)', letterSpacing: '-0.5px', lineHeight: 1 }}>GouPay</span>
+                            </div>
                         )}
                     </div>
                     {!isMobile && (
