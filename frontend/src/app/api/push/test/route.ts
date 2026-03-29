@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     try {
         await sendPushNotification(auth.user.id, {
             title: '💰 Venda Aprovada!',
-            body: `Produto Teste • ${formatted}`,
+            body: `${formatted}`,
             url: '/dashboard',
             icon: '/favicon.png',
         });
