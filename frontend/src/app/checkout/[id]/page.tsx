@@ -739,7 +739,7 @@ export default function CheckoutPage() {
                             </button>
                             <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
                                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                                    <img src="/logo.png" alt="GouPay Logo" style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                                    <img src="/favicon.png" alt="GouPay Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
                                     <span style={{ fontSize: 14, fontWeight: 700, color: textSecondary }}>GouPay</span>
                                 </div>
                             </div>

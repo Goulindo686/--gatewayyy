@@ -594,7 +594,7 @@ export default function CheckoutCustomizationPage() {
                         )}
 
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '10px 16px' }}>
-                            <img src="/logo.png" alt="GouPay Logo" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                            <img src="/favicon.png" alt="GouPay Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
                             <span style={{ fontSize: 18, fontWeight: 800, color: previewText }}>
                                 Gou<span className="gradient-text">Pay</span>
                             </span>
