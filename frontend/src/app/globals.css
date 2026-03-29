@@ -573,6 +573,8 @@ body {
     max-width: 100% !important;
     margin-left: auto !important;
     margin-right: auto !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   /* Checkout page - ajustes mobile */
@@ -581,7 +583,13 @@ body {
   }
 
   * {
-    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Força centralização dos elementos */
+  [style*="maxWidth: 1200"] {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
   }
 }
 
