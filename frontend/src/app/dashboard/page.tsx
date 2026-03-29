@@ -20,11 +20,15 @@ interface MonthlySale {
 }
 
 function calculateDerivedMetrics(monthlySales: MonthlySale[]): MonthlySale[] {
-    return monthlySales.map(sale => ({
-        ...sale,
-        fees: sale.fees ?? sale.amount * 0.05,
-        net_revenue: sale.net_revenue ?? sale.amount * 0.95,
-    }));
+    return monthlySales.map(sale => {
+        const amount = Number(sale.amount ?? 0);
+        return {
+            ...sale,
+            amount,
+            fees: sale.fees != null ? Number(sale.fees) : amount * 0.05,
+            net_revenue: sale.net_revenue != null ? Number(sale.net_revenue) : amount * 0.95,
+        };
+    });
 }
 
 export default function DashboardPage() {
@@ -313,7 +317,7 @@ export default function DashboardPage() {
                     {/* Big number */}
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 20 }}>
                         <span style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1px', color: active.color }}>
-                            R$ {monthlySalesData.reduce((s, m: any) => s + (m[active.key] ?? 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {monthlySalesData.reduce((s, m: any) => s + Number(m[active.key] ?? 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                         <span style={{ fontSize: 13, color: '#00ce91', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
                             <FiArrowUpRight size={14} /> Total acumulado
