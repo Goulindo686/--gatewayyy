@@ -14,8 +14,8 @@ self.addEventListener('push', function (event) {
     const title = data.title || 'Venda Aprovada!';
     const options = {
         body: data.body || 'Voce recebeu uma nova venda.',
-        icon: data.icon || '/favicon.png',
-        badge: '/favicon.png',
+        icon: data.icon || '/notification-icon.png',
+        badge: '/notification-icon.png',
         data: { url: data.url || '/dashboard' },
         vibrate: [200, 100, 200],
         requireInteraction: false,
