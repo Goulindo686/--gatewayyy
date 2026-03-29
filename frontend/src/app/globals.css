@@ -552,6 +552,26 @@ body {
     background: rgba(108, 92, 231, 0.1) !important;
     border-radius: 8px !important;
   }
+
+  /* Produtos - Cards responsivos */
+  .glass-card {
+    margin: 0 !important;
+  }
+
+  /* Produtos - Botões de ação */
+  .glass-card > div > div:last-child {
+    flex-wrap: wrap !important;
+  }
+
+  .glass-card > div > div:last-child > button,
+  .glass-card > div > div:last-child > a {
+    min-width: 40px !important;
+  }
+
+  /* Checkout Customization - Centralizar conteúdo */
+  .glass-card {
+    max-width: 100% !important;
+  }
 }
 
 /* Esconde scrollbar das tabs mas mantém funcionalidade */

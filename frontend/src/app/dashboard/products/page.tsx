@@ -210,7 +210,7 @@ export default function ProductsPage() {
             </div>
 
             {products.length > 0 ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: 20 }}>
                     {products.map((product) => (
                         <div key={product.id} className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
                             {/* Image */}
@@ -245,20 +245,20 @@ export default function ProductsPage() {
                                     </span>
                                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{product.sales_count || 0} vendas</span>
                                 </div>
-                                <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                                    <button onClick={() => copyCheckoutLink(product.id)} className="btn-secondary" style={{ flex: 1, padding: '8px 12px', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+                                    <button onClick={() => copyCheckoutLink(product.id)} className="btn-secondary" style={{ flex: '1 1 auto', minWidth: '120px', padding: '8px 12px', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                                         <FiCopy size={13} /> Link Checkout
                                     </button>
-                                    <Link href={`/dashboard/products/${product.id}/content`} className="btn-secondary" style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Gerenciar Conteúdo">
+                                    <Link href={`/dashboard/products/${product.id}/content`} className="btn-secondary" style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} title="Gerenciar Conteúdo">
                                         <FiBook size={14} />
                                     </Link>
-                                    <Link href={`/dashboard/products/${product.id}/checkout`} className="btn-secondary" style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Personalizar Checkout">
+                                    <Link href={`/dashboard/products/${product.id}/checkout`} className="btn-secondary" style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} title="Personalizar Checkout">
                                         <FiSettings size={14} />
                                     </Link>
-                                    <button onClick={() => openEdit(product)} className="btn-secondary" style={{ padding: '8px 12px' }}>
+                                    <button onClick={() => openEdit(product)} className="btn-secondary" style={{ padding: '8px 12px', flexShrink: 0 }}>
                                         <FiEdit2 size={14} />
                                     </button>
-                                    <button onClick={() => handleDelete(product.id)} className="btn-danger" style={{ padding: '8px 12px' }}>
+                                    <button onClick={() => handleDelete(product.id)} className="btn-danger" style={{ padding: '8px 12px', flexShrink: 0 }}>
                                         <FiTrash2 size={14} />
                                     </button>
                                 </div>
