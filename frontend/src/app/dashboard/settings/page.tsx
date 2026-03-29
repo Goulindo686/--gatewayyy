@@ -356,22 +356,28 @@ export default function SettingsPage() {
                                         border: '1px solid var(--border)',
                                         display: 'flex',
                                         justifyContent: 'space-between',
-                                        alignItems: 'center'
+                                        alignItems: 'center',
+                                        gap: 12,
+                                        flexWrap: 'wrap'
                                     }}>
-                                        <div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                                                 <code style={{ 
                                                     background: 'rgba(0,0,0,0.1)', 
                                                     padding: '2px 6px', 
                                                     borderRadius: 4, 
                                                     fontSize: 13, 
                                                     fontFamily: 'monospace',
-                                                    color: 'var(--text-primary)'
+                                                    color: 'var(--text-primary)',
+                                                    wordBreak: 'break-all',
+                                                    overflowWrap: 'break-word',
+                                                    maxWidth: '100%',
+                                                    display: 'inline-block'
                                                 }}>{key.api_key}</code>
                                                 {key.is_active ? (
-                                                    <span style={{ fontSize: 10, background: '#dcfce7', color: '#166534', padding: '2px 6px', borderRadius: 99 }}>ATIVA</span>
+                                                    <span style={{ fontSize: 10, background: '#dcfce7', color: '#166534', padding: '2px 6px', borderRadius: 99, whiteSpace: 'nowrap' }}>ATIVA</span>
                                                 ) : (
-                                                    <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '2px 6px', borderRadius: 99 }}>INATIVA</span>
+                                                    <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '2px 6px', borderRadius: 99, whiteSpace: 'nowrap' }}>INATIVA</span>
                                                 )}
                                             </div>
                                             <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Criada em: {new Date(key.created_at).toLocaleDateString()}</p>
@@ -386,7 +392,8 @@ export default function SettingsPage() {
                                                 border: 'none', 
                                                 color: 'var(--text-secondary)', 
                                                 cursor: 'pointer',
-                                                padding: 8 
+                                                padding: 8,
+                                                flexShrink: 0
                                             }}
                                             title="Copiar Chave"
                                         >

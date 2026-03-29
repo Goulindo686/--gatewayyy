@@ -534,8 +534,23 @@ body {
     gap: 12px !important;
   }
 
-  .api-keys-list {
-    gap: 10px !important;
+  .api-key-row > div {
+    width: 100% !important;
+  }
+
+  .api-key-row code {
+    font-size: 11px !important;
+    word-break: break-all !important;
+    max-width: 100% !important;
+  }
+
+  .api-key-row button {
+    align-self: center !important;
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 12px !important;
+    background: rgba(108, 92, 231, 0.1) !important;
+    border-radius: 8px !important;
   }
 }
 
