@@ -26,6 +26,7 @@ export default function SettingsPage() {
     const [pushSubscription, setPushSubscription] = useState<PushSubscription | null>(null);
     const [testPushAmount, setTestPushAmount] = useState('10.00');
     const [testingPush, setTestingPush] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [form, setForm] = useState({
         id: '', telegram_chat_id: '', webhook_url: '',
         name: '', phone: '', cpf_cnpj: '',
@@ -202,6 +203,7 @@ export default function SettingsPage() {
         try {
             const { data } = await authAPI.getProfile();
             const u = data.user;
+            setIsAdmin(u.role === 'admin');
             setForm({
                 id: u.id,
                 telegram_chat_id: u.telegram_chat_id || '',
@@ -708,8 +710,8 @@ console.log(data.pix.qr_code); // Pix Copia e Cola`}
                                         Compativel com Chrome, Edge e Firefox (desktop e Android). No iPhone, requer Safari e iOS 16.4+. Voce precisara aceitar a permissao de notificacao no navegador.
                                     </p>
 
-                                    {/* Teste de notificação */}
-                                    {pushSubscribed && (
+                                    {/* Teste de notificação - apenas admins */}
+                                    {pushSubscribed && isAdmin && (
                                         <div style={{
                                             marginTop: 20,
                                             padding: 16,

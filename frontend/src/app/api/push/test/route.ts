@@ -7,6 +7,7 @@ import { sendPushNotification } from '@/lib/webpush';
 export async function POST(req: NextRequest) {
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Nao autorizado', 401);
+    if (auth.user.role !== 'admin') return jsonError('Acesso restrito a administradores', 403);
 
     const body = await req.json();
     const amount = parseFloat(body.amount) || 10.00;
