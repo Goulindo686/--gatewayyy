@@ -250,7 +250,9 @@ export default function SettingsPage() {
                 width: '100%',
                 overflowX: 'auto',
                 whiteSpace: 'nowrap',
-                /* hide scrollbar via CSS below */
+                WebkitOverflowScrolling: 'touch',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none'
             }}>
                 {tabs.map(t => (
                     <button key={t.key} onClick={() => setTab(t.key)} style={{
@@ -267,8 +269,9 @@ export default function SettingsPage() {
                         gap: 8,
                         transition: 'all 0.2s ease', 
                         fontFamily: 'Inter, sans-serif',
-                        flexShrink: 0, // Impede que o botão encolha demais
-                        whiteSpace: 'nowrap'
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
+                        minWidth: 'fit-content'
                     }}>
                         {t.icon} {t.label}
                     </button>
