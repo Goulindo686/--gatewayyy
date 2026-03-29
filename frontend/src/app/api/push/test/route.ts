@@ -1,0 +1,32 @@
+export const dynamic = 'force-dynamic';
+
+import { NextRequest } from 'next/server';
+import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
+import { sendPushNotification } from '@/lib/webpush';
+
+export async function POST(req: NextRequest) {
+    const auth = await getAuthUser(req);
+    if (!auth) return jsonError('Nao autorizado', 401);
+
+    const body = await req.json();
+    const amount = parseFloat(body.amount) || 10.00;
+
+    const formatted = new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+    }).format(amount);
+
+    try {
+        await sendPushNotification(auth.user.id, {
+            title: '💰 Venda Aprovada!',
+            body: `Produto Teste • ${formatted}`,
+            url: '/dashboard',
+            icon: '/favicon.png',
+        });
+
+        return jsonSuccess({ sent: true });
+    } catch (err: any) {
+        console.error('[Push Test] Erro:', err);
+        return jsonError('Erro ao enviar notificacao de teste', 500);
+    }
+}

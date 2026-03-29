@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiSave, FiUser, FiCreditCard, FiKey, FiBell, FiCheckCircle, FiCode, FiCopy, FiPlus, FiGlobe, FiZap, FiSmartphone, FiXCircle } from 'react-icons/fi';
+import { FiSave, FiUser, FiCreditCard, FiKey, FiBell, FiCheckCircle, FiCode, FiCopy, FiPlus, FiGlobe, FiZap, FiSmartphone, FiXCircle, FiSend } from 'react-icons/fi';
 import axios from 'axios';
 
 // Converte a VAPID public key de base64url para Uint8Array (necessario para subscribe)
@@ -24,6 +24,8 @@ export default function SettingsPage() {
     const [pushSubscribed, setPushSubscribed] = useState(false);
     const [pushLoading, setPushLoading] = useState(false);
     const [pushSubscription, setPushSubscription] = useState<PushSubscription | null>(null);
+    const [testPushAmount, setTestPushAmount] = useState('10.00');
+    const [testingPush, setTestingPush] = useState(false);
     const [form, setForm] = useState({
         id: '', telegram_chat_id: '', webhook_url: '',
         name: '', phone: '', cpf_cnpj: '',
@@ -130,6 +132,24 @@ export default function SettingsPage() {
             toast.error('Erro ao desativar notificacoes push.');
         } finally {
             setPushLoading(false);
+        }
+    };
+
+    const testPushNotification = async () => {
+        if (!pushSubscribed) {
+            return toast.error('Ative as notificações push primeiro.');
+        }
+        setTestingPush(true);
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post('/api/push/test', { amount: parseFloat(testPushAmount) || 10 }, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            toast.success('Notificação de teste enviada!');
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Erro ao enviar notificação de teste.');
+        } finally {
+            setTestingPush(false);
         }
     };
 
@@ -687,6 +707,54 @@ console.log(data.pix.qr_code); // Pix Copia e Cola`}
                                     <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 12, lineHeight: 1.5 }}>
                                         Compativel com Chrome, Edge e Firefox (desktop e Android). No iPhone, requer Safari e iOS 16.4+. Voce precisara aceitar a permissao de notificacao no navegador.
                                     </p>
+
+                                    {/* Teste de notificação */}
+                                    {pushSubscribed && (
+                                        <div style={{
+                                            marginTop: 20,
+                                            padding: 16,
+                                            background: 'rgba(108, 92, 231, 0.06)',
+                                            border: '1px solid rgba(108, 92, 231, 0.2)',
+                                            borderRadius: 10,
+                                        }}>
+                                            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 10 }}>
+                                                🧪 Testar Notificação
+                                            </p>
+                                            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                                                Simule uma venda para verificar se as notificações estão funcionando.
+                                            </p>
+                                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '8px 12px', flex: 1, minWidth: 120 }}>
+                                                    <span style={{ fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>R$</span>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        step="0.01"
+                                                        value={testPushAmount}
+                                                        onChange={e => setTestPushAmount(e.target.value)}
+                                                        style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', width: '100%' }}
+                                                        placeholder="10.00"
+                                                    />
+                                                </div>
+                                                <button
+                                                    onClick={testPushNotification}
+                                                    disabled={testingPush}
+                                                    style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                                                        background: 'linear-gradient(135deg, #6c5ce7, #a29bfe)',
+                                                        color: '#fff', border: 'none',
+                                                        padding: '10px 20px', borderRadius: 8,
+                                                        fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                                                        opacity: testingPush ? 0.7 : 1,
+                                                        whiteSpace: 'nowrap'
+                                                    }}
+                                                >
+                                                    <FiSend size={14} />
+                                                    {testingPush ? 'Enviando...' : 'Testar Notificação'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
