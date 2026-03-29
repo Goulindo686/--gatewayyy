@@ -176,7 +176,7 @@ export default function CheckoutCustomizationPage() {
     const previewBorder = settings.theme === 'light' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)';
 
     return (
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '16px' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '16px 12px' : '16px' }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32, flexWrap: 'wrap', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
