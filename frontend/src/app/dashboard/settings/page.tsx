@@ -619,36 +619,31 @@ console.log(data.pix.qr_code); // Pix Copia e Cola`}
                                 <div style={{ flex: 1 }}>
                                     <h4 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>Notificações Push no Celular</h4>
                                     <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 16 }}>
-                                        Receba notificações nativas no seu celular ou computador — igual à Kiwify e Cakto. Funciona em Chrome, Edge, Firefox e Safari (iOS 16.4+).
+                                        Receba notificações nativas no seu celular ou computador. Funciona em Chrome, Edge, Firefox e Safari (iOS 16.4+).
                                     </p>
 
                                     {/* Aviso iOS */}
                                     {(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && (
                                         <div style={{ 
-                                            padding: 16, 
+                                            padding: 12, 
                                             background: 'rgba(245, 158, 11, 0.1)', 
                                             border: '1px solid rgba(245, 158, 11, 0.3)',
                                             borderRadius: 8, 
                                             marginBottom: 16,
-                                            fontSize: 13,
+                                            fontSize: 11,
                                             color: '#d97706',
-                                            lineHeight: 1.6
+                                            lineHeight: 1.5
                                         }}>
-                                            <strong style={{ fontSize: 14, display: 'block', marginBottom: 8 }}>📱 iPhone/iPad - Como Ativar Push</strong>
-                                            <p style={{ marginBottom: 8, fontSize: 12 }}>
-                                                Seu iPhone <strong>suporta notificações push</strong>, mas precisa seguir estes passos:
-                                            </p>
-                                            <ol style={{ marginTop: 8, marginLeft: 20, marginBottom: 8, fontSize: 12 }}>
-                                                <li style={{ marginBottom: 4 }}>Abra este site no <strong>Safari</strong> (não funciona no Chrome)</li>
-                                                <li style={{ marginBottom: 4 }}>Toque no botão <strong>Compartilhar</strong> (quadrado com seta para cima)</li>
-                                                <li style={{ marginBottom: 4 }}>Role para baixo e toque em <strong>"Adicionar à Tela de Início"</strong></li>
-                                                <li style={{ marginBottom: 4 }}>Abra o app GouPay pela <strong>tela inicial</strong> (não pelo Safari)</li>
-                                                <li>Volte aqui e clique em <strong>"Ativar Notificações Push"</strong></li>
+                                            <strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>📱 iPhone/iPad - Como Ativar</strong>
+                                            <ol style={{ marginTop: 6, marginLeft: 16, marginBottom: 0, fontSize: 11, paddingLeft: 4 }}>
+                                                <li style={{ marginBottom: 3 }}>Abra no <strong>Safari</strong></li>
+                                                <li style={{ marginBottom: 3 }}>Toque em <strong>Compartilhar</strong></li>
+                                                <li style={{ marginBottom: 3 }}><strong>"Adicionar à Tela de Início"</strong></li>
+                                                <li style={{ marginBottom: 3 }}>Abra o app pela <strong>tela inicial</strong></li>
+                                                <li>Ative as notificações aqui</li>
                                             </ol>
-                                            <p style={{ fontSize: 11, marginTop: 8, opacity: 0.9 }}>
-                                                ℹ️ Isso é uma limitação do iOS. Funciona perfeitamente após instalar como PWA.
-                                            </p>
                                         </div>
+                                    )}                                        </div>
                                     )}
 
                                     {pushSubscribed ? (
