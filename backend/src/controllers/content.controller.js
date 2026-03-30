@@ -1,10 +1,43 @@
 const { supabase } = require('../config/database');
 
+// Helper: verifica se o módulo pertence ao vendedor logado
+async function assertModuleOwnership(moduleId, userId) {
+    const { data } = await supabase
+        .from('product_modules')
+        .select('product_id, products(user_id)')
+        .eq('id', moduleId)
+        .single();
+    if (!data || data.products?.user_id !== userId) return false;
+    return true;
+}
+
+// Helper: verifica se a aula pertence ao vendedor logado
+async function assertLessonOwnership(lessonId, userId) {
+    const { data } = await supabase
+        .from('product_lessons')
+        .select('module_id, product_modules(product_id, products(user_id))')
+        .eq('id', lessonId)
+        .single();
+    if (!data || data.product_modules?.products?.user_id !== userId) return false;
+    return true;
+}
+
 class ContentController {
     // Modules
     async listModules(req, res, next) {
         try {
             const { productId } = req.params;
+
+            // Verifica ownership antes de listar
+            const { data: product } = await supabase
+                .from('products')
+                .select('id')
+                .eq('id', productId)
+                .eq('user_id', req.user.id)
+                .single();
+
+            if (!product) return res.status(403).json({ error: 'Acesso negado.' });
+
             const { data, error } = await supabase
                 .from('product_modules')
                 .select('*')
@@ -22,6 +55,16 @@ class ContentController {
         try {
             const { productId } = req.params;
             const { title, order } = req.body;
+
+            // Verifica ownership do produto
+            const { data: product } = await supabase
+                .from('products')
+                .select('id')
+                .eq('id', productId)
+                .eq('user_id', req.user.id)
+                .single();
+
+            if (!product) return res.status(403).json({ error: 'Acesso negado.' });
 
             const { data, error } = await supabase
                 .from('product_modules')
@@ -41,6 +84,10 @@ class ContentController {
             const { moduleId } = req.params;
             const { title, order } = req.body;
 
+            // Verifica se o módulo pertence ao vendedor logado
+            const isOwner = await assertModuleOwnership(moduleId, req.user.id);
+            if (!isOwner) return res.status(403).json({ error: 'Acesso negado.' });
+
             const { data, error } = await supabase
                 .from('product_modules')
                 .update({ title, order, updated_at: new Date().toISOString() })
@@ -58,6 +105,11 @@ class ContentController {
     async deleteModule(req, res, next) {
         try {
             const { moduleId } = req.params;
+
+            // Verifica se o módulo pertence ao vendedor logado
+            const isOwner = await assertModuleOwnership(moduleId, req.user.id);
+            if (!isOwner) return res.status(403).json({ error: 'Acesso negado.' });
+
             const { error } = await supabase
                 .from('product_modules')
                 .delete()
@@ -74,6 +126,11 @@ class ContentController {
     async listLessons(req, res, next) {
         try {
             const { moduleId } = req.params;
+
+            // Verifica ownership do módulo
+            const isOwner = await assertModuleOwnership(moduleId, req.user.id);
+            if (!isOwner) return res.status(403).json({ error: 'Acesso negado.' });
+
             const { data, error } = await supabase
                 .from('product_lessons')
                 .select('*')
@@ -91,6 +148,10 @@ class ContentController {
         try {
             const { moduleId } = req.params;
             const { title, description, video_url, video_source, order, content } = req.body;
+
+            // Verifica ownership do módulo
+            const isOwner = await assertModuleOwnership(moduleId, req.user.id);
+            if (!isOwner) return res.status(403).json({ error: 'Acesso negado.' });
 
             const { data, error } = await supabase
                 .from('product_lessons')
@@ -116,6 +177,11 @@ class ContentController {
     async updateLesson(req, res, next) {
         try {
             const { lessonId } = req.params;
+
+            // Verifica se a aula pertence ao vendedor logado
+            const isOwner = await assertLessonOwnership(lessonId, req.user.id);
+            if (!isOwner) return res.status(403).json({ error: 'Acesso negado.' });
+
             const updates = { ...req.body, updated_at: new Date().toISOString() };
 
             const { data, error } = await supabase
@@ -135,6 +201,11 @@ class ContentController {
     async deleteLesson(req, res, next) {
         try {
             const { lessonId } = req.params;
+
+            // Verifica se a aula pertence ao vendedor logado
+            const isOwner = await assertLessonOwnership(lessonId, req.user.id);
+            if (!isOwner) return res.status(403).json({ error: 'Acesso negado.' });
+
             const { error } = await supabase
                 .from('product_lessons')
                 .delete()

@@ -3,10 +3,11 @@ const { body } = require('express-validator');
 const checkoutController = require('../controllers/checkout.controller');
 const { validate } = require('../middlewares/validation.middleware');
 const { auth } = require('../middlewares/auth.middleware');
+const { checkoutLimiter, checkoutEmailLimiter } = require('../middlewares/rate-limit.middleware');
 
 const router = express.Router();
 
-router.post('/pay', [
+router.post('/pay', checkoutLimiter, checkoutEmailLimiter, [
     body('product_id').notEmpty().withMessage('Produto é obrigatório'),
     body('payment_method').isIn(['pix', 'credit_card']).withMessage('Método de pagamento inválido'),
     body('buyer.name').notEmpty().withMessage('Nome do comprador é obrigatório'),
@@ -15,7 +16,7 @@ router.post('/pay', [
     validate
 ], checkoutController.processPayment);
 
-router.post('/store-checkout', [
+router.post('/store-checkout', checkoutLimiter, checkoutEmailLimiter, [
     body('items_cart').isArray().withMessage('Itens do carrinho inválidos'),
     body('payment_method').isIn(['pix', 'credit_card']).withMessage('Método de pagamento inválido'),
     body('buyer.email').isEmail().withMessage('Email do comprador é inválido'),

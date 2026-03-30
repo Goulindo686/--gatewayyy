@@ -30,6 +30,23 @@ class CheckoutController {
                 return res.status(400).json({ error: 'Vendedor não possui conta de recebimento ativa.' });
             }
 
+            // Bloqueia pedido duplicado: mesmo email + produto com status pending nos últimos 10 minutos
+            const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+            const { data: recentPending } = await supabase
+                .from('orders')
+                .select('id, created_at')
+                .eq('product_id', product_id)
+                .eq('buyer_email', buyer.email?.toLowerCase().trim())
+                .eq('status', 'pending')
+                .gte('created_at', tenMinutesAgo)
+                .limit(1);
+
+            if (recentPending && recentPending.length > 0) {
+                return res.status(429).json({
+                    error: 'Você já possui um pedido pendente para este produto. Aguarde alguns minutos antes de tentar novamente.'
+                });
+            }
+
             // Get platform settings
             const { data: settings } = await supabase
                 .from('platform_settings')
@@ -207,6 +224,23 @@ class CheckoutController {
 
             if (!recipient?.pagarme_recipient_id) {
                 return res.status(400).json({ error: 'O vendedor desta loja ainda não ativou os pagamentos.' });
+            }
+
+            // Bloqueia pedido duplicado: mesmo email + mesmo carrinho (primeiro item) nos últimos 5 minutos
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+            const { data: recentStorePending } = await supabase
+                .from('orders')
+                .select('id')
+                .eq('product_id', items_cart[0].id)
+                .eq('buyer_email', buyer.email?.toLowerCase().trim())
+                .eq('status', 'pending')
+                .gte('created_at', fiveMinutesAgo)
+                .limit(1);
+
+            if (recentStorePending && recentStorePending.length > 0) {
+                return res.status(429).json({
+                    error: 'Você já possui um pedido pendente. Aguarde alguns minutos antes de tentar novamente.'
+                });
             }
 
             // Get platform settings & fees

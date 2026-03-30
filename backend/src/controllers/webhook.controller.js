@@ -55,6 +55,14 @@ class WebhookController {
 
     async handleTelegram(req, res) {
         try {
+            // Verifica token secreto do Telegram para evitar requisições não autorizadas
+            const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
+            const secretPath = req.headers['x-telegram-bot-api-secret-token'];
+
+            if (telegramToken && secretPath && secretPath !== process.env.TELEGRAM_WEBHOOK_SECRET) {
+                return res.status(401).send('Unauthorized');
+            }
+
             const message = req.body.message;
             if (message) {
                 await TelegramService.handleWebhook(message);
@@ -174,11 +182,14 @@ class WebhookController {
                     const normalizedEmail = order.buyer_email.toLowerCase().trim();
                     console.log(`[WEBHOOK-DEBUG] Processing auto-enrollment for: ${normalizedEmail}`);
 
-                    // 1. Check if user already exists (Case-insensitive)
-                    const { data: users, error: userFetchErr } = await supabase.from('users').select('id, email');
-                    if (userFetchErr) console.error('[WEBHOOK-DEBUG] Error fetching users:', userFetchErr.message);
+                    // 1. Busca usuário diretamente por email (sem carregar tabela inteira)
+                    const { data: foundUsers } = await supabase
+                        .from('users')
+                        .select('id, email')
+                        .ilike('email', normalizedEmail)
+                        .limit(1);
 
-                    let user = users?.find(u => u.email?.toLowerCase().trim() === normalizedEmail);
+                    let user = foundUsers && foundUsers.length > 0 ? foundUsers[0] : null;
 
                     // 2. Create user if doesn't exist
                     if (!user) {

@@ -1,6 +1,39 @@
 const rateLimit = require('express-rate-limit');
 
 /**
+ * Limitador para Checkout (anti-abuso / carding)
+ * Por IP: 10 tentativas a cada hora
+ */
+const checkoutLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hora
+    max: 10,
+    message: { error: 'Muitas tentativas de pagamento. Tente novamente em 1 hora.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+        // Usa IP real mesmo atrás de proxy/Vercel/Cloudflare
+        return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
+    }
+});
+
+/**
+ * Limitador por email do comprador (anti-carding por email)
+ * Mesmo email: 5 tentativas a cada hora
+ */
+const checkoutEmailLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hora
+    max: 5,
+    message: { error: 'Muitas tentativas de pagamento para este email. Tente novamente em 1 hora.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+        const email = req.body?.buyer?.email?.toLowerCase().trim() || 'unknown';
+        return `email:${email}`;
+    },
+    skip: (req) => !req.body?.buyer?.email // Pula se não tiver email (validação cuida disso)
+});
+
+/**
  * Limitador para tentativas de Login
  * 10 tentativas a cada 15 minutos
  */
@@ -39,5 +72,7 @@ const forgotPasswordLimiter = rateLimit({
 module.exports = {
     loginLimiter,
     registerLimiter,
-    forgotPasswordLimiter
+    forgotPasswordLimiter,
+    checkoutLimiter,
+    checkoutEmailLimiter
 };

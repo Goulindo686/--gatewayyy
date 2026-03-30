@@ -11,7 +11,7 @@ class ProductController {
                     user_id: req.user.id,
                     name,
                     description,
-                    price: Math.round(price * 100), // Convert to cents
+                    price: Math.round(price * 100),
                     image_url,
                     type: type || 'digital',
                     status: status || 'active',
@@ -26,7 +26,9 @@ class ProductController {
 
             if (error) throw error;
 
-            res.status(201).json({ product: data, message: 'Produto criado com sucesso!' });
+            // Nunca retorna o token do Facebook na resposta
+            const { facebook_api_token: _hidden, ...safeProduct } = data;
+            res.status(201).json({ product: safeProduct, message: 'Produto criado com sucesso!' });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
@@ -120,7 +122,9 @@ class ProductController {
             if (error) throw error;
             if (!data) return res.status(404).json({ error: 'Produto não encontrado.' });
 
-            res.json({ product: data, message: 'Produto atualizado com sucesso!' });
+            // Nunca retorna o token do Facebook na resposta
+            const { facebook_api_token: _hidden, ...safeProduct } = data;
+            res.json({ product: safeProduct, message: 'Produto atualizado com sucesso!' });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
