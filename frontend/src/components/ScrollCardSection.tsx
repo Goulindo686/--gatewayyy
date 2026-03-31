@@ -44,20 +44,23 @@ export default function ScrollCardSection() {
           }
         });
 
-        // Fase 1: card pequeno (estado inicial) → expande em altura
-        tl.to(card, {
-          height: '520px',
-          duration: 1,
-          ease: 'power2.inOut',
-        }, 0);
+        // Rotação contínua sincronizada com scroll (0° → 12°)
+        gsap.to(card, {
+          rotation: 12,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top top',
+            end: '+=2200',
+            scrub: 1.5,
+          }
+        });
+
+        // Fase 1: card pequeno → expande em altura
+        tl.to(card, { height: '520px', duration: 1, ease: 'power2.inOut' }, 0);
 
         // Fase 2: conteúdo inferior aparece
-        tl.to(content, {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          ease: 'power2.out',
-        }, 0.4);
+        tl.to(content, { opacity: 1, y: 0, duration: 0.8, ease: 'power2.out' }, 0.4);
 
         // Fase 3: steps aparecem em sequência
         tl.to(step1Ref.current, { opacity: 1, x: 0, duration: 0.5, ease: 'power2.out' }, 0.6);
@@ -68,11 +71,7 @@ export default function ScrollCardSection() {
         tl.to(ctaRef.current, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 1.2);
 
         // Fase 5: card expande largura levemente
-        tl.to(card, {
-          width: '420px',
-          duration: 0.8,
-          ease: 'power2.inOut',
-        }, 1.4);
+        tl.to(card, { width: '420px', duration: 0.8, ease: 'power2.inOut' }, 1.4);
 
       }, section);
     };
@@ -129,9 +128,7 @@ export default function ScrollCardSection() {
           {/* Logo no canto superior esquerdo */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src="https://i.imgur.com/qFq7IHR.png" alt="GouPay" style={{ width: 22, height: 22, objectFit: 'contain' }} />
-              </div>
+              <img src="https://i.imgur.com/qFq7IHR.png" alt="GouPay" style={{ width: 38, height: 38, objectFit: 'contain' }} />
               <span style={{ color: 'white', fontWeight: 800, fontSize: 15, letterSpacing: -0.3 }}>GouPay</span>
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' }}>Gateway</div>
