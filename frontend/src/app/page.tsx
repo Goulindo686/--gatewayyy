@@ -208,7 +208,7 @@ export default function LandingPage() {
         ref={heroRef}
         style={{
           position: 'relative',
-          background: 'linear-gradient(135deg, #c4b5fd 0%, #a78bfa 20%, #8b5cf6 45%, #7c3aed 70%, #6d28d9 100%)',
+          background: 'url(https://i.imgur.com/IzUo6HI.png) center center / cover no-repeat',
           overflow: 'hidden',
           paddingTop: 'calc(env(safe-area-inset-top) + 110px)',
           paddingBottom: 60,
