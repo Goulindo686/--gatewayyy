@@ -900,6 +900,59 @@ Body:
               font-size: 13px !important;
             }
           }
+
+          /* Loja / Storefront responsive */
+          @media (max-width: 980px) {
+            .landingStorefrontGrid {
+              grid-template-columns: 1fr !important;
+              gap: 24px !important;
+            }
+            .landingStorefrontTitle {
+              font-size: 30px !important;
+            }
+            .landingStorefrontPreview {
+              display: none !important;
+            }
+          }
+          @media (max-width: 640px) {
+            .landingStorefrontCard {
+              padding: 24px !important;
+            }
+            .landingStorefrontTitle {
+              font-size: 24px !important;
+            }
+            .landingStorefrontDesc {
+              font-size: 14px !important;
+            }
+            .landingStorefrontItems {
+              grid-template-columns: 1fr !important;
+            }
+            .landingStorefrontActions {
+              flex-direction: column !important;
+            }
+            .landingStorefrontActions a {
+              width: 100% !important;
+              justify-content: center !important;
+              text-align: center !important;
+            }
+          }
+
+          /* Features section mobile */
+          @media (max-width: 640px) {
+            #features {
+              padding: 48px 16px !important;
+            }
+            #features h2 {
+              font-size: 26px !important;
+            }
+          }
+
+          /* Divider mobile */
+          @media (max-width: 640px) {
+            .landingDivider {
+              display: none !important;
+            }
+          }
         `}</style>
       </footer>
     </div>
