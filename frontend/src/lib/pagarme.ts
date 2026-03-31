@@ -100,31 +100,32 @@ export class PagarmeService {
         const sellId = (data.seller_recipient_id || '').trim();
         const PLATFORM_FLAT_FEE = 150; // R$1,50 em centavos
 
-        const platformFeeAmount = Math.min(PLATFORM_FLAT_FEE, data.amount);
+        // Se feePercentage === 0 (admin), não cobra taxa da plataforma
+        const applyFee = (data.platform_fee_percentage || 0) > 0;
+        const platformFeeAmount = applyFee ? Math.min(PLATFORM_FLAT_FEE, data.amount) : 0;
         const sellerAmount = data.amount - platformFeeAmount;
 
         console.log('[PAGARME SERVICE] Split Config:', {
-            platId,
-            sellId,
-            platformFeeAmount,
-            sellerAmount
+            platId, sellId, platformFeeAmount, sellerAmount, applyFee
         });
 
         const hasSellerRecipient = !!sellId;
-        const includePlatformFee = !!(platId && platId.toLowerCase() !== sellId.toLowerCase() && platformFeeAmount > 0);
-        const splitRules = hasSellerRecipient ? [
+        const includePlatformFee = !!(applyFee && platId && platId.toLowerCase() !== sellId.toLowerCase() && platformFeeAmount > 0);
+
+        // Se não há split (admin sem taxa), não envia splitRules para o Pagar.me
+        const splitRules = hasSellerRecipient && includePlatformFee ? [
             {
                 amount: sellerAmount,
                 recipient_id: sellId,
                 type: 'flat',
                 options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true }
             },
-            ...(includePlatformFee ? [{
+            {
                 amount: platformFeeAmount,
                 recipient_id: platId,
                 type: 'flat',
                 options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false }
-            }] : [])
+            }
         ] : undefined;
 
         if (data.payment_method === 'pix') {
@@ -235,31 +236,32 @@ export class PagarmeService {
         const PLATFORM_FLAT_FEE = 150; // R$1,50 em centavos
 
         const totalAmountCents = data.items.reduce((sum: number, item: any) => sum + Math.round(item.price * 100) * item.quantity, 0);
-        const platformFeeAmount = Math.min(PLATFORM_FLAT_FEE, totalAmountCents);
+
+        // Se feePercentage === 0 (admin), não cobra taxa da plataforma
+        const applyFee2 = (data.platform_fee_percentage || 0) > 0;
+        const platformFeeAmount = applyFee2 ? Math.min(PLATFORM_FLAT_FEE, totalAmountCents) : 0;
         const sellerAmount = totalAmountCents - platformFeeAmount;
 
         console.log('[PAGARME SERVICE] MultiItem Split Config:', {
-            platId,
-            sellId,
-            platformFeeAmount,
-            sellerAmount
+            platId, sellId, platformFeeAmount, sellerAmount, applyFee2
         });
 
         const hasSellerRecipient2 = !!sellId;
-        const includePlatformFee2 = !!(platId && platId.toLowerCase() !== sellId.toLowerCase() && platformFeeAmount > 0);
-        const splitRules = hasSellerRecipient2 ? [
+        const includePlatformFee2 = !!(applyFee2 && platId && platId.toLowerCase() !== sellId.toLowerCase() && platformFeeAmount > 0);
+
+        const splitRules = hasSellerRecipient2 && includePlatformFee2 ? [
             {
                 amount: sellerAmount,
                 recipient_id: sellId,
                 type: 'flat',
                 options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true }
             },
-            ...(includePlatformFee2 ? [{
+            {
                 amount: platformFeeAmount,
                 recipient_id: platId,
                 type: 'flat',
                 options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false }
-            }] : [])
+            }
         ] : undefined;
 
         if (data.payment_method === 'pix') {
