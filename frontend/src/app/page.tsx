@@ -710,18 +710,25 @@ Body:
           @media (max-width: 900px) {
             .landingHeroMockups { display: none !important; }
             .landingHeroMockupsMobile { display: block !important; }
-            .landingHeroCopy { width: 100% !important; max-width: 100% !important; }
+            .landingHeroCopy {
+              width: 100% !important;
+              max-width: 100% !important;
+              transform: none !important;
+            }
             .landingHeroInner {
-              flex-direction: column !important;
-              justify-content: flex-start !important;
-              align-items: flex-start !important;
-              padding: 100px 20px 20px !important;
+              justify-content: center !important;
+              align-items: center !important;
+              padding: 0 16px !important;
             }
           }
           @media (max-width: 640px) {
-            .landingHeroTitle { font-size: 34px !important; }
+            .landingHeroTitle { font-size: 32px !important; }
             .landingHeroSubtitle { font-size: 14px !important; }
-            .landingHeroInner { padding: 90px 16px 16px !important; }
+            .landingHeroCard { padding: 18px !important; }
+            .landingHeroActions a {
+              width: 100% !important;
+              justify-content: center !important;
+            }
           }
           /* ── Hover nos cards de feature ── */
           .glass-card.sr-up {
