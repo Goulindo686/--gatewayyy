@@ -200,13 +200,13 @@ export async function POST(req: NextRequest) {
         // If paid immediately, create fee transaction and update sales count
         let buyerUser: any = null;
         if (charge?.status === 'paid') {
-            const feeAmount = Math.round(Math.round(parseFloat(amountDisplay) * 100) * (feePercentage / 100));
+            const feeAmount = Math.min(150, Math.round(parseFloat(amountDisplay) * 100)); // R$1,50 fixo
             if (feeAmount > 0) {
                 await supabase.from('transactions').insert({
                     id: uuidv4(), user_id: product.user_id, order_id: orderId,
                     type: 'fee', amount: feeAmount,
                     status: 'confirmed',
-                    description: `Taxa de plataforma (${feePercentage}%) - Pedido ${orderId}`
+                    description: `Taxa de plataforma (R$1,50 fixo) - Pedido ${orderId}`
                 });
             }
 

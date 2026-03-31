@@ -98,29 +98,32 @@ export class PagarmeService {
 
         const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
         const sellId = (data.seller_recipient_id || '').trim();
-        const fee = data.platform_fee_percentage || 0;
+        const PLATFORM_FLAT_FEE = 150; // R$1,50 em centavos
+
+        const platformFeeAmount = Math.min(PLATFORM_FLAT_FEE, data.amount);
+        const sellerAmount = data.amount - platformFeeAmount;
 
         console.log('[PAGARME SERVICE] Split Config:', {
             platId,
             sellId,
-            fee,
-            sellerPercentage
+            platformFeeAmount,
+            sellerAmount
         });
 
         const hasSellerRecipient = !!sellId;
-        const includePlatformFee = !!(platId && fee > 0 && platId.toLowerCase() !== sellId.toLowerCase());
+        const includePlatformFee = !!(platId && platId.toLowerCase() !== sellId.toLowerCase() && platformFeeAmount > 0);
         const splitRules = hasSellerRecipient ? [
             {
-                amount: sellerPercentage,
+                amount: sellerAmount,
                 recipient_id: sellId,
-                type: 'percentage',
+                type: 'flat',
                 options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true }
             },
             ...(includePlatformFee ? [{
-                amount: fee,
+                amount: platformFeeAmount,
                 recipient_id: platId,
-                type: 'percentage',
-                options: { charge_processing_fee: false, liable: false }
+                type: 'flat',
+                options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false }
             }] : [])
         ] : undefined;
 
@@ -229,29 +232,33 @@ export class PagarmeService {
 
         const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
         const sellId = (data.seller_recipient_id || '').trim();
-        const fee = data.platform_fee_percentage || 0;
+        const PLATFORM_FLAT_FEE = 150; // R$1,50 em centavos
+
+        const totalAmountCents = data.items.reduce((sum: number, item: any) => sum + Math.round(item.price * 100) * item.quantity, 0);
+        const platformFeeAmount = Math.min(PLATFORM_FLAT_FEE, totalAmountCents);
+        const sellerAmount = totalAmountCents - platformFeeAmount;
 
         console.log('[PAGARME SERVICE] MultiItem Split Config:', {
             platId,
             sellId,
-            fee,
-            sellerPercentage
+            platformFeeAmount,
+            sellerAmount
         });
 
         const hasSellerRecipient2 = !!sellId;
-        const includePlatformFee2 = !!(platId && fee > 0 && platId.toLowerCase() !== sellId.toLowerCase());
+        const includePlatformFee2 = !!(platId && platId.toLowerCase() !== sellId.toLowerCase() && platformFeeAmount > 0);
         const splitRules = hasSellerRecipient2 ? [
             {
-                amount: sellerPercentage,
+                amount: sellerAmount,
                 recipient_id: sellId,
-                type: 'percentage',
+                type: 'flat',
                 options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true }
             },
             ...(includePlatformFee2 ? [{
-                amount: fee,
+                amount: platformFeeAmount,
                 recipient_id: platId,
-                type: 'percentage',
-                options: { charge_processing_fee: false, liable: false }
+                type: 'flat',
+                options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false }
             }] : [])
         ] : undefined;
 
