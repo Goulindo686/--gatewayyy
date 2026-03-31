@@ -204,16 +204,16 @@ export default function LandingPage() {
       </header>
 
       {/* Hero */}
-      <section ref={heroRef} style={{ position: 'relative', height: 'clamp(600px, 88vh, 900px)', overflow: 'hidden', background: '#f8f8fc' }} className="landingHero">
+      <section ref={heroRef} style={{ position: 'relative', minHeight: 'clamp(600px, 88vh, 900px)', overflow: 'hidden', background: '#f8f8fc' }} className="landingHero">
         <HeroBanner />
-        <div style={{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none' }}>
+        <div style={{ position: 'relative', zIndex: 4 }}>
           <div style={{
-            maxWidth: 1200, margin: '0 auto', height: '100%', padding: '0 40px',
+            maxWidth: 1200, margin: '0 auto', padding: '120px 40px 60px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 40,
           }} className="landingHeroInner">
 
             {/* Coluna esquerda — texto */}
-            <div style={{ flex: '0 0 auto', width: 'min(480px, 48%)', pointerEvents: 'auto' }} className="landingHeroCopy">
+            <div style={{ flex: '0 0 auto', width: 'min(480px, 48%)' }} className="landingHeroCopy">
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 14px', borderRadius: 999, background: 'rgba(108,92,231,0.1)', border: '1px solid rgba(108,92,231,0.2)', color: '#6c5ce7', fontSize: 12, fontWeight: 800, letterSpacing: 0.4, marginBottom: 20 }}>
                 <FiTrendingUp size={14} />
                 Gateway de pagamentos completo
@@ -246,25 +246,16 @@ export default function LandingPage() {
             </div>
 
             {/* Coluna direita — mockups PC + celular */}
-            <div style={{ flex: '0 0 auto', width: 'min(600px, 52%)', position: 'relative', height: '100%', pointerEvents: 'auto' }} className="landingHeroMockups">
+            <div style={{ flex: '0 0 auto', width: 'min(600px, 52%)', position: 'relative', height: 480 }} className="landingHeroMockups">
 
               {/* Laptop mockup */}
               <div style={{
                 position: 'absolute',
-                top: '50%', left: '0%',
-                transform: 'translate(0, -55%)',
+                top: 0, left: 0,
                 width: '82%',
                 filter: 'drop-shadow(0 32px 64px rgba(108,92,231,0.22))',
               }}>
-                {/* Tela do laptop */}
-                <div style={{
-                  background: '#1a1a2e',
-                  borderRadius: '14px 14px 0 0',
-                  padding: '8px 8px 0',
-                  border: '2px solid #2d2d4e',
-                  borderBottom: 'none',
-                }}>
-                  {/* Barra de título */}
+                <div style={{ background: '#1a1a2e', borderRadius: '14px 14px 0 0', padding: '8px 8px 0', border: '2px solid #2d2d4e', borderBottom: 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 8px', marginBottom: 4 }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff5f56' }} />
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ffbd2e' }} />
@@ -273,38 +264,50 @@ export default function LandingPage() {
                       <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>goupay.com.br/dashboard</span>
                     </div>
                   </div>
-                  {/* Screenshot do dashboard */}
                   <div style={{ borderRadius: '6px 6px 0 0', overflow: 'hidden', lineHeight: 0 }}>
-                    <img
-                      src="https://i.imgur.com/PxTZBza.png"
-                      alt="Dashboard GouPay"
-                      referrerPolicy="no-referrer"
-                      style={{ width: '100%', display: 'block' }}
-                    />
+                    <img src="https://i.imgur.com/PxTZBza.png" alt="Dashboard GouPay" referrerPolicy="no-referrer" style={{ width: '100%', display: 'block' }} />
                   </div>
                 </div>
-                {/* Base do laptop */}
                 <div style={{ background: '#2d2d4e', height: 10, borderRadius: '0 0 4px 4px', border: '2px solid #2d2d4e', borderTop: 'none' }} />
                 <div style={{ background: '#1a1a2e', height: 6, borderRadius: '0 0 8px 8px', margin: '0 -8px', border: '1px solid #2d2d4e' }} />
               </div>
 
-              {/* Celular — só a imagem, sem frame extra */}
+              {/* Celular — imagem direta */}
               <div style={{
                 position: 'absolute',
-                bottom: '5%',
-                right: '0%',
+                bottom: 0, right: 0,
                 width: '42%',
                 filter: 'drop-shadow(0 24px 48px rgba(108,92,231,0.3))',
                 zIndex: 5,
               }}>
-                <img
-                  src="https://i.imgur.com/tY6dEzA.png"
-                  alt="GouPay Mobile"
-                  referrerPolicy="no-referrer"
-                  style={{ width: '100%', display: 'block', borderRadius: 16 }}
-                />
+                <img src="https://i.imgur.com/tY6dEzA.png" alt="GouPay Mobile" referrerPolicy="no-referrer" style={{ width: '100%', display: 'block', borderRadius: 16 }} />
               </div>
 
+            </div>
+          </div>
+
+          {/* Mockups em mobile — aparecem abaixo do texto */}
+          <div className="landingHeroMockupsMobile" style={{ display: 'none', padding: '0 20px 40px', position: 'relative' }}>
+            <div style={{ position: 'relative', height: 260 }}>
+              {/* Laptop pequeno */}
+              <div style={{ position: 'absolute', top: 0, left: 0, width: '72%', filter: 'drop-shadow(0 16px 32px rgba(108,92,231,0.2))' }}>
+                <div style={{ background: '#1a1a2e', borderRadius: '10px 10px 0 0', padding: '6px 6px 0', border: '1.5px solid #2d2d4e', borderBottom: 'none' }}>
+                  <div style={{ display: 'flex', gap: 4, padding: '4px 6px', marginBottom: 3 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff5f56' }} />
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ffbd2e' }} />
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#27c93f' }} />
+                  </div>
+                  <div style={{ borderRadius: '4px 4px 0 0', overflow: 'hidden', lineHeight: 0 }}>
+                    <img src="https://i.imgur.com/PxTZBza.png" alt="Dashboard" referrerPolicy="no-referrer" style={{ width: '100%', display: 'block' }} />
+                  </div>
+                </div>
+                <div style={{ background: '#2d2d4e', height: 7, borderRadius: '0 0 3px 3px' }} />
+                <div style={{ background: '#1a1a2e', height: 4, borderRadius: '0 0 6px 6px', margin: '0 -6px' }} />
+              </div>
+              {/* Celular pequeno */}
+              <div style={{ position: 'absolute', bottom: 0, right: 0, width: '36%', filter: 'drop-shadow(0 12px 24px rgba(108,92,231,0.3))', zIndex: 5 }}>
+                <img src="https://i.imgur.com/tY6dEzA.png" alt="Mobile" referrerPolicy="no-referrer" style={{ width: '100%', display: 'block', borderRadius: 12 }} />
+              </div>
             </div>
           </div>
         </div>
@@ -756,8 +759,19 @@ Body:
           /* Mockups hero responsive */
           @media (max-width: 900px) {
             .landingHeroMockups { display: none !important; }
+            .landingHeroMockupsMobile { display: block !important; }
             .landingHeroCopy { width: 100% !important; max-width: 100% !important; }
-            .landingHeroInner { justify-content: center !important; }
+            .landingHeroInner {
+              flex-direction: column !important;
+              justify-content: flex-start !important;
+              align-items: flex-start !important;
+              padding: 100px 20px 20px !important;
+            }
+          }
+          @media (max-width: 640px) {
+            .landingHeroTitle { font-size: 34px !important; }
+            .landingHeroSubtitle { font-size: 14px !important; }
+            .landingHeroInner { padding: 90px 16px 16px !important; }
           }
           /* ── Hover nos cards de feature ── */
           .glass-card.sr-up {
