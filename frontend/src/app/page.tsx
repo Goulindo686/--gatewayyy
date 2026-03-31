@@ -27,7 +27,7 @@ function Reveal({ children, delay = 0, direction = 'up', className = '', style =
     },
     visible: {
       opacity: 1, y: 0, x: 0, rotateX: 0, scale: 1,
-      transition: { duration: 0.7, delay, ease: [0.22, 1, 0.36, 1] }
+      transition: { duration: 0.7, delay, ease: 'easeOut' as const }
     }
   };
 
