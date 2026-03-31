@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { HiOutlineShieldCheck, HiOutlineCreditCard, HiOutlineCurrencyDollar, HiOutlineChartBar, HiOutlineLightningBolt, HiOutlineGlobeAlt } from 'react-icons/hi';
 import { FiArrowRight, FiZap, FiLock, FiTrendingUp, FiInstagram, FiYoutube, FiMessageCircle } from 'react-icons/fi';
+import ScrollCardSection from '@/components/ScrollCardSection';
 
 // Componente de animação scroll-reveal reutilizável
 function Reveal({ children, delay = 0, direction = 'up', className = '', style = {} }: {
@@ -308,6 +309,9 @@ export default function LandingPage() {
           ))}
         </div>
       </div>
+
+      {/* Scroll Card Section */}
+      <ScrollCardSection />
 
       {/* Features */}
       <section id="features" style={{ padding: '80px 24px', maxWidth: 1200, margin: '0 auto' }}>
