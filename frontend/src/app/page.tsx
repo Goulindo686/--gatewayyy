@@ -203,60 +203,135 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Hero */}
-      <section ref={heroRef} style={{ position: 'relative', height: 'clamp(680px, 92vh, 1000px)', overflow: 'hidden', background: '#0a0a0f' }} className="landingHero">
-        {/* Vídeo de fundo */}
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          style={{
-            position: 'absolute', inset: 0, zIndex: 1,
-            width: '100%', height: '100%',
-            objectFit: 'cover', objectPosition: 'center',
-            display: 'block',
-          }}
-        >
-          <source src="https://i.imgur.com/15GSPhI.mp4" type="video/mp4" />
-        </video>
-        <div style={{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none' }}>
-          <div style={{ maxWidth: 1200, margin: '0 auto', height: '100%', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }} className="landingHeroInner">
-            <div style={{ width: 'min(520px, 100%)', pointerEvents: 'auto', transform: 'translateX(180px)' }} className="landingHeroCopy">
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 999, background: 'rgba(0,206,201,0.12)', border: '1px solid rgba(0,206,201,0.18)', color: '#00cec9', fontSize: 12, fontWeight: 800, letterSpacing: 0.4, marginBottom: 14 }}>
-                <FiTrendingUp size={16} />
-                Aumente sua conversão hoje
+      {/* Hero — novo, claro e profissional */}
+      <section
+        ref={heroRef}
+        style={{
+          position: 'relative',
+          background: 'linear-gradient(160deg, #ffffff 0%, #f4f2ff 45%, #ede9ff 100%)',
+          overflow: 'hidden',
+          paddingTop: 'calc(env(safe-area-inset-top) + 100px)',
+          paddingBottom: 80,
+        }}
+        className="landingHero"
+      >
+        {/* Orbs decorativos de fundo */}
+        <div style={{ position: 'absolute', top: -120, right: -80, width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(108,92,231,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -100, left: -60, width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(162,155,254,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        {/* Grid de pontos sutil */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(108,92,231,0.08) 1px, transparent 1px)', backgroundSize: '32px 32px', pointerEvents: 'none' }} />
+
+        <div style={{ position: 'relative', zIndex: 2, maxWidth: 1200, margin: '0 auto', padding: '0 32px' }}>
+          {/* Badge topo */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 18px', borderRadius: 999, background: 'rgba(108,92,231,0.08)', border: '1px solid rgba(108,92,231,0.18)', color: '#6c5ce7', fontSize: 13, fontWeight: 700 }}>
+              <FiZap size={14} />
+              Taxa mais justa do mercado — R$1,50 + 1,09% por venda
+            </div>
+          </div>
+
+          {/* Título principal */}
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <h1 style={{ fontSize: 'clamp(36px, 6vw, 72px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: -2, color: '#0f0e1a', marginBottom: 0 }} className="landingHeroTitle">
+              O gateway que faz<br />
+              <span style={{ background: 'linear-gradient(135deg, #6c5ce7 0%, #a29bfe 60%, #6c5ce7 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundSize: '200%', animation: 'gradientShift 4s ease infinite' }}>
+                seu negócio crescer
+              </span>
+            </h1>
+          </div>
+
+          {/* Subtítulo */}
+          <p style={{ textAlign: 'center', color: '#5a5870', fontSize: 'clamp(15px, 2vw, 19px)', lineHeight: 1.7, maxWidth: 620, margin: '0 auto 40px' }} className="landingHeroSubtitle">
+            Checkout de alta conversão, Pix instantâneo, área de membros e loja integrada. Tudo em um só lugar, com a taxa mais justa do mercado.
+          </p>
+
+          {/* CTAs */}
+          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 56 }} className="landingHeroActions">
+            <Link href="/register" className="btn-primary" style={{ padding: '16px 32px', fontSize: 16, display: 'inline-flex', alignItems: 'center', gap: 10, borderRadius: 999, boxShadow: '0 8px 32px rgba(108,92,231,0.35)' }}>
+              Criar conta grátis <FiArrowRight size={18} />
+            </Link>
+            <Link href="#features" style={{ padding: '16px 32px', fontSize: 16, borderRadius: 999, background: 'white', border: '1.5px solid rgba(108,92,231,0.25)', color: '#6c5ce7', textDecoration: 'none', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 2px 12px rgba(108,92,231,0.08)' }}>
+              Ver recursos
+            </Link>
+          </div>
+
+          {/* Stats */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 48, flexWrap: 'wrap', marginBottom: 64 }} className="landingHeroStats">
+            {[
+              { value: 'R$1,50', label: 'Taxa fixa por venda' },
+              { value: '1,09%', label: 'Taxa do gateway' },
+              { value: 'Na hora', label: 'Recebimento Pix' },
+              { value: '100%', label: 'Automático' },
+            ].map((s, i) => (
+              <div key={i} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 28, fontWeight: 900, color: '#6c5ce7', letterSpacing: -1 }}>{s.value}</div>
+                <div style={{ fontSize: 13, color: '#8884a0', fontWeight: 500, marginTop: 2 }}>{s.label}</div>
               </div>
+            ))}
+          </div>
 
-              <div style={{ borderRadius: 22, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(10,10,15,0.55)', backdropFilter: 'blur(14px)', boxShadow: '0 26px 88px rgba(0,0,0,0.45)', padding: 22 }} className="landingHeroCard">
-                <h1 style={{ fontSize: 42, lineHeight: 1.05, letterSpacing: -1.2, fontWeight: 900, marginBottom: 12, color: 'white' }} className="landingHeroTitle">
-                  Venda mais.<br />Pague menos.
-                </h1>
-                <p style={{ color: 'rgba(255,255,255,0.78)', fontSize: 15, lineHeight: 1.75, marginBottom: 12 }} className="landingHeroSubtitle">
-                  Checkout de alta conversão, Pix instantâneo e a taxa mais justa do mercado: apenas <span style={{ color: '#00cec9', fontWeight: 700 }}>R$1,50 + 1,09%</span> por venda.
-                </p>
+          {/* Mockup do dashboard */}
+          <div style={{ position: 'relative', maxWidth: 900, margin: '0 auto' }} className="landingHeroMockupWrap">
+            {/* Sombra/glow atrás */}
+            <div style={{ position: 'absolute', bottom: -40, left: '50%', transform: 'translateX(-50%)', width: '80%', height: 80, background: 'rgba(108,92,231,0.2)', filter: 'blur(40px)', borderRadius: '50%', pointerEvents: 'none' }} />
 
-                <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 13px', borderRadius: 999, background: 'rgba(0,206,201,0.15)', border: '1px solid rgba(0,206,201,0.25)', color: '#00cec9', fontSize: 13, fontWeight: 700 }}>
-                    <FiZap size={14} /> R$1,50 fixo por venda
-                  </div>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 13px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: 600 }}>
-                    + 1,09% do gateway
-                  </div>
+            {/* Frame do browser */}
+            <div style={{
+              borderRadius: 16,
+              overflow: 'hidden',
+              border: '1px solid rgba(108,92,231,0.15)',
+              boxShadow: '0 40px 100px rgba(108,92,231,0.18), 0 0 0 1px rgba(108,92,231,0.08)',
+              background: 'white',
+            }}>
+              {/* Barra do browser */}
+              <div style={{ background: '#f5f4fa', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid rgba(108,92,231,0.1)' }}>
+                <div style={{ display: 'flex', gap: 5 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f56' }} />
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffbd2e' }} />
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#27c93f' }} />
                 </div>
-
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }} className="landingHeroActions">
-                  <Link href="/register" className="btn-primary" style={{ padding: '14px 20px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999 }}>
-                    Criar conta grátis <FiArrowRight size={16} />
-                  </Link>
-                  <Link href="#features" className="btn-secondary" style={{ padding: '14px 20px', fontSize: 14, borderRadius: 999, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)', color: 'white' }}>
-                    Ver recursos
-                  </Link>
+                <div style={{ flex: 1, background: 'white', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: '#8884a0', border: '1px solid rgba(108,92,231,0.1)', textAlign: 'center' }}>
+                  goupay.com.br/dashboard
                 </div>
               </div>
+              {/* Screenshot */}
+              <img
+                src="https://i.imgur.com/PxTZBza.png"
+                alt="Dashboard GouPay"
+                referrerPolicy="no-referrer"
+                style={{ width: '100%', display: 'block' }}
+              />
+            </div>
+
+            {/* Celular flutuando à direita */}
+            <div style={{
+              position: 'absolute',
+              bottom: -20, right: -40,
+              width: 160,
+              filter: 'drop-shadow(0 20px 40px rgba(108,92,231,0.3))',
+              zIndex: 5,
+            }} className="landingHeroPhone">
+              <img
+                src="https://i.imgur.com/tY6dEzA.png"
+                alt="GouPay Mobile"
+                referrerPolicy="no-referrer"
+                style={{ width: '100%', display: 'block', borderRadius: 20 }}
+              />
             </div>
           </div>
         </div>
+
+        <style>{`
+          @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+          }
+          @media (max-width: 640px) {
+            .landingHeroStats { gap: 24px !important; }
+            .landingHeroPhone { display: none !important; }
+            .landingHeroMockupWrap { padding: 0 !important; }
+          }
+        `}</style>
       </section>
 
       {/* Faixa de taxa — ticker animado */}
