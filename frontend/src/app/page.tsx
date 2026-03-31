@@ -197,11 +197,21 @@ export default function LandingPage() {
 
               <div style={{ borderRadius: 22, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(10,10,15,0.55)', backdropFilter: 'blur(14px)', boxShadow: '0 26px 88px rgba(0,0,0,0.45)', padding: 22 }} className="landingHeroCard">
                 <h1 style={{ fontSize: 42, lineHeight: 1.05, letterSpacing: -1.2, fontWeight: 900, marginBottom: 12, color: 'white' }} className="landingHeroTitle">
-                  Tudo em um só lugar.
+                  Venda mais.<br />Pague menos.
                 </h1>
-                <p style={{ color: 'rgba(255,255,255,0.78)', fontSize: 15, lineHeight: 1.75, marginBottom: 16 }} className="landingHeroSubtitle">
-                  Seu site, <span className="gradient-text">checkout</span> de alta conversão e as melhores taxas para escalar sua operação com máxima eficiência.
+                <p style={{ color: 'rgba(255,255,255,0.78)', fontSize: 15, lineHeight: 1.75, marginBottom: 12 }} className="landingHeroSubtitle">
+                  Checkout de alta conversão, Pix instantâneo e a taxa mais justa do mercado: apenas <span style={{ color: '#00cec9', fontWeight: 700 }}>R$1,50 + 1,09%</span> por venda.
                 </p>
+
+                {/* Taxa destaque */}
+                <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 13px', borderRadius: 999, background: 'rgba(0,206,201,0.15)', border: '1px solid rgba(0,206,201,0.25)', color: '#00cec9', fontSize: 13, fontWeight: 700 }}>
+                    <FiZap size={14} /> R$1,50 fixo por venda
+                  </div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 13px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: 600 }}>
+                    + 1,09% do gateway
+                  </div>
+                </div>
 
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }} className="landingHeroActions">
                   <Link href="/register" className="btn-primary" style={{ padding: '14px 20px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999 }}>
@@ -216,6 +226,30 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Faixa de taxa */}
+      <div style={{ background: 'linear-gradient(90deg, rgba(0,206,201,0.08) 0%, rgba(108,92,231,0.08) 100%)', borderTop: '1px solid rgba(0,206,201,0.15)', borderBottom: '1px solid rgba(108,92,231,0.12)', padding: '18px 24px' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 32, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <FiZap size={18} color="#00cec9" />
+            <span style={{ fontSize: 14, fontWeight: 700 }}>Taxa por venda:</span>
+            <span style={{ fontSize: 16, fontWeight: 900, color: '#00cec9' }}>R$1,50 + 1,09%</span>
+          </div>
+          <div style={{ width: 1, height: 20, background: 'var(--border-color)' }} className="landingDivider" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <FiLock size={16} color="var(--text-secondary)" />
+            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Sem mensalidade. Sem taxa de adesão.</span>
+          </div>
+          <div style={{ width: 1, height: 20, background: 'var(--border-color)' }} className="landingDivider" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <FiTrendingUp size={16} color="var(--text-secondary)" />
+            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Pix recebido na hora</span>
+          </div>
+          <Link href="/dashboard/fees" style={{ fontSize: 13, color: 'var(--accent-secondary)', fontWeight: 600, textDecoration: 'none' }}>
+            Ver simulador de taxas →
+          </Link>
+        </div>
+      </div>
 
       {/* Features */}
       <section id="features" style={{ padding: '80px 24px', maxWidth: 1200, margin: '0 auto' }}>
@@ -489,7 +523,7 @@ Body:
             Pronto para <span className="gradient-text">começar a vender</span>?
           </h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 32, fontSize: 16 }}>
-            Crie sua conta em menos de 2 minutos. Sem taxa de adesão.
+            Crie sua conta em menos de 2 minutos. Sem mensalidade. Apenas <strong>R$1,50 + 1,09%</strong> por venda realizada.
           </p>
           <Link href="/register" className="btn-primary" style={{ padding: '16px 40px', fontSize: 16, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             Criar Conta Grátis <FiArrowRight size={18} />
