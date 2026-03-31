@@ -127,10 +127,7 @@ export default function ScrollCardSection() {
         <div style={{ padding: '22px 24px 0', position: 'relative', zIndex: 2 }}>
           {/* Logo no canto superior esquerdo */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <img src="https://i.imgur.com/qFq7IHR.png" alt="GouPay" style={{ width: 38, height: 38, objectFit: 'contain' }} />
-              <span style={{ color: 'white', fontWeight: 800, fontSize: 15, letterSpacing: -0.3 }}>GouPay</span>
-            </div>
+            <img src="https://i.imgur.com/qFq7IHR.png" alt="GouPay" style={{ width: 38, height: 38, objectFit: 'contain' }} />
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' }}>Gateway</div>
           </div>
 
@@ -208,20 +205,7 @@ export default function ScrollCardSection() {
             })}
           </div>
 
-          {/* CTA */}
-          <div ref={ctaRef} style={{ opacity: 0, transform: 'translateY(10px)' }}>
-            <Link href="/register" style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              padding: '12px 20px', borderRadius: 999,
-              background: 'rgba(255,255,255,0.15)',
-              border: '1px solid rgba(255,255,255,0.25)',
-              color: 'white', fontWeight: 700, fontSize: 13,
-              textDecoration: 'none',
-              backdropFilter: 'blur(8px)',
-            }}>
-              Criar conta grátis <FiArrowRight size={14} />
-            </Link>
-          </div>
+          {/* CTA removido */}
         </div>
       </div>
 
