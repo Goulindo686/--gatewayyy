@@ -193,44 +193,70 @@ export default function ScrollCardSection() {
             position: 'relative',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
           }}
           className="scroll-card-center"
         >
-          {/* Brilho interno */}
-          <div style={{ position: 'absolute', top: -60, right: -60, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', bottom: -40, left: -40, width: 160, height: 160, borderRadius: '50%', background: 'rgba(0,206,201,0.1)', pointerEvents: 'none' }} />
+          {/* Foto da pessoa como fundo completo do card */}
+          <img
+            src="/manager-male.jpg"
+            alt="Vendedor"
+            style={{
+              position: 'absolute', inset: 0,
+              width: '100%', height: '100%',
+              objectFit: 'cover', objectPosition: 'top center',
+              zIndex: 0,
+            }}
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement;
+              img.style.display = 'none';
+            }}
+          />
 
-          {/* Topo: logo */}
-          <div style={{ width: '100%', padding: '22px 22px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
-            <img src="https://i.imgur.com/qFq7IHR.png" alt="GouPay" style={{ width: 38, height: 38, objectFit: 'contain' }} />
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' }}>Gateway</div>
-          </div>
+          {/* Overlay azul base — tinge a foto de azul/roxo */}
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 1,
+            background: 'rgba(40, 20, 160, 0.45)',
+            mixBlendMode: 'multiply',
+          }} />
 
-          {/* Pessoa no centro */}
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-            <div style={{
-              width: 160, height: 220, borderRadius: 20,
-              overflow: 'hidden',
-              border: '2px solid rgba(255,255,255,0.15)',
-              boxShadow: '0 16px 48px rgba(0,0,0,0.4)',
-            }}>
-              <img
-                src="/manager-male.jpg"
-                alt="Vendedor"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }}
-                onError={(e) => {
-                  const img = e.currentTarget as HTMLImageElement;
-                  img.style.display = 'none';
-                  const parent = img.parentElement!;
-                  parent.style.background = 'rgba(108,92,231,0.3)';
-                  parent.style.display = 'flex';
-                  parent.style.alignItems = 'center';
-                  parent.style.justifyContent = 'center';
-                  parent.innerHTML = `<div style="font-size:64px">👤</div>`;
-                }}
-              />
-            </div>
+          {/* Orb grande — círculo difuso claro no centro-topo */}
+          <div style={{
+            position: 'absolute', zIndex: 2,
+            top: '-10%', left: '50%', transform: 'translateX(-50%)',
+            width: '280px', height: '280px', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(100,120,255,0.55) 0%, transparent 70%)',
+            filter: 'blur(18px)',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Orb menor — canto inferior direito */}
+          <div style={{
+            position: 'absolute', zIndex: 2,
+            bottom: '5%', right: '-10%',
+            width: '200px', height: '200px', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(80,60,220,0.5) 0%, transparent 70%)',
+            filter: 'blur(22px)',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Orb menor — canto inferior esquerdo */}
+          <div style={{
+            position: 'absolute', zIndex: 2,
+            bottom: '10%', left: '-8%',
+            width: '160px', height: '160px', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(60,40,200,0.45) 0%, transparent 70%)',
+            filter: 'blur(20px)',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Topo: logo — acima de tudo */}
+          <div style={{
+            position: 'relative', zIndex: 10,
+            padding: '20px 20px 0',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <img src="https://i.imgur.com/qFq7IHR.png" alt="GouPay" style={{ width: 36, height: 36, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase' }}>Gateway</div>
           </div>
         </div>
 
