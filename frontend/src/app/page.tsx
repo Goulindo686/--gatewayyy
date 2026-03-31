@@ -11,18 +11,43 @@ export default function LandingPage() {
 
   // Scroll reveal — IntersectionObserver
   useEffect(() => {
-    const els = document.querySelectorAll('.sr');
-    if (!els.length) return;
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          (e.target as HTMLElement).classList.add('sr-visible');
-          io.unobserve(e.target);
+    const apply = () => {
+      const els = document.querySelectorAll<HTMLElement>('.sr');
+      if (!els.length) return;
+
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            (e.target as HTMLElement).classList.add('sr-visible');
+            io.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+
+      els.forEach(el => {
+        // Se já está visível na viewport, anima imediatamente
+        const rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight && rect.bottom > 0) {
+          el.classList.add('sr-visible');
+        } else {
+          io.observe(el);
         }
       });
-    }, { threshold: 0.12 });
-    els.forEach(el => io.observe(el));
-    return () => io.disconnect();
+
+      // Fallback: após 2s garante que tudo está visível
+      setTimeout(() => {
+        document.querySelectorAll<HTMLElement>('.sr:not(.sr-visible)')
+          .forEach(el => el.classList.add('sr-visible'));
+        io.disconnect();
+      }, 2000);
+    };
+
+    // Aguarda o DOM estar pronto
+    if (document.readyState === 'complete') {
+      apply();
+    } else {
+      window.addEventListener('load', apply, { once: true });
+    }
   }, []);
 
   useEffect(() => {
@@ -682,6 +707,10 @@ Body:
           .sr-visible {
             opacity: 1 !important;
             transform: none !important;
+          }
+          /* Fallback: se JS não rodar, mostra tudo */
+          @media (scripting: none) {
+            .sr { opacity: 1 !important; transform: none !important; }
           }
           @media (prefers-reduced-motion: reduce) {
             .sr { opacity: 1 !important; transform: none !important; transition: none !important; }
