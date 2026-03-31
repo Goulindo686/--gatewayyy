@@ -65,9 +65,6 @@ export default function HeroBanner() {
       ctx.rotate(t * 0.18);
 
       // Arco externo — roxo
-      const grad1 = ctx.createConicalGradient
-        ? null
-        : ctx.createLinearGradient(-R, -R, R, R);
 
       // Arco 1 — grande, roxo/ciano
       ctx.beginPath();
