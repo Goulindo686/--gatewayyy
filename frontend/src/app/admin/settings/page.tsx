@@ -49,17 +49,13 @@ export default function AdminSettingsPage() {
                 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                         <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Taxa fixa por venda</span>
-                        <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--danger)' }}>R$ 1,50</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                        <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Taxa Pagar.me (PIX)</span>
-                        <span style={{ fontSize: 14, fontWeight: 600 }}>1,09% por transação</span>
+                        <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--danger)' }}>R$ 1,50 + 1,09%</span>
                     </div>
                     <div style={{ height: 1, background: 'var(--border-color)', margin: '12px 0' }} />
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                         <FiInfo size={14} style={{ color: 'var(--text-muted)', marginTop: 2, flexShrink: 0 }} />
                         <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                            A taxa da plataforma é fixa em R$1,50 por venda, independente do valor. A taxa do Pagar.me é cobrada separadamente sobre o valor total da transação.
+                            A taxa cobrada por venda é R$1,50 fixo + 1,09% sobre o valor total da transação.
                         </p>
                     </div>
                 </div>

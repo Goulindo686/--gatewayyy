@@ -40,19 +40,15 @@ export default function FeesPage() {
                     </p>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                            <span style={{ color: 'var(--text-muted)' }}>Taxa Plataforma</span>
-                            <span style={{ fontWeight: 700, color: 'var(--danger)' }}>R$ 1,50 fixo</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                            <span style={{ color: 'var(--text-muted)' }}>Taxa Gateway (Pagar.me)</span>
-                            <span style={{ fontWeight: 600 }}>1,09% por transação</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 15 }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Taxa por venda</span>
+                            <span style={{ fontWeight: 700, fontSize: 18 }}>R$ 1,50 <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 14 }}>+ 1,09%</span></span>
                         </div>
                         <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 0' }} />
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                             <FiInfo size={13} style={{ color: 'var(--text-muted)', marginTop: 2, flexShrink: 0 }} />
                             <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                                Você paga apenas R$1,50 fixo por venda + 1,09% do Pagar.me. Sem surpresas.
+                                R$1,50 fixo + 1,09% sobre o valor da venda. Sem taxas ocultas.
                             </span>
                         </div>
                     </div>
@@ -94,7 +90,7 @@ export default function FeesPage() {
                             <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                                 <th style={{ textAlign: 'left', padding: '10px 12px', color: 'var(--text-muted)', fontWeight: 500 }}>Valor da venda</th>
                                 <th style={{ textAlign: 'right', padding: '10px 12px', color: 'var(--text-muted)', fontWeight: 500 }}>Taxa plataforma</th>
-                                <th style={{ textAlign: 'right', padding: '10px 12px', color: 'var(--text-muted)', fontWeight: 500 }}>Taxa Pagar.me (1,09%)</th>
+                                <th style={{ textAlign: 'right', padding: '10px 12px', color: 'var(--text-muted)', fontWeight: 500 }}>1,09%</th>
                                 <th style={{ textAlign: 'right', padding: '10px 12px', color: 'var(--text-muted)', fontWeight: 500 }}>Você recebe</th>
                             </tr>
                         </thead>
@@ -118,7 +114,7 @@ export default function FeesPage() {
                 <div style={{ marginTop: 20, display: 'flex', alignItems: 'flex-start', gap: 10, padding: 16, borderRadius: 10, background: 'rgba(0,206,201,0.05)', border: '1px solid rgba(0,206,201,0.1)' }}>
                     <FiCheckCircle size={16} color="#00cec9" style={{ marginTop: 2, flexShrink: 0 }} />
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                        A taxa da plataforma é sempre <strong>R$1,50 fixo</strong> por venda, independente do valor. A taxa do Pagar.me de <strong>1,09%</strong> é cobrada diretamente pelo processador de pagamentos e não fica com a plataforma.
+                        A taxa é sempre <strong>R$1,50 fixo + 1,09%</strong> sobre o valor da venda. Simples, transparente e sem surpresas.
                     </p>
                 </div>
             </div>
