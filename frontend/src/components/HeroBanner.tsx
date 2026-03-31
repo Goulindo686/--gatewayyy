@@ -15,10 +15,13 @@ export default function HeroBanner() {
     let W = 0, H = 0;
 
     // ── Partículas ──────────────────────────────────────────
-    const PARTICLE_COUNT = 72;
-    type Particle = { x: number; y: number; vx: number; vy: number; r: number; alpha: number; color: string };
+    const PARTICLE_COUNT = 90;
+    type Particle = {
+      x: number; y: number; vx: number; vy: number;
+      r: number; alpha: number; color: string; pulse: number;
+    };
     const particles: Particle[] = [];
-    const COLORS = ['#6c5ce7', '#a29bfe', '#00cec9', '#ffffff'];
+    const COLORS = ['#6c5ce7', '#a29bfe', '#00cec9', '#ffffff', '#8e44ad'];
 
     const initParticles = () => {
       particles.length = 0;
@@ -26,16 +29,16 @@ export default function HeroBanner() {
         particles.push({
           x: Math.random() * W,
           y: Math.random() * H,
-          vx: (Math.random() - 0.5) * 0.5,
-          vy: (Math.random() - 0.5) * 0.4,
-          r: Math.random() * 2 + 0.5,
-          alpha: Math.random() * 0.6 + 0.2,
+          vx: (Math.random() - 0.5) * 0.45,
+          vy: (Math.random() - 0.5) * 0.35,
+          r: Math.random() * 2.2 + 0.4,
+          alpha: Math.random() * 0.5 + 0.15,
           color: COLORS[Math.floor(Math.random() * COLORS.length)],
+          pulse: Math.random() * Math.PI * 2,
         });
       }
     };
 
-    // ── Resize ───────────────────────────────────────────────
     const resize = () => {
       W = canvas.offsetWidth;
       H = canvas.offsetHeight;
@@ -49,164 +52,253 @@ export default function HeroBanner() {
     ro.observe(canvas);
     resize();
 
-    // ── Draw ─────────────────────────────────────────────────
+    // ── Desenha o símbolo GouPay ─────────────────────────────
+    // Dois arcos que formam um "G" estilizado / fluxo circular
+    const drawSymbol = (cx: number, cy: number, size: number, t: number) => {
+      ctx.save();
+      ctx.translate(cx, cy);
+
+      const R = size;
+      const lineW = size * 0.055;
+
+      // Rotação lenta
+      ctx.rotate(t * 0.18);
+
+      // Arco externo — roxo
+      const grad1 = ctx.createConicalGradient
+        ? null
+        : ctx.createLinearGradient(-R, -R, R, R);
+
+      // Arco 1 — grande, roxo/ciano
+      ctx.beginPath();
+      ctx.arc(0, 0, R, -Math.PI * 0.1, Math.PI * 1.5);
+      ctx.strokeStyle = `rgba(108,92,231,${0.7 + Math.sin(t) * 0.15})`;
+      ctx.lineWidth = lineW;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Ponto brilhante no fim do arco 1
+      const a1End = Math.PI * 1.5;
+      ctx.beginPath();
+      ctx.arc(
+        Math.cos(a1End) * R,
+        Math.sin(a1End) * R,
+        lineW * 1.8, 0, Math.PI * 2
+      );
+      ctx.fillStyle = '#a29bfe';
+      ctx.fill();
+
+      // Arco 2 — menor, ciano, rotacionado
+      ctx.rotate(Math.PI * 0.55);
+      ctx.beginPath();
+      ctx.arc(0, 0, R * 0.62, -Math.PI * 0.15, Math.PI * 1.4);
+      ctx.strokeStyle = `rgba(0,206,201,${0.65 + Math.sin(t * 1.3) * 0.15})`;
+      ctx.lineWidth = lineW * 0.85;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Ponto brilhante no fim do arco 2
+      const a2End = Math.PI * 1.4;
+      ctx.beginPath();
+      ctx.arc(
+        Math.cos(a2End) * R * 0.62,
+        Math.sin(a2End) * R * 0.62,
+        lineW * 1.4, 0, Math.PI * 2
+      );
+      ctx.fillStyle = '#00cec9';
+      ctx.fill();
+
+      // Arco 3 — pequeno, branco, ângulo diferente
+      ctx.rotate(-Math.PI * 0.9);
+      ctx.beginPath();
+      ctx.arc(0, 0, R * 0.32, Math.PI * 0.2, Math.PI * 1.7);
+      ctx.strokeStyle = `rgba(255,255,255,${0.35 + Math.sin(t * 0.8) * 0.1})`;
+      ctx.lineWidth = lineW * 0.6;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Glow central
+      const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.5);
+      glow.addColorStop(0, `rgba(108,92,231,${0.18 + Math.sin(t * 1.2) * 0.06})`);
+      glow.addColorStop(1, 'rgba(108,92,231,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, R * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    };
+
+    // ── Draw loop ────────────────────────────────────────────
     let t = 0;
     const draw = () => {
-      t += 0.008;
+      t += 0.012;
       ctx.clearRect(0, 0, W, H);
 
-      // Fundo gradiente escuro
+      // Fundo gradiente escuro premium
       const bg = ctx.createLinearGradient(0, 0, W, H);
-      bg.addColorStop(0, '#07071a');
-      bg.addColorStop(0.5, '#0d0b2a');
-      bg.addColorStop(1, '#060614');
+      bg.addColorStop(0, '#06061a');
+      bg.addColorStop(0.45, '#0c0a28');
+      bg.addColorStop(1, '#050512');
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, W, H);
 
       // ── Grade 3D perspectiva ──────────────────────────────
-      const GRID_LINES = 14;
-      const horizon = H * 0.52;
+      const GRID_H = 16, GRID_V = 22;
+      const horizon = H * 0.54;
       const vanishX = W * 0.5;
 
-      ctx.save();
-      // Linhas horizontais (paralelas ao horizonte)
-      for (let i = 0; i <= GRID_LINES; i++) {
-        const progress = i / GRID_LINES;
-        // perspectiva: linhas mais próximas ficam mais espaçadas
-        const y = horizon + (H - horizon) * Math.pow(progress, 1.8);
-        const alpha = 0.04 + progress * 0.18;
-        const spread = W * 0.5 + W * 0.6 * progress;
-        const x0 = vanishX - spread;
-        const x1 = vanishX + spread;
+      // Linhas horizontais
+      for (let i = 0; i <= GRID_H; i++) {
+        const p = i / GRID_H;
+        const y = horizon + (H - horizon) * Math.pow(p, 1.7);
+        const alpha = 0.03 + p * 0.16;
+        const spread = W * 0.5 + W * 0.65 * p;
 
-        const grad = ctx.createLinearGradient(x0, y, x1, y);
-        grad.addColorStop(0, `rgba(108,92,231,0)`);
-        grad.addColorStop(0.3, `rgba(108,92,231,${alpha})`);
-        grad.addColorStop(0.5, `rgba(162,155,254,${alpha * 1.4})`);
-        grad.addColorStop(0.7, `rgba(108,92,231,${alpha})`);
-        grad.addColorStop(1, `rgba(108,92,231,0)`);
+        const g = ctx.createLinearGradient(vanishX - spread, y, vanishX + spread, y);
+        g.addColorStop(0, 'rgba(108,92,231,0)');
+        g.addColorStop(0.25, `rgba(108,92,231,${alpha})`);
+        g.addColorStop(0.5, `rgba(162,155,254,${alpha * 1.5})`);
+        g.addColorStop(0.75, `rgba(108,92,231,${alpha})`);
+        g.addColorStop(1, 'rgba(108,92,231,0)');
 
         ctx.beginPath();
-        ctx.moveTo(x0, y);
-        ctx.lineTo(x1, y);
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = progress < 0.3 ? 0.5 : 1;
+        ctx.moveTo(vanishX - spread, y);
+        ctx.lineTo(vanishX + spread, y);
+        ctx.strokeStyle = g;
+        ctx.lineWidth = p < 0.2 ? 0.4 : 0.9;
         ctx.stroke();
       }
 
-      // Linhas verticais convergindo para o ponto de fuga
-      const V_LINES = 18;
-      for (let i = 0; i <= V_LINES; i++) {
-        const progress = i / V_LINES;
-        const xBottom = W * progress;
-        const alpha = 0.06 + Math.sin(progress * Math.PI) * 0.12;
+      // Linhas verticais
+      for (let i = 0; i <= GRID_V; i++) {
+        const p = i / GRID_V;
+        const xB = W * p;
+        const alpha = 0.04 + Math.sin(p * Math.PI) * 0.1;
 
-        const grad = ctx.createLinearGradient(vanishX, horizon, xBottom, H);
-        grad.addColorStop(0, `rgba(108,92,231,0)`);
-        grad.addColorStop(0.4, `rgba(108,92,231,${alpha * 0.6})`);
-        grad.addColorStop(1, `rgba(162,155,254,${alpha})`);
+        const g = ctx.createLinearGradient(vanishX, horizon, xB, H);
+        g.addColorStop(0, 'rgba(108,92,231,0)');
+        g.addColorStop(0.5, `rgba(108,92,231,${alpha * 0.7})`);
+        g.addColorStop(1, `rgba(162,155,254,${alpha})`);
 
         ctx.beginPath();
         ctx.moveTo(vanishX, horizon);
-        ctx.lineTo(xBottom, H);
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 0.8;
+        ctx.lineTo(xB, H);
+        ctx.strokeStyle = g;
+        ctx.lineWidth = 0.7;
         ctx.stroke();
       }
-      ctx.restore();
 
-      // ── Glow no horizonte ─────────────────────────────────
-      const glowGrad = ctx.createRadialGradient(vanishX, horizon, 0, vanishX, horizon, W * 0.55);
-      glowGrad.addColorStop(0, `rgba(108,92,231,${0.18 + Math.sin(t) * 0.04})`);
-      glowGrad.addColorStop(0.4, `rgba(108,92,231,0.06)`);
-      glowGrad.addColorStop(1, 'rgba(108,92,231,0)');
-      ctx.fillStyle = glowGrad;
+      // ── Glows de fundo ────────────────────────────────────
+      // Glow roxo principal no horizonte
+      const g1 = ctx.createRadialGradient(vanishX, horizon, 0, vanishX, horizon, W * 0.6);
+      g1.addColorStop(0, `rgba(108,92,231,${0.22 + Math.sin(t * 0.7) * 0.05})`);
+      g1.addColorStop(0.5, 'rgba(108,92,231,0.05)');
+      g1.addColorStop(1, 'rgba(108,92,231,0)');
+      ctx.fillStyle = g1;
       ctx.fillRect(0, 0, W, H);
 
-      // Glow ciano secundário
-      const cyanGlow = ctx.createRadialGradient(W * 0.75, H * 0.3, 0, W * 0.75, H * 0.3, W * 0.35);
-      cyanGlow.addColorStop(0, `rgba(0,206,201,${0.08 + Math.sin(t * 0.7) * 0.03})`);
-      cyanGlow.addColorStop(1, 'rgba(0,206,201,0)');
-      ctx.fillStyle = cyanGlow;
+      // Glow ciano direita
+      const g2 = ctx.createRadialGradient(W * 0.78, H * 0.25, 0, W * 0.78, H * 0.25, W * 0.38);
+      g2.addColorStop(0, `rgba(0,206,201,${0.1 + Math.sin(t * 0.9) * 0.04})`);
+      g2.addColorStop(1, 'rgba(0,206,201,0)');
+      ctx.fillStyle = g2;
       ctx.fillRect(0, 0, W, H);
+
+      // Glow roxo escuro esquerda
+      const g3 = ctx.createRadialGradient(W * 0.15, H * 0.6, 0, W * 0.15, H * 0.6, W * 0.3);
+      g3.addColorStop(0, `rgba(142,68,173,${0.12 + Math.sin(t * 1.1) * 0.04})`);
+      g3.addColorStop(1, 'rgba(142,68,173,0)');
+      ctx.fillStyle = g3;
+      ctx.fillRect(0, 0, W, H);
+
+      // ── Símbolo GouPay — centro-direita ───────────────────
+      const symX = W * 0.72;
+      const symY = H * 0.48;
+      const symSize = Math.min(W, H) * 0.18;
+
+      // Halo atrás do símbolo
+      const halo = ctx.createRadialGradient(symX, symY, 0, symX, symY, symSize * 1.6);
+      halo.addColorStop(0, `rgba(108,92,231,${0.14 + Math.sin(t * 0.8) * 0.04})`);
+      halo.addColorStop(1, 'rgba(108,92,231,0)');
+      ctx.fillStyle = halo;
+      ctx.fillRect(0, 0, W, H);
+
+      drawSymbol(symX, symY, symSize, t);
+
+      // Símbolo menor espelhado — canto esquerdo, mais sutil
+      ctx.globalAlpha = 0.18;
+      drawSymbol(W * 0.12, H * 0.3, symSize * 0.45, t * 0.6 + 2);
+      ctx.globalAlpha = 1;
 
       // ── Partículas ────────────────────────────────────────
       for (const p of particles) {
         p.x += p.vx;
         p.y += p.vy;
+        p.pulse += 0.03;
         if (p.x < -10) p.x = W + 10;
         if (p.x > W + 10) p.x = -10;
         if (p.y < -10) p.y = H + 10;
         if (p.y > H + 10) p.y = -10;
 
+        const a = p.alpha * (0.7 + Math.sin(p.pulse) * 0.3);
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = p.color + Math.round(p.alpha * 255).toString(16).padStart(2, '0');
+        ctx.fillStyle = p.color + Math.round(a * 255).toString(16).padStart(2, '0');
         ctx.fill();
       }
 
-      // ── Conexões entre partículas próximas ───────────────
-      const MAX_DIST = 120;
+      // Conexões
+      const MAX_DIST = 110;
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
           const dx = particles[i].x - particles[j].x;
           const dy = particles[i].y - particles[j].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < MAX_DIST) {
-            const alpha = (1 - dist / MAX_DIST) * 0.15;
             ctx.beginPath();
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `rgba(162,155,254,${alpha})`;
+            ctx.strokeStyle = `rgba(162,155,254,${(1 - dist / MAX_DIST) * 0.12})`;
             ctx.lineWidth = 0.5;
             ctx.stroke();
           }
         }
       }
 
-      // ── Linha de scan animada ─────────────────────────────
-      const scanY = horizon + (H - horizon) * ((t * 0.3) % 1);
-      const scanGrad = ctx.createLinearGradient(0, scanY, W, scanY);
-      scanGrad.addColorStop(0, 'rgba(162,155,254,0)');
-      scanGrad.addColorStop(0.4, 'rgba(162,155,254,0.12)');
-      scanGrad.addColorStop(0.6, 'rgba(0,206,201,0.18)');
-      scanGrad.addColorStop(1, 'rgba(162,155,254,0)');
+      // ── Linha de scan ─────────────────────────────────────
+      const scanY = horizon + (H - horizon) * ((t * 0.25) % 1);
+      const sg = ctx.createLinearGradient(0, scanY, W, scanY);
+      sg.addColorStop(0, 'rgba(162,155,254,0)');
+      sg.addColorStop(0.35, 'rgba(162,155,254,0.14)');
+      sg.addColorStop(0.5, 'rgba(0,206,201,0.22)');
+      sg.addColorStop(0.65, 'rgba(162,155,254,0.14)');
+      sg.addColorStop(1, 'rgba(162,155,254,0)');
       ctx.beginPath();
       ctx.moveTo(0, scanY);
       ctx.lineTo(W, scanY);
-      ctx.strokeStyle = scanGrad;
+      ctx.strokeStyle = sg;
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // Vinheta nas bordas
-      const vignette = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.9);
-      vignette.addColorStop(0, 'rgba(0,0,0,0)');
-      vignette.addColorStop(1, 'rgba(0,0,0,0.55)');
-      ctx.fillStyle = vignette;
+      // ── Vinheta ───────────────────────────────────────────
+      const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.25, W / 2, H / 2, H * 0.95);
+      vig.addColorStop(0, 'rgba(0,0,0,0)');
+      vig.addColorStop(1, 'rgba(0,0,0,0.62)');
+      ctx.fillStyle = vig;
       ctx.fillRect(0, 0, W, H);
 
       animId = requestAnimationFrame(draw);
     };
 
     draw();
-
-    return () => {
-      cancelAnimationFrame(animId);
-      ro.disconnect();
-    };
+    return () => { cancelAnimationFrame(animId); ro.disconnect(); };
   }, []);
 
   return (
     <canvas
       ref={canvasRef}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        width: '100%',
-        height: '100%',
-        display: 'block',
-        zIndex: 1,
-      }}
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', zIndex: 1 }}
       aria-hidden="true"
     />
   );
