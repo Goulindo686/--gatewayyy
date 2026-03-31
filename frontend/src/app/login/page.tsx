@@ -49,6 +49,13 @@ export default function LoginPage() {
                             Checkout otimizado, split automático e saques via Pix — tudo em um só lugar.
                         </div>
                     </div>
+                    {/* Vídeo de fundo do painel esquerdo */}
+                    <video
+                        autoPlay muted loop playsInline
+                        style={{ position: 'absolute', inset: 24, width: 'calc(100% - 48px)', height: 'calc(100% - 48px)', objectFit: 'cover', borderRadius: 28, zIndex: 0 }}
+                    >
+                        <source src="https://i.imgur.com/x6H12bq.mp4" type="video/mp4" />
+                    </video>
                 </div>
 
                 <div className="authMain">
@@ -171,6 +178,7 @@ export default function LoginPage() {
                 }
                 .authSideInner {
                     position: relative;
+                    z-index: 2;
                     max-width: 520px;
                     padding: 28px;
                 }
