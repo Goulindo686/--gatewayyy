@@ -347,17 +347,31 @@ export default function LandingPage() {
 
         <style>{`
           @media (max-width: 900px) {
-            .heroGrid { grid-template-columns: 1fr !important; gap: 32px !important; }
-            .heroRight { display: none !important; }
-            .heroLeft { max-width: 100% !important; }
+            .heroGrid {
+              grid-template-columns: 1fr !important;
+              gap: 32px !important;
+              text-align: center !important;
+            }
+            .heroLeft {
+              display: flex !important;
+              flex-direction: column !important;
+              align-items: center !important;
+            }
+            .heroLeft p { text-align: center !important; }
+            .landingHeroActions { justify-content: center !important; }
+            .landingHeroStats { justify-content: center !important; }
+            .landingHeroStats > div { border-left: none !important; padding-left: 0 !important; }
+            .heroRight { display: block !important; max-width: 500px !important; margin: 0 auto !important; }
           }
           @media (max-width: 640px) {
-            .landingHeroTitle { font-size: 30px !important; }
+            .landingHeroTitle { font-size: 28px !important; }
             .landingHeroSubtitle { font-size: 14px !important; }
-            .landingHeroStats { gap: 16px !important; }
-            .landingHeroStats > div { border-left: none !important; padding-left: 0 !important; }
-            .landingHeroActions a { padding: 12px 20px !important; font-size: 14px !important; }
-            .landingHero { padding-top: calc(env(safe-area-inset-top) + 160px) !important; padding-left: 0 !important; }
+            .landingHeroStats { gap: 16px !important; flex-wrap: wrap !important; justify-content: center !important; }
+            .landingHeroActions { flex-direction: column !important; align-items: center !important; }
+            .landingHeroActions a { width: 100% !important; justify-content: center !important; }
+            .landingHero { padding-top: calc(env(safe-area-inset-top) + 160px) !important; }
+            .heroGrid { padding: 0 16px !important; }
+            .heroRight { display: none !important; }
           }
         `}</style>
       </section>
