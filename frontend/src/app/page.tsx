@@ -9,6 +9,22 @@ export default function LandingPage() {
   const heroRef = useRef<HTMLElement>(null!);
   const rafRef = useRef<number | null>(null);
 
+  // Scroll reveal — IntersectionObserver
+  useEffect(() => {
+    const els = document.querySelectorAll('.sr');
+    if (!els.length) return;
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          (e.target as HTMLElement).classList.add('sr-visible');
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    els.forEach(el => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
   useEffect(() => {
     const el = heroRef.current;
     if (!el) return;
@@ -270,7 +286,7 @@ export default function LandingPage() {
 
       {/* Features */}
       <section id="features" style={{ padding: '80px 24px', maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 60 }}>
+        <div className="sr sr-up" style={{ textAlign: 'center', marginBottom: 60 }}>
           <h2 style={{ fontSize: 36, fontWeight: 700, marginBottom: 16 }}>Tudo que você precisa para <span className="gradient-text">vender online</span></h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 16, maxWidth: 500, margin: '0 auto' }}>
             Ferramentas profissionais para gerenciar seu negócio digital
@@ -285,7 +301,7 @@ export default function LandingPage() {
             { icon: <HiOutlineCurrencyDollar size={24} />, title: 'Saques via Pix', desc: 'Solicite saques a qualquer momento. O valor é transferido diretamente para sua conta.' },
             { icon: <HiOutlineShieldCheck size={24} />, title: 'Segurança Total', desc: 'Controle de chargeback, logs de transações e proteção contra fraude integrados.' },
           ].map((feature, i) => (
-            <div key={i} className="glass-card animate-fade-in" style={{ padding: 32, animationDelay: `${i * 0.1}s` }}>
+            <div key={i} className={`glass-card sr sr-up`} style={{ padding: 32, transitionDelay: `${i * 80}ms` }}>
               <div style={{
                 width: 48, height: 48, borderRadius: 12,
                 background: 'rgba(108,92,231,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -300,9 +316,9 @@ export default function LandingPage() {
 
       {/* API Pix */}
       <section id="api" style={{ padding: '20px 24px 80px', maxWidth: 1200, margin: '0 auto' }}>
-        <div className="glass-card" style={{ padding: 48 }}>
+        <div className="glass-card sr sr-up" style={{ padding: 48 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 32, alignItems: 'center' }} className="apiGrid">
-            <div className="apiCopy">
+            <div className="apiCopy sr sr-left">
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 999, background: 'rgba(108,92,231,0.10)', border: '1px solid rgba(108,92,231,0.18)', color: 'var(--accent-secondary)', fontSize: 12, fontWeight: 800, letterSpacing: 0.4, marginBottom: 14 }}>
                 API para Desenvolvedores
               </div>
@@ -337,7 +353,7 @@ export default function LandingPage() {
                 </Link>
               </div>
             </div>
-            <div style={{ position: 'relative' }} className="apiPreview">
+            <div style={{ position: 'relative' }} className="apiPreview sr sr-right">
               <div style={{ borderRadius: 22, border: '1px solid var(--border-color)', background: 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(243,244,246,0.92) 100%)', overflow: 'hidden', width: '100%', boxSizing: 'border-box' }}>
                 <div style={{ padding: 18, borderBottom: '1px solid var(--border-color)', background: 'rgba(245,246,248,0.76)', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 10, height: 10, borderRadius: 999, background: '#ff5f56' }} />
@@ -363,7 +379,7 @@ Body:
 
       {/* Storefront */}
       <section id="loja" style={{ padding: '20px 24px 80px', maxWidth: 1200, margin: '0 auto' }} className="landingStorefrontSection">
-        <div className="glass-card landingStorefrontCard" style={{
+        <div className="glass-card landingStorefrontCard sr sr-up" style={{
           padding: 48,
           position: 'relative',
           overflow: 'hidden'
@@ -411,13 +427,14 @@ Body:
                   { icon: <HiOutlineShieldCheck size={18} />, title: 'Entrega e acesso', desc: 'Conteúdos e entregáveis organizados para o cliente acessar.' },
                   { icon: <HiOutlineChartBar size={18} />, title: 'Gestão centralizada', desc: 'Produtos, pedidos e métricas no painel do vendedor.' },
                 ].map((item, i) => (
-                  <div key={i} style={{
+                  <div key={i} className="sr sr-up" style={{
                     display: 'flex',
                     gap: 12,
                     padding: 16,
                     borderRadius: 16,
                     border: '1px solid var(--border-color)',
-                    background: 'rgba(255,255,255,0.75)'
+                    background: 'rgba(255,255,255,0.75)',
+                    transitionDelay: `${i * 80}ms`
                   }}>
                     <div style={{
                       width: 34,
@@ -450,7 +467,7 @@ Body:
               </div>
             </div>
 
-            <div style={{ position: 'relative' }} className="landingStorefrontPreview">
+            <div style={{ position: 'relative' }} className="landingStorefrontPreview sr sr-right">
               <div style={{
                 borderRadius: 22,
                 border: '1px solid var(--border-color)',
@@ -527,7 +544,7 @@ Body:
 
       {/* CTA */}
       <section style={{ padding: '80px 24px', textAlign: 'center' }}>
-        <div className="glass-card" style={{
+        <div className="glass-card sr sr-up" style={{
           maxWidth: 700, margin: '0 auto', padding: '60px 40px',
           position: 'relative', overflow: 'hidden'
         }}>
@@ -654,6 +671,29 @@ Body:
         </div>
 
         <style jsx global>{`
+          /* ── Scroll Reveal ── */
+          .sr {
+            opacity: 0;
+            transition: opacity 0.65s cubic-bezier(.22,1,.36,1), transform 0.65s cubic-bezier(.22,1,.36,1);
+          }
+          .sr-up    { transform: translateY(40px); }
+          .sr-left  { transform: translateX(-48px); }
+          .sr-right { transform: translateX(48px); }
+          .sr-visible {
+            opacity: 1 !important;
+            transform: none !important;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .sr { opacity: 1 !important; transform: none !important; transition: none !important; }
+          }
+          /* ── Hover nos cards de feature ── */
+          .glass-card.sr-up {
+            transition: opacity 0.65s cubic-bezier(.22,1,.36,1), transform 0.65s cubic-bezier(.22,1,.36,1), box-shadow 0.25s ease;
+          }
+          .glass-card.sr-up:hover {
+            box-shadow: 0 20px 60px rgba(108,92,231,0.18);
+            transform: translateY(-4px) !important;
+          }
           .landingHero {
             isolation: isolate;
             --mx: 50%;
