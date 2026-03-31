@@ -6,6 +6,7 @@ import { motion, useInView } from 'framer-motion';
 import { HiOutlineShieldCheck, HiOutlineCreditCard, HiOutlineCurrencyDollar, HiOutlineChartBar, HiOutlineLightningBolt, HiOutlineGlobeAlt } from 'react-icons/hi';
 import { FiArrowRight, FiZap, FiLock, FiTrendingUp, FiInstagram, FiYoutube, FiMessageCircle } from 'react-icons/fi';
 import ScrollCardSection from '@/components/ScrollCardSection';
+import HeroBanner from '@/components/HeroBanner';
 
 // Componente de animação scroll-reveal reutilizável
 function Reveal({ children, delay = 0, direction = 'up', className = '', style = {} }: {
@@ -203,32 +204,9 @@ export default function LandingPage() {
       </header>
 
       {/* Hero */}
-      <section ref={heroRef} style={{ position: 'relative', height: 'clamp(520px, 78vh, 820px)', overflow: 'hidden', background: '#0a0a0f' }} className="landingHero">
-        <picture style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
-          <source media="(max-width: 768px)" srcSet="https://i.imgur.com/lmM1Hdm.png" />
-          <img
-            src="https://i.imgur.com/lmM1Hdm.png"
-            alt=""
-            aria-hidden="true"
-            loading="eager"
-            fetchPriority="high"
-            referrerPolicy="no-referrer"
-            onError={(e) => {
-              const img = e.currentTarget as HTMLImageElement;
-              if (img.dataset.fallback === '1') return;
-              img.dataset.fallback = '1';
-              img.src = 'https://i.imgur.com/lmM1Hdm.jpg';
-            }}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              objectPosition: 'center',
-              display: 'block'
-            }}
-            className="landingHeroImg"
-          />
-        </picture>
+      <section ref={heroRef} style={{ position: 'relative', height: 'clamp(520px, 78vh, 820px)', overflow: 'hidden', background: '#07071a' }} className="landingHero">
+        {/* Banner animado exclusivo GouPay */}
+        <HeroBanner />
         <div style={{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none' }}>
           <div style={{ maxWidth: 1200, margin: '0 auto', height: '100%', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }} className="landingHeroInner">
             <div style={{ width: 'min(520px, 100%)', pointerEvents: 'auto', transform: 'translateX(180px)' }} className="landingHeroCopy">
