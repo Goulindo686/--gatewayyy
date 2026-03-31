@@ -209,6 +209,7 @@ export default function LandingPage() {
         style={{
           position: 'relative',
           background: 'url(https://i.imgur.com/IzUo6HI.png) center center / cover no-repeat',
+          imageRendering: 'crisp-edges' as any,
           overflow: 'hidden',
           paddingTop: 'calc(env(safe-area-inset-top) + 110px)',
           paddingBottom: 60,
