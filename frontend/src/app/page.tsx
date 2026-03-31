@@ -204,109 +204,59 @@ export default function LandingPage() {
       </header>
 
       {/* Hero */}
-      <section ref={heroRef} style={{ position: 'relative', minHeight: 'clamp(600px, 88vh, 900px)', overflow: 'hidden', background: '#f8f8fc' }} className="landingHero">
-        <HeroBanner />
-        <div style={{ position: 'relative', zIndex: 4 }}>
-          <div style={{
-            maxWidth: 1200, margin: '0 auto', padding: '120px 40px 60px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 40,
-          }} className="landingHeroInner">
-
-            {/* Coluna esquerda — texto */}
-            <div style={{ flex: '0 0 auto', width: 'min(480px, 48%)' }} className="landingHeroCopy">
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 14px', borderRadius: 999, background: 'rgba(108,92,231,0.1)', border: '1px solid rgba(108,92,231,0.2)', color: '#6c5ce7', fontSize: 12, fontWeight: 800, letterSpacing: 0.4, marginBottom: 20 }}>
-                <FiTrendingUp size={14} />
-                Gateway de pagamentos completo
+      <section ref={heroRef} style={{ position: 'relative', height: 'clamp(520px, 78vh, 820px)', overflow: 'hidden', background: '#0a0a0f' }} className="landingHero">
+        <picture style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+          <source media="(max-width: 768px)" srcSet="https://i.imgur.com/lmM1Hdm.png" />
+          <img
+            src="https://i.imgur.com/lmM1Hdm.png"
+            alt=""
+            aria-hidden="true"
+            loading="eager"
+            fetchPriority="high"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement;
+              if (img.dataset.fallback === '1') return;
+              img.dataset.fallback = '1';
+              img.src = 'https://i.imgur.com/lmM1Hdm.jpg';
+            }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }}
+            className="landingHeroImg"
+          />
+        </picture>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none' }}>
+          <div style={{ maxWidth: 1200, margin: '0 auto', height: '100%', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }} className="landingHeroInner">
+            <div style={{ width: 'min(520px, 100%)', pointerEvents: 'auto', transform: 'translateX(180px)' }} className="landingHeroCopy">
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 999, background: 'rgba(0,206,201,0.12)', border: '1px solid rgba(0,206,201,0.18)', color: '#00cec9', fontSize: 12, fontWeight: 800, letterSpacing: 0.4, marginBottom: 14 }}>
+                <FiTrendingUp size={16} />
+                Aumente sua conversão hoje
               </div>
 
-              <h1 style={{ fontSize: 48, lineHeight: 1.05, letterSpacing: -1.5, fontWeight: 900, marginBottom: 16, color: '#1a1a2e' }} className="landingHeroTitle">
-                Venda mais.<br /><span style={{ background: 'linear-gradient(135deg,#6c5ce7,#a29bfe)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Pague menos.</span>
-              </h1>
-              <p style={{ color: '#5a5a7a', fontSize: 16, lineHeight: 1.75, marginBottom: 24 }} className="landingHeroSubtitle">
-                Checkout de alta conversão, Pix instantâneo e a taxa mais justa: apenas <strong style={{ color: '#6c5ce7' }}>R$1,50 + 1,09%</strong> por venda.
-              </p>
+              <div style={{ borderRadius: 22, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(10,10,15,0.55)', backdropFilter: 'blur(14px)', boxShadow: '0 26px 88px rgba(0,0,0,0.45)', padding: 22 }} className="landingHeroCard">
+                <h1 style={{ fontSize: 42, lineHeight: 1.05, letterSpacing: -1.2, fontWeight: 900, marginBottom: 12, color: 'white' }} className="landingHeroTitle">
+                  Venda mais.<br />Pague menos.
+                </h1>
+                <p style={{ color: 'rgba(255,255,255,0.78)', fontSize: 15, lineHeight: 1.75, marginBottom: 12 }} className="landingHeroSubtitle">
+                  Checkout de alta conversão, Pix instantâneo e a taxa mais justa do mercado: apenas <span style={{ color: '#00cec9', fontWeight: 700 }}>R$1,50 + 1,09%</span> por venda.
+                </p>
 
-              <div style={{ display: 'flex', gap: 10, marginBottom: 28, flexWrap: 'wrap' }}>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 13px', borderRadius: 999, background: 'rgba(108,92,231,0.1)', border: '1px solid rgba(108,92,231,0.2)', color: '#6c5ce7', fontSize: 13, fontWeight: 700 }}>
-                  <FiZap size={13} /> R$1,50 fixo por venda
-                </div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 13px', borderRadius: 999, background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', color: '#5a5a7a', fontSize: 13, fontWeight: 600 }}>
-                  + 1,09% do gateway
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }} className="landingHeroActions">
-                <Link href="/register" className="btn-primary" style={{ padding: '14px 24px', fontSize: 15, display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999 }}>
-                  Criar conta grátis <FiArrowRight size={16} />
-                </Link>
-                <Link href="#features" style={{ padding: '14px 24px', fontSize: 15, borderRadius: 999, background: 'rgba(108,92,231,0.08)', border: '1px solid rgba(108,92,231,0.15)', color: '#6c5ce7', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center' }}>
-                  Ver recursos
-                </Link>
-              </div>
-            </div>
-
-            {/* Coluna direita — mockups PC + celular */}
-            <div style={{ flex: '0 0 auto', width: 'min(600px, 52%)', position: 'relative', height: 480 }} className="landingHeroMockups">
-
-              {/* Laptop mockup */}
-              <div style={{
-                position: 'absolute',
-                top: 0, left: 0,
-                width: '82%',
-                filter: 'drop-shadow(0 32px 64px rgba(108,92,231,0.22))',
-              }}>
-                <div style={{ background: '#1a1a2e', borderRadius: '14px 14px 0 0', padding: '8px 8px 0', border: '2px solid #2d2d4e', borderBottom: 'none' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 8px', marginBottom: 4 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff5f56' }} />
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ffbd2e' }} />
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#27c93f' }} />
-                    <div style={{ flex: 1, height: 16, borderRadius: 4, background: 'rgba(255,255,255,0.08)', marginLeft: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>goupay.com.br/dashboard</span>
-                    </div>
+                <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 13px', borderRadius: 999, background: 'rgba(0,206,201,0.15)', border: '1px solid rgba(0,206,201,0.25)', color: '#00cec9', fontSize: 13, fontWeight: 700 }}>
+                    <FiZap size={14} /> R$1,50 fixo por venda
                   </div>
-                  <div style={{ borderRadius: '6px 6px 0 0', overflow: 'hidden', lineHeight: 0 }}>
-                    <img src="https://i.imgur.com/PxTZBza.png" alt="Dashboard GouPay" referrerPolicy="no-referrer" style={{ width: '100%', display: 'block' }} />
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 13px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: 600 }}>
+                    + 1,09% do gateway
                   </div>
                 </div>
-                <div style={{ background: '#2d2d4e', height: 10, borderRadius: '0 0 4px 4px', border: '2px solid #2d2d4e', borderTop: 'none' }} />
-                <div style={{ background: '#1a1a2e', height: 6, borderRadius: '0 0 8px 8px', margin: '0 -8px', border: '1px solid #2d2d4e' }} />
-              </div>
 
-              {/* Celular — imagem direta */}
-              <div style={{
-                position: 'absolute',
-                bottom: 0, right: 0,
-                width: '42%',
-                filter: 'drop-shadow(0 24px 48px rgba(108,92,231,0.3))',
-                zIndex: 5,
-              }}>
-                <img src="https://i.imgur.com/tY6dEzA.png" alt="GouPay Mobile" referrerPolicy="no-referrer" style={{ width: '100%', display: 'block', borderRadius: 16 }} />
-              </div>
-
-            </div>
-          </div>
-
-          {/* Mockups em mobile — aparecem abaixo do texto */}
-          <div className="landingHeroMockupsMobile" style={{ display: 'none', padding: '0 20px 40px', position: 'relative' }}>
-            <div style={{ position: 'relative', height: 260 }}>
-              {/* Laptop pequeno */}
-              <div style={{ position: 'absolute', top: 0, left: 0, width: '72%', filter: 'drop-shadow(0 16px 32px rgba(108,92,231,0.2))' }}>
-                <div style={{ background: '#1a1a2e', borderRadius: '10px 10px 0 0', padding: '6px 6px 0', border: '1.5px solid #2d2d4e', borderBottom: 'none' }}>
-                  <div style={{ display: 'flex', gap: 4, padding: '4px 6px', marginBottom: 3 }}>
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff5f56' }} />
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ffbd2e' }} />
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#27c93f' }} />
-                  </div>
-                  <div style={{ borderRadius: '4px 4px 0 0', overflow: 'hidden', lineHeight: 0 }}>
-                    <img src="https://i.imgur.com/PxTZBza.png" alt="Dashboard" referrerPolicy="no-referrer" style={{ width: '100%', display: 'block' }} />
-                  </div>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }} className="landingHeroActions">
+                  <Link href="/register" className="btn-primary" style={{ padding: '14px 20px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999 }}>
+                    Criar conta grátis <FiArrowRight size={16} />
+                  </Link>
+                  <Link href="#features" className="btn-secondary" style={{ padding: '14px 20px', fontSize: 14, borderRadius: 999, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)', color: 'white' }}>
+                    Ver recursos
+                  </Link>
                 </div>
-                <div style={{ background: '#2d2d4e', height: 7, borderRadius: '0 0 3px 3px' }} />
-                <div style={{ background: '#1a1a2e', height: 4, borderRadius: '0 0 6px 6px', margin: '0 -6px' }} />
-              </div>
-              {/* Celular pequeno */}
-              <div style={{ position: 'absolute', bottom: 0, right: 0, width: '36%', filter: 'drop-shadow(0 12px 24px rgba(108,92,231,0.3))', zIndex: 5 }}>
-                <img src="https://i.imgur.com/tY6dEzA.png" alt="Mobile" referrerPolicy="no-referrer" style={{ width: '100%', display: 'block', borderRadius: 12 }} />
               </div>
             </div>
           </div>
