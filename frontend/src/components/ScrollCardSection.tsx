@@ -24,6 +24,19 @@ export default function ScrollCardSection() {
   const ctaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Não roda animação pesada em mobile — usa CSS simples
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+      // Em mobile mostra tudo imediatamente sem GSAP
+      [leftRef, rightRef, headingRef, ctaRef].forEach(r => {
+        if (r.current) {
+          r.current.style.opacity = '1';
+          r.current.style.transform = 'none';
+        }
+      });
+      return;
+    }
+
     let ctx: any;
 
     const init = async () => {
@@ -39,58 +52,33 @@ export default function ScrollCardSection() {
           scrollTrigger: {
             trigger: section,
             start: 'top top',
-            end: '+=2400',
-            scrub: 1,
+            end: '+=2000',   // menor = mais rápido de percorrer
+            scrub: 1.8,      // mais alto = mais suave, menos CPU
             pin: true,
             anticipatePin: 1,
+            fastScrollEnd: true,  // libera pin mais rápido no scroll rápido
           }
         });
 
-        // Fase 1: bola branca cresce do centro (0 → 300vmax)
+        // Bola branca — usa transform apenas (GPU)
         tl.to(orbRef.current, {
           scale: 1,
           duration: 2,
           ease: 'power2.inOut',
         }, 0);
 
-        // Fase 2: card muda de roxo para branco conforme bola cresce
+        // Card — só opacity e background, sem box-shadow animado
         tl.to(cardRef.current, {
           background: 'linear-gradient(135deg, #f0eeff 0%, #e8e4ff 40%, #ddd8ff 100%)',
-          boxShadow: '0 40px 100px rgba(108,92,231,0.2), 0 0 0 1px rgba(108,92,231,0.15)',
           duration: 1.5,
           ease: 'power2.inOut',
         }, 0.3);
 
-        // Fase 3: informações da esquerda aparecem
-        tl.to(leftRef.current, {
-          opacity: 1,
-          x: 0,
-          duration: 0.8,
-          ease: 'power3.out',
-        }, 1.2);
-
-        // Fase 4: informações da direita aparecem
-        tl.to(rightRef.current, {
-          opacity: 1,
-          x: 0,
-          duration: 0.8,
-          ease: 'power3.out',
-        }, 1.4);
-
-        // Fase 5: heading e CTA aparecem
-        tl.to(headingRef.current, {
-          opacity: 1,
-          y: 0,
-          duration: 0.7,
-          ease: 'power3.out',
-        }, 1.6);
-
-        tl.to(ctaRef.current, {
-          opacity: 1,
-          y: 0,
-          duration: 0.6,
-          ease: 'power3.out',
-        }, 1.8);
+        // Colunas — só opacity + transform (GPU)
+        tl.to(leftRef.current, { opacity: 1, x: 0, duration: 0.7, ease: 'power2.out' }, 1.2);
+        tl.to(rightRef.current, { opacity: 1, x: 0, duration: 0.7, ease: 'power2.out' }, 1.35);
+        tl.to(headingRef.current, { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }, 1.5);
+        tl.to(ctaRef.current, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 1.65);
 
       }, section);
     };
@@ -110,23 +98,39 @@ export default function ScrollCardSection() {
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
+        // Força compositing layer própria para a seção inteira
+        willChange: 'transform',
+        contain: 'layout style paint',
       }}
     >
-      {/* Orbs de fundo escuro */}
+      {/* Orbs de fundo — sem filter:blur (usa box-shadow no lugar, mais leve) */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '20%', left: '15%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(108,92,231,0.2) 0%, transparent 70%)', filter: 'blur(60px)' }} />
-        <div style={{ position: 'absolute', bottom: '15%', right: '10%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,206,201,0.12) 0%, transparent 70%)', filter: 'blur(50px)' }} />
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+        <div style={{
+          position: 'absolute', top: '10%', left: '10%',
+          width: 400, height: 400, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(108,92,231,0.18) 0%, transparent 70%)',
+          // Sem filter:blur — usa gradiente radial que é nativo do GPU
+        }} />
+        <div style={{
+          position: 'absolute', bottom: '10%', right: '8%',
+          width: 320, height: 320, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(0,206,201,0.1) 0%, transparent 70%)',
+        }} />
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: 'radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+        }} />
       </div>
 
-      {/* Bola branca que cresce — começa com scale(0) */}
+      {/* Bola branca — tamanho reduzido, willChange para GPU */}
       <div
         ref={orbRef}
         style={{
           position: 'absolute',
           zIndex: 1,
-          width: '300vmax',
-          height: '300vmax',
+          width: '200vmax',   // menor que 300vmax — mesmo efeito, menos memória
+          height: '200vmax',
           borderRadius: '50%',
           background: 'white',
           transform: 'scale(0)',
@@ -136,7 +140,7 @@ export default function ScrollCardSection() {
         }}
       />
 
-      {/* Layout principal — card + colunas laterais */}
+      {/* Layout principal */}
       <div style={{
         position: 'relative',
         zIndex: 10,
@@ -148,17 +152,10 @@ export default function ScrollCardSection() {
         padding: '0 24px',
       }} className="scroll-card-layout">
 
-        {/* Coluna esquerda — informações */}
+        {/* Coluna esquerda */}
         <div
           ref={leftRef}
-          style={{
-            flex: 1,
-            opacity: 0,
-            transform: 'translateX(-50px)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
-          }}
+          style={{ flex: 1, opacity: 0, transform: 'translateX(-40px)', display: 'flex', flexDirection: 'column', gap: 16, willChange: 'transform, opacity' }}
           className="scroll-card-left"
         >
           {LEFT_ITEMS.map((item, i) => (
@@ -179,7 +176,7 @@ export default function ScrollCardSection() {
           ))}
         </div>
 
-        {/* Card central — roxo, parado */}
+        {/* Card central */}
         <div
           ref={cardRef}
           style={{
@@ -188,106 +185,53 @@ export default function ScrollCardSection() {
             height: '420px',
             borderRadius: '28px',
             background: 'linear-gradient(135deg, #6c5ce7 0%, #4834d4 40%, #2d1b8e 100%)',
-            boxShadow: '0 40px 100px rgba(108,92,231,0.5), 0 0 0 1px rgba(255,255,255,0.1)',
+            boxShadow: '0 40px 100px rgba(108,92,231,0.5)',
             overflow: 'hidden',
             position: 'relative',
             display: 'flex',
             flexDirection: 'column',
+            willChange: 'background',
           }}
           className="scroll-card-center"
         >
-          {/* Foto da pessoa como fundo completo do card */}
+          {/* Foto */}
           <img
             src="/manager-male.jpg"
             alt="Vendedor"
-            style={{
-              position: 'absolute', inset: 0,
-              width: '100%', height: '100%',
-              objectFit: 'cover', objectPosition: 'top center',
-              zIndex: 0,
-            }}
-            onError={(e) => {
-              const img = e.currentTarget as HTMLImageElement;
-              img.style.display = 'none';
-            }}
+            loading="lazy"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center', zIndex: 0 }}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
 
-          {/* Overlay azul base — tinge a foto de azul/roxo */}
-          <div style={{
-            position: 'absolute', inset: 0, zIndex: 1,
-            background: 'rgba(40, 20, 160, 0.45)',
-            mixBlendMode: 'multiply',
-          }} />
+          {/* Overlay — sem mixBlendMode (pesado), usa rgba simples */}
+          <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'rgba(40,20,160,0.5)' }} />
 
-          {/* Orb grande — círculo difuso claro no centro-topo */}
-          <div style={{
-            position: 'absolute', zIndex: 2,
-            top: '-10%', left: '50%', transform: 'translateX(-50%)',
-            width: '280px', height: '280px', borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(100,120,255,0.55) 0%, transparent 70%)',
-            filter: 'blur(18px)',
-            pointerEvents: 'none',
-          }} />
+          {/* Orbs do card — sem filter:blur, usa gradiente radial */}
+          <div style={{ position: 'absolute', zIndex: 2, top: '-15%', left: '50%', transform: 'translateX(-50%)', width: '260px', height: '260px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(100,120,255,0.4) 0%, transparent 65%)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', zIndex: 2, bottom: '0%', right: '-15%', width: '180px', height: '180px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(80,60,220,0.35) 0%, transparent 65%)', pointerEvents: 'none' }} />
 
-          {/* Orb menor — canto inferior direito */}
-          <div style={{
-            position: 'absolute', zIndex: 2,
-            bottom: '5%', right: '-10%',
-            width: '200px', height: '200px', borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(80,60,220,0.5) 0%, transparent 70%)',
-            filter: 'blur(22px)',
-            pointerEvents: 'none',
-          }} />
-
-          {/* Orb menor — canto inferior esquerdo */}
-          <div style={{
-            position: 'absolute', zIndex: 2,
-            bottom: '10%', left: '-8%',
-            width: '160px', height: '160px', borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(60,40,200,0.45) 0%, transparent 70%)',
-            filter: 'blur(20px)',
-            pointerEvents: 'none',
-          }} />
-
-          {/* Topo: logo — acima de tudo */}
-          <div style={{
-            position: 'relative', zIndex: 10,
-            padding: '20px 20px 0',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
+          {/* Logo */}
+          <div style={{ position: 'relative', zIndex: 10, padding: '20px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <img src="https://i.imgur.com/qFq7IHR.png" alt="GouPay" style={{ width: 36, height: 36, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase' }}>Gateway</div>
           </div>
         </div>
 
-        {/* Coluna direita — informações + heading + CTA */}
+        {/* Coluna direita */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Heading */}
-          <div
-            ref={headingRef}
-            style={{ opacity: 0, transform: 'translateY(20px)', marginBottom: 4 }}
-          >
+          <div ref={headingRef} style={{ opacity: 0, transform: 'translateY(16px)', marginBottom: 4, willChange: 'transform, opacity' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#6c5ce7', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Plataforma completa</div>
             <h2 style={{ fontSize: 22, fontWeight: 800, color: '#1a1a2e', lineHeight: 1.3, letterSpacing: -0.5, marginBottom: 8 }}>
               Simples de usar,<br />completo para você.
             </h2>
             <p style={{ fontSize: 13, color: '#666', lineHeight: 1.6 }}>
-              Gerencie vendas, receba via Pix e entregue conteúdo automaticamente. Tudo em um só lugar.
+              Gerencie vendas, receba via Pix e entregue conteúdo automaticamente.
             </p>
           </div>
 
-          {/* Items direita */}
-          <div
-            ref={rightRef}
-            style={{ opacity: 0, transform: 'translateX(50px)', display: 'flex', flexDirection: 'column', gap: 12 }}
-          >
+          <div ref={rightRef} style={{ opacity: 0, transform: 'translateX(40px)', display: 'flex', flexDirection: 'column', gap: 12, willChange: 'transform, opacity' }}>
             {RIGHT_ITEMS.map((item, i) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'flex-start', gap: 14,
-                padding: '14px 16px', borderRadius: 14,
-                background: 'rgba(108,92,231,0.06)',
-                border: '1px solid rgba(108,92,231,0.12)',
-              }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 16px', borderRadius: 14, background: 'rgba(108,92,231,0.06)', border: '1px solid rgba(108,92,231,0.12)' }}>
                 <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(108,92,231,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6c5ce7', flexShrink: 0 }}>
                   {item.icon}
                 </div>
@@ -299,8 +243,7 @@ export default function ScrollCardSection() {
             ))}
           </div>
 
-          {/* CTA */}
-          <div ref={ctaRef} style={{ opacity: 0, transform: 'translateY(12px)' }}>
+          <div ref={ctaRef} style={{ opacity: 0, transform: 'translateY(10px)', willChange: 'transform, opacity' }}>
             <Link href="/register" style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               padding: '12px 22px', borderRadius: 999,
@@ -316,12 +259,7 @@ export default function ScrollCardSection() {
       </div>
 
       {/* Indicador de scroll */}
-      <div style={{
-        position: 'absolute', bottom: 36, left: '50%', transform: 'translateX(-50%)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-        color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 500, zIndex: 20,
-        letterSpacing: 1, textTransform: 'uppercase',
-      }}>
+      <div style={{ position: 'absolute', bottom: 36, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 500, zIndex: 20, letterSpacing: 1, textTransform: 'uppercase' }}>
         <span>Role para ver</span>
         <div style={{ width: 1, height: 36, background: 'linear-gradient(to bottom, rgba(255,255,255,0.3), transparent)', animation: 'scrollPulse 1.8s ease-in-out infinite' }} />
       </div>
@@ -332,16 +270,12 @@ export default function ScrollCardSection() {
           50% { opacity: 0.9; }
         }
         @media (max-width: 768px) {
-          .scroll-card-layout {
-            flex-direction: column !important;
-            gap: 20px !important;
-            padding: 0 16px !important;
-          }
+          .scroll-card-layout { flex-direction: column !important; gap: 20px !important; padding: 0 16px !important; }
           .scroll-card-left { display: none !important; }
-          .scroll-card-center {
-            width: 240px !important;
-            height: 340px !important;
-          }
+          .scroll-card-center { width: 240px !important; height: 340px !important; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .scroll-card-layout * { transition: none !important; animation: none !important; }
         }
       `}</style>
     </section>
