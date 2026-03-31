@@ -162,18 +162,6 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section ref={heroRef} style={{ position: 'relative', height: 'clamp(520px, 78vh, 820px)', overflow: 'hidden', background: '#0a0a0f' }} className="landingHero">
-        <style>{`
-          @keyframes kenburns {
-            0%   { transform: scale(1)    translateX(0px)   translateY(0px); }
-            33%  { transform: scale(1.06) translateX(-12px) translateY(-6px); }
-            66%  { transform: scale(1.04) translateX(10px)  translateY(-10px); }
-            100% { transform: scale(1)    translateX(0px)   translateY(0px); }
-          }
-          .hero-bg-img {
-            animation: kenburns 18s ease-in-out infinite;
-            will-change: transform;
-          }
-        `}</style>
         <picture style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
           <source media="(max-width: 768px)" srcSet="https://i.imgur.com/lmM1Hdm.png" />
           <img
@@ -196,7 +184,7 @@ export default function LandingPage() {
               objectPosition: 'center',
               display: 'block'
             }}
-            className="landingHeroImg hero-bg-img"
+            className="landingHeroImg"
           />
         </picture>
         <div style={{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none' }}>
