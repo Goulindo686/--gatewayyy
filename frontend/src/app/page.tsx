@@ -2,54 +2,54 @@
 
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
+import { motion, useInView } from 'framer-motion';
 import { HiOutlineShieldCheck, HiOutlineCreditCard, HiOutlineCurrencyDollar, HiOutlineChartBar, HiOutlineLightningBolt, HiOutlineGlobeAlt } from 'react-icons/hi';
 import { FiArrowRight, FiZap, FiLock, FiTrendingUp, FiInstagram, FiYoutube, FiMessageCircle } from 'react-icons/fi';
+
+// Componente de animação scroll-reveal reutilizável
+function Reveal({ children, delay = 0, direction = 'up', className = '', style = {} }: {
+  children: React.ReactNode;
+  delay?: number;
+  direction?: 'up' | 'left' | 'right' | 'none';
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-60px' });
+
+  const variants = {
+    hidden: {
+      opacity: 0,
+      y: direction === 'up' ? 50 : 0,
+      x: direction === 'left' ? -60 : direction === 'right' ? 60 : 0,
+      rotateX: direction === 'up' ? 8 : 0,
+      scale: 0.96,
+    },
+    visible: {
+      opacity: 1, y: 0, x: 0, rotateX: 0, scale: 1,
+      transition: { duration: 0.7, delay, ease: [0.22, 1, 0.36, 1] }
+    }
+  };
+
+  return (
+    <motion.div
+      ref={ref}
+      initial="hidden"
+      animate={inView ? 'visible' : 'hidden'}
+      variants={variants}
+      className={className}
+      style={{ ...style, transformPerspective: 1000 }}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 export default function LandingPage() {
   const heroRef = useRef<HTMLElement>(null!);
   const rafRef = useRef<number | null>(null);
 
-  // Scroll reveal — IntersectionObserver
-  useEffect(() => {
-    const apply = () => {
-      const els = document.querySelectorAll<HTMLElement>('.sr');
-      if (!els.length) return;
-
-      const io = new IntersectionObserver((entries) => {
-        entries.forEach(e => {
-          if (e.isIntersecting) {
-            (e.target as HTMLElement).classList.add('sr-visible');
-            io.unobserve(e.target);
-          }
-        });
-      }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
-
-      els.forEach(el => {
-        // Se já está visível na viewport, anima imediatamente
-        const rect = el.getBoundingClientRect();
-        if (rect.top < window.innerHeight && rect.bottom > 0) {
-          el.classList.add('sr-visible');
-        } else {
-          io.observe(el);
-        }
-      });
-
-      // Fallback: após 2s garante que tudo está visível
-      setTimeout(() => {
-        document.querySelectorAll<HTMLElement>('.sr:not(.sr-visible)')
-          .forEach(el => el.classList.add('sr-visible'));
-        io.disconnect();
-      }, 2000);
-    };
-
-    // Aguarda o DOM estar pronto
-    if (document.readyState === 'complete') {
-      apply();
-    } else {
-      window.addEventListener('load', apply, { once: true });
-    }
-  }, []);
-
+  // Hero parallax effect only
   useEffect(() => {
     const el = heroRef.current;
     if (!el) return;
@@ -311,12 +311,12 @@ export default function LandingPage() {
 
       {/* Features */}
       <section id="features" style={{ padding: '80px 24px', maxWidth: 1200, margin: '0 auto' }}>
-        <div className="sr sr-up" style={{ textAlign: 'center', marginBottom: 60 }}>
+        <Reveal direction="up" style={{ textAlign: 'center', marginBottom: 60 }}>
           <h2 style={{ fontSize: 36, fontWeight: 700, marginBottom: 16 }}>Tudo que você precisa para <span className="gradient-text">vender online</span></h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 16, maxWidth: 500, margin: '0 auto' }}>
             Ferramentas profissionais para gerenciar seu negócio digital
           </p>
-        </div>
+        </Reveal>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 24 }}>
           {[
             { icon: <FiLock size={24} />, title: 'Checkout Seguro', desc: 'Página de pagamento profissional com Pix e cartão de crédito. SSL e antifraude integrados.' },
@@ -326,21 +326,28 @@ export default function LandingPage() {
             { icon: <HiOutlineCurrencyDollar size={24} />, title: 'Saques via Pix', desc: 'Solicite saques a qualquer momento. O valor é transferido diretamente para sua conta.' },
             { icon: <HiOutlineShieldCheck size={24} />, title: 'Segurança Total', desc: 'Controle de chargeback, logs de transações e proteção contra fraude integrados.' },
           ].map((feature, i) => (
-            <div key={i} className={`glass-card sr sr-up`} style={{ padding: 32, transitionDelay: `${i * 80}ms` }}>
-              <div style={{
-                width: 48, height: 48, borderRadius: 12,
-                background: 'rgba(108,92,231,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--accent-secondary)', marginBottom: 20
-              }}>{feature.icon}</div>
-              <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>{feature.title}</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.7 }}>{feature.desc}</p>
-            </div>
+            <Reveal key={i} direction="up" delay={i * 0.08}>
+              <motion.div
+                className="glass-card"
+                style={{ padding: 32, height: '100%' }}
+                whileHover={{ y: -6, boxShadow: '0 24px 60px rgba(108,92,231,0.18)', transition: { duration: 0.25 } }}
+              >
+                <div style={{
+                  width: 48, height: 48, borderRadius: 12,
+                  background: 'rgba(108,92,231,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--accent-secondary)', marginBottom: 20
+                }}>{feature.icon}</div>
+                <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>{feature.title}</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.7 }}>{feature.desc}</p>
+              </motion.div>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* API Pix */}
       <section id="api" style={{ padding: '20px 24px 80px', maxWidth: 1200, margin: '0 auto' }}>
+        <Reveal direction="up">
         <div className="glass-card sr sr-up" style={{ padding: 48 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 32, alignItems: 'center' }} className="apiGrid">
             <div className="apiCopy sr sr-left">
@@ -400,11 +407,13 @@ Body:
             </div>
           </div>
         </div>
+        </Reveal>
       </section>
 
       {/* Storefront */}
       <section id="loja" style={{ padding: '20px 24px 80px', maxWidth: 1200, margin: '0 auto' }} className="landingStorefrontSection">
-        <div className="glass-card landingStorefrontCard sr sr-up" style={{
+        <Reveal direction="up">
+        <div className="glass-card landingStorefrontCard" style={{
           padding: 48,
           position: 'relative',
           overflow: 'hidden'
@@ -565,11 +574,13 @@ Body:
             </div>
           </div>
         </div>
+        </Reveal>
       </section>
 
       {/* CTA */}
       <section style={{ padding: '80px 24px', textAlign: 'center' }}>
-        <div className="glass-card sr sr-up" style={{
+        <Reveal direction="up">
+        <div className="glass-card" style={{
           maxWidth: 700, margin: '0 auto', padding: '60px 40px',
           position: 'relative', overflow: 'hidden'
         }}>
@@ -588,6 +599,7 @@ Body:
             Criar Conta Grátis <FiArrowRight size={18} />
           </Link>
         </div>
+        </Reveal>
       </section>
 
       {/* Footer */}
