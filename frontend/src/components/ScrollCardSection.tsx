@@ -191,53 +191,86 @@ export default function ScrollCardSection() {
             width: '300px',
             height: '420px',
             borderRadius: '28px',
-            background: 'linear-gradient(135deg, #6c5ce7 0%, #4834d4 40%, #2d1b8e 100%)',
-            boxShadow: '0 40px 100px rgba(108,92,231,0.5)',
+            // Placa de vidro preta
+            background: 'linear-gradient(160deg, rgba(30,30,35,0.95) 0%, rgba(10,10,12,0.98) 60%, rgba(20,18,28,0.95) 100%)',
+            boxShadow: '0 40px 100px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 rgba(255,255,255,0.04)',
             overflow: 'hidden',
             position: 'relative',
             display: 'flex',
             flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backdropFilter: 'blur(20px)',
             willChange: 'background',
           }}
           className="scroll-card-center"
         >
-          {/* Foto */}
-          <img
-            src="/manager-male.jpg"
-            alt="Vendedor"
-            loading="lazy"
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center', zIndex: 0, display: 'none' }}
-          />
-
-          {/* Overlay */}
-          <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'linear-gradient(135deg, #4834d4 0%, #2d1b8e 100%)' }} />
-
-          {/* Orbs do card */}
-          <div style={{ position: 'absolute', zIndex: 2, top: '-15%', left: '50%', transform: 'translateX(-50%)', width: '260px', height: '260px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(162,155,254,0.3) 0%, transparent 65%)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', zIndex: 2, bottom: '0%', right: '-15%', width: '180px', height: '180px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(108,92,231,0.25) 0%, transparent 65%)', pointerEvents: 'none' }} />
-
-          {/* Logo centralizada */}
+          {/* Reflexo de vidro — brilho diagonal no topo */}
           <div style={{
-            position: 'absolute', inset: 0, zIndex: 5,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
+            position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
+            background: 'linear-gradient(160deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 50%, transparent 100%)',
+            borderRadius: '28px 28px 0 0',
+            pointerEvents: 'none', zIndex: 1,
+          }} />
+
+          {/* Reflexo lateral esquerdo */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, bottom: 0, width: '30%',
+            background: 'linear-gradient(90deg, rgba(255,255,255,0.04) 0%, transparent 100%)',
+            pointerEvents: 'none', zIndex: 1,
+          }} />
+
+          {/* Moldura interna — borda dourada sutil */}
+          <div style={{
+            position: 'absolute', inset: 12,
+            borderRadius: 18,
+            border: '1px solid rgba(255,255,255,0.06)',
+            pointerEvents: 'none', zIndex: 1,
+          }} />
+
+          {/* Glow roxo sutil no fundo */}
+          <div style={{
+            position: 'absolute', bottom: '-20%', left: '50%', transform: 'translateX(-50%)',
+            width: 200, height: 200, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(108,92,231,0.2) 0%, transparent 70%)',
+            pointerEvents: 'none', zIndex: 0,
+          }} />
+
+          {/* Conteúdo central — logo como troféu */}
+          <div style={{ position: 'relative', zIndex: 5, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+            {/* Ícone troféu / logo */}
             <div style={{
-              width: 120, height: 120, borderRadius: 32,
-              background: 'rgba(255,255,255,0.12)',
-              border: '1.5px solid rgba(255,255,255,0.2)',
+              width: 100, height: 100, borderRadius: 24,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)',
+              border: '1px solid rgba(255,255,255,0.12)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 16px 48px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
-              backdropFilter: 'blur(8px)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
             }}>
               <img
                 src="https://i.imgur.com/qFq7IHR.png"
                 alt="GouPay"
-                style={{ width: 72, height: 72, objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
+                style={{ width: 60, height: 60, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.9 }}
               />
             </div>
-          </div>
 
-          {/* Logo centralizada — sem topo com logo/gateway */}
+            {/* Nome */}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: 'rgba(255,255,255,0.92)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+                GouPay
+              </div>
+              <div style={{ width: 40, height: 1, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)', margin: '0 auto 10px' }} />
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 3, textTransform: 'uppercase', fontWeight: 600 }}>
+                Gateway
+              </div>
+            </div>
+
+            {/* Estrelas decorativas */}
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[0,1,2,3,4].map(i => (
+                <div key={i} style={{ fontSize: 12, color: i < 4 ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.15)' }}>★</div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Coluna direita */}
