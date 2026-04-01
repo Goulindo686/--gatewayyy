@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest } from 'next/server';
+import { createHmac } from 'crypto';
 import { supabase } from '@/lib/db';
 import { jsonError, jsonSuccess } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,7 +10,28 @@ import { sendPushNotification } from '@/lib/webpush';
 
 export async function POST(req: NextRequest) {
     try {
-        const body = await req.json();
+        // Verificação de assinatura HMAC-SHA256 do Pagar.me
+        const webhookSecret = process.env.PAGARME_WEBHOOK_SECRET;
+        const signature = req.headers.get('x-hub-signature') || req.headers.get('x-pagarme-signature');
+
+        const rawBody = await req.text();
+
+        if (webhookSecret) {
+            if (!signature) {
+                console.warn('[WEBHOOK] Assinatura ausente — rejeitado');
+                return jsonError('Assinatura ausente', 401);
+            }
+            const expected = 'sha1=' + createHmac('sha1', webhookSecret).update(rawBody).digest('hex');
+            if (signature !== expected) {
+                console.warn('[WEBHOOK] Assinatura inválida — rejeitado');
+                return jsonError('Assinatura inválida', 401);
+            }
+        } else if (process.env.NODE_ENV === 'production') {
+            console.error('[WEBHOOK] PAGARME_WEBHOOK_SECRET não configurado em produção!');
+            return jsonError('Configuração de segurança ausente', 500);
+        }
+
+        const body = JSON.parse(rawBody);
         const { type, data } = body;
 
         console.log('Webhook received:', type, 'ID:', data.id, 'Order ID:', data.order?.id);

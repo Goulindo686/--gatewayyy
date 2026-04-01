@@ -3,12 +3,27 @@ import { supabase } from '@/lib/db';
 import { PagarmeService } from '@/lib/pagarme';
 import { v4 as uuidv4 } from 'uuid';
 
-// Helper for error responses with CORS headers
+// CORS restrito às origens configuradas (ou qualquer origem se não configurado)
+const allowedOrigin = process.env.API_ALLOWED_ORIGIN || '*';
 const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
 };
+
+// Rate limiter simples em memória: máx 20 req/min por API key
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+function checkRateLimit(key: string): boolean {
+    const now = Date.now();
+    const entry = rateLimitMap.get(key);
+    if (!entry || now > entry.resetAt) {
+        rateLimitMap.set(key, { count: 1, resetAt: now + 60_000 });
+        return true;
+    }
+    if (entry.count >= 20) return false;
+    entry.count++;
+    return true;
+}
 
 const jsonResponse = (data: any, status = 200) => 
     NextResponse.json(data, { status, headers: corsHeaders });
@@ -42,6 +57,11 @@ export async function POST(req: NextRequest) {
 
         if (!keyRecord.is_active) {
             return jsonError('Chave de API inativa', 403);
+        }
+
+        // Rate limit: 20 requisições por minuto por API key
+        if (!checkRateLimit(apiKey)) {
+            return jsonError('Limite de requisições excedido. Tente novamente em 1 minuto.', 429);
         }
 
         const userId = keyRecord.user_id;
@@ -145,19 +165,22 @@ export async function POST(req: NextRequest) {
             if (status === 'failed' || lastChargeStatus === 'failed') {
                 const charge = charges[0];
                 const transaction = charge?.last_transaction;
-                
-                const failureReason = {
-                    status: status,
-                    charge_status: lastChargeStatus,
+                const acquirerMsg = transaction?.acquirer_message || 'Transação recusada pelo gateway';
+                const gatewayErrors = transaction?.gateway_response?.errors;
+                const userMsg = gatewayErrors?.length
+                    ? gatewayErrors.map((e: any) => e.message).join('; ')
+                    : acquirerMsg;
+
+                // Log interno com detalhes (nunca exposto ao cliente)
+                console.error('Pagar.me Failed Order:', JSON.stringify({
+                    status, charge_status: lastChargeStatus,
                     acquirer_message: transaction?.acquirer_message,
-                    gateway_errors: transaction?.gateway_response?.errors,
+                    gateway_errors: gatewayErrors,
                     recipient_id: recipient.pagarme_recipient_id,
                     platform_id: process.env.PLATFORM_RECIPIENT_ID
-                };
+                }, null, 2));
 
-                const errorMsg = JSON.stringify(failureReason, null, 2);
-                console.error('Pagar.me Failed Order:', errorMsg);
-                throw new Error(`Falha Pagar.me: ${errorMsg}`);
+                throw new Error(`Pagamento recusado: ${userMsg}`);
             }
             
             throw new Error('O Pagar.me recebeu o pedido mas não retornou o QR Code Pix. Verifique os logs.');
@@ -229,8 +252,9 @@ export async function POST(req: NextRequest) {
         console.error('API Pix Error:', error);
         
         if (error.response?.data) {
-             const axiosError = JSON.stringify(error.response.data, null, 2);
-             return jsonError(`Erro Pagar.me API: ${axiosError}`, error.response.status || 400);
+            console.error('Pagar.me raw error:', JSON.stringify(error.response.data, null, 2));
+            const msg = error.response.data?.message || 'Erro no processamento do pagamento';
+            return jsonError(msg, error.response.status || 400);
         }
 
         return jsonError(error.message || 'Erro interno ao processar pagamento', 500);
