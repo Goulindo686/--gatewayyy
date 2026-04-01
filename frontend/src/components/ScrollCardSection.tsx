@@ -343,8 +343,8 @@ export default function ScrollCardSection() {
           .scroll-card-plaques-mobile {
             position: relative !important;
             width: 260px !important;
-            height: 240px !important;
-            margin: 0 auto 24px !important;
+            height: 320px !important;
+            margin: 0 auto 0 !important;
           }
 
           /* Placa esquerda (100K) — inclinada para esquerda */
@@ -373,7 +373,7 @@ export default function ScrollCardSection() {
             width: 100% !important;
             align-items: center !important;
             text-align: center !important;
-            margin-top: 40px !important;
+            margin-top: 80px !important;
           }
           .scroll-card-layout > div:last-child h2,
           .scroll-card-layout > div:last-child p,
