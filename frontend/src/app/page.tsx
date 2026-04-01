@@ -342,7 +342,7 @@ export default function LandingPage() {
               </div>
               {/* Screenshot */}
               <img
-                src="https://i.imgur.com/PxTZBza.png"
+                src="https://i.imgur.com/OuIZdBG.png"
                 alt="Dashboard GouPay"
                 referrerPolicy="no-referrer"
                 loading="eager"
