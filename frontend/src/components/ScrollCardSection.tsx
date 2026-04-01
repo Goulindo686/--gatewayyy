@@ -328,9 +328,33 @@ export default function ScrollCardSection() {
       <style>{`
         @keyframes scrollPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.9; } }
         @media (max-width: 768px) {
-          .scroll-card-layout { flex-direction: column !important; gap: 20px !important; padding: 0 16px !important; align-items: center !important; }
+          .scroll-card-layout {
+            flex-direction: column !important;
+            gap: 20px !important;
+            padding: 0 16px !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
           .scroll-card-left { display: none !important; }
-          .scroll-card-section { background: #f5f3ff !important; height: auto !important; min-height: 100vh !important; padding: 80px 0 40px !important; }
+          .scroll-card-section {
+            height: 100vh !important;
+            background: #06060c !important;
+          }
+          /* Placa menor em mobile */
+          .scroll-card-layout > div[style*="280px"] {
+            width: 220px !important;
+            height: 300px !important;
+          }
+          /* Coluna direita centralizada */
+          .scroll-card-layout > div:last-child {
+            align-items: center !important;
+            text-align: center !important;
+          }
+          .scroll-card-layout > div:last-child h2,
+          .scroll-card-layout > div:last-child p,
+          .scroll-card-layout > div:last-child > div:first-child {
+            text-align: center !important;
+          }
         }
         @media (prefers-reduced-motion: reduce) {
           .scroll-card-layout * { transition: none !important; animation: none !important; }
