@@ -266,12 +266,6 @@ export default function LandingPage() {
 
           {/* Coluna esquerda — texto */}
           <div className="heroLeft">
-            {/* Badge */}
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 16px', borderRadius: 999, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: 700, letterSpacing: 0.5, marginBottom: 24 }}>
-              <FiZap size={13} color="#a78bfa" />
-              Taxa mais justa — R$1,50 + 1,09% por venda
-            </div>
-
             <h1 style={{ fontSize: 'clamp(32px, 4.2vw, 58px)', fontWeight: 900, lineHeight: 1.08, letterSpacing: -1.5, color: 'white', marginBottom: 20, textShadow: '0 2px 24px rgba(0,0,0,0.4)' }} className="landingHeroTitle">
               O gateway que faz<br />
               <span style={{ background: 'linear-gradient(135deg, #c4b5fd, #a78bfa, #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
@@ -279,13 +273,13 @@ export default function LandingPage() {
               </span>
             </h1>
 
-            <p style={{ color: 'rgba(255,255,255,0.82)', fontSize: 'clamp(14px, 1.5vw, 17px)', lineHeight: 1.75, marginBottom: 36, maxWidth: 460, textShadow: '0 1px 8px rgba(0,0,0,0.3)' }} className="landingHeroSubtitle">
-              Checkout de alta conversão, Pix instantâneo, área de membros e loja integrada. Tudo em um só lugar.
+            <p style={{ color: 'rgba(255,255,255,0.82)', fontSize: 'clamp(14px, 1.5vw, 17px)', lineHeight: 1.75, marginBottom: 32, maxWidth: 460, textShadow: '0 1px 8px rgba(0,0,0,0.3)' }} className="landingHeroSubtitle">
+              Checkout de alta conversão, Pix instantâneo, área de membros e loja integrada. Taxa: <strong style={{ color: '#c4b5fd' }}>R$1,50 + 1,09%</strong> por venda.
             </p>
 
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 52 }} className="landingHeroActions">
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 40 }} className="landingHeroActions">
               <Link href="/register" style={{
-                padding: '14px 28px', fontSize: 15, display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999,
+                padding: '13px 24px', fontSize: 15, display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999,
                 background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
                 color: 'white', fontWeight: 700, textDecoration: 'none',
                 boxShadow: '0 8px 32px rgba(109,40,217,0.5)',
@@ -293,7 +287,7 @@ export default function LandingPage() {
                 Criar conta grátis <FiArrowRight size={16} />
               </Link>
               <Link href="#features" style={{
-                padding: '14px 28px', fontSize: 15, borderRadius: 999,
+                padding: '13px 24px', fontSize: 15, borderRadius: 999,
                 background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)',
                 border: '1.5px solid rgba(255,255,255,0.25)',
                 color: 'rgba(255,255,255,0.92)', textDecoration: 'none', fontWeight: 600,
@@ -303,16 +297,15 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            {/* Stats */}
-            <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }} className="landingHeroStats">
+            {/* Stats — simplificados, sem repetir taxa */}
+            <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }} className="landingHeroStats">
               {[
-                { value: 'R$1,50', label: 'Taxa fixa por venda' },
-                { value: '1,09%', label: 'Taxa do gateway' },
                 { value: 'Na hora', label: 'Recebimento Pix' },
                 { value: '100%', label: 'Automático' },
+                { value: 'Grátis', label: 'Sem mensalidade' },
               ].map((s, i) => (
-                <div key={i} style={{ borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.15)' : 'none', paddingLeft: i > 0 ? 32 : 0 }}>
-                  <div style={{ fontSize: 22, fontWeight: 900, color: 'white', letterSpacing: -0.5, textShadow: '0 2px 12px rgba(0,0,0,0.3)' }}>{s.value}</div>
+                <div key={i} style={{ borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.15)' : 'none', paddingLeft: i > 0 ? 28 : 0 }}>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: 'white', letterSpacing: -0.5, textShadow: '0 2px 12px rgba(0,0,0,0.3)' }}>{s.value}</div>
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: 500, marginTop: 2 }}>{s.label}</div>
                 </div>
               ))}
@@ -412,11 +405,15 @@ export default function LandingPage() {
             .landingHeroTitle { font-size: 28px !important; }
             .landingHeroSubtitle { font-size: 14px !important; }
             .landingHeroStats { gap: 16px !important; flex-wrap: wrap !important; justify-content: center !important; }
-            .landingHeroActions { flex-direction: column !important; align-items: center !important; }
-            .landingHeroActions a { width: 100% !important; justify-content: center !important; }
+            .landingHeroStats > div { border-left: none !important; padding-left: 0 !important; }
+            .landingHeroActions { flex-direction: row !important; flex-wrap: wrap !important; justify-content: center !important; }
+            .landingHeroActions a { font-size: 14px !important; padding: 12px 18px !important; }
             .landingHero { padding-top: calc(env(safe-area-inset-top) + 160px) !important; }
             .heroGrid { padding: 0 16px !important; }
-            .heroRight { display: none !important; }
+            /* Mostra mockup em mobile, menor */
+            .heroRight { display: block !important; max-width: 320px !important; margin: 0 auto !important; }
+            /* Esconde cards flutuantes em mobile */
+            #cardSaldo, #cardTaxa { display: none !important; }
           }
         `}</style>
       </section>
