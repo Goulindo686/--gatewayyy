@@ -237,11 +237,7 @@ export default function ScrollCardSection() {
             </div>
           </div>
 
-          {/* Logo */}
-          <div style={{ position: 'relative', zIndex: 10, padding: '20px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <img src="https://i.imgur.com/qFq7IHR.png" alt="GouPay" style={{ width: 36, height: 36, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase' }}>Gateway</div>
-          </div>
+          {/* Logo centralizada — sem topo com logo/gateway */}
         </div>
 
         {/* Coluna direita */}
