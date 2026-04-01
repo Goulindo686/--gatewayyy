@@ -67,14 +67,6 @@ export default function ScrollCardSection() {
 
   useEffect(() => {
     const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
-      if (orbRef.current) orbRef.current.style.transform = 'scale(1)';
-      [plaque0Ref, plaque1Ref, plaque2Ref, leftRef, rightRef, headingRef, ctaRef].forEach(r => {
-        if (r.current) { r.current.style.opacity = '1'; r.current.style.transform = 'none'; }
-      });
-      return;
-    }
-
     let ctx: any;
 
     const init = async () => {
@@ -85,6 +77,49 @@ export default function ScrollCardSection() {
       const section = sectionRef.current;
       if (!section) return;
 
+      if (isMobile) {
+        // Mobile: animação sequencial via IntersectionObserver (sem pin)
+        const observer = new IntersectionObserver((entries) => {
+          if (!entries[0].isIntersecting) return;
+          observer.disconnect();
+
+          // Bola branca aparece
+          gsap.to(orbRef.current, { scale: 1, duration: 1.2, ease: 'power2.inOut' });
+
+          // Placa 100K
+          gsap.fromTo(plaque0Ref.current,
+            { opacity: 0, scale: 0.7, rotateY: -30 },
+            { opacity: 1, scale: 1, rotateY: 0, duration: 0.7, ease: 'back.out(1.4)', delay: 0.3 }
+          );
+
+          // Placa 500K após 1.4s
+          setTimeout(() => {
+            gsap.to(plaque0Ref.current, { opacity: 0, scale: 0.8, x: -60, duration: 0.4, ease: 'power2.in' });
+            gsap.fromTo(plaque1Ref.current,
+              { opacity: 0, scale: 0.7, rotateY: 30 },
+              { opacity: 1, scale: 1, rotateY: 0, duration: 0.7, ease: 'back.out(1.4)', delay: 0.2 }
+            );
+          }, 1400);
+
+          // Placa 1M após 2.8s
+          setTimeout(() => {
+            gsap.to(plaque1Ref.current, { opacity: 0, scale: 0.8, x: -60, duration: 0.4, ease: 'power2.in' });
+            gsap.fromTo(plaque2Ref.current,
+              { opacity: 0, scale: 0.7, rotateY: 30 },
+              { opacity: 1, scale: 1.05, rotateY: 0, duration: 0.8, ease: 'back.out(1.2)', delay: 0.2 }
+            );
+            // Infos aparecem
+            gsap.to(rightRef.current, { opacity: 1, y: 0, duration: 0.6, delay: 0.6 });
+            gsap.to(headingRef.current, { opacity: 1, y: 0, duration: 0.6, delay: 0.7 });
+            gsap.to(ctaRef.current, { opacity: 1, y: 0, duration: 0.5, delay: 0.8 });
+          }, 2800);
+        }, { threshold: 0.3 });
+
+        observer.observe(section);
+        return;
+      }
+
+      // Desktop: animação scrub com pin
       ctx = gsap.context(() => {
         const tl = gsap.timeline({
           scrollTrigger: {
@@ -98,44 +133,30 @@ export default function ScrollCardSection() {
           }
         });
 
-        // Fase 0: bola branca cresce
         tl.to(orbRef.current, { scale: 1, duration: 3, ease: 'power2.inOut' }, 0);
 
-        // Fase 1: placa 100K aparece (dourada)
         tl.fromTo(plaque0Ref.current,
           { opacity: 0, scale: 0.7, rotateY: -30 },
-          { opacity: 1, scale: 1, rotateY: 0, duration: 0.8, ease: 'back.out(1.4)' },
-          0.5
+          { opacity: 1, scale: 1, rotateY: 0, duration: 0.8, ease: 'back.out(1.4)' }, 0.5
         );
-
-        // Fase 2: placa 100K sai, placa 500K entra (prata)
         tl.to(plaque0Ref.current,
-          { opacity: 0, scale: 0.8, x: -80, rotateY: 20, duration: 0.5, ease: 'power2.in' },
-          1.4
+          { opacity: 0, scale: 0.8, x: -80, rotateY: 20, duration: 0.5, ease: 'power2.in' }, 1.4
         );
         tl.fromTo(plaque1Ref.current,
           { opacity: 0, scale: 0.7, rotateY: 30 },
-          { opacity: 1, scale: 1, rotateY: 0, duration: 0.8, ease: 'back.out(1.4)' },
-          1.6
+          { opacity: 1, scale: 1, rotateY: 0, duration: 0.8, ease: 'back.out(1.4)' }, 1.6
         );
-
-        // Fase 3: placa 500K sai, placa 1M entra (preta)
         tl.to(plaque1Ref.current,
-          { opacity: 0, scale: 0.8, x: -80, rotateY: 20, duration: 0.5, ease: 'power2.in' },
-          2.4
+          { opacity: 0, scale: 0.8, x: -80, rotateY: 20, duration: 0.5, ease: 'power2.in' }, 2.4
         );
         tl.fromTo(plaque2Ref.current,
           { opacity: 0, scale: 0.7, rotateY: 30 },
-          { opacity: 1, scale: 1.05, rotateY: 0, duration: 0.9, ease: 'back.out(1.2)' },
-          2.6
+          { opacity: 1, scale: 1.05, rotateY: 0, duration: 0.9, ease: 'back.out(1.2)' }, 2.6
         );
-
-        // Fase 4: infos laterais aparecem junto com a placa 1M
         tl.to(leftRef.current, { opacity: 1, x: 0, duration: 0.7, ease: 'power2.out' }, 2.7);
         tl.to(rightRef.current, { opacity: 1, x: 0, duration: 0.7, ease: 'power2.out' }, 2.85);
         tl.to(headingRef.current, { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }, 2.9);
         tl.to(ctaRef.current, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 3.0);
-
       }, section);
     };
 
@@ -329,30 +350,28 @@ export default function ScrollCardSection() {
         @keyframes scrollPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.9; } }
         @media (max-width: 768px) {
           .scroll-card-layout {
-            flex-direction: column !important;
-            gap: 20px !important;
-            padding: 0 16px !important;
-            align-items: center !important;
+            flex-direction: row !important;
+            flex-wrap: wrap !important;
             justify-content: center !important;
+            gap: 16px !important;
+            padding: 0 12px !important;
           }
           .scroll-card-left { display: none !important; }
           .scroll-card-section {
-            height: 100vh !important;
+            height: auto !important;
+            min-height: 100vh !important;
             background: #06060c !important;
+            padding: 80px 0 40px !important;
           }
           /* Placa menor em mobile */
-          .scroll-card-layout > div[style*="280px"] {
+          .scroll-card-layout > div:nth-child(2) {
             width: 220px !important;
             height: 300px !important;
           }
-          /* Coluna direita centralizada */
+          /* Coluna direita em mobile */
           .scroll-card-layout > div:last-child {
+            width: 100% !important;
             align-items: center !important;
-            text-align: center !important;
-          }
-          .scroll-card-layout > div:last-child h2,
-          .scroll-card-layout > div:last-child p,
-          .scroll-card-layout > div:last-child > div:first-child {
             text-align: center !important;
           }
         }
