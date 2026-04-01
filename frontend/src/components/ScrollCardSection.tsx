@@ -206,16 +206,36 @@ export default function ScrollCardSection() {
             src="/manager-male.jpg"
             alt="Vendedor"
             loading="lazy"
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center', zIndex: 0 }}
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center', zIndex: 0, display: 'none' }}
           />
 
-          {/* Overlay — sem mixBlendMode (pesado), usa rgba simples */}
-          <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'rgba(40,20,160,0.5)' }} />
+          {/* Overlay */}
+          <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'linear-gradient(135deg, #4834d4 0%, #2d1b8e 100%)' }} />
 
-          {/* Orbs do card — sem filter:blur, usa gradiente radial */}
-          <div style={{ position: 'absolute', zIndex: 2, top: '-15%', left: '50%', transform: 'translateX(-50%)', width: '260px', height: '260px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(100,120,255,0.4) 0%, transparent 65%)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', zIndex: 2, bottom: '0%', right: '-15%', width: '180px', height: '180px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(80,60,220,0.35) 0%, transparent 65%)', pointerEvents: 'none' }} />
+          {/* Orbs do card */}
+          <div style={{ position: 'absolute', zIndex: 2, top: '-15%', left: '50%', transform: 'translateX(-50%)', width: '260px', height: '260px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(162,155,254,0.3) 0%, transparent 65%)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', zIndex: 2, bottom: '0%', right: '-15%', width: '180px', height: '180px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(108,92,231,0.25) 0%, transparent 65%)', pointerEvents: 'none' }} />
+
+          {/* Logo centralizada */}
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 5,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <div style={{
+              width: 120, height: 120, borderRadius: 32,
+              background: 'rgba(255,255,255,0.12)',
+              border: '1.5px solid rgba(255,255,255,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
+              backdropFilter: 'blur(8px)',
+            }}>
+              <img
+                src="https://i.imgur.com/qFq7IHR.png"
+                alt="GouPay"
+                style={{ width: 72, height: 72, objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
+              />
+            </div>
+          </div>
 
           {/* Logo */}
           <div style={{ position: 'relative', zIndex: 10, padding: '20px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
