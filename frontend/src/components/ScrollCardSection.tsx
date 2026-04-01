@@ -78,44 +78,11 @@ export default function ScrollCardSection() {
       if (!section) return;
 
       if (isMobile) {
-        // Mobile: animação sequencial via IntersectionObserver (sem pin)
-        const observer = new IntersectionObserver((entries) => {
-          if (!entries[0].isIntersecting) return;
-          observer.disconnect();
-
-          // Bola branca aparece
-          gsap.to(orbRef.current, { scale: 1, duration: 1.2, ease: 'power2.inOut' });
-
-          // Placa 100K
-          gsap.fromTo(plaque0Ref.current,
-            { opacity: 0, scale: 0.7, rotateY: -30 },
-            { opacity: 1, scale: 1, rotateY: 0, duration: 0.7, ease: 'back.out(1.4)', delay: 0.3 }
-          );
-
-          // Placa 500K após 1.4s
-          setTimeout(() => {
-            gsap.to(plaque0Ref.current, { opacity: 0, scale: 0.8, x: -60, duration: 0.4, ease: 'power2.in' });
-            gsap.fromTo(plaque1Ref.current,
-              { opacity: 0, scale: 0.7, rotateY: 30 },
-              { opacity: 1, scale: 1, rotateY: 0, duration: 0.7, ease: 'back.out(1.4)', delay: 0.2 }
-            );
-          }, 1400);
-
-          // Placa 1M após 2.8s
-          setTimeout(() => {
-            gsap.to(plaque1Ref.current, { opacity: 0, scale: 0.8, x: -60, duration: 0.4, ease: 'power2.in' });
-            gsap.fromTo(plaque2Ref.current,
-              { opacity: 0, scale: 0.7, rotateY: 30 },
-              { opacity: 1, scale: 1.05, rotateY: 0, duration: 0.8, ease: 'back.out(1.2)', delay: 0.2 }
-            );
-            // Infos aparecem
-            gsap.to(rightRef.current, { opacity: 1, y: 0, duration: 0.6, delay: 0.6 });
-            gsap.to(headingRef.current, { opacity: 1, y: 0, duration: 0.6, delay: 0.7 });
-            gsap.to(ctaRef.current, { opacity: 1, y: 0, duration: 0.5, delay: 0.8 });
-          }, 2800);
-        }, { threshold: 0.3 });
-
-        observer.observe(section);
+        // Mobile: mostra tudo imediatamente, sem animação
+        if (orbRef.current) orbRef.current.style.transform = 'scale(1)';
+        [plaque0Ref, plaque1Ref, plaque2Ref, rightRef, headingRef, ctaRef].forEach(r => {
+          if (r.current) { r.current.style.opacity = '1'; r.current.style.transform = 'none'; }
+        });
         return;
       }
 
@@ -296,7 +263,7 @@ export default function ScrollCardSection() {
         </div>
 
         {/* Centro — placas empilhadas */}
-        <div style={{ flexShrink: 0, width: '280px', height: '380px', position: 'relative', perspective: '1000px' }}>
+        <div style={{ flexShrink: 0, width: '280px', height: '380px', position: 'relative', perspective: '1000px' }} className="scroll-card-plaques-mobile">
           {renderPlaque(PLAQUES[0], plaque0Ref)}
           {renderPlaque(PLAQUES[1], plaque1Ref)}
           {renderPlaque(PLAQUES[2], plaque2Ref)}
@@ -348,33 +315,76 @@ export default function ScrollCardSection() {
 
       <style>{`
         @keyframes scrollPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.9; } }
+
+        /* ── MOBILE ── */
         @media (max-width: 768px) {
-          .scroll-card-layout {
-            flex-direction: row !important;
-            flex-wrap: wrap !important;
-            justify-content: center !important;
-            gap: 16px !important;
-            padding: 0 12px !important;
-          }
-          .scroll-card-left { display: none !important; }
+          /* Seção: sem pin, altura auto */
           .scroll-card-section {
             height: auto !important;
             min-height: 100vh !important;
             background: #06060c !important;
-            padding: 80px 0 40px !important;
+            padding: 80px 0 48px !important;
+            display: flex !important;
+            align-items: flex-start !important;
           }
-          /* Placa menor em mobile */
-          .scroll-card-layout > div:nth-child(2) {
-            width: 220px !important;
-            height: 300px !important;
+
+          /* Layout: coluna única centralizada */
+          .scroll-card-layout {
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 32px !important;
+            padding: 0 16px !important;
           }
-          /* Coluna direita em mobile */
+
+          /* Esconde colunas laterais */
+          .scroll-card-left { display: none !important; }
+
+          /* Leque de placas — container */
+          .scroll-card-plaques-mobile {
+            position: relative !important;
+            width: 260px !important;
+            height: 320px !important;
+            margin: 0 auto !important;
+          }
+
+          /* Placa esquerda (100K) — inclinada para esquerda */
+          .scroll-card-plaques-mobile > div:nth-child(1) {
+            opacity: 1 !important;
+            transform: translateX(-70px) rotate(-12deg) scale(0.82) !important;
+            z-index: 1 !important;
+          }
+
+          /* Placa direita (500K) — inclinada para direita */
+          .scroll-card-plaques-mobile > div:nth-child(2) {
+            opacity: 1 !important;
+            transform: translateX(70px) rotate(12deg) scale(0.82) !important;
+            z-index: 1 !important;
+          }
+
+          /* Placa central (1M) — em destaque */
+          .scroll-card-plaques-mobile > div:nth-child(3) {
+            opacity: 1 !important;
+            transform: none !important;
+            z-index: 3 !important;
+          }
+
+          /* Coluna direita centralizada */
           .scroll-card-layout > div:last-child {
             width: 100% !important;
             align-items: center !important;
             text-align: center !important;
           }
+          .scroll-card-layout > div:last-child h2,
+          .scroll-card-layout > div:last-child p,
+          .scroll-card-layout > div:last-child > div:first-child div {
+            text-align: center !important;
+          }
+          .scroll-card-layout > div:last-child > div:last-child {
+            display: flex !important;
+            justify-content: center !important;
+          }
         }
+
         @media (prefers-reduced-motion: reduce) {
           .scroll-card-layout * { transition: none !important; animation: none !important; }
         }
