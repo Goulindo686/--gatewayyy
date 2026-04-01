@@ -111,6 +111,47 @@ export default function LandingPage() {
     };
   }, []);
 
+  // Tilt 3D no mockup do hero
+  useEffect(() => {
+    const container = document.getElementById('heroMockup');
+    const frame = document.getElementById('mockupFrame');
+    const cardSaldo = document.getElementById('cardSaldo');
+    const cardTaxa = document.getElementById('cardTaxa');
+    if (!container || !frame) return;
+
+    const onMove = (e: MouseEvent) => {
+      const rect = container.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = (e.clientX - cx) / (rect.width / 2);   // -1 a +1
+      const dy = (e.clientY - cy) / (rect.height / 2);  // -1 a +1
+
+      const rotY = -4 + dx * 10;   // base -4deg + até ±10deg
+      const rotX = 2 - dy * 6;     // base 2deg + até ±6deg
+
+      frame.style.transform = `perspective(1000px) rotateY(${rotY}deg) rotateX(${rotX}deg)`;
+      frame.style.boxShadow = `${-dx * 20}px ${dy * 10 + 32}px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.1)`;
+
+      // Cards se movem levemente na direção oposta (parallax)
+      if (cardSaldo) cardSaldo.style.transform = `translate(${-dx * 8}px, ${-dy * 6}px)`;
+      if (cardTaxa) cardTaxa.style.transform = `translate(${dx * 8}px, ${dy * 6}px)`;
+    };
+
+    const onLeave = () => {
+      frame.style.transform = 'perspective(1000px) rotateY(-4deg) rotateX(2deg)';
+      frame.style.boxShadow = '0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)';
+      if (cardSaldo) cardSaldo.style.transform = 'translate(0,0)';
+      if (cardTaxa) cardTaxa.style.transform = 'translate(0,0)';
+    };
+
+    container.addEventListener('mousemove', onMove);
+    container.addEventListener('mouseleave', onLeave);
+    return () => {
+      container.removeEventListener('mousemove', onMove);
+      container.removeEventListener('mouseleave', onLeave);
+    };
+  }, []);
+
   return (
     <div id="inicio" className="force-light" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', minHeight: '100vh' }}>
       {/* Header */}
@@ -279,12 +320,12 @@ export default function LandingPage() {
           </div>
 
           {/* Coluna direita — mockup dashboard profissional */}
-          <div style={{ position: 'relative' }} className="heroRight">
+          <div style={{ position: 'relative' }} className="heroRight" id="heroMockup">
             {/* Glow atrás do mockup */}
             <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '90%', height: '60%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.35) 0%, transparent 70%)', pointerEvents: 'none', zIndex: 0 }} />
 
             {/* Frame do browser */}
-            <div style={{
+            <div id="mockupFrame" style={{
               position: 'relative', zIndex: 2,
               borderRadius: 16,
               overflow: 'hidden',
@@ -292,6 +333,8 @@ export default function LandingPage() {
               boxShadow: '0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)',
               background: '#0f0e1a',
               transform: 'perspective(1000px) rotateY(-4deg) rotateX(2deg)',
+              transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+              willChange: 'transform',
             }}>
               {/* Barra do browser */}
               <div style={{ background: '#1a1830', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -321,7 +364,8 @@ export default function LandingPage() {
               borderRadius: 14, padding: '12px 16px',
               boxShadow: '0 16px 48px rgba(0,0,0,0.25)',
               minWidth: 140,
-            }}>
+              transition: 'transform 0.15s ease',
+            }} id="cardSaldo">
               <div style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Saldo disponível</div>
               <div style={{ fontSize: 20, fontWeight: 900, color: '#0f0e1a', letterSpacing: -0.5 }}>R$ 8.543</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
@@ -337,7 +381,8 @@ export default function LandingPage() {
               borderRadius: 14, padding: '12px 16px',
               boxShadow: '0 16px 48px rgba(124,58,237,0.4)',
               minWidth: 120,
-            }}>
+              transition: 'transform 0.15s ease',
+            }} id="cardTaxa">
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Taxa por venda</div>
               <div style={{ fontSize: 20, fontWeight: 900, color: 'white', letterSpacing: -0.5 }}>R$1,50</div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>+ 1,09% gateway</div>
