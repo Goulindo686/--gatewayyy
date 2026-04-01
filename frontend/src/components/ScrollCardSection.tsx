@@ -308,7 +308,7 @@ export default function ScrollCardSection() {
       </div>
 
       {/* Indicador de scroll */}
-      <div style={{ position: 'absolute', bottom: 36, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 500, zIndex: 20, letterSpacing: 1, textTransform: 'uppercase' }}>
+      <div style={{ position: 'absolute', bottom: 36, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 500, zIndex: 20, letterSpacing: 1, textTransform: 'uppercase' }} className="scroll-indicator">
         <span>Role para ver</span>
         <div style={{ width: 1, height: 36, background: 'linear-gradient(to bottom, rgba(255,255,255,0.3), transparent)', animation: 'scrollPulse 1.8s ease-in-out infinite' }} />
       </div>
@@ -388,6 +388,9 @@ export default function ScrollCardSection() {
 
         @media (prefers-reduced-motion: reduce) {
           .scroll-card-layout * { transition: none !important; animation: none !important; }
+        }
+        @media (max-width: 768px) {
+          .scroll-indicator { display: none !important; }
         }
       `}</style>
     </section>
