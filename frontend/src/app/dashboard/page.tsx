@@ -25,13 +25,17 @@ function BannerCarousel() {
         return () => clearInterval(t);
     }, []);
     return (
-        <div style={{ position: 'relative', width: '100%', height: 280, borderRadius: 14, overflow: 'hidden', marginBottom: 28 }}>
+        <div style={{ position: 'relative', width: '100%', borderRadius: 14, overflow: 'hidden', marginBottom: 28 }}>
             {BANNERS.map((src, i) => (
                 <img key={i} src={src} alt={`Banner ${i + 1}`} style={{
-                    position: 'absolute', inset: 0, width: '100%', height: '100%',
-                    objectFit: 'fill',
+                    display: 'block',
+                    width: '100%',
+                    height: 'auto',
+                    position: i === current ? 'relative' : 'absolute',
+                    top: 0, left: 0,
                     opacity: current === i ? 1 : 0,
                     transition: 'opacity 0.7s ease-in-out',
+                    pointerEvents: current === i ? 'auto' : 'none',
                 }} />
             ))}
             <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, zIndex: 2 }}>
