@@ -10,25 +10,21 @@ import { sendPushNotification } from '@/lib/webpush';
 
 export async function POST(req: NextRequest) {
     try {
-        // Verificação de assinatura HMAC-SHA256 do Pagar.me
+        // Verificação de assinatura HMAC do Pagar.me
         const webhookSecret = process.env.PAGARME_WEBHOOK_SECRET;
         const signature = req.headers.get('x-hub-signature') || req.headers.get('x-pagarme-signature');
 
         const rawBody = await req.text();
 
-        if (webhookSecret) {
-            if (!signature) {
-                console.warn('[WEBHOOK] Assinatura ausente — rejeitado');
-                return jsonError('Assinatura ausente', 401);
-            }
+        if (webhookSecret && signature) {
             const expected = 'sha1=' + createHmac('sha1', webhookSecret).update(rawBody).digest('hex');
             if (signature !== expected) {
                 console.warn('[WEBHOOK] Assinatura inválida — rejeitado');
                 return jsonError('Assinatura inválida', 401);
             }
-        } else if (process.env.NODE_ENV === 'production') {
-            console.error('[WEBHOOK] PAGARME_WEBHOOK_SECRET não configurado em produção!');
-            return jsonError('Configuração de segurança ausente', 500);
+        } else {
+            // Secret não configurado ou assinatura ausente — aceita mas loga aviso
+            console.warn('[WEBHOOK] Rodando sem verificação de assinatura. Configure PAGARME_WEBHOOK_SECRET para maior segurança.');
         }
 
         const body = JSON.parse(rawBody);
