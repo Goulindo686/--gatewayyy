@@ -27,7 +27,7 @@ function BannerCarousel() {
     }, []);
 
     return (
-        <div style={{ position: 'relative', width: '100%', borderRadius: 16, overflow: 'hidden', marginBottom: 28, aspectRatio: '4/1', background: '#111' }}>
+        <div style={{ position: 'relative', width: '100%', borderRadius: 14, overflow: 'hidden', marginBottom: 28, height: 160, background: '#111' }}>
             {BANNERS.map((src, i) => (
                 <img
                     key={i}
@@ -35,14 +35,14 @@ function BannerCarousel() {
                     alt={`Banner ${i + 1}`}
                     style={{
                         position: 'absolute', inset: 0, width: '100%', height: '100%',
-                        objectFit: 'cover',
+                        objectFit: 'contain',
                         opacity: current === i ? 1 : 0,
                         transition: 'opacity 0.7s ease-in-out',
                     }}
                 />
             ))}
             {/* dots */}
-            <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
+            <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
                 {BANNERS.map((_, i) => (
                     <button
                         key={i}
@@ -256,11 +256,15 @@ export default function DashboardPage() {
     return (
         <div className="animate-fade-in" style={{ paddingBottom: 40 }}>
             <style>{`
+                .banner-carousel-wrapper { display: block; }
+                @media (max-width: 768px) { .banner-carousel-wrapper { display: none; } }
                 @keyframes bannerFade { 0%,100%{opacity:0;} 10%,90%{opacity:1;} }
             `}</style>
 
-            {/* Banner Carousel */}
-            <BannerCarousel />
+            {/* Banner Carousel — desktop only */}
+            <div className="banner-carousel-wrapper">
+                <BannerCarousel />
+            </div>
 
             <style>{`
                 .db-card {
