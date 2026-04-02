@@ -210,11 +210,6 @@ export default function DashboardPage() {
             <style>{`
             `}</style>
 
-            {/* Banner Carousel — desktop only */}
-            <div className="banner-carousel-wrapper">
-                <BannerCarousel />
-            </div>
-
             <style>{`
                 .db-card {
                     background: var(--bg-card);
