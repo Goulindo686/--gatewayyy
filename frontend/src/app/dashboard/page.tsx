@@ -13,9 +13,9 @@ import {
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Filler, Legend);
 
 const BANNERS = [
-    'https://i.imgur.com/xmK9DLH.png',
-    'https://i.imgur.com/ieEO3rl.png',
-    'https://i.imgur.com/ZP3D2WB.png',
+    'https://i.imgur.com/ZavzTqt.png',
+    'https://i.imgur.com/ckroQ7b.png',
+    'https://i.imgur.com/cOgByLu.png',
 ];
 
 function BannerCarousel() {
@@ -27,22 +27,27 @@ function BannerCarousel() {
     }, []);
 
     return (
-        <div style={{ position: 'relative', width: '100%', borderRadius: 14, overflow: 'hidden', marginBottom: 28, height: 320, background: '#111' }}>
+        <div style={{ position: 'relative', width: '100%', borderRadius: 14, overflow: 'hidden', marginBottom: 28, background: '#111' }}>
+            {/* imagem visível define a altura natural do container */}
             {BANNERS.map((src, i) => (
                 <img
                     key={i}
                     src={src}
                     alt={`Banner ${i + 1}`}
                     style={{
-                        position: 'absolute', inset: 0, width: '100%', height: '100%',
-                        objectFit: 'cover',
+                        display: 'block',
+                        width: '100%',
+                        height: 'auto',
+                        position: i === 0 ? 'relative' : 'absolute',
+                        top: 0, left: 0,
                         opacity: current === i ? 1 : 0,
                         transition: 'opacity 0.7s ease-in-out',
+                        pointerEvents: current === i ? 'auto' : 'none',
                     }}
                 />
             ))}
             {/* dots */}
-            <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
+            <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, zIndex: 2 }}>
                 {BANNERS.map((_, i) => (
                     <button
                         key={i}
