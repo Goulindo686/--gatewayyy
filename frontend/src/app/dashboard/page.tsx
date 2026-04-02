@@ -27,7 +27,7 @@ function BannerCarousel() {
     }, []);
 
     return (
-        <div style={{ position: 'relative', width: '100%', borderRadius: 14, overflow: 'hidden', marginBottom: 28, background: '#111' }}>
+        <div style={{ position: 'relative', width: '100%', borderRadius: 14, overflow: 'hidden', marginBottom: 28, background: '#111', height: 200 }}>
             {/* imagem visível define a altura natural do container */}
             {BANNERS.map((src, i) => (
                 <img
@@ -35,11 +35,13 @@ function BannerCarousel() {
                     src={src}
                     alt={`Banner ${i + 1}`}
                     style={{
-                        display: 'block',
-                        width: '100%',
-                        height: 'auto',
-                        position: i === 0 ? 'relative' : 'absolute',
+                        position: 'absolute',
                         top: 0, left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: 'center',
+                        imageRendering: 'high-quality' as any,
                         opacity: current === i ? 1 : 0,
                         transition: 'opacity 0.7s ease-in-out',
                         pointerEvents: current === i ? 'auto' : 'none',
