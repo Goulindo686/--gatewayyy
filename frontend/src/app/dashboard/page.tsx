@@ -27,7 +27,7 @@ function BannerCarousel() {
     }, []);
 
     return (
-        <div style={{ position: 'relative', width: '100%', borderRadius: 14, overflow: 'hidden', marginBottom: 28, height: 160, background: '#111' }}>
+        <div style={{ position: 'relative', width: '100%', borderRadius: 14, overflow: 'hidden', marginBottom: 28, height: 240, background: '#111' }}>
             {BANNERS.map((src, i) => (
                 <img
                     key={i}
@@ -35,7 +35,7 @@ function BannerCarousel() {
                     alt={`Banner ${i + 1}`}
                     style={{
                         position: 'absolute', inset: 0, width: '100%', height: '100%',
-                        objectFit: 'contain',
+                        objectFit: 'cover',
                         opacity: current === i ? 1 : 0,
                         transition: 'opacity 0.7s ease-in-out',
                     }}
