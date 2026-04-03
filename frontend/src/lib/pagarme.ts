@@ -398,10 +398,13 @@ export class PagarmeService {
         const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
         const sellId = data.seller_recipient_id.trim();
 
-        const splitRules = applyFee && platId && platId !== sellId && platformFeeAmount > 0 ? [
-            { amount: sellerAmount, recipient_id: sellId, type: 'flat', options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true } },
-            { amount: platformFeeAmount, recipient_id: platId, type: 'flat', options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false } }
-        ] : undefined;
+        const splitRules = applyFee && platId && platId !== sellId && platformFeeAmount > 0 ? {
+            enabled: true,
+            rules: [
+                { amount: sellerAmount, recipient_id: sellId, type: 'flat', options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true } },
+                { amount: platformFeeAmount, recipient_id: platId, type: 'flat', options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false } }
+            ]
+        } : undefined;
 
         const response = await pagarmeApi.post('/subscriptions', {
             plan_id: data.plan_id,
