@@ -400,11 +400,13 @@ export class PagarmeService {
         const platformPct = applyFee ? SUBSCRIPTION_PLATFORM_PCT : 0;
         const sellerPct = 100 - platformPct;
 
-        // Split como array (formato correto para assinaturas no Pagar.me v5)
-        const splitRules = applyFee && platId && platId !== sellId && platformPct > 0 ? [
-            { amount: sellerPct, recipient_id: sellId, type: 'percentage', options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true } },
-            { amount: platformPct, recipient_id: platId, type: 'percentage', options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false } }
-        ] : undefined;
+        // Split como objeto com rules (formato correto para assinaturas no Pagar.me v5)
+        const splitRules = applyFee && platId && platId !== sellId && platformPct > 0 ? {
+            rules: [
+                { amount: sellerPct, recipient_id: sellId, type: 'percentage', options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true } },
+                { amount: platformPct, recipient_id: platId, type: 'percentage', options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false } }
+            ]
+        } : undefined;
         const response = await pagarmeApi.post('/subscriptions', {
             plan_id: data.plan_id,
             payment_method: 'credit_card',
