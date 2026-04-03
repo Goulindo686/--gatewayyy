@@ -25,7 +25,7 @@ export default function SubscriptionsPage() {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [form, setForm] = useState({ name: '', description: '', amount: '', interval: 'monthly', interval_count: '1' });
+    const [form, setForm] = useState({ name: '', description: '', amount: '', interval: 'month', interval_count: '1' });
 
     useEffect(() => { loadData(); }, []);
 
