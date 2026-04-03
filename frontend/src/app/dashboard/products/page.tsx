@@ -358,7 +358,7 @@ export default function ProductsPage() {
                                             type="button"
                                             className="btn-secondary"
                                             style={{ height: 46, alignSelf: 'flex-start' }}
-                                            onClick={() => setPlans(prev => [...prev, { name: '', price: '' }])}
+                                            onClick={() => setPlans(prev => [...prev, { name: '', price: '', description: '' }])}
                                         >
                                             Adicionar plano
                                         </button>
