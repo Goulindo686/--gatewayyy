@@ -1,16 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiPlus, FiX, FiUsers, FiRepeat, FiTrash2 } from 'react-icons/fi';
-
-const INTERVALS = [
-    { value: 'week', label: 'Semanal' },
-    { value: 'month', label: 'Mensal' },
-    { value: 'year', label: 'Anual' },
-];
+import { FiUsers, FiRepeat, FiTrash2 } from 'react-icons/fi';
 
 const statusLabel: Record<string, { label: string; color: string }> = {
     active:   { label: 'Ativa',       color: '#00cec9' },
@@ -23,9 +16,6 @@ export default function SubscriptionsPage() {
     const [plans, setPlans] = useState<any[]>([]);
     const [subscriptions, setSubscriptions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    const [saving, setSaving] = useState(false);
-    const [form, setForm] = useState({ name: '', description: '', amount: '', interval: 'month', interval_count: '1' });
 
     useEffect(() => { loadData(); }, []);
 
@@ -39,24 +29,6 @@ export default function SubscriptionsPage() {
             setSubscriptions(subsRes.data.subscriptions || []);
         } catch { toast.error('Erro ao carregar dados'); }
         finally { setLoading(false); }
-    };
-
-    const handleCreatePlan = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSaving(true);
-        try {
-            await api.post('/subscriptions/plans', {
-                ...form,
-                amount: parseFloat(form.amount.replace(',', '.')),
-                interval_count: parseInt(form.interval_count)
-            });
-            toast.success('Plano criado!');
-            setShowModal(false);
-            setForm({ name: '', description: '', amount: '', interval: 'monthly', interval_count: '1' });
-            loadData();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Erro ao criar plano');
-        } finally { setSaving(false); }
     };
 
     const handleDeletePlan = async (id: string) => {
@@ -95,11 +67,8 @@ export default function SubscriptionsPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
                 <div>
                     <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>Assinaturas</h1>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Crie planos recorrentes e gerencie assinantes</p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Planos criados via aba Produtos e seus assinantes</p>
                 </div>
-                <button className="btn-primary" onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <FiPlus size={16} /> Novo Plano
-                </button>
             </div>
 
             {/* Planos */}
@@ -180,52 +149,6 @@ export default function SubscriptionsPage() {
                     </div>
                 )}
             </div>
-
-            {/* Modal criar plano */}
-            {showModal && createPortal(
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-                    <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: 460, padding: 36 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-                            <h3 style={{ fontSize: 18, fontWeight: 700 }}>Novo Plano de Assinatura</h3>
-                            <button type="button" onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                                <FiX size={20} />
-                            </button>
-                        </div>
-                        <form onSubmit={handleCreatePlan}>
-                            <div style={{ marginBottom: 14 }}>
-                                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Nome do plano</label>
-                                <input className="input-field" placeholder="Ex: Plano Mensal Premium" required
-                                    value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-                            </div>
-                            <div style={{ marginBottom: 14 }}>
-                                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Descrição (opcional)</label>
-                                <input className="input-field" placeholder="O que está incluso neste plano"
-                                    value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Valor (R$)</label>
-                                    <input type="number" step="0.01" min="1" className="input-field" placeholder="29.90" required
-                                        value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Intervalo</label>
-                                    <select className="input-field" value={form.interval} onChange={e => setForm({ ...form, interval: e.target.value })}>
-                                        {INTERVALS.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>
-                                ⚠️ Assinaturas funcionam apenas com cartão de crédito. O cliente será cobrado automaticamente a cada ciclo.
-                            </p>
-                            <button type="submit" className="btn-primary" disabled={saving} style={{ width: '100%' }}>
-                                {saving ? 'Criando plano no Pagar.me...' : 'Criar Plano'}
-                            </button>
-                        </form>
-                    </div>
-                </div>,
-                document.body
-            )}
         </div>
     );
 }

@@ -22,6 +22,8 @@ export default function ProductsPage() {
         facebook_pixel_id: '', facebook_api_token: ''
     });
     const [plans, setPlans] = useState<Array<{ name: string; price: string }>>([{ name: 'Padrão', price: '' }]);
+    const [isSubscription, setIsSubscription] = useState(false);
+    const [subInterval, setSubInterval] = useState<'month' | 'week' | 'year'>('month');
     const [uploading, setUploading] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -45,6 +47,8 @@ export default function ProductsPage() {
         setSelectedFile(null);
         setImagePreview(null);
         setPlans([{ name: 'Padrão', price: '' }]);
+        setIsSubscription(false);
+        setSubInterval('month');
         setShowModal(true);
     };
 
@@ -104,17 +108,12 @@ export default function ProductsPage() {
         try {
             let finalImageUrl = form.image_url;
 
-            // Handle image upload if a file is selected
             if (selectedFile) {
                 const formData = new FormData();
                 formData.append('file', selectedFile);
-
                 const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
                 const { data } = await axios.post('/api/upload', formData, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Content-Type': 'multipart/form-data', 'Authorization': `Bearer ${token}` }
                 });
                 finalImageUrl = data.url;
             }
@@ -122,22 +121,41 @@ export default function ProductsPage() {
             const normalizedPlans = plans
                 .map(p => ({ name: p.name.trim(), price: parseFloat(p.price) }))
                 .filter(p => p.name && !isNaN(p.price) && p.price > 0);
-            const productData: any = {
-                ...form,
-                image_url: finalImageUrl,
-                plans: normalizedPlans
-            };
-            if (!editing && normalizedPlans[0]) {
-                productData.price = normalizedPlans[0].price;
+
+            if (normalizedPlans.length === 0) {
+                toast.error('Adicione ao menos um plano com preço válido');
+                return;
             }
 
+            const productData: any = { ...form, image_url: finalImageUrl, plans: normalizedPlans };
+            if (!editing && normalizedPlans[0]) productData.price = normalizedPlans[0].price;
+
+            let savedProduct: any;
             if (editing) {
-                await productsAPI.update(editing.id, productData);
+                const { data } = await productsAPI.update(editing.id, productData);
+                savedProduct = data.product;
                 toast.success('Produto atualizado!');
             } else {
-                await productsAPI.create(productData);
+                const { data } = await productsAPI.create(productData);
+                savedProduct = data.product;
                 toast.success('Produto criado!');
             }
+
+            // Se for assinatura, cria plano no Pagar.me para cada plano de preço
+            if (isSubscription && !editing && savedProduct) {
+                const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                for (const pl of normalizedPlans) {
+                    await axios.post('/api/subscriptions/plans', {
+                        name: `${form.name} — ${pl.name}`,
+                        amount: pl.price,
+                        interval: subInterval,
+                        interval_count: 1,
+                        product_id: savedProduct.id
+                    }, { headers: { 'Authorization': `Bearer ${token}` } });
+                }
+                toast.success('Planos de assinatura criados!');
+            }
+
             setShowModal(false);
             loadProducts();
         } catch (err: any) {
@@ -297,6 +315,39 @@ export default function ProductsPage() {
                                 <input type="text" className="input-field" placeholder="Ex: Curso de Marketing Digital" required
                                     value={form.name} onChange={e => update('name', e.target.value)} />
                             </div>
+
+                            {/* Toggle Assinatura */}
+                            {!editing && (
+                                <div style={{ marginBottom: 16, padding: 14, borderRadius: 12, border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.02)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <div>
+                                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Produto de Assinatura</div>
+                                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Cobra o cliente automaticamente a cada ciclo via cartão</div>
+                                        </div>
+                                        <button type="button" onClick={() => setIsSubscription(!isSubscription)} style={{
+                                            width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+                                            background: isSubscription ? 'var(--accent-primary)' : 'var(--border-color)',
+                                            position: 'relative', transition: 'background 0.2s', flexShrink: 0
+                                        }}>
+                                            <span style={{
+                                                position: 'absolute', top: 3, left: isSubscription ? 23 : 3,
+                                                width: 18, height: 18, borderRadius: '50%', background: 'white',
+                                                transition: 'left 0.2s', display: 'block'
+                                            }} />
+                                        </button>
+                                    </div>
+                                    {isSubscription && (
+                                        <div style={{ marginTop: 12 }}>
+                                            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Intervalo de cobrança</label>
+                                            <select className="input-field" value={subInterval} onChange={e => setSubInterval(e.target.value as any)}>
+                                                <option value="week">Semanal</option>
+                                                <option value="month">Mensal</option>
+                                                <option value="year">Anual</option>
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             <div style={{ marginBottom: 16 }}>
                                 <div style={{ width: '100%' }}>
