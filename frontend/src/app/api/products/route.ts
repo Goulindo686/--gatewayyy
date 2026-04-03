@@ -34,12 +34,13 @@ export async function POST(req: NextRequest) {
 
         if (!name) return jsonError('Nome é obrigatório');
 
-        const normalizedPlans: Array<{ name: string; price: number }> = Array.isArray(plans) && plans.length > 0
+        const normalizedPlans: Array<{ name: string; price: number; description: string }> = Array.isArray(plans) && plans.length > 0
             ? plans.map((p: any) => ({
                 name: String(p.name || 'Plano'),
-                price: Math.round(parseFloat(String(p.price)) * 100)
+                price: Math.round(parseFloat(String(p.price)) * 100),
+                description: String(p.description || '')
             })).filter(p => p.name && p.price > 0)
-            : (price ? [{ name: 'Padrão', price: Math.round(parseFloat(String(price)) * 100) }] : []);
+            : (price ? [{ name: 'Padrão', price: Math.round(parseFloat(String(price)) * 100), description: '' }] : []);
 
         if (normalizedPlans.length === 0) return jsonError('Informe ao menos um plano de preço válido');
         const basePrice = normalizedPlans[0].price;
@@ -69,6 +70,7 @@ export async function POST(req: NextRequest) {
                 product_id: product.id,
                 name: p.name,
                 price: p.price,
+                description: p.description,
                 sort_order: idx
             }));
             const { error: plansErr } = await supabase.from('product_plans').insert(rows);

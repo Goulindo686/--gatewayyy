@@ -416,16 +416,21 @@ export default function StorePage() {
                                                     type="button"
                                                     onClick={() => setQuickPlan(pl)}
                                                     style={{
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                        padding: '10px 12px', borderRadius: 10,
+                                                        display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                                                        padding: '10px 12px', borderRadius: 10, textAlign: 'left',
                                                         background: quickPlan?.id === pl.id ? 'rgba(0, 206, 201, 0.12)' : '#0a0a0c',
                                                         border: `1px solid ${quickPlan?.id === pl.id ? '#00cec9' : 'rgba(255,255,255,0.08)'}`,
                                                         color: quickPlan?.id === pl.id ? '#00cec9' : '#94a3b8',
-                                                        cursor: 'pointer'
+                                                        cursor: 'pointer', width: '100%', gap: 4
                                                     }}
                                                 >
-                                                    <span style={{ fontWeight: 800 }}>{pl.name}</span>
-                                                    <span style={{ fontWeight: 900, color: 'white' }}>R$ {pl.price_display}</span>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                                        <span style={{ fontWeight: 800 }}>{pl.name}</span>
+                                                        <span style={{ fontWeight: 900, color: 'white' }}>R$ {pl.price_display}</span>
+                                                    </div>
+                                                    {pl.description && (
+                                                        <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>{pl.description}</span>
+                                                    )}
                                                 </button>
                                             ))}
                                         </div>

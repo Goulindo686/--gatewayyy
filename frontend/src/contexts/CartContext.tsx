@@ -51,21 +51,33 @@ export function CartProvider({ children, storeSlug }: { children: ReactNode; sto
 
     const addItem = (newItem: Omit<CartItem, 'quantity'>) => {
         setItems(prev => {
-            const existing = prev.find(i => i.id === newItem.id);
+            // Diferencia pelo id do produto + id do plano (se houver)
+            const key = newItem.plan_id ? `${newItem.id}__${newItem.plan_id}` : newItem.id;
+            const existing = prev.find(i => {
+                const iKey = i.plan_id ? `${i.id}__${i.plan_id}` : i.id;
+                return iKey === key;
+            });
             if (existing) {
-                return prev.map(i => i.id === newItem.id ? { ...i, quantity: i.quantity + 1 } : i);
+                return prev.map(i => {
+                    const iKey = i.plan_id ? `${i.id}__${i.plan_id}` : i.id;
+                    return iKey === key ? { ...i, quantity: i.quantity + 1 } : i;
+                });
             }
             return [...prev, { ...newItem, quantity: 1 }];
         });
     };
 
     const removeItem = (id: string) => {
-        setItems(prev => prev.filter(i => i.id !== id));
+        setItems(prev => prev.filter(i => {
+            const iKey = i.plan_id ? `${i.id}__${i.plan_id}` : i.id;
+            return iKey !== id;
+        }));
     };
 
     const updateQuantity = (id: string, delta: number) => {
         setItems(prev => prev.map(i => {
-            if (i.id === id) {
+            const iKey = i.plan_id ? `${i.id}__${i.plan_id}` : i.id;
+            if (iKey === id) {
                 const newQ = Math.max(1, i.quantity + delta);
                 return { ...i, quantity: newQ };
             }

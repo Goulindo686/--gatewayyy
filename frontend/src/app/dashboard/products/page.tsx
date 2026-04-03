@@ -21,7 +21,7 @@ export default function ProductsPage() {
         name: '', price: '', image_url: '', type: 'digital', status: 'active',
         facebook_pixel_id: '', facebook_api_token: ''
     });
-    const [plans, setPlans] = useState<Array<{ name: string; price: string }>>([{ name: 'Padrão', price: '' }]);
+    const [plans, setPlans] = useState<Array<{ name: string; price: string; description: string }>>([{ name: 'Padrão', price: '', description: '' }]);
     const [uploading, setUploading] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -44,7 +44,7 @@ export default function ProductsPage() {
         setForm({ name: '', price: '', image_url: '', type: 'digital', status: 'active', facebook_pixel_id: '', facebook_api_token: '' });
         setSelectedFile(null);
         setImagePreview(null);
-        setPlans([{ name: 'Padrão', price: '' }]);
+        setPlans([{ name: 'Padrão', price: '', description: '' }]);
         setShowModal(true);
     };
 
@@ -63,8 +63,8 @@ export default function ProductsPage() {
                 facebook_api_token: p.facebook_api_token || ''
             });
             const loadedPlans = Array.isArray(p.plans) && p.plans.length > 0
-                ? p.plans.map((pl: any) => ({ name: pl.name, price: pl.price_display || (pl.price / 100).toFixed(2) }))
-                : [{ name: 'Padrão', price: p.price_display || (p.price / 100).toFixed(2) }];
+                ? p.plans.map((pl: any) => ({ name: pl.name, price: pl.price_display || (pl.price / 100).toFixed(2), description: pl.description || '' }))
+                : [{ name: 'Padrão', price: p.price_display || (p.price / 100).toFixed(2), description: '' }];
             setPlans(loadedPlans);
             setSelectedFile(null);
             setImagePreview(p.image_url || null);
@@ -79,7 +79,7 @@ export default function ProductsPage() {
                 facebook_pixel_id: product.facebook_pixel_id || '',
                 facebook_api_token: product.facebook_api_token || ''
             });
-            setPlans([{ name: 'Padrão', price: product.price_display || (product.price / 100).toFixed(2) }]);
+            setPlans([{ name: 'Padrão', price: product.price_display || (product.price / 100).toFixed(2), description: '' }]);
             setSelectedFile(null);
             setImagePreview(product.image_url || null);
             setShowModal(true);
@@ -120,7 +120,7 @@ export default function ProductsPage() {
             }
 
             const normalizedPlans = plans
-                .map(p => ({ name: p.name.trim(), price: parseFloat(p.price) }))
+                .map(p => ({ name: p.name.trim(), price: parseFloat(p.price), description: p.description.trim() }))
                 .filter(p => p.name && !isNaN(p.price) && p.price > 0);
             const productData: any = {
                 ...form,
@@ -307,39 +307,51 @@ export default function ProductsPage() {
                                                 key={idx}
                                                 style={{
                                                     display: 'flex',
-                                                    gap: 10,
-                                                    alignItems: 'center',
-                                                    width: '100%',
-                                                    flexWrap: 'wrap'
+                                                    flexDirection: 'column',
+                                                    gap: 8,
+                                                    padding: 12,
+                                                    borderRadius: 12,
+                                                    border: '1px solid var(--border-color)',
+                                                    background: 'rgba(255,255,255,0.02)'
                                                 }}
                                             >
+                                                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Nome do plano (ex: Diário, Semanal)"
+                                                        className="input-field"
+                                                        style={{ height: 48, pointerEvents: 'auto', flex: 1, minWidth: 160 }}
+                                                        value={pl.name}
+                                                        onChange={e => setPlans(prev => prev.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))}
+                                                    />
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0.01"
+                                                        placeholder="Preço (R$)"
+                                                        className="input-field"
+                                                        style={{ height: 48, pointerEvents: 'auto', width: 130 }}
+                                                        value={pl.price}
+                                                        onChange={e => setPlans(prev => prev.map((p, i) => i === idx ? { ...p, price: e.target.value } : p))}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="btn-danger"
+                                                        style={{ height: 48, padding: '0 14px', flexShrink: 0 }}
+                                                        onClick={() => setPlans(prev => prev.filter((_, i) => i !== idx))}
+                                                        disabled={plans.length <= 1}
+                                                    >
+                                                        Remover
+                                                    </button>
+                                                </div>
                                                 <input
                                                     type="text"
-                                                    placeholder="Nome do plano (ex: Diário, Semanal)"
+                                                    placeholder="Descrição/benefícios (ex: Acesso por 30 dias, Suporte incluso)"
                                                     className="input-field"
-                                                    style={{ height: 48, pointerEvents: 'auto', flex: 1, minWidth: 260 }}
-                                                    value={pl.name}
-                                                    onChange={e => setPlans(prev => prev.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))}
+                                                    style={{ height: 42, fontSize: 13 }}
+                                                    value={pl.description}
+                                                    onChange={e => setPlans(prev => prev.map((p, i) => i === idx ? { ...p, description: e.target.value } : p))}
                                                 />
-                                                <input
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0.01"
-                                                    placeholder="Preço (R$)"
-                                                    className="input-field"
-                                                    style={{ height: 48, pointerEvents: 'auto', width: 160 }}
-                                                    value={pl.price}
-                                                    onChange={e => setPlans(prev => prev.map((p, i) => i === idx ? { ...p, price: e.target.value } : p))}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className="btn-danger"
-                                                    style={{ height: 48, padding: '0 16px' }}
-                                                    onClick={() => setPlans(prev => prev.filter((_, i) => i !== idx))}
-                                                    disabled={plans.length <= 1}
-                                                >
-                                                    Remover
-                                                </button>
                                             </div>
                                         ))}
                                         <button

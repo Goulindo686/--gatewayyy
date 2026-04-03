@@ -65,7 +65,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
             const productIds = products.map(p => p.id);
             const { data: plans } = await supabase
                 .from('product_plans')
-                .select('id, product_id, name, price, sort_order')
+                .select('id, product_id, name, price, description, sort_order')
                 .in('product_id', productIds)
                 .order('sort_order', { ascending: true });
             const plansByProduct: Record<string, any[]> = {};
