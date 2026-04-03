@@ -395,8 +395,9 @@ export class PagarmeService {
         const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
         const sellId = data.seller_recipient_id.trim();
 
-        // Assinaturas só aceitam split por percentual — usa a taxa configurada no painel
-        const platformPct = applyFee ? Math.round(data.platform_fee_percentage) : 0;
+        // Taxa fixa de 2% para assinaturas (Pagar.me cobra 3,19% do cartão separadamente)
+        const SUBSCRIPTION_PLATFORM_PCT = 2;
+        const platformPct = applyFee ? SUBSCRIPTION_PLATFORM_PCT : 0;
         const sellerPct = 100 - platformPct;
 
         const splitRules = applyFee && platId && platId !== sellId && platformPct > 0 ? {
