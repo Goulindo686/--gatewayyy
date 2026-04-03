@@ -27,9 +27,9 @@ export async function POST(req: NextRequest) {
         const { name, description, amount, interval, interval_count, product_id } = await req.json();
 
         if (!name || !amount || !interval) return jsonError('Nome, valor e intervalo são obrigatórios');
-        if (amount < 100) return jsonError('Valor mínimo é R$1,00');
 
-        const amountCents = Math.round(parseFloat(String(amount)) * 100);
+        const amountCents = Math.round(parseFloat(String(amount).replace(',', '.')) * 100);
+        if (!amountCents || amountCents < 100) return jsonError('Valor mínimo é R$1,00');
 
         // Busca recipient do vendedor
         const { data: recipient } = await supabase

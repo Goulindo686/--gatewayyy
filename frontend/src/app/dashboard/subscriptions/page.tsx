@@ -47,7 +47,7 @@ export default function SubscriptionsPage() {
         try {
             await api.post('/subscriptions/plans', {
                 ...form,
-                amount: parseFloat(form.amount),
+                amount: parseFloat(form.amount.replace(',', '.')),
                 interval_count: parseInt(form.interval_count)
             });
             toast.success('Plano criado!');
