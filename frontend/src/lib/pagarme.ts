@@ -366,6 +366,7 @@ export class PagarmeService {
             interval: data.interval,
             interval_count: data.interval_count,
             billing_type: 'prepaid',
+            currency: 'BRL',
             payment_methods: ['credit_card'],
             items: [{
                 name: data.name,

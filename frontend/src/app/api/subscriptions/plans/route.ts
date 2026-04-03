@@ -45,12 +45,20 @@ export async function POST(req: NextRequest) {
         if (auth.user.role === 'admin') feePercentage = 0;
 
         // Cria plano no Pagar.me
-        const pagarmePlan = await PagarmeService.createPlan({
-            name,
-            amount: amountCents,
-            interval: interval as 'monthly' | 'weekly' | 'yearly',
-            interval_count: interval_count || 1
-        });
+        let pagarmePlan;
+        try {
+            pagarmePlan = await PagarmeService.createPlan({
+                name,
+                amount: amountCents,
+                interval: interval as 'monthly' | 'weekly' | 'yearly',
+                interval_count: interval_count || 1
+            });
+        } catch (pagarmeErr: any) {
+            const errData = pagarmeErr.response?.data;
+            console.error('[SUBSCRIPTION PLAN] Pagarme error:', JSON.stringify(errData || pagarmeErr.message, null, 2));
+            const msg = errData?.message || (errData?.errors ? JSON.stringify(errData.errors) : pagarmeErr.message);
+            return jsonError('Erro no Pagar.me: ' + msg, 400);
+        }
 
         // Salva no banco
         const { data: plan, error } = await supabase.from('subscription_plans').insert({
