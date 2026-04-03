@@ -13,19 +13,15 @@ export default function StoreProductsPage() {
     const [loading, setLoading] = useState(true);
     const [updatingParams, setUpdatingParams] = useState<string | null>(null);
 
-    // Product Creation State
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState<any>(null);
-    const [form, setForm] = useState({
-        name: '', description: '', price: '', image_url: '', type: 'digital', status: 'active'
-    });
+    const [form, setForm] = useState({ name: '', description: '', image_url: '', type: 'digital', status: 'active' });
+    const [plans, setPlans] = useState<Array<{ name: string; price: string }>>([{ name: 'Padrão', price: '' }]);
     const [uploading, setUploading] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadData();
-    }, []);
+    useEffect(() => { loadData(); }, []);
 
     const loadData = async () => {
         try {
@@ -35,7 +31,7 @@ export default function StoreProductsPage() {
             ]);
             setProducts(prodRes.data.products || []);
             setCategories(catRes.data.categories || []);
-        } catch (error) {
+        } catch {
             toast.error('Erro ao carregar dados');
         } finally {
             setLoading(false);
@@ -49,7 +45,7 @@ export default function StoreProductsPage() {
             await productsAPI.update(product.id, { show_in_store: newStatus });
             setProducts(products.map(p => p.id === product.id ? { ...p, show_in_store: newStatus } : p));
             toast.success(newStatus ? 'Produto adicionado à loja' : 'Produto removido da loja');
-        } catch (error) {
+        } catch {
             toast.error('Erro ao atualizar visibilidade');
         } finally {
             setUpdatingParams(null);
@@ -63,32 +59,41 @@ export default function StoreProductsPage() {
             await productsAPI.update(productId, { store_category_id: val });
             setProducts(products.map(p => p.id === productId ? { ...p, store_category_id: val } : p));
             toast.success('Categoria atualizada');
-        } catch (error) {
+        } catch {
             toast.error('Erro ao mudar categoria');
         } finally {
             setUpdatingParams(null);
         }
     };
 
-    // --- Product Creation Methods ---
     const openCreate = () => {
         setEditing(null);
-        setForm({ name: '', description: '', price: '', image_url: '', type: 'digital', status: 'active' });
+        setForm({ name: '', description: '', image_url: '', type: 'digital', status: 'active' });
+        setPlans([{ name: 'Padrão', price: '' }]);
         setSelectedFile(null);
         setImagePreview(null);
         setShowModal(true);
     };
 
-    const openEdit = (product: any) => {
+    const openEdit = async (product: any) => {
         setEditing(product);
         setForm({
             name: product.name,
             description: product.description || '',
-            price: product.price_display || (product.price / 100).toFixed(2),
             image_url: product.image_url || '',
             type: product.type,
             status: product.status
         });
+        try {
+            const { data } = await productsAPI.getById(product.id);
+            const p = data.product || product;
+            const loadedPlans = Array.isArray(p.plans) && p.plans.length > 0
+                ? p.plans.map((pl: any) => ({ name: pl.name, price: pl.price_display || (pl.price / 100).toFixed(2) }))
+                : [{ name: 'Padrão', price: p.price_display || (p.price / 100).toFixed(2) }];
+            setPlans(loadedPlans);
+        } catch {
+            setPlans([{ name: 'Padrão', price: product.price_display || (product.price / 100).toFixed(2) }]);
+        }
         setSelectedFile(null);
         setImagePreview(product.image_url || null);
         setShowModal(true);
@@ -99,9 +104,7 @@ export default function StoreProductsPage() {
         if (file) {
             setSelectedFile(file);
             const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result as string);
-            };
+            reader.onloadend = () => setImagePreview(reader.result as string);
             reader.readAsDataURL(file);
         }
     };
@@ -113,26 +116,29 @@ export default function StoreProductsPage() {
         setUploading(true);
         try {
             let finalImageUrl = form.image_url;
-
             if (selectedFile) {
                 const formData = new FormData();
                 formData.append('file', selectedFile);
-
                 const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
                 const { data } = await axios.post('/api/upload', formData, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Content-Type': 'multipart/form-data', 'Authorization': `Bearer ${token}` }
                 });
                 finalImageUrl = data.url;
             }
 
-            const productData = {
+            const normalizedPlans = plans
+                .map(p => ({ name: p.name.trim(), price: parseFloat(p.price) }))
+                .filter(p => p.name && !isNaN(p.price) && p.price > 0);
+
+            if (normalizedPlans.length === 0) {
+                toast.error('Adicione ao menos um plano com preço válido');
+                return;
+            }
+
+            const productData: any = {
                 ...form,
                 image_url: finalImageUrl,
-                price: parseFloat(form.price),
-                // By default, if they create it here, optionally set it to show in store immediately
+                plans: normalizedPlans,
                 show_in_store: editing ? undefined : true
             };
 
@@ -151,7 +157,6 @@ export default function StoreProductsPage() {
             setUploading(false);
         }
     };
-    // --------------------------------
 
     if (loading) return <div>Carregando...</div>;
 
@@ -192,9 +197,7 @@ export default function StoreProductsPage() {
                                             {product.image_url ? (
                                                 <img src={product.image_url} alt={product.name} style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }} />
                                             ) : (
-                                                <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                    📦
-                                                </div>
+                                                <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>📦</div>
                                             )}
                                             <div style={{ fontWeight: 500 }}>{product.name}</div>
                                         </div>
@@ -226,7 +229,6 @@ export default function StoreProductsPage() {
                                                     padding: '6px 12px', borderRadius: 20, cursor: 'pointer',
                                                     fontWeight: 600, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6
                                                 }}
-                                                title="Mostrar na vitrine da loja"
                                             >
                                                 {product.show_in_store ? <FiCheck size={14} /> : <FiX size={14} />}
                                                 {product.show_in_store ? 'Vitrine' : 'Oculto'}
@@ -234,13 +236,10 @@ export default function StoreProductsPage() {
                                             <button
                                                 onClick={() => openEdit(product)}
                                                 style={{
-                                                    background: 'var(--bg-secondary)',
-                                                    border: '1px solid var(--border-color)',
-                                                    color: 'var(--text-primary)',
-                                                    padding: '6px 10px', borderRadius: 8, cursor: 'pointer',
-                                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center'
+                                                    background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+                                                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 8,
+                                                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'
                                                 }}
-                                                title="Editar Detalhes"
                                             >
                                                 <FiEdit2 size={14} />
                                             </button>
@@ -262,43 +261,18 @@ export default function StoreProductsPage() {
             </div>
 
             <style jsx global>{`
-        @media (max-width: 768px) {
-          .store-products-header {
-            flex-direction: column !important;
-            align-items: stretch !important;
-            gap: 12px;
-          }
-          .store-products-title {
-            width: 100%;
-            text-align: center !important;
-          }
-          .store-products-actions {
-            width: 100%;
-            display: grid !important;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px !important;
-          }
-          .store-products-actions button {
-            width: 100% !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 8px !important;
-          }
-          .store-products-desc {
-            text-align: center;
-          }
-        }
-        @media (max-width: 420px) {
-          .store-products-actions {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
+                @media (max-width: 768px) {
+                    .store-products-header { flex-direction: column !important; align-items: stretch !important; gap: 12px; }
+                    .store-products-title { width: 100%; text-align: center !important; }
+                    .store-products-actions { width: 100%; display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px !important; }
+                    .store-products-actions button { width: 100% !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 8px !important; }
+                    .store-products-desc { text-align: center; }
+                }
+                @media (max-width: 420px) { .store-products-actions { grid-template-columns: 1fr; } }
+            `}</style>
 
-            {/* Modal */}
             {showModal && createPortal(
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
                     <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: 500, padding: 40, maxHeight: '90vh', overflowY: 'auto' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
                             <h3 style={{ fontSize: 18, fontWeight: 700 }}>{editing ? 'Editar Produto' : 'Novo Produto'}</h3>
@@ -316,55 +290,62 @@ export default function StoreProductsPage() {
 
                             <div style={{ marginBottom: 16 }}>
                                 <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Descrição do produto</label>
-                                <textarea className="input-field" rows={4} placeholder="Explique os benefícios, conteúdo ou detalhes do produto"
+                                <textarea className="input-field" rows={3} placeholder="Explique os benefícios ou detalhes do produto"
                                     value={form.description} onChange={e => updateForm('description', e.target.value)} />
                             </div>
 
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Preço (R$)</label>
-                                    <input type="number" step="0.01" min="0.01" className="input-field" placeholder="99.90" required
-                                        value={form.price} onChange={e => updateForm('price', e.target.value)} />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Tipo</label>
-                                    <select className="input-field" value={form.type} onChange={e => updateForm('type', e.target.value)}>
-                                        <option value="digital">Digital (Infoproduto)</option>
-                                        <option value="physical">Físico</option>
-                                    </select>
+                            <div style={{ marginBottom: 16 }}>
+                                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Planos e preços</label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                    {plans.map((pl, idx) => (
+                                        <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                                            <input
+                                                type="text"
+                                                placeholder="Nome do plano (ex: Diário, Mensal)"
+                                                className="input-field"
+                                                style={{ height: 48, flex: 1, minWidth: 160 }}
+                                                value={pl.name}
+                                                onChange={e => setPlans(prev => prev.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))}
+                                            />
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0.01"
+                                                placeholder="Preço (R$)"
+                                                className="input-field"
+                                                style={{ height: 48, width: 130 }}
+                                                value={pl.price}
+                                                onChange={e => setPlans(prev => prev.map((p, i) => i === idx ? { ...p, price: e.target.value } : p))}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="btn-danger"
+                                                style={{ height: 48, padding: '0 14px', flexShrink: 0 }}
+                                                onClick={() => setPlans(prev => prev.filter((_, i) => i !== idx))}
+                                                disabled={plans.length <= 1}
+                                            >
+                                                Remover
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        className="btn-secondary"
+                                        style={{ height: 46, alignSelf: 'flex-start' }}
+                                        onClick={() => setPlans(prev => [...prev, { name: '', price: '' }])}
+                                    >
+                                        + Adicionar plano
+                                    </button>
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, marginBottom: 24 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Imagem do produto</label>
-                                    <div style={{
-                                        border: '1px dashed var(--border-color)',
-                                        background: 'rgba(255,255,255,0.02)',
-                                        borderRadius: 12,
-                                        padding: 12,
-                                        position: 'relative',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 12
-                                    }} onClick={() => document.getElementById('storeFileInput')?.click()}>
-                                        {imagePreview ? (
-                                            <img src={imagePreview} style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }} alt="Preview" />
-                                        ) : (
-                                            <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                <FiImage size={18} style={{ color: 'var(--text-muted)' }} />
-                                            </div>
-                                        )}
-                                        <div style={{ flex: 1 }}>
-                                            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                                {selectedFile ? selectedFile.name : 'Selecione uma imagem'}
-                                            </p>
-                                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>JPG, PNG ou GIF. Máx 2MB.</p>
-                                        </div>
-                                        <input id="storeFileInput" type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
-                                    </div>
+                                    <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Tipo</label>
+                                    <select className="input-field" value={form.type} onChange={e => updateForm('type', e.target.value)}>
+                                        <option value="digital">Digital</option>
+                                        <option value="physical">Físico</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Status</label>
@@ -372,6 +353,29 @@ export default function StoreProductsPage() {
                                         <option value="active">Ativo</option>
                                         <option value="inactive">Inativo</option>
                                     </select>
+                                </div>
+                            </div>
+
+                            <div style={{ marginBottom: 24 }}>
+                                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Imagem do produto</label>
+                                <div style={{
+                                    border: '1px dashed var(--border-color)', background: 'rgba(255,255,255,0.02)',
+                                    borderRadius: 12, padding: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12
+                                }} onClick={() => document.getElementById('storeFileInput')?.click()}>
+                                    {imagePreview ? (
+                                        <img src={imagePreview} style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }} alt="Preview" />
+                                    ) : (
+                                        <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <FiImage size={18} style={{ color: 'var(--text-muted)' }} />
+                                        </div>
+                                    )}
+                                    <div style={{ flex: 1 }}>
+                                        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>
+                                            {selectedFile ? selectedFile.name : 'Selecione uma imagem'}
+                                        </p>
+                                        <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>JPG, PNG ou GIF. Máx 2MB.</p>
+                                    </div>
+                                    <input id="storeFileInput" type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
                                 </div>
                             </div>
 

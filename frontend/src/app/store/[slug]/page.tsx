@@ -436,9 +436,6 @@ export default function StorePage() {
                                                         <span style={{ fontWeight: 800 }}>{pl.name}</span>
                                                         <span style={{ fontWeight: 900, color: 'white' }}>R$ {pl.price_display}</span>
                                                     </div>
-                                                    {pl.description && (
-                                                        <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>{pl.description}</span>
-                                                    )}
                                                 </button>
                                             ))}
                                         </div>

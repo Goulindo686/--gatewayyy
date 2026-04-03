@@ -69,8 +69,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         if (Array.isArray(body.plans)) {
             const normalizedPlans = body.plans.map((p: any) => ({
                 name: String(p.name || 'Plano'),
-                price: Math.round(parseFloat(String(p.price)) * 100),
-                description: String(p.description || '')
+                price: Math.round(parseFloat(String(p.price)) * 100)
             })).filter((p: any) => p.name && p.price > 0);
             await supabase.from('product_plans').delete().eq('product_id', id);
             if (normalizedPlans.length > 0) {
@@ -78,7 +77,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
                     product_id: id,
                     name: p.name,
                     price: p.price,
-                    description: p.description,
                     sort_order: idx
                 }));
                 await supabase.from('product_plans').insert(rows);

@@ -21,7 +21,7 @@ export default function ProductsPage() {
         name: '', price: '', image_url: '', type: 'digital', status: 'active',
         facebook_pixel_id: '', facebook_api_token: ''
     });
-    const [plans, setPlans] = useState<Array<{ name: string; price: string; description: string }>>([{ name: 'Padrão', price: '', description: '' }]);
+    const [plans, setPlans] = useState<Array<{ name: string; price: string }>>([{ name: 'Padrão', price: '' }]);
     const [uploading, setUploading] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -44,7 +44,7 @@ export default function ProductsPage() {
         setForm({ name: '', price: '', image_url: '', type: 'digital', status: 'active', facebook_pixel_id: '', facebook_api_token: '' });
         setSelectedFile(null);
         setImagePreview(null);
-        setPlans([{ name: 'Padrão', price: '', description: '' }]);
+        setPlans([{ name: 'Padrão', price: '' }]);
         setShowModal(true);
     };
 
@@ -63,8 +63,8 @@ export default function ProductsPage() {
                 facebook_api_token: p.facebook_api_token || ''
             });
             const loadedPlans = Array.isArray(p.plans) && p.plans.length > 0
-                ? p.plans.map((pl: any) => ({ name: pl.name, price: pl.price_display || (pl.price / 100).toFixed(2), description: pl.description || '' }))
-                : [{ name: 'Padrão', price: p.price_display || (p.price / 100).toFixed(2), description: '' }];
+                ? p.plans.map((pl: any) => ({ name: pl.name, price: pl.price_display || (pl.price / 100).toFixed(2) }))
+                : [{ name: 'Padrão', price: p.price_display || (p.price / 100).toFixed(2) }];
             setPlans(loadedPlans);
             setSelectedFile(null);
             setImagePreview(p.image_url || null);
@@ -79,7 +79,7 @@ export default function ProductsPage() {
                 facebook_pixel_id: product.facebook_pixel_id || '',
                 facebook_api_token: product.facebook_api_token || ''
             });
-            setPlans([{ name: 'Padrão', price: product.price_display || (product.price / 100).toFixed(2), description: '' }]);
+            setPlans([{ name: 'Padrão', price: product.price_display || (product.price / 100).toFixed(2) }]);
             setSelectedFile(null);
             setImagePreview(product.image_url || null);
             setShowModal(true);
@@ -120,7 +120,7 @@ export default function ProductsPage() {
             }
 
             const normalizedPlans = plans
-                .map(p => ({ name: p.name.trim(), price: parseFloat(p.price), description: p.description.trim() }))
+                .map(p => ({ name: p.name.trim(), price: parseFloat(p.price) }))
                 .filter(p => p.name && !isNaN(p.price) && p.price > 0);
             const productData: any = {
                 ...form,
@@ -344,21 +344,16 @@ export default function ProductsPage() {
                                                         Remover
                                                     </button>
                                                 </div>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Descrição/benefícios (ex: Acesso por 30 dias, Suporte incluso)"
-                                                    className="input-field"
-                                                    style={{ height: 42, fontSize: 13 }}
-                                                    value={pl.description}
-                                                    onChange={e => setPlans(prev => prev.map((p, i) => i === idx ? { ...p, description: e.target.value } : p))}
-                                                />
+                                                {pl.description && (
+                                                    <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>{pl.description}</span>
+                                                )}
                                             </div>
                                         ))}
                                         <button
                                             type="button"
                                             className="btn-secondary"
                                             style={{ height: 46, alignSelf: 'flex-start' }}
-                                            onClick={() => setPlans(prev => [...prev, { name: '', price: '', description: '' }])}
+                                            onClick={() => setPlans(prev => [...prev, { name: '', price: '' }])}
                                         >
                                             Adicionar plano
                                         </button>
