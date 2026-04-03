@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
-import { jsonError, jsonSuccess } from '@/lib/auth';
+import { jsonError, jsonSuccess, hashPassword, generateToken } from '@/lib/auth';
 import { PagarmeService } from '@/lib/pagarme';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -76,7 +76,40 @@ export async function POST(req: NextRequest) {
 
         if (error) return jsonError('Erro ao salvar assinatura: ' + error.message);
 
-        return jsonSuccess({ subscription, pagarme_status: pagarmeSub.status }, 201);
+        // Criar ou encontrar conta do cliente e gerar token de login automático
+        let buyerUser: any = null;
+        const normalizedEmail = customer.email.toLowerCase().trim();
+
+        const { data: existingUser } = await supabase
+            .from('users')
+            .select('id, name, email, role')
+            .ilike('email', normalizedEmail)
+            .single();
+
+        if (existingUser) {
+            buyerUser = existingUser;
+        } else {
+            const newUserId = uuidv4();
+            const tempPassword = uuidv4().substring(0, 12);
+            const hashedPw = await hashPassword(tempPassword);
+            const { data: newUser } = await supabase
+                .from('users')
+                .insert({ id: newUserId, email: normalizedEmail, name: customer.name, role: 'customer', status: 'active', password_hash: hashedPw })
+                .select('id, name, email, role')
+                .single();
+            if (newUser) buyerUser = newUser;
+        }
+
+        let authToken: string | null = null;
+        if (buyerUser) {
+            authToken = generateToken({ userId: buyerUser.id, role: buyerUser.role });
+        }
+
+        return jsonSuccess({
+            subscription,
+            pagarme_status: pagarmeSub.status,
+            auth: buyerUser ? { token: authToken, user: { id: buyerUser.id, name: buyerUser.name, email: buyerUser.email, role: buyerUser.role } } : null
+        }, 201);
     } catch (err: any) {
         const msg = err.response?.data?.message || err.message;
         console.error('Subscribe error:', err.response?.data || err.message);

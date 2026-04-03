@@ -14,6 +14,7 @@ export default function SubscribePage() {
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
     const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
+    const [countdown, setCountdown] = useState(5);
 
     const [customer, setCustomer] = useState({ name: '', email: '', cpf: '', phone: '' });
     const [card, setCard] = useState({ number: '', holder_name: '', exp_month: '', exp_year: '', cvv: '' });
@@ -25,6 +26,13 @@ export default function SubscribePage() {
             .catch(() => toast.error('Plano não encontrado'))
             .finally(() => setLoading(false));
     }, [planId]);
+
+    useEffect(() => {
+        if (!success) return;
+        if (countdown <= 0) { router.push('/area-membros'); return; }
+        const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+        return () => clearTimeout(t);
+    }, [success, countdown, router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -40,7 +48,15 @@ export default function SubscribePage() {
                 },
                 address
             });
-            setSubscriptionId(res.data.subscription?.id || null);
+            const data = res.data;
+            setSubscriptionId(data.subscription?.id || null);
+
+            // Login automático
+            if (data.auth?.token) {
+                localStorage.setItem('token', data.auth.token);
+                localStorage.setItem('user', JSON.stringify(data.auth.user));
+            }
+
             setSuccess(true);
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Erro ao processar assinatura');
@@ -70,14 +86,13 @@ export default function SubscribePage() {
             <div style={{ fontSize: 48 }}>✅</div>
             <h2 style={{ fontSize: 24, fontWeight: 800 }}>Assinatura ativada!</h2>
             <p style={{ color: '#94a3b8', textAlign: 'center' }}>Você assinou o plano <strong>{plan.name}</strong>. A cobrança foi realizada no seu cartão.</p>
-            {subscriptionId && (
-                <div style={{ marginTop: 8, padding: '12px 20px', background: '#141417', borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
-                    <p style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>Guarde este link para gerenciar sua assinatura:</p>
-                    <a href={`/my-subscription/${subscriptionId}`} style={{ color: '#00cec9', fontSize: 13, fontWeight: 600, wordBreak: 'break-all' }}>
-                        {typeof window !== 'undefined' ? window.location.origin : ''}/my-subscription/{subscriptionId}
-                    </a>
-                </div>
-            )}
+            <p style={{ color: '#64748b', fontSize: 14 }}>Redirecionando para sua área de membros em <strong style={{ color: '#00cec9' }}>{countdown}s</strong>...</p>
+            <button onClick={() => router.push('/area-membros')} style={{
+                marginTop: 8, padding: '12px 24px', borderRadius: 12, border: 'none',
+                background: '#00cec9', color: '#0a0a0c', fontWeight: 700, cursor: 'pointer'
+            }}>
+                Ir para Área de Membros agora
+            </button>
         </div>
     );
 
