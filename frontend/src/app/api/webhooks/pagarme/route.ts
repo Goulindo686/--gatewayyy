@@ -188,6 +188,38 @@ export async function POST(req: NextRequest) {
                 await supabase.from('subscriptions')
                     .update({ status: 'canceled', canceled_at: new Date().toISOString() })
                     .eq('pagarme_subscription_id', data.id);
+
+                // Revogar enrollment do produto vinculado
+                {
+                    const { data: canceledSub } = await supabase
+                        .from('subscriptions')
+                        .select('subscription_plan_id, customer_email')
+                        .eq('pagarme_subscription_id', data.id)
+                        .single();
+
+                    if (canceledSub?.subscription_plan_id) {
+                        const { data: plan } = await supabase
+                            .from('subscription_plans')
+                            .select('product_id')
+                            .eq('id', canceledSub.subscription_plan_id)
+                            .single();
+
+                        if (plan?.product_id && canceledSub.customer_email) {
+                            const { data: user } = await supabase
+                                .from('users')
+                                .select('id')
+                                .ilike('email', canceledSub.customer_email)
+                                .single();
+
+                            if (user) {
+                                await supabase.from('enrollments')
+                                    .update({ status: 'inactive' })
+                                    .eq('user_id', user.id)
+                                    .eq('product_id', plan.product_id);
+                            }
+                        }
+                    }
+                }
                 return jsonSuccess({ received: true });
 
             default:

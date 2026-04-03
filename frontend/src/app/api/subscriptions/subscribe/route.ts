@@ -103,6 +103,16 @@ export async function POST(req: NextRequest) {
         let authToken: string | null = null;
         if (buyerUser) {
             authToken = generateToken({ userId: buyerUser.id, role: buyerUser.role });
+
+            // Enroll no produto vinculado ao plano (se existir)
+            if (plan.product_id) {
+                await supabase.from('enrollments').upsert({
+                    user_id: buyerUser.id,
+                    product_id: plan.product_id,
+                    order_id: subscription.id, // usa o ID da assinatura como referência
+                    status: 'active'
+                }, { onConflict: 'user_id, product_id' });
+            }
         }
 
         return jsonSuccess({
