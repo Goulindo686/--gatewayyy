@@ -12,6 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const router = useRouter();
     const pathname = usePathname();
     const [user, setUser] = useState<any>(null);
+    const [isImpersonating, setIsImpersonating] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -38,6 +39,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             return;
         }
         setUser(JSON.parse(userData));
+        setIsImpersonating(!!localStorage.getItem('admin_token'));
         if (sc) setSidebarCollapsed(sc === '1' || sc === 'true');
     }, [router]);
     useEffect(() => {
@@ -102,6 +104,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         router.push('/login');
+    };
+
+    const handleExitImpersonation = () => {
+        const adminToken = localStorage.getItem('admin_token');
+        if (adminToken) {
+            localStorage.setItem('token', adminToken);
+            localStorage.removeItem('admin_token');
+            localStorage.removeItem('user');
+        }
+        router.push('/admin/sellers');
     };
 
     const applyDashboardFilters = async () => {
@@ -440,6 +452,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Main content */}
             <main style={{ flex: 1, paddingLeft: isMobile ? 0 : asideWidth, minHeight: '100vh', overflowX: 'hidden' }}>
+                {/* Impersonation banner */}
+                {isImpersonating && (
+                    <div style={{
+                        background: 'linear-gradient(90deg, #f39c12, #e67e22)',
+                        color: 'white', padding: '10px 32px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        fontSize: 13, fontWeight: 600, gap: 12
+                    }}>
+                        <span>⚠️ Você está visualizando a conta de <strong>{user?.name}</strong> ({user?.email})</span>
+                        <button onClick={handleExitImpersonation} style={{
+                            background: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.5)',
+                            color: 'white', borderRadius: 8, padding: '4px 14px', cursor: 'pointer',
+                            fontWeight: 700, fontSize: 12
+                        }}>
+                            Voltar para Admin
+                        </button>
+                    </div>
+                )}
                 {/* Top bar */}
                 <header style={{
                     borderBottom: '1px solid var(--border-color)',

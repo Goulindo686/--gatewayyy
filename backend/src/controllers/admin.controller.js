@@ -1,4 +1,5 @@
 const { supabase } = require('../config/database');
+const jwt = require('jsonwebtoken');
 
 class AdminController {
     async getDashboard(req, res, next) {
@@ -174,6 +175,35 @@ class AdminController {
             res.json({
                 settings: data,
                 message: `Taxa atualizada para ${fee_percentage}%`
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async impersonateSeller(req, res, next) {
+        try {
+            const { id } = req.params;
+
+            const { data: user, error } = await supabase
+                .from('users')
+                .select('id, name, email, role, status, avatar_url')
+                .eq('id', id)
+                .single();
+
+            if (error || !user) return res.status(404).json({ error: 'Usuário não encontrado.' });
+
+            // Token temporário de 2 horas com flag de impersonation
+            const token = jwt.sign(
+                { userId: user.id, role: user.role, impersonated_by: req.user.userId },
+                process.env.JWT_SECRET,
+                { expiresIn: '2h' }
+            );
+
+            res.json({
+                token,
+                user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar_url: user.avatar_url },
+                message: `Sessão iniciada como ${user.name}`
             });
         } catch (error) {
             next(error);

@@ -78,6 +78,7 @@ export const adminAPI = {
     getDashboard: () => api.get('/admin/dashboard'),
     listSellers: (params?: any) => api.get('/admin/sellers', { params }),
     toggleBlock: (id: string, blocked: boolean) => api.put(`/admin/sellers/${id}/block`, { blocked }),
+    impersonate: (id: string) => api.post(`/admin/sellers/${id}/impersonate`),
     listTransactions: (params?: any) => api.get('/admin/transactions', { params }),
     getSettings: () => api.get('/admin/settings'),
     updateFees: (fee_percentage: number) => api.put('/admin/settings/fees', { fee_percentage }),

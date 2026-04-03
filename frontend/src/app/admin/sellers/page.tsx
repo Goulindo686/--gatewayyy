@@ -1,14 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { adminAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiSearch, FiLock, FiUnlock, FiUsers } from 'react-icons/fi';
+import { FiSearch, FiLock, FiUnlock, FiUsers, FiLogIn } from 'react-icons/fi';
 
 export default function AdminSellersPage() {
     const [sellers, setSellers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const router = useRouter();
 
     useEffect(() => { loadSellers(); }, []);
 
@@ -28,6 +30,20 @@ export default function AdminSellersPage() {
             loadSellers();
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Erro');
+        }
+    };
+
+    const impersonate = async (id: string, name: string) => {
+        try {
+            const { data } = await adminAPI.impersonate(id);
+            // Salva token admin para poder voltar depois
+            localStorage.setItem('admin_token', localStorage.getItem('token') || '');
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            toast.success(`Entrando como ${name}...`);
+            router.push('/dashboard');
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Erro ao entrar como usuário');
         }
     };
 
@@ -79,11 +95,18 @@ export default function AdminSellersPage() {
                                         </td>
                                         <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{new Date(s.created_at).toLocaleDateString('pt-BR')}</td>
                                         <td>
-                                            <button onClick={() => toggleBlock(s.id, s.status)}
-                                                className={s.status === 'blocked' ? 'btn-secondary' : 'btn-danger'}
-                                                style={{ padding: '6px 14px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                                                {s.status === 'blocked' ? <><FiUnlock size={13} /> Desbloquear</> : <><FiLock size={13} /> Bloquear</>}
-                                            </button>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <button onClick={() => toggleBlock(s.id, s.status)}
+                                                    className={s.status === 'blocked' ? 'btn-secondary' : 'btn-danger'}
+                                                    style={{ padding: '6px 14px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                                    {s.status === 'blocked' ? <><FiUnlock size={13} /> Desbloquear</> : <><FiLock size={13} /> Bloquear</>}
+                                                </button>
+                                                <button onClick={() => impersonate(s.id, s.name)}
+                                                    className="btn-secondary"
+                                                    style={{ padding: '6px 14px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                                    <FiLogIn size={13} /> Entrar como
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
