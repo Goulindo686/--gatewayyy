@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { hashPassword, generateToken, jsonError, jsonSuccess } from '@/lib/auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { PagarmeService } from '@/lib/pagarme';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -10,6 +11,11 @@ export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
         const { name, email, password, cpf_cnpj, phone, terms_accepted } = body;
+
+        // Rate limit por IP: 5 registros por hora
+        const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+        const rl = await checkRateLimit({ key: `register:${ip}`, limit: 5, windowSecs: 3600 });
+        if (!rl.allowed) return rateLimitResponse(rl.resetAt);
 
         if (!name || !email || !password || !cpf_cnpj) {
             return jsonError('Nome, email, senha e CPF/CNPJ são obrigatórios');

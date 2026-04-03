@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/db';
 import { PagarmeService } from '@/lib/pagarme';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 
 // CORS restrito às origens configuradas (ou qualquer origem se não configurado)
@@ -10,20 +11,6 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
 };
-
-// Rate limiter simples em memória: máx 20 req/min por API key
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-function checkRateLimit(key: string): boolean {
-    const now = Date.now();
-    const entry = rateLimitMap.get(key);
-    if (!entry || now > entry.resetAt) {
-        rateLimitMap.set(key, { count: 1, resetAt: now + 60_000 });
-        return true;
-    }
-    if (entry.count >= 20) return false;
-    entry.count++;
-    return true;
-}
 
 const jsonResponse = (data: any, status = 200) => 
     NextResponse.json(data, { status, headers: corsHeaders });
@@ -59,9 +46,11 @@ export async function POST(req: NextRequest) {
             return jsonError('Chave de API inativa', 403);
         }
 
-        // Rate limit: 20 requisições por minuto por API key
-        if (!checkRateLimit(apiKey)) {
-            return jsonError('Limite de requisições excedido. Tente novamente em 1 minuto.', 429);
+        // Rate limit: 20 requisições por minuto por API key (Supabase — funciona em serverless)
+        const rl = await checkRateLimit({ key: `v1_pix:${apiKey}`, limit: 20, windowSecs: 60 });
+        if (!rl.allowed) {
+            const res = rateLimitResponse(rl.resetAt);
+            return new NextResponse(res.body, { status: 429, headers: { ...corsHeaders, ...Object.fromEntries(res.headers) } });
         }
 
         const userId = keyRecord.user_id;

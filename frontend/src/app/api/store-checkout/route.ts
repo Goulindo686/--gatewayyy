@@ -1,12 +1,24 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { PagarmeService } from '@/lib/pagarme';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
         const { items: items_cart, buyer, store_slug } = body;
+
+        // Rate limit por IP: 10 checkouts por hora
+        const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+        const rlIp = await checkRateLimit({ key: `store_checkout:ip:${ip}`, limit: 10, windowSecs: 3600 });
+        if (!rlIp.allowed) return rateLimitResponse(rlIp.resetAt);
+
+        // Rate limit por email: 5 checkouts por hora
+        if (buyer?.email) {
+            const rlEmail = await checkRateLimit({ key: `store_checkout:email:${buyer.email.toLowerCase().trim()}`, limit: 5, windowSecs: 3600 });
+            if (!rlEmail.allowed) return rateLimitResponse(rlEmail.resetAt);
+        }
         const enableCreditCard = process.env.ENABLE_CREDIT_CARD ? (process.env.ENABLE_CREDIT_CARD === 'true') : false;
         const normalizedPaymentMethod = (body.payment_method === 'card' ? 'credit_card' : body.payment_method) || 'pix';
 
