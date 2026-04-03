@@ -45,6 +45,7 @@ export default function CheckoutCustomizationPage() {
     const productId = params.id as string;
 
     const [product, setProduct] = useState<any>(null);
+    const [isSubscription, setIsSubscription] = useState(false);
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -68,6 +69,9 @@ export default function CheckoutCustomizationPage() {
             if (data.product.checkout_settings) {
                 setSettings({ ...DEFAULT_SETTINGS, ...data.product.checkout_settings });
             }
+            // Verifica se o produto tem plano de assinatura vinculado
+            const { data: subData } = await import('@/lib/api').then(m => m.default.get(`/subscriptions/plans?product_id=${productId}`)).catch(() => ({ data: { plans: [] } }));
+            if (subData?.plans?.length > 0) setIsSubscription(true);
         } catch (err) {
             toast.error('Erro ao carregar produto');
             router.push('/dashboard/products');
@@ -218,6 +222,7 @@ export default function CheckoutCustomizationPage() {
                         </div>
                     </div>
 
+                    {!isSubscription && (
                     <div className="glass-card" style={{ padding: 20 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                             <h3 style={{ fontSize: 14, fontWeight: 600 }}>Campos do Checkout</h3>
@@ -255,6 +260,7 @@ export default function CheckoutCustomizationPage() {
                             </label>
                         </div>
                     </div>
+                    )}
 
                     {/* Accent Color */}
                     <div className="glass-card" style={{ padding: 20 }}>

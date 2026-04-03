@@ -5,16 +5,23 @@ import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { PagarmeService } from '@/lib/pagarme';
 import { v4 as uuidv4 } from 'uuid';
 
-// GET — lista planos do vendedor
+// GET — lista planos do vendedor (com filtro opcional por product_id)
 export async function GET(req: NextRequest) {
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Não autorizado', 401);
 
-    const { data: plans } = await supabase
+    const productId = req.nextUrl.searchParams.get('product_id');
+
+    let query = supabase
         .from('subscription_plans')
         .select('*')
         .eq('user_id', auth.user.id)
+        .eq('status', 'active')
         .order('created_at', { ascending: false });
+
+    if (productId) query = query.eq('product_id', productId);
+
+    const { data: plans } = await query;
 
     return jsonSuccess({ plans: plans || [] });
 }
