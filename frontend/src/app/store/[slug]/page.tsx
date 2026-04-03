@@ -337,9 +337,9 @@ export default function StorePage() {
                         background: 'rgba(0,0,0,0.85)',
                         zIndex: 9999,
                         display: 'flex',
-                        alignItems: 'flex-start',
+                        alignItems: 'center',
                         justifyContent: 'center',
-                        padding: 40,
+                        padding: '24px 16px',
                         overflowY: 'auto',
                         WebkitOverflowScrolling: 'touch',
                         touchAction: 'pan-y'
@@ -350,14 +350,14 @@ export default function StorePage() {
                         onClick={(e) => e.stopPropagation()}
                         style={{
                             width: '100%',
-                            maxWidth: 940,
-                            maxHeight: 'calc(100vh - 80px)',
+                            maxWidth: 1140,
+                            maxHeight: 'calc(100vh - 48px)',
                             margin: '0 auto',
                             overflowY: 'auto',
                             overflowX: 'hidden',
                             WebkitOverflowScrolling: 'touch',
                             background: '#141417',
-                            borderRadius: 28,
+                            borderRadius: 24,
                             border: '1px solid rgba(255,255,255,0.06)',
                             boxShadow: '0 30px 80px rgba(0,0,0,0.65)'
                         }}
@@ -391,9 +391,9 @@ export default function StorePage() {
                             </button>
                         </div>
 
-                        <div className="quickModalGrid" style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 22, padding: 22 }}>
-                            <div className="quickModalSubGrid" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 18, alignItems: 'start' }}>
-                                <div style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: 22, overflow: 'hidden', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <div className="quickModalGrid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 28, padding: 28 }}>
+                            <div className="quickModalSubGrid" style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 22, alignItems: 'start' }}>
+                                <div style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: 18, overflow: 'hidden', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)' }}>
                                     {quickProduct?.image_url ? (
                                         <img src={quickProduct.image_url} alt={quickProduct?.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
@@ -413,7 +413,7 @@ export default function StorePage() {
                                 </div>
                             </div>
 
-                                <div className="quickModalRightBox" style={{ background: '#0a0a0c', borderRadius: 22, border: '1px solid rgba(255,255,255,0.06)', padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                <div className="quickModalRightBox" style={{ background: '#0a0a0c', borderRadius: 18, border: '1px solid rgba(255,255,255,0.06)', padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
                                 {Array.isArray(quickProduct?.plans) && quickProduct.plans.length > 0 && (
                                     <div>
                                         <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, letterSpacing: 0.3, marginBottom: 8 }}>Selecionar plano</div>
