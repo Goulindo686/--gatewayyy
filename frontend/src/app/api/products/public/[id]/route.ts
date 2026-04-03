@@ -14,11 +14,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (!product) return jsonError('Produto não encontrado', 404);
 
-    const { data: plans } = await supabase
+    const { data: plans, error: plansError } = await supabase
         .from('product_plans')
-        .select('*')
+        .select('id, product_id, name, price, sort_order')
         .eq('product_id', product.id)
         .order('sort_order', { ascending: true });
+
+    if (plansError) console.error('Plans fetch error:', plansError);
 
     const firstPlan = (plans && plans.length > 0) ? plans[0] : null;
     const effectivePrice = firstPlan ? firstPlan.price : product.price;

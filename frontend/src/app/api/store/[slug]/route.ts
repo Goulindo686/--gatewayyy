@@ -63,11 +63,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
         let formattedProducts: any[] = [];
         if (products && products.length > 0) {
             const productIds = products.map(p => p.id);
-            const { data: plans } = await supabase
+            const { data: plans, error: plansError } = await supabase
                 .from('product_plans')
-                .select('id, product_id, name, price, description, sort_order')
+                .select('id, product_id, name, price, sort_order')
                 .in('product_id', productIds)
                 .order('sort_order', { ascending: true });
+
+            if (plansError) {
+                console.error('Error fetching plans:', plansError);
+            }
             const plansByProduct: Record<string, any[]> = {};
             (plans || []).forEach(p => {
                 if (!plansByProduct[p.product_id]) plansByProduct[p.product_id] = [];
