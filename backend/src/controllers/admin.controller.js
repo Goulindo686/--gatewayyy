@@ -195,7 +195,7 @@ class AdminController {
 
             // Token temporário de 2 horas com flag de impersonation
             const token = jwt.sign(
-                { userId: user.id, role: user.role, impersonated_by: req.user.userId },
+                { userId: user.id, role: user.role, impersonated_by: req.user.id },
                 process.env.JWT_SECRET,
                 { expiresIn: '2h' }
             );
