@@ -69,7 +69,13 @@ export default function StorePage() {
     };
     const openQuick = (product: any) => {
         setQuickProduct(product);
-        setQuickPlan(product.plans && product.plans.length > 0 ? product.plans[0] : null);
+        // Se não tiver planos cadastrados, cria um plano virtual com o preço base
+        const effectivePlans = Array.isArray(product.plans) && product.plans.length > 0
+            ? product.plans
+            : [{ id: '__base__', name: 'Padrão', price: Math.round(product.price * 100), price_display: product.price_display }];
+        const productWithPlans = { ...product, plans: effectivePlans };
+        setQuickProduct(productWithPlans);
+        setQuickPlan(effectivePlans[0]);
         setQuickQty(1);
         setQuickOpen(true);
     };
@@ -78,13 +84,14 @@ export default function StorePage() {
         if (!quickProduct) return;
         for (let i = 0; i < quickQty; i++) {
             const plan = quickPlan || (quickProduct.plans && quickProduct.plans[0]);
+            const planId = plan?.id && plan.id !== '__base__' ? plan.id : undefined;
             addItem({
                 id: quickProduct.id,
                 name: quickProduct.name,
                 price: plan ? (plan.price / 100) : quickProduct.price,
                 price_display: plan ? plan.price_display : quickProduct.price_display,
                 image_url: quickProduct.image_url,
-                plan_id: plan ? plan.id : undefined,
+                plan_id: planId,
                 plan_name: plan ? plan.name : undefined
             } as any);
         }
@@ -95,13 +102,14 @@ export default function StorePage() {
         if (!quickProduct) return;
         for (let i = 0; i < quickQty; i++) {
             const plan = quickPlan || (quickProduct.plans && quickProduct.plans[0]);
+            const planId = plan?.id && plan.id !== '__base__' ? plan.id : undefined;
             addItem({
                 id: quickProduct.id,
                 name: quickProduct.name,
                 price: plan ? (plan.price / 100) : quickProduct.price,
                 price_display: plan ? plan.price_display : quickProduct.price_display,
                 image_url: quickProduct.image_url,
-                plan_id: plan ? plan.id : undefined,
+                plan_id: planId,
                 plan_name: plan ? plan.name : undefined
             } as any);
         }
