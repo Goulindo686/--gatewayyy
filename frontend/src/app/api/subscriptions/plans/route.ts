@@ -49,9 +49,7 @@ export async function POST(req: NextRequest) {
             name,
             amount: amountCents,
             interval: interval as 'monthly' | 'weekly' | 'yearly',
-            interval_count: interval_count || 1,
-            seller_recipient_id: recipient.pagarme_recipient_id,
-            platform_fee_percentage: feePercentage
+            interval_count: interval_count || 1
         });
 
         // Salva no banco

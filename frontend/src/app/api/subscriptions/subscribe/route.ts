@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
             customer,
             card,
             seller_recipient_id: recipient.pagarme_recipient_id,
-            platform_fee_percentage: feePercentage
+            platform_fee_percentage: feePercentage,
+            amount: plan.amount
         });
 
         if (pagarmeSub.status === 'canceled' || pagarmeSub.status === 'failed') {

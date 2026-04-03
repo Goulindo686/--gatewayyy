@@ -360,29 +360,21 @@ export class PagarmeService {
         amount: number;
         interval: 'monthly' | 'weekly' | 'yearly';
         interval_count: number;
-        seller_recipient_id: string;
-        platform_fee_percentage: number;
     }) {
-        const PLATFORM_FLAT_FEE = 150;
-        const applyFee = data.platform_fee_percentage > 0;
-        const platformFeeAmount = applyFee ? Math.min(PLATFORM_FLAT_FEE, data.amount) : 0;
-        const sellerAmount = data.amount - platformFeeAmount;
-        const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
-        const sellId = data.seller_recipient_id.trim();
-
-        const splitRules = applyFee && platId && platId !== sellId ? [
-            { amount: sellerAmount, recipient_id: sellId, type: 'flat', options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true } },
-            { amount: platformFeeAmount, recipient_id: platId, type: 'flat', options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false } }
-        ] : undefined;
-
         const response = await pagarmeApi.post('/plans', {
             name: data.name,
             interval: data.interval,
             interval_count: data.interval_count,
             billing_type: 'prepaid',
             payment_methods: ['credit_card'],
-            items: [{ name: data.name, quantity: 1, pricing_scheme: { price: data.amount } }],
-            split: splitRules
+            items: [{
+                name: data.name,
+                quantity: 1,
+                pricing_scheme: {
+                    scheme_type: 'unit',
+                    price: data.amount
+                }
+            }]
         });
         return response.data;
     }
@@ -393,13 +385,27 @@ export class PagarmeService {
         card: { number: string; holder_name: string; exp_month: number; exp_year: number; cvv: string };
         seller_recipient_id: string;
         platform_fee_percentage: number;
+        amount: number;
     }) {
         const cpf = data.customer.cpf.replace(/\D/g, '');
         const phone = (data.customer.phone || '').replace(/\D/g, '');
 
+        const PLATFORM_FLAT_FEE = 150;
+        const applyFee = data.platform_fee_percentage > 0;
+        const platformFeeAmount = applyFee ? Math.min(PLATFORM_FLAT_FEE, data.amount) : 0;
+        const sellerAmount = data.amount - platformFeeAmount;
+        const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
+        const sellId = data.seller_recipient_id.trim();
+
+        const splitRules = applyFee && platId && platId !== sellId && platformFeeAmount > 0 ? [
+            { amount: sellerAmount, recipient_id: sellId, type: 'flat', options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true } },
+            { amount: platformFeeAmount, recipient_id: platId, type: 'flat', options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false } }
+        ] : undefined;
+
         const response = await pagarmeApi.post('/subscriptions', {
             plan_id: data.plan_id,
             payment_method: 'credit_card',
+            split: splitRules,
             customer: {
                 name: data.customer.name,
                 email: data.customer.email,
