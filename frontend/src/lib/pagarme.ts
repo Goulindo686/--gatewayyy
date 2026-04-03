@@ -394,15 +394,20 @@ export class PagarmeService {
         const PLATFORM_FLAT_FEE = 150;
         const applyFee = data.platform_fee_percentage > 0;
         const platformFeeAmount = applyFee ? Math.min(PLATFORM_FLAT_FEE, data.amount) : 0;
-        const sellerAmount = data.amount - platformFeeAmount;
         const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
         const sellId = data.seller_recipient_id.trim();
 
-        const splitRules = applyFee && platId && platId !== sellId && platformFeeAmount > 0 ? {
+        // Assinaturas só aceitam split por percentual
+        const platformPct = applyFee && data.amount > 0
+            ? Math.round((platformFeeAmount / data.amount) * 100)
+            : 0;
+        const sellerPct = 100 - platformPct;
+
+        const splitRules = applyFee && platId && platId !== sellId && platformPct > 0 ? {
             enabled: true,
             rules: [
-                { amount: sellerAmount, recipient_id: sellId, type: 'flat', options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true } },
-                { amount: platformFeeAmount, recipient_id: platId, type: 'flat', options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false } }
+                { amount: sellerPct, recipient_id: sellId, type: 'percentage', options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true } },
+                { amount: platformPct, recipient_id: platId, type: 'percentage', options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false } }
             ]
         } : undefined;
 
