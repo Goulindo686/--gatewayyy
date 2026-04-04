@@ -51,6 +51,25 @@ export default function LandingPage() {
   const heroRef = useRef<HTMLElement>(null!);
   const rafRef = useRef<number | null>(null);
 
+  // Scroll reveal observer para elementos com classe .sr
+  useEffect(() => {
+    const els = document.querySelectorAll('.sr');
+    if (!els.length) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('sr-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+    );
+    els.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
   // Hero parallax effect only
   useEffect(() => {
     const el = heroRef.current;
@@ -503,9 +522,9 @@ export default function LandingPage() {
       {/* API Pix */}
       <section id="api" style={{ padding: '20px 24px 80px', maxWidth: 1200, margin: '0 auto' }}>
         <Reveal direction="up">
-        <div className="glass-card sr sr-up" style={{ padding: 48 }}>
+        <div className="glass-card" style={{ padding: 48 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 32, alignItems: 'center' }} className="apiGrid">
-            <div className="apiCopy sr sr-left">
+            <div className="apiCopy">
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 999, background: 'rgba(108,92,231,0.10)', border: '1px solid rgba(108,92,231,0.18)', color: 'var(--accent-secondary)', fontSize: 12, fontWeight: 800, letterSpacing: 0.4, marginBottom: 14 }}>
                 API para Desenvolvedores
               </div>
@@ -540,7 +559,7 @@ export default function LandingPage() {
                 </Link>
               </div>
             </div>
-            <div style={{ position: 'relative' }} className="apiPreview sr sr-right">
+            <div style={{ position: 'relative' }} className="apiPreview">
               <div style={{ borderRadius: 22, border: '1px solid var(--border-color)', background: 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(243,244,246,0.92) 100%)', overflow: 'hidden', width: '100%', boxSizing: 'border-box' }}>
                 <div style={{ padding: 18, borderBottom: '1px solid var(--border-color)', background: 'rgba(245,246,248,0.76)', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 10, height: 10, borderRadius: 999, background: '#ff5f56' }} />
@@ -616,14 +635,13 @@ Body:
                   { icon: <HiOutlineShieldCheck size={18} />, title: 'Entrega e acesso', desc: 'Conteúdos e entregáveis organizados para o cliente acessar.' },
                   { icon: <HiOutlineChartBar size={18} />, title: 'Gestão centralizada', desc: 'Produtos, pedidos e métricas no painel do vendedor.' },
                 ].map((item, i) => (
-                  <div key={i} className="sr sr-up" style={{
+                  <div key={i} style={{
                     display: 'flex',
                     gap: 12,
                     padding: 16,
                     borderRadius: 16,
                     border: '1px solid var(--border-color)',
                     background: 'rgba(255,255,255,0.75)',
-                    transitionDelay: `${i * 80}ms`
                   }}>
                     <div style={{
                       width: 34,
@@ -656,7 +674,7 @@ Body:
               </div>
             </div>
 
-            <div style={{ position: 'relative' }} className="landingStorefrontPreview sr sr-right">
+            <div style={{ position: 'relative' }} className="landingStorefrontPreview">
               <div style={{
                 borderRadius: 22,
                 border: '1px solid var(--border-color)',
