@@ -20,6 +20,15 @@ export default function SalesPage() {
         loadSales();
     }, []);
 
+    // Debounced search
+    useEffect(() => {
+        if (loading && !refreshing) return; // Skip initial load
+        const timer = setTimeout(() => {
+            handleRefresh();
+        }, 600);
+        return () => clearTimeout(timer);
+    }, [search]);
+
     const loadSales = async (filters?: any) => {
         setLoading(true);
         try {
@@ -104,15 +113,14 @@ export default function SalesPage() {
 
             <div className="glass-card" style={{ padding: 20, marginBottom: 20, display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <div style={{ flex: '1 1 250px' }}>
-                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Pesquisar (Nome, E-mail, CPF, Produto)</label>
+                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Pesquisar por E-mail (Gmail)</label>
                     <div style={{ position: 'relative' }}>
                         <input 
                             className="input-field" 
                             style={{ paddingLeft: 40 }}
-                            placeholder="Buscar venda..." 
+                            placeholder="exemplo@gmail.com" 
                             value={search} 
                             onChange={(e) => setSearch(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleRefresh()}
                         />
                         <FiSearch style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} size={16} />
                     </div>
