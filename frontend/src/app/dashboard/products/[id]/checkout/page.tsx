@@ -12,7 +12,7 @@ import {
 } from 'react-icons/fi';
 
 const DEFAULT_SETTINGS = {
-    theme: 'dark',
+    theme: 'light',
     banner_url: '',
     banner_text: '',
     show_countdown: false,
@@ -21,7 +21,7 @@ const DEFAULT_SETTINGS = {
     countdown_color: '#6C5CE7',
     notice_text: '',
     notice_type: 'warning',
-    accent_color: '#6C5CE7',
+    accent_color: '#00B894',
     hide_product_image: false,
     banner_mode_desktop: 'cover',
     banner_mode_mobile: 'contain',
@@ -171,541 +171,304 @@ export default function CheckoutCustomizationPage() {
         );
     }
 
-    const previewBg = settings.theme === 'light'
-        ? 'linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%)'
-        : 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%)';
-    const previewText = settings.theme === 'light' ? '#1a1a2e' : '#f5f5f5';
-    const previewMuted = settings.theme === 'light' ? '#666' : '#999';
-    const previewCard = settings.theme === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(25,25,45,0.8)';
-    const previewBorder = settings.theme === 'light' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)';
+    const previewBg = settings.theme === 'light' ? '#f8fafc' : '#0a0a0f';
+    const previewText = settings.theme === 'light' ? '#1e293b' : '#f8fafc';
+    const previewMuted = settings.theme === 'light' ? '#64748b' : '#94a3b8';
+    const previewCard = settings.theme === 'light' ? '#ffffff' : '#16161f';
+    const previewBorder = settings.theme === 'light' ? '#e2e8f0' : '#2a2a3a';
+    const previewAccent = settings.accent_color || '#00B894';
 
     return (
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '16px 8px' : '16px', width: '100%', boxSizing: 'border-box' }}>
+        <div className="max-w-[1400px] mx-auto p-4 md:p-8 w-full box-border">
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32, flexWrap: 'wrap', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <button onClick={() => router.push('/dashboard/products')} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                        <FiArrowLeft size={14} /> Voltar
+            <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+                <div className="flex items-center gap-4">
+                    <button onClick={() => router.push('/dashboard/products')} className="bg-white border border-gray-200 rounded-xl px-4 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm font-semibold text-gray-600">
+                        <FiArrowLeft size={16} /> Voltar
                     </button>
                     <div>
-                        <h1 style={{ fontSize: 22, fontWeight: 700 }}>Personalizar <span className="gradient-text">Checkout</span></h1>
-                        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{product?.name}</p>
+                        <h1 className="text-2xl font-black text-gray-800 tracking-tight">Personalizar <span className="text-[#00B894]">Checkout</span></h1>
+                        <p className="text-sm text-gray-500 font-medium">{product?.name}</p>
                     </div>
                 </div>
-                <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 24px', width: isMobile ? '100%' : 'auto' }}>
-                    <FiSave size={16} /> {saving ? 'Salvando...' : 'Salvar'}
+                <button onClick={handleSave} disabled={saving} className="h-12 px-8 rounded-xl bg-[#00B894] text-white font-bold shadow-lg shadow-[#00B894]/20 hover:shadow-[#00B894]/30 hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-50">
+                    <FiSave size={18} /> {saving ? 'Salvando...' : 'Salvar alterações'}
                 </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '380px 1fr', gap: 24, alignItems: 'start', width: '100%' }}>
+            <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-8 items-start">
                 {/* Settings Panel */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%', maxWidth: '100%' }}>
+                <div className="flex flex-col gap-6 overflow-y-auto max-h-[calc(100vh-200px)] pr-2 custom-scrollbar">
 
-                    {/* Theme */}
-                    <div className="glass-card" style={{ padding: 20 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                            {settings.theme === 'dark' ? <FiMoon size={16} /> : <FiSun size={16} />}
-                            <h3 style={{ fontSize: 14, fontWeight: 600 }}>Tema</h3>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                            {['dark', 'light'].map(t => (
-                                <button key={t} onClick={() => update('theme', t)} style={{
-                                    padding: '12px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 500,
-                                    background: settings.theme === t ? 'rgba(108,92,231,0.12)' : 'var(--bg-secondary)',
-                                    border: `1px solid ${settings.theme === t ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                                    color: settings.theme === t ? 'var(--accent-secondary)' : 'var(--text-secondary)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-                                }}>
-                                    {t === 'dark' ? <><FiMoon size={14} /> Escuro</> : <><FiSun size={14} /> Claro</>}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {!isSubscription && (
-                    <div className="glass-card" style={{ padding: 20 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                            <h3 style={{ fontSize: 14, fontWeight: 600 }}>Campos do Checkout</h3>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
-                            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Não pedir Telefone</span>
-                                <button onClick={() => update('hide_phone', !settings.hide_phone)} style={{
-                                    width: 40, height: 22, borderRadius: 11, cursor: 'pointer',
-                                    background: settings.hide_phone ? settings.accent_color : 'var(--bg-secondary)',
-                                    border: `1px solid ${settings.hide_phone ? settings.accent_color : 'var(--border-color)'}`,
-                                    position: 'relative'
-                                }}>
-                                    <div style={{
-                                        width: 16, height: 16, borderRadius: '50%', background: 'white',
-                                        position: 'absolute', top: 2, transition: 'left 0.2s',
-                                        left: settings.hide_phone ? 20 : 2
-                                    }} />
-                                </button>
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Não pedir Endereço no Pix</span>
-                                <button onClick={() => update('hide_address_pix', !settings.hide_address_pix)} style={{
-                                    width: 40, height: 22, borderRadius: 11, cursor: 'pointer',
-                                    background: settings.hide_address_pix ? settings.accent_color : 'var(--bg-secondary)',
-                                    border: `1px solid ${settings.hide_address_pix ? settings.accent_color : 'var(--border-color)'}`,
-                                    position: 'relative'
-                                }}>
-                                    <div style={{
-                                        width: 16, height: 16, borderRadius: '50%', background: 'white',
-                                        position: 'absolute', top: 2, transition: 'left 0.2s',
-                                        left: settings.hide_address_pix ? 20 : 2
-                                    }} />
-                                </button>
-                            </label>
-                        </div>
-                    </div>
-                    )}
-
-                    {/* Accent Color */}
-                    <div className="glass-card" style={{ padding: 20 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                            <FiDroplet size={16} />
-                            <h3 style={{ fontSize: 14, fontWeight: 600 }}>Cor de Destaque</h3>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <input type="color" value={settings.accent_color} onChange={e => update('accent_color', e.target.value)}
-                                style={{ width: 48, height: 48, border: 'none', borderRadius: 10, cursor: 'pointer', background: 'none' }} />
-                            <input className="input-field" value={settings.accent_color} onChange={e => update('accent_color', e.target.value)}
-                                style={{ flex: 1, fontFamily: 'monospace' }} />
-                        </div>
-                        <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
-                            {['#6C5CE7', '#00CEC9', '#E17055', '#00B894', '#FDCB6E', '#E84393', '#0984E3', '#FF6B6B'].map(c => (
-                                <button key={c} onClick={() => update('accent_color', c)} style={{
-                                    width: 28, height: 28, borderRadius: 8, border: settings.accent_color === c ? '2px solid white' : '2px solid transparent',
-                                    background: c, cursor: 'pointer', transition: 'transform 0.15s'
-                                }} />
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Vídeo de Demonstração */}
-                    <div className="glass-card" style={{ padding: 20 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <FiVideo size={16} />
-                                <h3 style={{ fontSize: 14, fontWeight: 600 }}>Vídeo de Demonstração</h3>
-                            </div>
-                            <button onClick={() => update('show_video', !settings.show_video)} style={{
-                                width: 40, height: 22, borderRadius: 11, cursor: 'pointer',
-                                background: settings.show_video ? settings.accent_color : 'var(--bg-secondary)',
-                                border: `1px solid ${settings.show_video ? settings.accent_color : 'var(--border-color)'}`,
-                                position: 'relative'
-                            }}>
-                                <div style={{
-                                    width: 16, height: 16, borderRadius: '50%', background: 'white',
-                                    position: 'absolute', top: 2, transition: 'left 0.2s',
-                                    left: settings.show_video ? 20 : 2
-                                }} />
-                            </button>
-                        </div>
-
-                        {settings.show_video && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                        <div>
-                                             <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Link do vídeo (MP4)</label>
-                                             <input 
-                                                 className="input-field" 
-                                                 placeholder="https://exemplo.com/video.mp4" 
-                                                 value={settings.video_url} 
-                                                 onChange={e => update('video_url', e.target.value)}
-                                                 style={{ width: '100%', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
-                                             />
-                                             <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
-                                                 Dica: Links do Google Drive e Dropbox são convertidos automaticamente.
-                                             </p>
-                                         </div>
-
-                                        {settings.video_url && (
-                                            <div style={{ 
-                                                position: 'relative', 
-                                                borderRadius: 10, 
-                                                overflow: 'hidden', 
-                                                border: '1px solid var(--border-color)', 
-                                                background: '#000',
-                                                aspectRatio: '16/9',
-                                                width: '100%'
-                                            }}>
-                                                {isIframePreview ? (
-                                                    <iframe 
-                                                        src={videoSrcPreview!} 
-                                                        style={{ width: '100%', height: '100%', border: 'none' }} 
-                                                    />
-                                                ) : (
-                                                    <video 
-                                                        key={videoSrcPreview}
-                                                        src={videoSrcPreview!} 
-                                                        controls 
-                                                        muted
-                                                        playsInline
-                                                        style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
-                                                    />
-                                                )}
-                                                <button onClick={() => update('video_url', '')} style={{
-                                                    position: 'absolute', top: 6, right: 6, width: 28, height: 28, borderRadius: 8,
-                                                    background: 'rgba(0,0,0,0.7)', border: 'none', cursor: 'pointer', color: '#ff6b6b',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10
-                                                }}>
-                                                    <FiTrash2 size={13} />
-                                                </button>
-                                            </div>
-                                        )}
-
-                                <div>
-                                    <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Posição do vídeo</label>
-                                    <select 
-                                        className="input-field" 
-                                        value={settings.video_position} 
-                                        onChange={e => update('video_position', e.target.value)}
-                                        style={{ width: '100%', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
-                                    >
-                                        <option value="above_product">Acima do Produto</option>
-                                        <option value="below_product">Abaixo do Produto</option>
-                                        <option value="above_checkout">Acima do Formulário</option>
-                                        <option value="below_checkout">Abaixo do Formulário</option>
-                                    </select>
-                                </div>
-
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                                        <input type="checkbox" checked={settings.video_autoplay} onChange={e => update('video_autoplay', e.target.checked)} />
-                                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Autoplay</span>
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                                        <input type="checkbox" checked={settings.video_loop} onChange={e => update('video_loop', e.target.checked)} />
-                                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Loop</span>
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                                        <input type="checkbox" checked={settings.video_muted} onChange={e => update('video_muted', e.target.checked)} />
-                                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Mudo</span>
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                                        <input type="checkbox" checked={settings.video_controls} onChange={e => update('video_controls', e.target.checked)} />
-                                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Controles</span>
-                                    </label>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Banner */}
-                    <div className="glass-card" style={{ padding: 20 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                            <FiImage size={16} />
-                            <h3 style={{ fontSize: 14, fontWeight: 600 }}>Banner</h3>
-                        </div>
-                        <div style={{ marginBottom: 12 }}>
-                            <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Imagem do banner</label>
-                            {settings.banner_url ? (
-                                <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
-                                    <img src={settings.banner_url} alt="Banner" style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }} />
-                                    <button onClick={() => update('banner_url', '')} style={{
-                                        position: 'absolute', top: 6, right: 6, width: 28, height: 28, borderRadius: 8,
-                                        background: 'rgba(0,0,0,0.7)', border: 'none', cursor: 'pointer', color: '#ff6b6b',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                    }}>
-                                        <FiTrash2 size={13} />
-                                    </button>
-                                </div>
-                            ) : (
-                                <div
-                                    onClick={() => document.getElementById('bannerUpload')?.click()}
-                                    style={{
-                                        border: '2px dashed var(--border-color)', borderRadius: 10, padding: '20px 16px',
-                                        textAlign: 'center', cursor: uploadingBanner ? 'not-allowed' : 'pointer',
-                                        transition: 'border-color 0.2s', opacity: uploadingBanner ? 0.6 : 1
-                                    }}
-                                >
-                                    {uploadingBanner ? (
-                                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Enviando...</div>
-                                    ) : (
-                                        <>
-                                            <FiUpload size={20} style={{ marginBottom: 6, color: 'var(--accent-secondary)' }} />
-                                            <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Clique para enviar uma imagem</p>
-                                        </>
-                                    )}
-                                </div>
-                            )}
-                            <input id="bannerUpload" type="file" accept="image/*" style={{ display: 'none' }} onChange={handleBannerUpload} />
-                        </div>
+                    {/* Theme & Basic */}
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-6">
                         <div>
-                            <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Texto sobreposto</label>
-                            <input className="input-field" placeholder="Ex: Oferta Especial!" value={settings.banner_text} onChange={e => update('banner_text', e.target.value)} />
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
-                            <div>
-                                <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Altura (desktop, px)</label>
-                                <input type="number" min={120} max={600} className="input-field"
-                                    value={settings.banner_height_desktop}
-                                    onChange={e => update('banner_height_desktop', Math.max(120, Math.min(600, parseInt(e.target.value || '0'))))} />
-                            </div>
-                            <div>
-                                <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Altura (mobile, px)</label>
-                                <input type="number" min={120} max={400} className="input-field"
-                                    value={settings.banner_height_mobile}
-                                    onChange={e => update('banner_height_mobile', Math.max(120, Math.min(400, parseInt(e.target.value || '0'))))} />
-                            </div>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
-                            <div>
-                                <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Modo (desktop)</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                                    {[
-                                        { key: 'cover', label: 'Preencher' },
-                                        { key: 'contain', label: 'Completo' },
-                                    ].map(opt => (
-                                        <button key={opt.key} onClick={() => update('banner_mode_desktop', opt.key)} style={{
-                                            padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 600,
-                                            background: settings.banner_mode_desktop === opt.key ? `${settings.accent_color}22` : 'var(--bg-secondary)',
-                                            border: `1px solid ${settings.banner_mode_desktop === opt.key ? settings.accent_color : 'var(--border-color)'}`,
-                                            color: settings.banner_mode_desktop === opt.key ? settings.accent_color : 'var(--text-muted)',
-                                        }}>
-                                            {opt.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div>
-                                <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Modo (mobile)</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                                    {[
-                                        { key: 'contain', label: 'Completo' },
-                                        { key: 'cover', label: 'Preencher' },
-                                    ].map(opt => (
-                                        <button key={opt.key} onClick={() => update('banner_mode_mobile', opt.key)} style={{
-                                            padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 600,
-                                            background: settings.banner_mode_mobile === opt.key ? `${settings.accent_color}22` : 'var(--bg-secondary)',
-                                            border: `1px solid ${settings.banner_mode_mobile === opt.key ? settings.accent_color : 'var(--border-color)'}`,
-                                            color: settings.banner_mode_mobile === opt.key ? settings.accent_color : 'var(--text-muted)',
-                                        }}>
-                                            {opt.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                        {/* Seção de Posição removida conforme solicitado */}
-                    </div>
-
-                    {/* Countdown */}
-                    <div className="glass-card" style={{ padding: 20 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <FiClock size={16} />
-                                <h3 style={{ fontSize: 14, fontWeight: 600 }}>Contador Regressivo</h3>
-                            </div>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                                <div onClick={() => update('show_countdown', !settings.show_countdown)} style={{
-                                    width: 40, height: 22, borderRadius: 11, cursor: 'pointer', transition: 'background 0.2s',
-                                    background: settings.show_countdown ? settings.accent_color : 'var(--bg-secondary)',
-                                    border: `1px solid ${settings.show_countdown ? settings.accent_color : 'var(--border-color)'}`,
-                                    position: 'relative'
-                                }}>
-                                    <div style={{
-                                        width: 16, height: 16, borderRadius: '50%', background: 'white',
-                                        position: 'absolute', top: 2, transition: 'left 0.2s',
-                                        left: settings.show_countdown ? 20 : 2
-                                    }} />
-                                </div>
-                            </label>
-                        </div>
-                        {settings.show_countdown && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                <div>
-                                    <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Texto</label>
-                                    <input className="input-field" value={settings.countdown_text} onChange={e => update('countdown_text', e.target.value)} />
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Minutos</label>
-                                    <input type="number" className="input-field" min={1} max={60} value={settings.countdown_minutes} onChange={e => update('countdown_minutes', parseInt(e.target.value) || 15)} />
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Cor do contador</label>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                        <input type="color" value={settings.countdown_color} onChange={e => update('countdown_color', e.target.value)}
-                                            style={{ width: 40, height: 40, border: 'none', borderRadius: 8, cursor: 'pointer', background: 'none' }} />
-                                        <input className="input-field" value={settings.countdown_color} onChange={e => update('countdown_color', e.target.value)}
-                                            style={{ flex: 1, fontFamily: 'monospace' }} />
-                                    </div>
-                                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                                        {['#6C5CE7', '#00CEC9', '#E17055', '#00B894', '#FDCB6E', '#E84393', '#0984E3', '#FF6B6B', '#222222'].map(c => (
-                                            <button key={c} onClick={() => update('countdown_color', c)} style={{
-                                                width: 24, height: 24, borderRadius: 6, border: settings.countdown_color === c ? '2px solid white' : '2px solid transparent',
-                                                background: c, cursor: 'pointer', transition: 'transform 0.15s'
-                                            }} />
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Notice */}
-                    <div className="glass-card" style={{ padding: 20 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                            <FiAlertTriangle size={16} />
-                            <h3 style={{ fontSize: 14, fontWeight: 600 }}>Aviso / Destaque</h3>
-                        </div>
-                        <div style={{ marginBottom: 12 }}>
-                            <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Texto do aviso</label>
-                            <input className="input-field" placeholder="Ex: ⚡ Últimas vagas disponíveis!" value={settings.notice_text} onChange={e => update('notice_text', e.target.value)} />
-                        </div>
-                        <div>
-                            <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Tipo</label>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-                                {[
-                                    { key: 'warning', label: 'Alerta', color: '#FDCB6E' },
-                                    { key: 'info', label: 'Info', color: '#74B9FF' },
-                                    { key: 'success', label: 'Sucesso', color: '#55EFC4' },
-                                ].map(t => (
-                                    <button key={t.key} onClick={() => update('notice_type', t.key)} style={{
-                                        padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 600,
-                                        background: settings.notice_type === t.key ? `${t.color}22` : 'var(--bg-secondary)',
-                                        border: `1px solid ${settings.notice_type === t.key ? t.color : 'var(--border-color)'}`,
-                                        color: settings.notice_type === t.key ? t.color : 'var(--text-muted)',
-                                    }}>
-                                        {t.label}
+                            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <FiSun size={16} className="text-[#00B894]" /> Estilo Visual
+                            </h3>
+                            <div className="grid grid-cols-2 gap-3">
+                                {['light', 'dark'].map(t => (
+                                    <button key={t} onClick={() => update('theme', t)} className={`h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all border-2 ${settings.theme === t ? 'border-[#00B894] bg-[#00B894]/5 text-[#00B894]' : 'border-gray-50 bg-gray-50 text-gray-400 hover:border-gray-200'}`}>
+                                        {t === 'light' ? <FiSun /> : <FiMoon />} {t === 'light' ? 'Claro' : 'Escuro'}
                                     </button>
                                 ))}
                             </div>
                         </div>
+
+                        <div>
+                            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <FiDroplet size={16} className="text-[#00B894]" /> Cor de Destaque
+                            </h3>
+                            <div className="flex items-center gap-3">
+                                <input type="color" value={settings.accent_color} onChange={e => update('accent_color', e.target.value)} className="w-12 h-12 rounded-xl border-none p-0 cursor-pointer overflow-hidden" />
+                                <input className="flex-1 h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#00B894] outline-none font-mono text-sm" value={settings.accent_color} onChange={e => update('accent_color', e.target.value)} />
+                            </div>
+                            <div className="flex flex-wrap gap-2 mt-4">
+                                {['#00B894', '#6C5CE7', '#E17055', '#FDCB6E', '#0984E3', '#E84393', '#2D3436'].map(c => (
+                                    <button key={c} onClick={() => update('accent_color', c)} className={`w-8 h-8 rounded-lg border-2 transition-transform hover:scale-110 ${settings.accent_color === c ? 'border-gray-800' : 'border-transparent'}`} style={{ background: c }} />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Form Fields */}
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+                            <FiCheck size={16} className="text-[#00B894]" /> Campos do Formulário
+                        </h3>
+                        <div className="space-y-4">
+                            {[
+                                { key: 'hide_phone', label: 'Ocultar Telefone' },
+                                { key: 'hide_address_pix', label: 'Ocultar Endereço no Pix' },
+                                { key: 'hide_product_image', label: 'Ocultar Imagem do Produto' }
+                            ].map(opt => (
+                                <label key={opt.key} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-gray-100">
+                                    <span className="text-sm font-semibold text-gray-600">{opt.label}</span>
+                                    <button onClick={() => update(opt.key, !settings[opt.key as keyof typeof settings])} className={`w-12 h-6 rounded-full relative transition-colors ${settings[opt.key as keyof typeof settings] ? 'bg-[#00B894]' : 'bg-gray-200'}`}>
+                                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings[opt.key as keyof typeof settings] ? 'left-7' : 'left-1'}`} />
+                                    </button>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Notice & Countdown */}
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-6">
+                        <div>
+                            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <FiAlertTriangle size={16} className="text-[#00B894]" /> Aviso em Destaque
+                            </h3>
+                            <input className="w-full h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#00B894] outline-none text-sm mb-3" placeholder="Ex: ⚡ Oferta expira em breve!" value={settings.notice_text} onChange={e => update('notice_text', e.target.value)} />
+                            <div className="grid grid-cols-3 gap-2">
+                                {['warning', 'info', 'success'].map(t => (
+                                    <button key={t} onClick={() => update('notice_type', t)} className={`py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border-2 transition-all ${settings.notice_type === t ? 'border-[#00B894] bg-[#00B894]/5 text-[#00B894]' : 'border-gray-50 text-gray-400'}`}>
+                                        {t}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+                                    <FiClock size={16} className="text-[#00B894]" /> Contador Regressivo
+                                </h3>
+                                <button onClick={() => update('show_countdown', !settings.show_countdown)} className={`w-12 h-6 rounded-full relative transition-colors ${settings.show_countdown ? 'bg-[#00B894]' : 'bg-gray-200'}`}>
+                                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.show_countdown ? 'left-7' : 'left-1'}`} />
+                                </button>
+                            </div>
+                            {settings.show_countdown && (
+                                <div className="space-y-4 animate-fadeIn">
+                                    <input className="w-full h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#00B894] outline-none text-sm" placeholder="Texto do contador" value={settings.countdown_text} onChange={e => update('countdown_text', e.target.value)} />
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Minutos</label>
+                                            <input type="number" className="w-full h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:border-[#00B894] outline-none text-sm" value={settings.countdown_minutes} onChange={e => update('countdown_minutes', parseInt(e.target.value) || 15)} />
+                                        </div>
+                                        <div className="w-24">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Cor</label>
+                                            <input type="color" className="w-full h-12 rounded-xl border-none p-0 cursor-pointer overflow-hidden" value={settings.countdown_color} onChange={e => update('countdown_color', e.target.value)} />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Video */}
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-6">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+                                <FiVideo size={16} className="text-[#00B894]" /> Vídeo de Vendas
+                            </h3>
+                            <button onClick={() => update('show_video', !settings.show_video)} className={`w-12 h-6 rounded-full relative transition-colors ${settings.show_video ? 'bg-[#00B894]' : 'bg-gray-200'}`}>
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.show_video ? 'left-7' : 'left-1'}`} />
+                            </button>
+                        </div>
+                        {settings.show_video && (
+                            <div className="space-y-4 animate-fadeIn">
+                                <input className="w-full h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#00B894] outline-none text-sm" placeholder="URL do vídeo (Youtube, Vimeo, Direct link)" value={settings.video_url} onChange={e => update('video_url', e.target.value)} />
+                                {settings.video_url && (
+                                    <div className="rounded-xl overflow-hidden aspect-video bg-black relative">
+                                        {isIframePreview ? (
+                                            <iframe src={videoSrcPreview!} className="w-full h-full border-none" />
+                                        ) : (
+                                            <video src={videoSrcPreview!} className="w-full h-full object-contain" controls />
+                                        )}
+                                        <button onClick={() => update('video_url', '')} className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-black/50 text-white hover:bg-red-500 transition-colors flex items-center justify-center">
+                                            <FiTrash2 size={14} />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* LIVE PREVIEW */}
-                <div className="glass-card" style={{ padding: 0, overflow: 'hidden', position: isMobile ? 'relative' : 'sticky', top: isMobile ? undefined : 80, width: '100%' }}>
-                    <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600 }}>
-                        <FiEye size={14} /> Preview ao Vivo
-                    </div>
-                    <div style={{
-                        background: previewBg, padding: 0, minHeight: 500, color: previewText,
-                        fontSize: 12, position: 'relative', overflow: 'hidden',
-                        display: 'flex', flexDirection: 'column'
-                    }}>
-                        {/* Countdown Preview */}
-                        {settings.show_countdown && (
-                            <div style={{
-                                background: settings.countdown_color || settings.accent_color, color: 'white', padding: '8px 16px',
-                                textAlign: 'center', fontSize: 12, fontWeight: 600,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
-                            }}>
-                                <FiClock size={12} />
-                                {settings.countdown_text} <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{settings.countdown_minutes}:00</span>
-                            </div>
-                        )}
-
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '10px 16px' }}>
-                            <img src="/favicon.png" alt="GouPay Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
-                            <span style={{ fontSize: 18, fontWeight: 800, color: previewText }}>
-                                Gou<span className="gradient-text">Pay</span>
-                            </span>
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-2xl overflow-hidden sticky top-8 min-h-[800px] flex flex-col scale-90 md:scale-100 origin-top">
+                    <div className="bg-gray-50 px-6 py-3 border-b border-gray-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-red-400" />
+                            <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                            <div className="w-3 h-3 rounded-full bg-green-400" />
                         </div>
+                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                            <FiEye size={12} /> Visualização em tempo real
+                        </div>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto" style={{ background: previewBg }}>
+                        {/* Countdown bar Preview */}
+                        {settings.show_countdown && (
+                            <div className="py-2 px-4 text-center font-bold text-white flex items-center justify-center gap-2 text-xs" style={{ background: settings.countdown_color || previewAccent }}>
+                                <FiClock size={12} />
+                                <span>{settings.countdown_text}</span>
+                                <span className="bg-black/20 px-2 py-0.5 rounded font-mono">{settings.countdown_minutes}:00</span>
+                            </div>
+                        )}
 
-                        {/* Banner Preview */}
-                        {(settings.banner_url || settings.banner_text) && (
-                            <div className="checkoutBannerPreview" style={{
-                                height: settings.banner_url ? (settings.banner_height_desktop || 220) : 'auto', position: 'relative',
-                                background: settings.banner_url ? `url(${settings.banner_url}) ${(settings.banner_position || 'center')}/${settings.banner_mode_desktop === 'contain' ? 'contain' : 'cover'} no-repeat` : `linear-gradient(135deg, ${settings.accent_color}44, ${settings.accent_color}11)`,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                            }}>
-                                {settings.banner_text && (
-                                    <div style={{
-                                        padding: '12px 20px', fontSize: 14, fontWeight: 700, color: 'white',
-                                        textShadow: settings.banner_url ? '0 2px 8px rgba(0,0,0,0.6)' : 'none',
-                                        background: settings.banner_url ? 'rgba(0,0,0,0.4)' : 'transparent',
-                                        width: '100%', textAlign: 'center'
+                        {/* Header Preview */}
+                        <header className="w-full py-3 px-6 bg-white border-b flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <img src="/favicon.png" alt="GouPay" className="w-6 h-6 object-contain" />
+                                <span className="text-lg font-black tracking-tighter" style={{ color: '#1e293b' }}>
+                                    Gou<span style={{ color: previewAccent }}>Pay</span>
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-gray-50 text-[10px] font-bold text-gray-500">
+                                <img src="https://flagcdn.com/w20/br.png" alt="BR" className="w-4 h-3 object-cover rounded-sm" />
+                                PT-BR <FiChevronDown size={10} />
+                            </div>
+                        </header>
+
+                        <div className="flex flex-col md:flex-row min-h-full">
+                            {/* Form Preview */}
+                            <div className="flex-1 bg-white p-8 space-y-8">
+                                {settings.notice_text && (
+                                    <div className="p-3 rounded-xl text-center font-bold text-[10px] uppercase tracking-wider border-2" style={{ 
+                                        background: settings.notice_type === 'warning' ? '#FDCB6E22' : settings.notice_type === 'info' ? '#74B9FF22' : '#55EFC422',
+                                        borderColor: settings.notice_type === 'warning' ? '#FDCB6E' : settings.notice_type === 'info' ? '#74B9FF' : '#55EFC4',
+                                        color: settings.notice_type === 'warning' ? '#b8860b' : settings.notice_type === 'info' ? '#2171b5' : '#0e8c5e'
                                     }}>
-                                        {settings.banner_text}
+                                        {settings.notice_text}
                                     </div>
                                 )}
-                            </div>
-                        )}
 
-                        {/* Notice Preview */}
-                        {settings.notice_text && (
-                            <div style={{
-                                margin: '12px 16px', padding: '10px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500,
-                                background: settings.notice_type === 'warning' ? 'rgba(253,203,110,0.12)' : settings.notice_type === 'info' ? 'rgba(116,185,255,0.12)' : 'rgba(85,239,196,0.12)',
-                                border: `1px solid ${settings.notice_type === 'warning' ? 'rgba(253,203,110,0.3)' : settings.notice_type === 'info' ? 'rgba(116,185,255,0.3)' : 'rgba(85,239,196,0.3)'}`,
-                                color: settings.notice_type === 'warning' ? '#FDCB6E' : settings.notice_type === 'info' ? '#74B9FF' : '#55EFC4'
-                            }}>
-                                {settings.notice_text}
-                            </div>
-                        )}
-
-                        {/* Mini Checkout Preview */}
-                        <div style={{ 
-                            padding: '16px', 
-                            display: 'grid', 
-                            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', 
-                            gap: 12,
-                            flex: 1,
-                            alignContent: (settings.banner_url || settings.banner_text) ? 'start' : 'center'
-                        }}>
-                            {/* Product card mini */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                {settings.show_video && settings.video_position === 'above_product' && (
-                                    <div style={{ background: '#000', borderRadius: 8, aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: 8 }}>
-                                        <FiPlay size={20} color="white" />
-                                    </div>
-                                )}
-                                <div style={{ background: previewCard, borderRadius: 12, border: `1px solid ${previewBorder}`, overflow: 'hidden' }}>
-                                    {!settings.hide_product_image && (
-                                        <div style={{ height: 80, background: `linear-gradient(135deg, ${settings.accent_color}33, ${settings.accent_color}11)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <FiImage size={20} style={{ opacity: 0.3, color: previewText }} />
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-800 mb-4">Pague com</h4>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="h-14 rounded-xl border-2 border-[#00B894] bg-[#00B894]/5 flex items-center gap-3 px-4">
+                                            <div className="w-8 h-8 rounded-lg bg-[#00B894] text-white flex items-center justify-center"><FiCreditCard size={16} /></div>
+                                            <span className="text-xs font-bold text-gray-800">Cartão</span>
                                         </div>
-                                    )}
-                                    <div style={{ padding: 12 }}>
-                                        <div style={{ fontSize: 13, fontWeight: 700, marginTop: 4, color: previewText }}>{product?.name || 'Nome do Produto'}</div>
-                                        <div style={{ fontSize: 16, fontWeight: 800, marginTop: 8, color: settings.accent_color }}>
-                                            R$ {product?.price_display || '97,00'}
+                                        <div className="h-14 rounded-xl border-2 border-gray-100 flex items-center gap-3 px-4 opacity-50">
+                                            <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-400 flex items-center justify-center"><FiSmartphone size={16} /></div>
+                                            <span className="text-xs font-bold text-gray-800">Pix</span>
                                         </div>
                                     </div>
                                 </div>
-                                {settings.show_video && settings.video_position === 'below_product' && (
-                                    <div style={{ background: '#000', borderRadius: 8, aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', marginTop: 8 }}>
-                                        <FiPlay size={20} color="white" />
-                                    </div>
-                                )}
-                            </div>
 
-                            {/* Form mini */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                {settings.show_video && settings.video_position === 'above_checkout' && (
-                                    <div style={{ background: '#000', borderRadius: 8, aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: 8 }}>
-                                        <FiPlay size={20} color="white" />
-                                    </div>
-                                )}
-                                <div style={{ background: previewCard, borderRadius: 12, border: `1px solid ${previewBorder}`, padding: 12 }}>
-                                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: previewText }}>Finalizar Compra</div>
-                                    {['Nome', 'Email', 'CPF', ...(settings.hide_phone ? [] : ['Telefone']), ...(settings.hide_address_pix ? [] : ['Endereço'])].map(f => (
-                                        <div key={f} style={{
-                                            background: settings.theme === 'light' ? '#f0f0f0' : 'rgba(255,255,255,0.05)',
-                                            borderRadius: 6, padding: '6px 8px', marginBottom: 6, fontSize: 10, color: previewMuted
-                                        }}>{f}</div>
+                                <div className="space-y-4">
+                                    <h4 className="text-sm font-bold text-gray-800">Dados pessoais</h4>
+                                    {[
+                                        { label: 'Nome completo', value: 'Ana Cristina da Silva' },
+                                        { label: 'E-mail', value: 'ana.silva@exemplo.com' },
+                                        { label: 'CPF', value: '000.000.000-00' },
+                                        ...(settings.hide_phone ? [] : [{ label: 'Celular', value: '(11) 99999-9999' }])
+                                    ].map(f => (
+                                        <div key={f.label}>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">{f.label}</label>
+                                            <div className="w-full h-12 rounded-xl border-2 border-gray-50 bg-gray-50 px-4 flex items-center text-xs font-medium text-gray-400 italic">
+                                                {f.value}
+                                            </div>
+                                        </div>
                                     ))}
-                                    <div style={{
-                                        background: settings.accent_color, borderRadius: 8, padding: '8px',
-                                        textAlign: 'center', fontSize: 11, fontWeight: 700, color: 'white', marginTop: 8
-                                    }}>
-                                        Pagar Agora
+                                </div>
+
+                                <div className="pt-6 border-t border-gray-50 flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5 text-gray-400">
+                                        <FiLock size={12} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Seguro</span>
+                                    </div>
+                                    <div className="h-12 px-8 rounded-xl text-white font-black text-sm flex items-center justify-center" style={{ background: previewAccent }}>
+                                        Continuar
                                     </div>
                                 </div>
-                                {settings.show_video && settings.video_position === 'below_checkout' && (
-                                    <div style={{ background: '#000', borderRadius: 8, aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', marginTop: 8 }}>
-                                        <FiPlay size={20} color="white" />
+                            </div>
+
+                            {/* Summary Preview */}
+                            <div className="w-full md:w-[300px] p-8 border-l border-gray-100" style={{ background: settings.theme === 'light' ? '#f8fafc' : '#111118' }}>
+                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Resumo</h4>
+                                
+                                <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-4 mb-6" style={{ background: previewCard, borderColor: previewBorder }}>
+                                    <div className="flex gap-3">
+                                        {!settings.hide_product_image && (
+                                            <div className="w-14 h-14 rounded-lg bg-gray-100 flex-shrink-0 flex items-center justify-center text-gray-300">
+                                                <FiPackage size={24} />
+                                            </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-bold text-gray-800 truncate" style={{ color: previewText }}>{product?.name || 'Produto Exemplo'}</div>
+                                            <div className="text-[10px] text-gray-500 mt-1" style={{ color: previewMuted }}>Entrega imediata</div>
+                                        </div>
                                     </div>
-                                )}
+                                    <div className="flex items-center justify-between pt-2">
+                                        <span className="text-[10px] font-black text-[#00B894] uppercase tracking-wider">1 unidade</span>
+                                        <span className="text-sm font-black text-gray-800" style={{ color: previewText }}>R$ {product?.price_display || '97,00'}</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2 px-1">
+                                    <div className="flex justify-between items-center text-[10px] text-gray-500" style={{ color: previewMuted }}>
+                                        <span>Subtotal</span>
+                                        <span className="font-bold">R$ {product?.price_display || '97,00'}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-[10px] text-gray-500" style={{ color: previewMuted }}>
+                                        <span>Frete</span>
+                                        <span className="text-[#00B894] font-black uppercase tracking-widest">Grátis</span>
+                                    </div>
+                                    <div className="pt-3 mt-3 border-t border-gray-200 flex justify-between items-center" style={{ borderColor: previewBorder }}>
+                                        <span className="text-xs font-black text-gray-800" style={{ color: previewText }}>Total</span>
+                                        <span className="text-lg font-black text-gray-800" style={{ color: previewText }}>R$ {product?.price_display || '97,00'}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <style jsx global>{`
+                .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+                .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+            `}</style>
+        </div>
+    );
+}
 
             <style>{`
                 .input-field:focus { border-color: ${settings.accent_color} !important; }

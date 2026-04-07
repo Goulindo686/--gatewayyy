@@ -5,11 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import Script from 'next/script';
 import { productsAPI, checkoutAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiShoppingCart, FiCreditCard, FiSmartphone, FiCheck, FiCopy, FiPackage, FiArrowRight, FiClock } from 'react-icons/fi';
+import { FiShoppingCart, FiCreditCard, FiSmartphone, FiCheck, FiCopy, FiPackage, FiArrowRight, FiClock, FiLock, FiChevronDown } from 'react-icons/fi';
 import FacebookPixel from '@/components/FacebookPixel';
 
 const DEFAULT_SETTINGS = {
-    theme: 'dark',
+    theme: 'light', // Alterado para light por padrão conforme a imagem
     banner_url: '',
     banner_text: '',
     show_countdown: false,
@@ -18,7 +18,7 @@ const DEFAULT_SETTINGS = {
     countdown_color: '#6C5CE7',
     notice_text: '',
     notice_type: 'warning',
-    accent_color: '#6C5CE7',
+    accent_color: '#00B894', // Verde estilo Pagar.me
     hide_product_image: false,
     banner_mode_desktop: 'cover',
     banner_mode_mobile: 'contain',
@@ -72,21 +72,11 @@ function VideoPlayer({ settings, borderColor }: { settings: any, borderColor: st
     const isIframe = videoSrc?.includes('youtube.com/embed') || videoSrc?.includes('player.vimeo.com/video');
 
     return (
-        <div style={{ 
-            width: '100%', 
-            borderRadius: 16, 
-            overflow: 'hidden', 
-            background: '#000',
-            border: `1px solid ${borderColor}`,
-            lineHeight: 0,
-            marginBottom: 16,
-            aspectRatio: '16/9',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
-        }}>
+        <div className="w-full rounded-2xl overflow-hidden bg-black mb-6 aspect-video shadow-xl" style={{ border: `1px solid ${borderColor}` }}>
             {isIframe ? (
                 <iframe
                     src={videoSrc!}
-                    style={{ width: '100%', height: '100%', border: 'none' }}
+                    className="w-full h-full border-none"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                 />
@@ -99,7 +89,7 @@ function VideoPlayer({ settings, borderColor }: { settings: any, borderColor: st
                     muted={settings.video_muted}
                     playsInline
                     preload="auto"
-                    style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain' }}
+                    className="w-full h-full block object-contain"
                 >
                     <source src={videoSrc!} />
                     Seu navegador não suporta a tag de vídeo.
@@ -300,7 +290,7 @@ export default function CheckoutPage() {
     const textSecondary = isLight ? '#555' : 'var(--text-secondary)';
     const textMuted = isLight ? '#888' : 'var(--text-muted)';
     const inputBg = isLight ? '#fff' : 'var(--bg-secondary)';
-    const accent = settings.accent_color || '#6C5CE7';
+    const accent = settings.accent_color || '#00B894';
     const countdownColor = settings.countdown_color || accent;
     const hasBanner = !!(settings.banner_url || settings.banner_text);
     const hasCountdown = settings.show_countdown && timerSeconds > 0;
@@ -340,33 +330,26 @@ export default function CheckoutPage() {
     // Success Screen
     if (result && (result.order?.status === 'paid' || pixPaid)) {
         return (
-            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: bgPrimary, padding: 24 }}>
-                <div style={{ width: '100%', maxWidth: 500, padding: 48, textAlign: 'center', background: bgCard, borderRadius: 20, border: `1px solid ${borderColor}` }}>
-                    <div style={{
-                        width: 80, height: 80, borderRadius: '50%', margin: '0 auto 24px',
-                        background: 'rgba(0,206,201,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        animation: 'scaleIn 0.5s ease'
-                    }}>
-                        <FiCheck size={40} style={{ color: '#00CEC9' }} />
+            <div className="min-h-screen flex items-center justify-center p-6" style={{ background: bgPrimary }}>
+                <div className="w-full max-w-lg p-12 text-center rounded-3xl shadow-2xl border" style={{ background: bgCard, borderColor: borderColor }}>
+                    <div className="w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center animate-bounce" style={{ background: `${accent}22` }}>
+                        <FiCheck size={40} style={{ color: accent }} />
                     </div>
-                    <h2 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8, color: textPrimary }}>
+                    <h2 className="text-3xl font-extrabold mb-2" style={{ color: textPrimary }}>
                         Pagamento <span style={{ color: accent }}>Confirmado!</span>
                     </h2>
-                    <p style={{ color: textSecondary, marginBottom: 8, fontSize: 15 }}>Seu pagamento foi processado com sucesso.</p>
-                    <p style={{ color: textMuted, marginBottom: 24, fontSize: 13 }}>Seu acesso ao produto já está disponível no Painel do Aluno.</p>
-                    <div style={{ background: isLight ? '#f0f0f5' : 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 16, marginBottom: 24 }}>
-                        <div style={{ fontSize: 14, color: textSecondary, marginBottom: 4 }}>Valor pago</div>
-                        <div style={{ fontSize: 32, fontWeight: 700, color: accent }}>R$ {result.order.amount_display}</div>
+                    <p className="text-lg mb-8 opacity-80" style={{ color: textSecondary }}>Seu acesso já está disponível.</p>
+                    
+                    <div className="p-6 rounded-2xl mb-8" style={{ background: isLight ? '#f9fafb' : 'rgba(255,255,255,0.03)' }}>
+                        <div className="text-sm opacity-60 mb-1" style={{ color: textSecondary }}>Valor total</div>
+                        <div className="text-4xl font-black" style={{ color: accent }}>R$ {result.order.amount_display}</div>
                     </div>
-                    <button onClick={() => router.push('/area-membros')} style={{
-                        width: '100%', padding: '16px', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                        background: accent, color: 'white', borderRadius: 12, border: 'none', cursor: 'pointer', fontWeight: 700
-                    }}>
-                        Acessar Painel do Aluno <FiArrowRight size={18} />
+
+                    <button onClick={() => router.push('/area-membros')} className="w-full py-4 px-6 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]" style={{ background: accent }}>
+                        Começar Agora <FiArrowRight size={20} />
                     </button>
-                    <p style={{ color: textMuted, fontSize: 12, marginTop: 12 }}>Redirecionando automaticamente em {countdown}s...</p>
+                    <p className="mt-4 text-xs opacity-50" style={{ color: textMuted }}>Redirecionando em {countdown}s...</p>
                 </div>
-                <style jsx>{`@keyframes scaleIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }`}</style>
             </div>
         );
     }
@@ -374,422 +357,393 @@ export default function CheckoutPage() {
     // PIX QR Code screen
     if (result && result.pix) {
         return (
-            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: bgPrimary, padding: 24 }}>
-                <div style={{ width: '100%', maxWidth: 480, padding: 40, textAlign: 'center', background: bgCard, borderRadius: 20, border: `1px solid ${borderColor}` }}>
-                    <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8, color: textPrimary }}>Pague via Pix</h2>
-                    <p style={{ color: textSecondary, fontSize: 14, marginBottom: 24 }}>Escaneie o QR Code ou copie o código abaixo</p>
+            <div className="min-h-screen flex items-center justify-center p-6" style={{ background: bgPrimary }}>
+                <div className="w-full max-w-md p-10 text-center rounded-3xl shadow-2xl border" style={{ background: bgCard, borderColor: borderColor }}>
+                    <h2 className="text-2xl font-bold mb-2" style={{ color: textPrimary }}>Pague via Pix</h2>
+                    <p className="text-sm mb-8 opacity-70" style={{ color: textSecondary }}>Aponte a câmera do seu celular para o código</p>
+                    
                     {result.pix?.qr_code_url && (
-                        <div style={{ background: 'white', borderRadius: 16, padding: 16, display: 'inline-block', marginBottom: 20 }}>
-                            <img src={result.pix.qr_code_url} alt="QR Code Pix" style={{ width: 220, height: 220 }} />
+                        <div className="bg-white p-4 rounded-2xl inline-block shadow-inner mb-6 border-4" style={{ borderColor: accent }}>
+                            <img src={result.pix.qr_code_url} alt="QR Code Pix" className="w-56 h-56" />
                         </div>
                     )}
-                    <div style={{ marginBottom: 20 }}>
-                        <div style={{ fontSize: 14, color: textSecondary, marginBottom: 8 }}>Valor</div>
-                        <div style={{ fontSize: 28, fontWeight: 700, color: accent }}>R$ {result.order.amount_display}</div>
+                    
+                    <div className="mb-6">
+                        <div className="text-sm opacity-60 mb-1" style={{ color: textSecondary }}>Valor a pagar</div>
+                        <div className="text-3xl font-black" style={{ color: accent }}>R$ {result.order.amount_display}</div>
                     </div>
+
                     {result.pix?.qr_code && (
-                        <div>
-                            <div style={{
-                                background: isLight ? '#f0f0f5' : 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 16px',
-                                fontSize: 12, color: textMuted, wordBreak: 'break-all', maxHeight: 80, overflow: 'auto', marginBottom: 12
-                            }}>
+                        <div className="space-y-4">
+                            <div className="p-3 rounded-xl text-xs break-all max-h-24 overflow-auto border border-dashed" style={{ background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.05)', color: textMuted, borderColor: borderColor }}>
                                 {result.pix.qr_code}
                             </div>
-                            <button onClick={copyPixCode} style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px',
-                                background: accent, color: 'white', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13
-                            }}>
-                                <FiCopy size={14} /> Copiar Pix Copia e Cola
+                            <button onClick={copyPixCode} className="w-full py-3 px-6 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90" style={{ background: accent }}>
+                                <FiCopy size={18} /> Copiar Código Pix
                             </button>
                         </div>
                     )}
-                    <div style={{
-                        marginTop: 24, padding: 16, borderRadius: 12,
-                        background: `${accent}11`, border: `1px solid ${accent}33`
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, color: accent }}>
-                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: accent, animation: 'pulse 1.5s ease infinite' }} />
-                            Aguardando confirmação do pagamento...
-                        </div>
+
+                    <div className="mt-8 p-4 rounded-xl flex items-center justify-center gap-3 animate-pulse" style={{ background: `${accent}11`, border: `1px solid ${accent}33` }}>
+                        <div className="w-2 h-2 rounded-full" style={{ background: accent }} />
+                        <span className="text-sm font-medium" style={{ color: accent }}>Aguardando pagamento...</span>
                     </div>
                 </div>
-                <style jsx>{`@keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }`}</style>
             </div>
         );
     }
 
     return (
-        <div style={{ 
-            minHeight: '100vh', 
-            background: bgPrimary, 
-            color: textPrimary,
-            display: 'flex',
-            flexDirection: 'column'
-        }}>
+        <div className="min-h-screen flex flex-col" style={{ background: bgPrimary, color: textPrimary }}>
             <FacebookPixel pixelId={product?.facebook_pixel_id} product={product} />
 
-            {/* Countdown Timer */}
+            {/* Countdown bar */}
             {hasCountdown && (
-                <div style={{
-                    background: countdownColor, color: 'white', padding: '10px 16px',
-                    textAlign: 'center', fontSize: 14, fontWeight: 600,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                    position: 'sticky', top: 0, zIndex: 50
-                }}>
-                    <FiClock size={14} />
-                    {settings.countdown_text}
-                    <span style={{
-                        fontFamily: 'monospace', fontWeight: 800, fontSize: 16,
-                        background: 'rgba(0,0,0,0.2)', padding: '3px 10px', borderRadius: 6
-                    }}>
-                        {formatTimer(timerSeconds)}
+                <div className="py-2 px-4 text-center font-bold text-white flex items-center justify-center gap-3 sticky top-0 z-50 shadow-md" style={{ background: countdownColor }}>
+                    <FiClock className="animate-pulse" />
+                    <span>{settings.countdown_text}</span>
+                    <span className="bg-black/20 px-3 py-1 rounded-lg font-mono text-lg">{formatTimer(timerSeconds)}</span>
+                </div>
+            )}
+
+            {/* Header */}
+            <header className="w-full py-4 px-6 md:px-12 border-b flex items-center justify-between sticky top-0 z-40" style={{ background: bgCard, borderColor: borderColor }}>
+                <div className="flex items-center gap-3">
+                    <img src="/favicon.png" alt="GouPay" className="w-10 h-10 object-contain" />
+                    <span className="text-2xl font-black tracking-tighter" style={{ color: textPrimary }}>
+                        Gou<span style={{ color: accent }}>Pay</span>
                     </span>
                 </div>
-            )}
-
-            {/* Banner */}
-            {(settings.banner_url || settings.banner_text) && (
-                <div className="checkoutBanner" style={{
-                    height: settings.banner_url ? bannerHeightDesktop : 'auto', position: 'relative',
-                    background: settings.banner_url ? `url(${settings.banner_url}) ${bannerPos}/${bannerModeDesktop} no-repeat` : `linear-gradient(135deg, ${accent}44, ${accent}11)`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                    {settings.banner_url && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />}
-                    {settings.banner_text && (
-                        <div style={{
-                            position: 'relative', zIndex: 1, padding: '20px 24px', fontSize: 22, fontWeight: 800,
-                            color: 'white', textShadow: settings.banner_url ? '0 2px 12px rgba(0,0,0,0.5)' : 'none',
-                            textAlign: 'center'
-                        }}>
-                            {settings.banner_text}
-                        </div>
-                    )}
+                <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium cursor-pointer hover:opacity-80 transition-opacity" style={{ background: isLight ? '#f9fafb' : 'rgba(255,255,255,0.05)', borderColor: borderColor, color: textSecondary }}>
+                    <img src="https://flagcdn.com/w20/br.png" alt="PT-BR" className="w-5 h-3.5 object-cover rounded-sm" />
+                    Português <FiChevronDown />
                 </div>
-            )}
+            </header>
 
-            {/* Notice */}
-            {settings.notice_text && (
-                <div style={{
-                    maxWidth: 1000, margin: '16px auto 0', padding: '0 24px', width: '100%'
-                }}>
-                    <div style={{
-                        padding: '14px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600,
-                        background: noticeColors[settings.notice_type]?.bg,
-                        border: `1px solid ${noticeColors[settings.notice_type]?.border}`,
-                        color: isLight ? (settings.notice_type === 'warning' ? '#b8860b' : settings.notice_type === 'info' ? '#2171b5' : '#0e8c5e') : noticeColors[settings.notice_type]?.text,
-                        textAlign: 'center'
-                    }}>
-                        {settings.notice_text}
-                    </div>
-                </div>
-            )}
-
-            {/* Header removido: logo será exibida abaixo do botão de pagar */}
-
-            <div
-                style={{ 
-                    maxWidth: 1100, 
-                    margin: `${hasBanner ? (hasCountdown ? '32px' : '0') : '0'} auto`, 
-                    padding: hasBanner ? '0 24px 40px' : '40px 24px', 
-                    display: 'grid', 
-                    gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', 
-                    gap: 32, 
-                    alignItems: 'start',
-                    flex: 1,
-                    alignContent: hasBanner ? 'start' : 'center',
-                    width: '100%'
-                }}
-                className="checkoutLayout"
-            >
-                {/* Product Info */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    {settings.show_video && settings.video_position === 'above_product' && (
-                        <VideoPlayer settings={settings} borderColor={borderColor} />
-                    )}
-                    <div style={{ padding: 0, overflow: 'hidden', background: bgCard, borderRadius: 16, border: `1px solid ${borderColor}` }}>
-                        <div className="productMobileHeader" style={{ display: 'none', alignItems: 'center', gap: 12, padding: 12, borderBottom: `1px solid ${borderColor}` }}>
-                            {!settings.hide_product_image && (
-                                <div style={{ width: 60, height: 60, borderRadius: 10, overflow: 'hidden', background: `linear-gradient(135deg, ${accent}22, ${accent}0a)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    {product.image_url ? (
-                                        <img src={product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    ) : (
-                                        <FiShoppingCart size={28} style={{ opacity: 0.3, color: textMuted }} />
-                                    )}
-                                </div>
-                            )}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-                                <div style={{ fontSize: 16, fontWeight: 700, color: textPrimary }}>{product.name}</div>
-                                <div style={{ fontSize: 16, fontWeight: 800, color: accent }}>R$ {selectedPlan ? selectedPlan.price_display : product.price_display}</div>
-                            </div>
-                        </div>
-                        {!settings.hide_product_image && (
-                            <div className="checkoutProductImage" style={{
-                                height: 220, background: `linear-gradient(135deg, ${accent}22, ${accent}0a)`,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+            <main className="flex-1 flex flex-col md:flex-row">
+                {/* Left Side: Forms & Payment */}
+                <div className="w-full md:w-[60%] lg:w-[65%] p-6 md:p-12 lg:p-16" style={{ background: bgCard }}>
+                    <div className="max-w-2xl mx-auto">
+                        
+                        {/* Notice */}
+                        {settings.notice_text && (
+                            <div className="mb-10 p-4 rounded-xl text-center font-semibold text-sm border-2 animate-pulse" style={{ 
+                                background: noticeColors[settings.notice_type]?.bg,
+                                borderColor: noticeColors[settings.notice_type]?.border,
+                                color: noticeColors[settings.notice_type]?.text
                             }}>
-                                {product.image_url ? (
-                                    <img src={product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                    <FiShoppingCart size={48} style={{ opacity: 0.3, color: textMuted }} />
-                                )}
+                                {settings.notice_text}
                             </div>
                         )}
-                        <div style={{ padding: 28 }} className="checkoutCardBody">
-                            <h1 style={{ fontSize: 24, fontWeight: 700, marginTop: 8, marginBottom: 12, color: textPrimary }}>{product.name}</h1>
-                            {plans.length > 0 ? (
-                                <div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-                                        {plans.map(p => (
-                                            <button
-                                                key={p.id}
-                                                type="button"
-                                                onClick={() => setSelectedPlan(p)}
-                                                style={{
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                    padding: '10px 12px', borderRadius: 10,
-                                                    background: selectedPlan?.id === p.id ? `${accent}1a` : 'transparent',
-                                                    border: `1px solid ${selectedPlan?.id === p.id ? accent : borderColor}`,
-                                                    color: selectedPlan?.id === p.id ? accent : textSecondary,
-                                                    cursor: 'pointer'
-                                                }}
-                                            >
-                                                <span style={{ fontWeight: 700 }}>{p.name}</span>
-                                                <span style={{ fontWeight: 800, color: textPrimary }}>R$ {p.price_display}</span>
-                                            </button>
-                                        ))}
+
+                        {/* Digital Wallets */}
+                        <div className="mb-10">
+                            <h3 className="text-lg font-bold mb-6" style={{ color: textPrimary }}>Pague com carteiras digitais</h3>
+                            <div className="flex flex-wrap gap-4">
+                                {['apple', 'google', 'visa'].map(wallet => (
+                                    <div key={wallet} className="flex-1 min-w-[100px] h-14 rounded-xl border-2 flex items-center justify-center grayscale hover:grayscale-0 transition-all cursor-pointer shadow-sm" style={{ background: inputBg, borderColor: borderColor }}>
+                                        <img 
+                                            src={wallet === 'apple' ? 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Apple_Pay_logo.svg/2560px-Apple_Pay_logo.svg.png' : 
+                                                 wallet === 'google' ? 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Google_Pay_Logo.svg/2560px-Google_Pay_Logo.svg.png' :
+                                                 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/2560px-Visa_Inc._logo.svg.png'} 
+                                            alt={wallet} 
+                                            className="h-6 object-contain"
+                                        />
                                     </div>
-                                    <div style={{ fontSize: 28, fontWeight: 800, color: accent }}>R$ {selectedPlan?.price_display}</div>
-                                </div>
-                            ) : (
-                                <div style={{ fontSize: 32, fontWeight: 800, color: accent }}>R$ {product.price_display}</div>
-                            )}
+                                ))}
+                            </div>
+                            <div className="relative flex items-center justify-center my-8">
+                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t" style={{ borderColor: borderColor }}></div></div>
+                                <span className="relative px-4 text-xs font-bold uppercase tracking-widest" style={{ background: bgCard, color: textMuted }}>ou</span>
+                            </div>
                         </div>
-                    </div>
-                    {settings.show_video && settings.video_position === 'below_product' && (
-                        <VideoPlayer settings={settings} borderColor={borderColor} />
-                    )}
-                </div>
 
-                {/* Payment Form */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    {settings.show_video && settings.video_position === 'above_checkout' && (
-                        <VideoPlayer settings={settings} borderColor={borderColor} />
-                    )}
-                    <div style={{ padding: 28, background: bgCard, borderRadius: 16, border: `1px solid ${borderColor}` }} className="checkoutCardBody">
-                        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 24, color: textPrimary }}>Finalizar Compra</h2>
-                        <form onSubmit={handlePay}>
-                            <div style={{ marginBottom: 20 }}>
-                                <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Nome completo</label>
-                                <input placeholder="Seu nome" required value={form.name} onChange={e => update('name', e.target.value)}
-                                    style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }} className="checkoutGrid2">
-                                <div>
-                                    <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Email</label>
-                                    <input type="email" placeholder="seu@email.com" required value={form.email} onChange={e => update('email', e.target.value)}
-                                        style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>CPF</label>
-                                    <input placeholder="000.000.000-00" required value={form.cpf} onChange={e => update('cpf', e.target.value)}
-                                        style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                                </div>
-                            </div>
-                            {!settings.hide_phone && (
-                                <div style={{ marginBottom: 20 }}>
-                                    <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Telefone</label>
-                                    <input placeholder="(11) 99999-9999" required value={form.phone} onChange={e => update('phone', e.target.value)}
-                                        style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                                </div>
-                            )}
-
-                            {(paymentMethod === 'credit_card' || !settings.hide_address_pix) && (
-                            <div style={{ marginBottom: 16 }}>
-                                <h3 style={{ fontSize: 14, fontWeight: 700, color: textSecondary, marginBottom: 10 }}>Endereço de cobrança</h3>
-                                <div className="checkoutGrid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                                    <div>
-                                        <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>CEP</label>
-                                        <input placeholder="00000-000" value={form.cep} onChange={e => update('cep', e.target.value)}
-                                            required={enableCreditCard && paymentMethod === 'credit_card'}
-                                            style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                                    </div>
-                                    <div>
-                                        <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Cidade</label>
-                                        <input placeholder="Cidade" value={form.city} onChange={e => update('city', e.target.value)}
-                                            required={enableCreditCard && paymentMethod === 'credit_card'}
-                                            style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                                    </div>
-                                </div>
-                                <div className="checkoutGrid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
-                                    <div>
-                                        <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Estado</label>
-                                        <input placeholder="UF" maxLength={2} value={form.state} onChange={e => update('state', e.target.value.toUpperCase())}
-                                            required={enableCreditCard && paymentMethod === 'credit_card'}
-                                            style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                                    </div>
-                                    <div>
-                                        <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Bairro</label>
-                                        <input placeholder="Bairro" value={form.neighborhood} onChange={e => update('neighborhood', e.target.value)}
-                                            required={enableCreditCard && paymentMethod === 'credit_card'}
-                                            style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                                    </div>
-                                </div>
-                                <div className="checkoutGrid2" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12, marginTop: 12 }}>
-                                    <div>
-                                        <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Rua</label>
-                                        <input placeholder="Rua" value={form.street} onChange={e => update('street', e.target.value)}
-                                            required={enableCreditCard && paymentMethod === 'credit_card'}
-                                            style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                                    </div>
-                                    <div>
-                                        <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Número</label>
-                                        <input placeholder="Nº" value={form.number} onChange={e => update('number', e.target.value)}
-                                            required={enableCreditCard && paymentMethod === 'credit_card'}
-                                            style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                                    </div>
-                                </div>
-                            </div>
-                            )}
-
-                            {/* Payment method */}
-                            <div style={{ marginBottom: 20 }}>
-                                <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 10, display: 'block' }}>Forma de pagamento</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: enableCreditCard ? '1fr 1fr' : '1fr', gap: 10 }}>
-                                    <button type="button" onClick={() => setPaymentMethod('pix')}
-                                        style={{
-                                            padding: '14px', borderRadius: 12, cursor: 'pointer', display: 'flex',
-                                            alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, fontWeight: 500,
-                                            transition: 'all 0.2s ease', fontFamily: 'inherit',
-                                            background: paymentMethod === 'pix' ? `${accent}1a` : (isLight ? '#f5f5f5' : 'var(--bg-secondary)'),
-                                            border: `1px solid ${paymentMethod === 'pix' ? accent : borderColor}`,
-                                            color: paymentMethod === 'pix' ? accent : textSecondary
-                                        }}>
-                                        <FiSmartphone size={18} /> Pix
+                        {/* Payment Methods */}
+                        <div className="mb-10">
+                            <div className="grid grid-cols-1 gap-3">
+                                {enableCreditCard && (
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setPaymentMethod('credit_card')}
+                                        className={`flex items-center gap-4 p-5 rounded-2xl border-2 transition-all text-left ${paymentMethod === 'credit_card' ? '' : 'hover:opacity-80'}`}
+                                        style={{ 
+                                            borderColor: paymentMethod === 'credit_card' ? accent : borderColor,
+                                            background: paymentMethod === 'credit_card' ? `${accent}11` : 'transparent'
+                                        }}
+                                    >
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${paymentMethod === 'credit_card' ? 'text-white' : ''}`} style={{ background: paymentMethod === 'credit_card' ? accent : (isLight ? '#f3f4f6' : 'rgba(255,255,255,0.05)'), color: paymentMethod === 'credit_card' ? 'white' : textMuted }}>
+                                            <FiCreditCard size={24} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="font-bold" style={{ color: textPrimary }}>Cartão de Crédito</div>
+                                            <div className="text-xs" style={{ color: textSecondary }}>Pague em até 12x</div>
+                                        </div>
+                                        {paymentMethod === 'credit_card' && <div className="w-6 h-6 rounded-full flex items-center justify-center text-white" style={{ background: accent }}><FiCheck size={14} /></div>}
                                     </button>
-                                    {enableCreditCard && (
-                                        <button type="button" onClick={() => setPaymentMethod('credit_card')}
-                                            style={{
-                                                padding: '14px', borderRadius: 12, cursor: 'pointer', display: 'flex',
-                                                alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, fontWeight: 500,
-                                                transition: 'all 0.2s ease', fontFamily: 'inherit',
-                                                background: paymentMethod === 'credit_card' ? `${accent}1a` : (isLight ? '#f5f5f5' : 'var(--bg-secondary)'),
-                                                border: `1px solid ${paymentMethod === 'credit_card' ? accent : borderColor}`,
-                                                color: paymentMethod === 'credit_card' ? accent : textSecondary
-                                            }}>
-                                            <FiCreditCard size={18} /> Cartão de Crédito
-                                        </button>
+                                )}
+                                <button 
+                                    type="button" 
+                                    onClick={() => setPaymentMethod('pix')}
+                                    className={`flex items-center gap-4 p-5 rounded-2xl border-2 transition-all text-left ${paymentMethod === 'pix' ? '' : 'hover:opacity-80'}`}
+                                    style={{ 
+                                        borderColor: paymentMethod === 'pix' ? accent : borderColor,
+                                        background: paymentMethod === 'pix' ? `${accent}11` : 'transparent'
+                                    }}
+                                >
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${paymentMethod === 'pix' ? 'text-white' : ''}`} style={{ background: paymentMethod === 'pix' ? accent : (isLight ? '#f3f4f6' : 'rgba(255,255,255,0.05)'), color: paymentMethod === 'pix' ? 'white' : textMuted }}>
+                                        <FiSmartphone size={24} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="font-bold" style={{ color: textPrimary }}>Pix</div>
+                                        <div className="text-xs font-bold" style={{ color: accent }}>com desconto</div>
+                                    </div>
+                                    {paymentMethod === 'pix' && <div className="w-6 h-6 rounded-full flex items-center justify-center text-white" style={{ background: accent }}><FiCheck size={14} /></div>}
+                                </button>
+                                <button 
+                                    type="button" 
+                                    className="flex items-center gap-4 p-5 rounded-2xl border-2 opacity-50 cursor-not-allowed text-left"
+                                    style={{ borderColor: borderColor }}
+                                >
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.05)', color: textMuted }}>
+                                        <FiPackage size={24} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="font-bold" style={{ color: textPrimary }}>Boleto</div>
+                                        <div className="text-xs font-bold" style={{ color: accent }}>com desconto</div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Form */}
+                        <form onSubmit={handlePay} className="space-y-8">
+                            <section>
+                                <h3 className="text-xl font-bold mb-6" style={{ color: textPrimary }}>Dados pessoais</h3>
+                                <div className="space-y-4">
+                                    <div className="group">
+                                        <label className="text-xs font-bold uppercase tracking-wider mb-2 block transition-colors group-focus-within:opacity-100 opacity-60" style={{ color: textSecondary }}>Nome completo *</label>
+                                        <input 
+                                            placeholder="Ex: Ana Cristina da Silva" 
+                                            required 
+                                            value={form.name} 
+                                            onChange={e => update('name', e.target.value)}
+                                            className="w-full h-14 px-5 rounded-xl border-2 outline-none transition-all font-medium"
+                                            style={{ background: inputBg, borderColor: borderColor, color: textPrimary }}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="group">
+                                            <label className="text-xs font-bold uppercase tracking-wider mb-2 block transition-colors group-focus-within:opacity-100 opacity-60" style={{ color: textSecondary }}>E-mail *</label>
+                                            <input 
+                                                type="email" 
+                                                placeholder="seu@email.com" 
+                                                required 
+                                                value={form.email} 
+                                                onChange={e => update('email', e.target.value)}
+                                                className="w-full h-14 px-5 rounded-xl border-2 outline-none transition-all font-medium"
+                                                style={{ background: inputBg, borderColor: borderColor, color: textPrimary }}
+                                            />
+                                        </div>
+                                        <div className="group">
+                                            <label className="text-xs font-bold uppercase tracking-wider mb-2 block transition-colors group-focus-within:opacity-100 opacity-60" style={{ color: textSecondary }}>CPF *</label>
+                                            <input 
+                                                placeholder="000.000.000-00" 
+                                                required 
+                                                value={form.cpf} 
+                                                onChange={e => update('cpf', e.target.value)}
+                                                className="w-full h-14 px-5 rounded-xl border-2 outline-none transition-all font-medium"
+                                                style={{ background: inputBg, borderColor: borderColor, color: textPrimary }}
+                                            />
+                                        </div>
+                                    </div>
+                                    {!settings.hide_phone && (
+                                        <div className="group">
+                                            <label className="text-xs font-bold uppercase tracking-wider mb-2 block transition-colors group-focus-within:opacity-100 opacity-60" style={{ color: textSecondary }}>Celular com DDD *</label>
+                                            <input 
+                                                placeholder="(11) 99999-9999" 
+                                                required 
+                                                value={form.phone} 
+                                                onChange={e => update('phone', e.target.value)}
+                                                className="w-full h-14 px-5 rounded-xl border-2 outline-none transition-all font-medium"
+                                                style={{ background: inputBg, borderColor: borderColor, color: textPrimary }}
+                                            />
+                                        </div>
                                     )}
                                 </div>
-                            </div>
+                            </section>
 
-                            {/* Credit Card Fields */}
-                            {enableCreditCard && paymentMethod === 'credit_card' && (
-                                <div style={{ marginBottom: 20 }}>
-                                    <div style={{ marginBottom: 12 }}>
-                                        <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Número do cartão</label>
-                                        <input placeholder="0000 0000 0000 0000" required value={form.card_number} onChange={e => update('card_number', e.target.value)}
-                                            style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                            {/* Credit Card Details */}
+                            {paymentMethod === 'credit_card' && (
+                                <section className="pt-4 animate-fadeIn">
+                                    <h3 className="text-xl font-bold mb-6" style={{ color: textPrimary }}>Dados do cartão</h3>
+                                    <div className="space-y-4">
+                                        <div className="group">
+                                            <label className="text-xs font-bold uppercase tracking-wider mb-2 block transition-colors group-focus-within:opacity-100 opacity-60" style={{ color: textSecondary }}>Número do cartão *</label>
+                                            <input 
+                                                placeholder="0000 0000 0000 0000" 
+                                                required 
+                                                value={form.card_number} 
+                                                onChange={e => update('card_number', e.target.value)}
+                                                className="w-full h-14 px-5 rounded-xl border-2 outline-none transition-all font-medium"
+                                                style={{ background: inputBg, borderColor: borderColor, color: textPrimary }}
+                                            />
+                                        </div>
+                                        <div className="group">
+                                            <label className="text-xs font-bold uppercase tracking-wider mb-2 block transition-colors group-focus-within:opacity-100 opacity-60" style={{ color: textSecondary }}>Nome impresso no cartão *</label>
+                                            <input 
+                                                placeholder="COMO ESTÁ NO CARTÃO" 
+                                                required 
+                                                value={form.card_holder} 
+                                                onChange={e => update('card_holder', e.target.value)}
+                                                className="w-full h-14 px-5 rounded-xl border-2 outline-none transition-all font-medium"
+                                                style={{ background: inputBg, borderColor: borderColor, color: textPrimary }}
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="group">
+                                                <label className="text-xs font-bold uppercase tracking-wider mb-2 block opacity-60" style={{ color: textSecondary }}>Validade *</label>
+                                                <div className="flex items-center gap-2">
+                                                    <input placeholder="MM" maxLength={2} className="w-full h-14 px-3 text-center rounded-xl border-2 outline-none" value={form.card_exp_month} onChange={e => update('card_exp_month', e.target.value)} style={{ background: inputBg, borderColor: borderColor, color: textPrimary }} />
+                                                    <span className="opacity-30">/</span>
+                                                    <input placeholder="AA" maxLength={2} className="w-full h-14 px-3 text-center rounded-xl border-2 outline-none" value={form.card_exp_year} onChange={e => update('card_exp_year', e.target.value)} style={{ background: inputBg, borderColor: borderColor, color: textPrimary }} />
+                                                </div>
+                                            </div>
+                                            <div className="group col-span-1">
+                                                <label className="text-xs font-bold uppercase tracking-wider mb-2 block opacity-60" style={{ color: textSecondary }}>CVV *</label>
+                                                <input placeholder="000" maxLength={4} className="w-full h-14 px-5 rounded-xl border-2 outline-none" value={form.card_cvv} onChange={e => update('card_cvv', e.target.value)} style={{ background: inputBg, borderColor: borderColor, color: textPrimary }} />
+                                            </div>
+                                            <div className="group col-span-1">
+                                                <label className="text-xs font-bold uppercase tracking-wider mb-2 block opacity-60" style={{ color: textSecondary }}>Parcelas *</label>
+                                                <select 
+                                                    className="w-full h-14 px-3 rounded-xl border-2 outline-none font-medium"
+                                                    value={form.installments}
+                                                    onChange={e => update('installments', e.target.value)}
+                                                    style={{ background: inputBg, borderColor: borderColor, color: textPrimary }}
+                                                >
+                                                    {[...Array(12)].map((_, i) => (
+                                                        <option key={i+1} value={i+1}>{i+1}x de R$ {((selectedPlan?.price || product?.price || 0) / 100 / (i+1)).toFixed(2)}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Address for Credit Card */}
+                                        <div className="pt-4 space-y-4">
+                                            <h4 className="font-bold opacity-80" style={{ color: textPrimary }}>Endereço de cobrança</h4>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                <div className="col-span-1"><input placeholder="CEP" className="w-full h-12 px-4 rounded-xl border-2 outline-none" value={form.cep} onChange={e => update('cep', e.target.value)} style={{ background: inputBg, borderColor: borderColor, color: textPrimary }} /></div>
+                                                <div className="col-span-2 md:col-span-2"><input placeholder="Cidade" className="w-full h-12 px-4 rounded-xl border-2 outline-none" value={form.city} onChange={e => update('city', e.target.value)} style={{ background: inputBg, borderColor: borderColor, color: textPrimary }} /></div>
+                                                <div className="col-span-1"><input placeholder="UF" maxLength={2} className="w-full h-12 px-4 rounded-xl border-2 outline-none" value={form.state} onChange={e => update('state', e.target.value.toUpperCase())} style={{ background: inputBg, borderColor: borderColor, color: textPrimary }} /></div>
+                                            </div>
+                                            <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+                                                <div className="col-span-2 md:col-span-3"><input placeholder="Rua / Logradouro" className="w-full h-12 px-4 rounded-xl border-2 outline-none" value={form.street} onChange={e => update('street', e.target.value)} style={{ background: inputBg, borderColor: borderColor, color: textPrimary }} /></div>
+                                                <div className="col-span-1"><input placeholder="Nº" className="w-full h-12 px-4 rounded-xl border-2 outline-none" value={form.number} onChange={e => update('number', e.target.value)} style={{ background: inputBg, borderColor: borderColor, color: textPrimary }} /></div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div style={{ marginBottom: 12 }}>
-                                        <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Nome no cartão</label>
-                                        <input placeholder="Nome como está no cartão" required value={form.card_holder} onChange={e => update('card_holder', e.target.value)}
-                                            style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                                    </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }} className="checkoutGrid3">
-                                        <div>
-                                            <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Mês</label>
-                                            <input placeholder="MM" maxLength={2} required value={form.card_exp_month} onChange={e => update('card_exp_month', e.target.value)}
-                                                style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                                        </div>
-                                        <div>
-                                            <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Ano</label>
-                                            <input placeholder="AA" maxLength={2} required value={form.card_exp_year} onChange={e => update('card_exp_year', e.target.value)}
-                                                style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                                        </div>
-                                        <div>
-                                            <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>CVV</label>
-                                            <input placeholder="000" maxLength={4} required value={form.card_cvv} onChange={e => update('card_cvv', e.target.value)}
-                                                style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                                        </div>
-                                        <div>
-                                            <label style={{ fontSize: 13, fontWeight: 500, color: textSecondary, marginBottom: 6, display: 'block' }}>Parcelas</label>
-                                            <input type="number" min={1} max={12} required value={String(form.installments)} onChange={e => {
-                                                const v = parseInt(e.target.value) || 1;
-                                                const clamped = Math.max(1, Math.min(12, v));
-                                                update('installments', String(clamped));
-                                            }}
-                                                style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: `1px solid ${borderColor}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                                        </div>
-                                    </div>
-                                </div>
+                                </section>
                             )}
 
-                            <button type="submit" disabled={processing}
-                                style={{
-                                    width: '100%', padding: '16px', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                                    background: accent, color: 'white', borderRadius: 12, border: 'none', cursor: processing ? 'not-allowed' : 'pointer',
-                                    fontWeight: 700, opacity: processing ? 0.7 : 1, transition: 'all 0.2s'
-                                }}>
-                                {processing ? 'Processando...' : (
-                                    <>
-                                        {paymentMethod === 'pix' ? <FiSmartphone size={18} /> : <FiCreditCard size={18} />}
-                                        Pagar R$ {selectedPlan ? selectedPlan.price_display : product.price_display}
-                                    </>
-                                )}
-                            </button>
-                            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                                    <img src="/favicon.png" alt="GouPay Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
-                                    <span style={{ fontSize: 14, fontWeight: 700, color: textSecondary }}>GouPay</span>
+                            {/* Submit Button */}
+                            <div className="pt-10 flex flex-col md:flex-row items-center justify-between gap-6 border-t" style={{ borderColor: borderColor }}>
+                                <div className="flex items-center gap-2 opacity-50" style={{ color: textSecondary }}>
+                                    <FiLock size={16} />
+                                    <span className="text-xs font-bold uppercase tracking-wider">Pagamento protegido</span>
                                 </div>
+                                <button 
+                                    type="submit" 
+                                    disabled={processing}
+                                    className="w-full md:w-auto min-w-[240px] h-16 px-10 rounded-2xl text-white font-black text-lg shadow-xl hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    style={{ background: accent, boxShadow: `0 10px 25px -5px ${accent}66` }}
+                                >
+                                    {processing ? 'Processando...' : 'Continuar'}
+                                </button>
                             </div>
-                            <p style={{ textAlign: 'center', fontSize: 11, color: textMuted, marginTop: 10 }}>
-                                🔒 Pagamento seguro processado via Pagar.me
-                            </p>
                         </form>
                     </div>
-                    {settings.show_video && settings.video_position === 'below_checkout' && (
-                        <VideoPlayer settings={settings} borderColor={borderColor} />
-                    )}
                 </div>
-            </div>
 
-            <style>{`
-                input:focus { border-color: ${accent} !important; box-shadow: 0 0 0 3px ${accent}22 !important; }
-                @media (max-width: 920px) {
-                    .checkoutLayout {
-                        grid-template-columns: 1fr !important;
-                        gap: 18px !important;
-                    }
-                }
-                @media (max-width: 640px) {
-                    .checkoutLayout {
-                        padding: 0 14px 28px !important;
-                    }
-                    .checkoutProductImage {
-                        display: none !important;
-                    }
-                    .productMobileHeader {
-                        display: flex !important;
-                    }
-                    .checkoutBanner {
-                        height: ${bannerHeightMobile}px !important;
-                        background-size: ${bannerModeMobile} !important;
-                        background-position: ${bannerPos} !important;
-                        background-repeat: no-repeat !important;
-                    }
-                    .checkoutCardBody {
-                        padding: 18px !important;
-                    }
-                    .checkoutGrid2 {
-                        grid-template-columns: 1fr !important;
-                        gap: 10px !important;
-                    }
-                    .checkoutGrid3 {
-                        grid-template-columns: 1fr 1fr !important;
-                        gap: 10px !important;
-                    }
-                }
+                {/* Right Side: Order Summary */}
+                <div className="w-full md:w-[40%] lg:w-[35%] p-6 md:p-12 lg:p-16 border-l" style={{ background: isLight ? '#f9fafb' : 'rgba(255,255,255,0.02)', borderColor: borderColor }}>
+                    <div className="max-w-md mx-auto sticky top-32">
+                        <div className="uppercase text-[10px] font-black tracking-[0.2em] opacity-40 mb-2" style={{ color: textSecondary }}>Checkout</div>
+                        <h2 className="text-3xl font-black mb-10" style={{ color: textPrimary }}>Resumo da compra</h2>
+
+                        {/* Product Card */}
+                        <div className="p-6 rounded-3xl shadow-sm border mb-8 space-y-6" style={{ background: bgCard, borderColor: borderColor }}>
+                            <div className="flex gap-4">
+                                {!settings.hide_product_image && (
+                                    <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 border" style={{ background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.05)', borderColor: borderColor }}>
+                                        {product.image_url ? (
+                                            <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center opacity-20" style={{ color: textPrimary }}><FiShoppingCart size={32} /></div>
+                                        )}
+                                    </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-lg leading-tight mb-2 truncate" style={{ color: textPrimary }}>{product.name}</h4>
+                                    <p className="text-sm line-clamp-3 mb-4 leading-relaxed opacity-60" style={{ color: textSecondary }}>{product.description || 'Produto digital com entrega imediata via e-mail.'}</p>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-white text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-wider" style={{ background: accent }}>1 unidade</span>
+                                        <span className="font-bold" style={{ color: textPrimary }}>R$ {selectedPlan ? selectedPlan.price_display : product.price_display}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Plans selection if any */}
+                            {plans.length > 1 && (
+                                <div className="pt-4 border-t space-y-2" style={{ borderColor: borderColor }}>
+                                    <label className="text-[10px] font-bold opacity-40 uppercase tracking-widest mb-2 block" style={{ color: textSecondary }}>Selecione seu plano</label>
+                                    {plans.map(p => (
+                                        <div 
+                                            key={p.id} 
+                                            onClick={() => setSelectedPlan(p)}
+                                            className={`p-3 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-between ${selectedPlan?.id === p.id ? '' : 'hover:opacity-80'}`}
+                                            style={{ 
+                                                borderColor: selectedPlan?.id === p.id ? accent : borderColor,
+                                                background: selectedPlan?.id === p.id ? `${accent}11` : 'transparent'
+                                            }}
+                                        >
+                                            <span className={`text-sm font-bold ${selectedPlan?.id === p.id ? '' : 'opacity-60'}`} style={{ color: selectedPlan?.id === p.id ? accent : textPrimary }}>{p.name}</span>
+                                            <span className="text-sm font-black" style={{ color: textPrimary }}>R$ {p.price_display}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Totals */}
+                        <div className="space-y-4 px-2">
+                            <div className="flex justify-between items-center opacity-60" style={{ color: textSecondary }}>
+                                <span className="text-sm font-medium">Subtotal</span>
+                                <span className="font-bold" style={{ color: textPrimary }}>R$ {selectedPlan ? selectedPlan.price_display : product.price_display}</span>
+                            </div>
+                            <div className="flex justify-between items-center opacity-60" style={{ color: textSecondary }}>
+                                <span className="text-sm font-medium">Frete</span>
+                                <span className="font-black text-xs uppercase tracking-widest" style={{ color: accent }}>Grátis</span>
+                            </div>
+                            <div className="pt-4 border-t-2 flex justify-between items-center" style={{ borderColor: borderColor }}>
+                                <span className="text-lg font-black" style={{ color: textPrimary }}>Total a pagar</span>
+                                <span className="text-2xl font-black tracking-tight" style={{ color: textPrimary }}>R$ {selectedPlan ? selectedPlan.price_display : product.price_display}</span>
+                            </div>
+                        </div>
+
+                        {/* Video */}
+                        {settings.show_video && (
+                            <div className="mt-12">
+                                <VideoPlayer settings={settings} borderColor={borderColor} />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </main>
+
+            <style jsx global>{`
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
+                input::placeholder { color: #9ca3af; font-weight: 400; }
+                select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.25rem; }
             `}</style>
         </div>
     );
