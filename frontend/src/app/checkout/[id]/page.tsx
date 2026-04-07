@@ -290,7 +290,7 @@ export default function CheckoutPage() {
     const textSecondary = isLight ? '#555' : 'var(--text-secondary)';
     const textMuted = isLight ? '#888' : 'var(--text-muted)';
     const inputBg = isLight ? '#fff' : 'var(--bg-secondary)';
-    const accent = settings.accent_color || '#00B894';
+    const accent = settings.accent_color || '#6C5CE7';
     const countdownColor = settings.countdown_color || accent;
     const hasBanner = !!(settings.banner_url || settings.banner_text);
     const hasCountdown = settings.show_countdown && timerSeconds > 0;
@@ -300,15 +300,13 @@ export default function CheckoutPage() {
         info: { bg: 'rgba(116,185,255,0.12)', border: 'rgba(116,185,255,0.3)', text: '#74B9FF' },
         success: { bg: 'rgba(85,239,196,0.12)', border: 'rgba(85,239,196,0.3)', text: '#55EFC4' },
     };
-    const bannerModeDesktop = settings.banner_mode_desktop === 'contain' ? 'contain' : 'cover';
-    const bannerModeMobile = settings.banner_mode_mobile === 'contain' ? 'contain' : 'cover';
-    const bannerPos = settings.banner_position || 'center';
+    
     const bannerHeightDesktop = settings.banner_height_desktop || 300;
     const bannerHeightMobile = settings.banner_height_mobile || 200;
 
     if (loading) {
         return (
-            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: bgPrimary }}>
+            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyCenter: 'center', background: bgPrimary }}>
                 <div style={{ width: 40, height: 40, border: `3px solid ${borderColor}`, borderTopColor: accent, borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
@@ -317,7 +315,7 @@ export default function CheckoutPage() {
 
     if (!product) {
         return (
-            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: bgPrimary, padding: 24 }}>
+            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyCenter: 'center', background: bgPrimary, padding: 24 }}>
                 <div style={{ padding: 48, textAlign: 'center', maxWidth: 400, background: bgCard, borderRadius: 16, border: `1px solid ${borderColor}` }}>
                     <FiPackage size={48} style={{ opacity: 0.3, color: textPrimary, marginBottom: 16 }} />
                     <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8, color: textPrimary }}>Produto não encontrado</h2>
@@ -406,8 +404,24 @@ export default function CheckoutPage() {
                 </div>
             )}
 
+            {/* Banner */}
+            {hasBanner && (
+                <div className="relative w-full overflow-hidden" style={{ height: settings.banner_url ? bannerHeightDesktop : 'auto', minHeight: 100 }}>
+                    {settings.banner_url ? (
+                        <img src={settings.banner_url} alt="Banner" className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${accent}44, ${accent}11)` }} />
+                    )}
+                    {settings.banner_text && (
+                        <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+                            <h1 className="text-white font-black text-2xl md:text-4xl drop-shadow-xl max-w-4xl">{settings.banner_text}</h1>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Header */}
-            <header className="w-full py-4 px-6 md:px-12 border-b flex items-center justify-between sticky top-0 z-40" style={{ background: bgCard, borderColor: borderColor }}>
+            <header className="w-full py-4 px-6 md:px-12 border-b flex items-center justify-between sticky top-0 z-40 shadow-sm" style={{ background: bgCard, borderColor: borderColor }}>
                 <div className="flex items-center gap-3">
                     <img src="/favicon.png" alt="GouPay" className="w-10 h-10 object-contain" />
                     <span className="text-2xl font-black tracking-tighter" style={{ color: textPrimary }}>

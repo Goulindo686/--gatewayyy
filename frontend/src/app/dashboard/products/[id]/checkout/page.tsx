@@ -171,12 +171,14 @@ export default function CheckoutCustomizationPage() {
         );
     }
 
-    const previewBg = settings.theme === 'light' ? '#f8fafc' : '#0a0a0f';
+    const previewBg = settings.theme === 'light' ? '#ffffff' : '#0a0a0f';
+    const previewHeaderBg = settings.theme === 'light' ? '#ffffff' : '#16161f';
     const previewText = settings.theme === 'light' ? '#1e293b' : '#f8fafc';
     const previewMuted = settings.theme === 'light' ? '#64748b' : '#94a3b8';
-    const previewCard = settings.theme === 'light' ? '#ffffff' : '#16161f';
+    const previewCard = settings.theme === 'light' ? '#f9fafb' : '#16161f';
     const previewBorder = settings.theme === 'light' ? '#e2e8f0' : '#2a2a3a';
-    const previewAccent = settings.accent_color || '#00B894';
+    const previewInputBg = settings.theme === 'light' ? '#ffffff' : '#0a0a0f';
+    const previewAccent = settings.accent_color || '#6C5CE7';
 
     return (
         <div className="max-w-[1400px] mx-auto p-4 md:p-8 w-full box-border">
@@ -187,11 +189,11 @@ export default function CheckoutCustomizationPage() {
                         <FiArrowLeft size={16} /> Voltar
                     </button>
                     <div>
-                        <h1 className="text-2xl font-black text-gray-800 tracking-tight">Personalizar <span className="text-[#00B894]">Checkout</span></h1>
+                        <h1 className="text-2xl font-black text-gray-800 tracking-tight">Personalizar <span className="text-[#6C5CE7]">Checkout</span></h1>
                         <p className="text-sm text-gray-500 font-medium">{product?.name}</p>
                     </div>
                 </div>
-                <button onClick={handleSave} disabled={saving} className="h-12 px-8 rounded-xl bg-[#00B894] text-white font-bold shadow-lg shadow-[#00B894]/20 hover:shadow-[#00B894]/30 hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-50">
+                <button onClick={handleSave} disabled={saving} className="h-12 px-8 rounded-xl bg-[#6C5CE7] text-white font-bold shadow-lg shadow-[#6C5CE7]/20 hover:shadow-[#6C5CE7]/30 hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-50">
                     <FiSave size={18} /> {saving ? 'Salvando...' : 'Salvar alterações'}
                 </button>
             </div>
@@ -204,11 +206,11 @@ export default function CheckoutCustomizationPage() {
                     <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-6">
                         <div>
                             <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
-                                <FiSun size={16} className="text-[#00B894]" /> Estilo Visual
+                                <FiSun size={16} className="text-[#6C5CE7]" /> Estilo Visual
                             </h3>
                             <div className="grid grid-cols-2 gap-3">
                                 {['light', 'dark'].map(t => (
-                                    <button key={t} onClick={() => update('theme', t)} className={`h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all border-2 ${settings.theme === t ? 'border-[#00B894] bg-[#00B894]/5 text-[#00B894]' : 'border-gray-50 bg-gray-50 text-gray-400 hover:border-gray-200'}`}>
+                                    <button key={t} onClick={() => update('theme', t)} className={`h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all border-2 ${settings.theme === t ? 'border-[#6C5CE7] bg-[#6C5CE7]/5 text-[#6C5CE7]' : 'border-gray-50 bg-gray-50 text-gray-400 hover:border-gray-200'}`}>
                                         {t === 'light' ? <FiSun /> : <FiMoon />} {t === 'light' ? 'Claro' : 'Escuro'}
                                     </button>
                                 ))}
@@ -217,16 +219,64 @@ export default function CheckoutCustomizationPage() {
 
                         <div>
                             <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
-                                <FiDroplet size={16} className="text-[#00B894]" /> Cor de Destaque
+                                <FiDroplet size={16} className="text-[#6C5CE7]" /> Cor de Destaque
                             </h3>
                             <div className="flex items-center gap-3">
                                 <input type="color" value={settings.accent_color} onChange={e => update('accent_color', e.target.value)} className="w-12 h-12 rounded-xl border-none p-0 cursor-pointer overflow-hidden" />
-                                <input className="flex-1 h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#00B894] outline-none font-mono text-sm" value={settings.accent_color} onChange={e => update('accent_color', e.target.value)} />
+                                <input className="flex-1 h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#6C5CE7] outline-none font-mono text-sm" value={settings.accent_color} onChange={e => update('accent_color', e.target.value)} />
                             </div>
                             <div className="flex flex-wrap gap-2 mt-4">
-                                {['#00B894', '#6C5CE7', '#E17055', '#FDCB6E', '#0984E3', '#E84393', '#2D3436'].map(c => (
+                                {['#6C5CE7', '#00B894', '#E17055', '#FDCB6E', '#0984E3', '#E84393', '#2D3436'].map(c => (
                                     <button key={c} onClick={() => update('accent_color', c)} className={`w-8 h-8 rounded-lg border-2 transition-transform hover:scale-110 ${settings.accent_color === c ? 'border-gray-800' : 'border-transparent'}`} style={{ background: c }} />
                                 ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Banner Settings */}
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-6">
+                        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+                            <FiImage size={16} className="text-[#6C5CE7]" /> Banner do Checkout
+                        </h3>
+                        
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase mb-2 block">Imagem do Banner</label>
+                            {settings.banner_url ? (
+                                <div className="relative rounded-xl overflow-hidden group">
+                                    <img src={settings.banner_url} alt="Banner" className="w-full h-32 object-cover" />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                        <button onClick={() => document.getElementById('banner-upload')?.click()} className="p-2 bg-white rounded-lg text-gray-800 hover:bg-gray-100"><FiUpload size={16} /></button>
+                                        <button onClick={() => update('banner_url', '')} className="p-2 bg-red-500 rounded-lg text-white hover:bg-red-600"><FiTrash2 size={16} /></button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div onClick={() => document.getElementById('banner-upload')?.click()} className="border-2 border-dashed border-gray-200 rounded-xl p-8 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#6C5CE7] hover:bg-[#6C5CE7]/5 transition-all">
+                                    {uploadingBanner ? (
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6C5CE7]" />
+                                    ) : (
+                                        <>
+                                            <FiImage size={32} className="text-gray-300" />
+                                            <span className="text-xs font-bold text-gray-400">Clique para enviar</span>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                            <input id="banner-upload" type="file" className="hidden" accept="image/*" onChange={handleBannerUpload} />
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase mb-2 block">Texto sobre o Banner</label>
+                            <input className="w-full h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#6C5CE7] outline-none text-sm" placeholder="Ex: Ganhe 50% de desconto hoje!" value={settings.banner_text} onChange={e => update('banner_text', e.target.value)} />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase mb-2 block">Altura Desktop</label>
+                                <input type="number" className="w-full h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#6C5CE7] outline-none text-sm" value={settings.banner_height_desktop} onChange={e => update('banner_height_desktop', parseInt(e.target.value) || 300)} />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase mb-2 block">Altura Mobile</label>
+                                <input type="number" className="w-full h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#6C5CE7] outline-none text-sm" value={settings.banner_height_mobile} onChange={e => update('banner_height_mobile', parseInt(e.target.value) || 200)} />
                             </div>
                         </div>
                     </div>
@@ -234,7 +284,7 @@ export default function CheckoutCustomizationPage() {
                     {/* Form Fields */}
                     <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
                         <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
-                            <FiCheck size={16} className="text-[#00B894]" /> Campos do Formulário
+                            <FiCheck size={16} className="text-[#6C5CE7]" /> Campos do Formulário
                         </h3>
                         <div className="space-y-4">
                             {[
@@ -244,7 +294,7 @@ export default function CheckoutCustomizationPage() {
                             ].map(opt => (
                                 <label key={opt.key} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-gray-100">
                                     <span className="text-sm font-semibold text-gray-600">{opt.label}</span>
-                                    <button onClick={() => update(opt.key, !settings[opt.key as keyof typeof settings])} className={`w-12 h-6 rounded-full relative transition-colors ${settings[opt.key as keyof typeof settings] ? 'bg-[#00B894]' : 'bg-gray-200'}`}>
+                                    <button onClick={() => update(opt.key, !settings[opt.key as keyof typeof settings])} className={`w-12 h-6 rounded-full relative transition-colors ${settings[opt.key as keyof typeof settings] ? 'bg-[#6C5CE7]' : 'bg-gray-200'}`}>
                                         <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings[opt.key as keyof typeof settings] ? 'left-7' : 'left-1'}`} />
                                     </button>
                                 </label>
@@ -256,12 +306,12 @@ export default function CheckoutCustomizationPage() {
                     <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-6">
                         <div>
                             <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
-                                <FiAlertTriangle size={16} className="text-[#00B894]" /> Aviso em Destaque
+                                <FiAlertTriangle size={16} className="text-[#6C5CE7]" /> Aviso em Destaque
                             </h3>
-                            <input className="w-full h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#00B894] outline-none text-sm mb-3" placeholder="Ex: ⚡ Oferta expira em breve!" value={settings.notice_text} onChange={e => update('notice_text', e.target.value)} />
+                            <input className="w-full h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#6C5CE7] outline-none text-sm mb-3" placeholder="Ex: ⚡ Oferta expira em breve!" value={settings.notice_text} onChange={e => update('notice_text', e.target.value)} />
                             <div className="grid grid-cols-3 gap-2">
                                 {['warning', 'info', 'success'].map(t => (
-                                    <button key={t} onClick={() => update('notice_type', t)} className={`py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border-2 transition-all ${settings.notice_type === t ? 'border-[#00B894] bg-[#00B894]/5 text-[#00B894]' : 'border-gray-50 text-gray-400'}`}>
+                                    <button key={t} onClick={() => update('notice_type', t)} className={`py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border-2 transition-all ${settings.notice_type === t ? 'border-[#6C5CE7] bg-[#6C5CE7]/5 text-[#6C5CE7]' : 'border-gray-50 text-gray-400'}`}>
                                         {t}
                                     </button>
                                 ))}
@@ -271,15 +321,15 @@ export default function CheckoutCustomizationPage() {
                         <div>
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
-                                    <FiClock size={16} className="text-[#00B894]" /> Contador Regressivo
+                                    <FiClock size={16} className="text-[#6C5CE7]" /> Contador Regressivo
                                 </h3>
-                                <button onClick={() => update('show_countdown', !settings.show_countdown)} className={`w-12 h-6 rounded-full relative transition-colors ${settings.show_countdown ? 'bg-[#00B894]' : 'bg-gray-200'}`}>
+                                <button onClick={() => update('show_countdown', !settings.show_countdown)} className={`w-12 h-6 rounded-full relative transition-colors ${settings.show_countdown ? 'bg-[#6C5CE7]' : 'bg-gray-200'}`}>
                                     <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.show_countdown ? 'left-7' : 'left-1'}`} />
                                 </button>
                             </div>
                             {settings.show_countdown && (
                                 <div className="space-y-4 animate-fadeIn">
-                                    <input className="w-full h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#00B894] outline-none text-sm" placeholder="Texto do contador" value={settings.countdown_text} onChange={e => update('countdown_text', e.target.value)} />
+                                    <input className="w-full h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#6C5CE7] outline-none text-sm" placeholder="Texto do contador" value={settings.countdown_text} onChange={e => update('countdown_text', e.target.value)} />
                                     <div className="flex items-center gap-3">
                                         <div className="flex-1">
                                             <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Minutos</label>
@@ -299,15 +349,15 @@ export default function CheckoutCustomizationPage() {
                     <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-6">
                         <div className="flex items-center justify-between">
                             <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
-                                <FiVideo size={16} className="text-[#00B894]" /> Vídeo de Vendas
+                                <FiVideo size={16} className="text-[#6C5CE7]" /> Vídeo de Vendas
                             </h3>
-                            <button onClick={() => update('show_video', !settings.show_video)} className={`w-12 h-6 rounded-full relative transition-colors ${settings.show_video ? 'bg-[#00B894]' : 'bg-gray-200'}`}>
+                            <button onClick={() => update('show_video', !settings.show_video)} className={`w-12 h-6 rounded-full relative transition-colors ${settings.show_video ? 'bg-[#6C5CE7]' : 'bg-gray-200'}`}>
                                 <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.show_video ? 'left-7' : 'left-1'}`} />
                             </button>
                         </div>
                         {settings.show_video && (
                             <div className="space-y-4 animate-fadeIn">
-                                <input className="w-full h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#00B894] outline-none text-sm" placeholder="URL do vídeo (Youtube, Vimeo, Direct link)" value={settings.video_url} onChange={e => update('video_url', e.target.value)} />
+                                <input className="w-full h-12 px-4 rounded-xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-[#6C5CE7] outline-none text-sm" placeholder="URL do vídeo (Youtube, Vimeo, Direct link)" value={settings.video_url} onChange={e => update('video_url', e.target.value)} />
                                 {settings.video_url && (
                                     <div className="rounded-xl overflow-hidden aspect-video bg-black relative">
                                         {isIframePreview ? (
@@ -338,33 +388,49 @@ export default function CheckoutCustomizationPage() {
                         </div>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto" style={{ background: previewBg }}>
+                    <div className="flex-1 overflow-y-auto flex flex-col" style={{ background: previewBg }}>
                         {/* Countdown bar Preview */}
                         {settings.show_countdown && (
-                            <div className="py-2 px-4 text-center font-bold text-white flex items-center justify-center gap-2 text-xs" style={{ background: settings.countdown_color || previewAccent }}>
+                            <div className="py-2 px-4 text-center font-bold text-white flex items-center justify-center gap-2 text-xs sticky top-0 z-10" style={{ background: settings.countdown_color || previewAccent }}>
                                 <FiClock size={12} />
                                 <span>{settings.countdown_text}</span>
                                 <span className="bg-black/20 px-2 py-0.5 rounded font-mono">{settings.countdown_minutes}:00</span>
                             </div>
                         )}
 
+                        {/* Banner Preview */}
+                        {(settings.banner_url || settings.banner_text) && (
+                            <div className="relative w-full overflow-hidden" style={{ height: settings.banner_url ? 120 : 'auto', minHeight: 60 }}>
+                                {settings.banner_url ? (
+                                    <img src={settings.banner_url} alt="Banner" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${previewAccent}44, ${previewAccent}11)` }} />
+                                )}
+                                {settings.banner_text && (
+                                    <div className="absolute inset-0 flex items-center justify-center p-4 text-center">
+                                        <span className="text-white font-black text-sm drop-shadow-md">{settings.banner_text}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* Header Preview */}
-                        <header className="w-full py-3 px-6 bg-white border-b flex items-center justify-between">
+                        <header className="w-full py-3 px-6 border-b flex items-center justify-between sticky top-0 z-10" style={{ background: previewHeaderBg, borderColor: previewBorder }}>
                             <div className="flex items-center gap-2">
                                 <img src="/favicon.png" alt="GouPay" className="w-6 h-6 object-contain" />
-                                <span className="text-lg font-black tracking-tighter" style={{ color: '#1e293b' }}>
+                                <span className="text-lg font-black tracking-tighter" style={{ color: previewText }}>
                                     Gou<span style={{ color: previewAccent }}>Pay</span>
                                 </span>
                             </div>
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-gray-50 text-[10px] font-bold text-gray-500">
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-bold" style={{ background: previewCard, borderColor: previewBorder, color: previewMuted }}>
                                 <img src="https://flagcdn.com/w20/br.png" alt="BR" className="w-4 h-3 object-cover rounded-sm" />
                                 PT-BR <FiChevronDown size={10} />
                             </div>
                         </header>
 
-                        <div className="flex flex-col md:flex-row min-h-full">
+                        <div className="flex flex-col md:flex-row flex-1">
                             {/* Form Preview */}
-                            <div className="flex-1 bg-white p-8 space-y-8">
+                            <div className="flex-1 p-8 space-y-8" style={{ background: previewBg }}>
                                 {settings.notice_text && (
                                     <div className="p-3 rounded-xl text-center font-bold text-[10px] uppercase tracking-wider border-2" style={{ 
                                         background: settings.notice_type === 'warning' ? '#FDCB6E22' : settings.notice_type === 'info' ? '#74B9FF22' : '#55EFC422',
@@ -376,7 +442,7 @@ export default function CheckoutCustomizationPage() {
                                 )}
 
                                 <div className="space-y-4">
-                                    <h4 className="text-sm font-bold text-gray-800">Dados pessoais</h4>
+                                    <h4 className="text-sm font-bold" style={{ color: previewText }}>Dados pessoais</h4>
                                     {[
                                         { label: 'Nome completo', value: 'Ana Cristina da Silva' },
                                         { label: 'E-mail', value: 'ana.silva@exemplo.com' },
@@ -384,16 +450,16 @@ export default function CheckoutCustomizationPage() {
                                         ...(settings.hide_phone ? [] : [{ label: 'Celular', value: '(11) 99999-9999' }])
                                     ].map(f => (
                                         <div key={f.label}>
-                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">{f.label}</label>
-                                            <div className="w-full h-12 rounded-xl border-2 border-gray-50 bg-gray-50 px-4 flex items-center text-xs font-medium text-gray-400 italic">
+                                            <label className="text-[10px] font-bold uppercase tracking-widest mb-1.5 block" style={{ color: previewMuted }}>{f.label}</label>
+                                            <div className="w-full h-12 rounded-xl border-2 px-4 flex items-center text-xs font-medium italic" style={{ background: previewInputBg, borderColor: previewBorder, color: previewMuted }}>
                                                 {f.value}
                                             </div>
                                         </div>
                                     ))}
                                 </div>
 
-                                <div className="pt-6 border-t border-gray-50 flex items-center justify-between">
-                                    <div className="flex items-center gap-1.5 text-gray-400">
+                                <div className="pt-6 border-t flex items-center justify-between" style={{ borderColor: previewBorder }}>
+                                    <div className="flex items-center gap-1.5 opacity-50" style={{ color: previewMuted }}>
                                         <FiLock size={12} />
                                         <span className="text-[10px] font-black uppercase tracking-widest">Seguro</span>
                                     </div>
@@ -404,39 +470,39 @@ export default function CheckoutCustomizationPage() {
                             </div>
 
                             {/* Summary Preview */}
-                            <div className="w-full md:w-[300px] p-8 border-l border-gray-100" style={{ background: settings.theme === 'light' ? '#f8fafc' : '#111118' }}>
-                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Resumo</h4>
+                            <div className="w-full md:w-[300px] p-8 border-l" style={{ background: previewCard, borderColor: previewBorder }}>
+                                <h4 className="text-xs font-black uppercase tracking-widest mb-6" style={{ color: previewMuted }}>Resumo</h4>
                                 
-                                <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-4 mb-6" style={{ background: previewCard, borderColor: previewBorder }}>
+                                <div className="rounded-2xl p-4 border shadow-sm space-y-4 mb-6" style={{ background: previewBg, borderColor: previewBorder }}>
                                     <div className="flex gap-3">
                                         {!settings.hide_product_image && (
-                                            <div className="w-14 h-14 rounded-lg bg-gray-100 flex-shrink-0 flex items-center justify-center text-gray-300">
+                                            <div className="w-14 h-14 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: previewCard, color: previewMuted }}>
                                                 <FiPackage size={24} />
                                             </div>
                                         )}
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-xs font-bold text-gray-800 truncate" style={{ color: previewText }}>{product?.name || 'Produto Exemplo'}</div>
-                                            <div className="text-[10px] text-gray-500 mt-1" style={{ color: previewMuted }}>Entrega imediata</div>
+                                            <div className="text-xs font-bold truncate" style={{ color: previewText }}>{product?.name || 'Produto Exemplo'}</div>
+                                            <div className="text-[10px] mt-1" style={{ color: previewMuted }}>Entrega imediata</div>
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between pt-2">
-                                        <span className="text-[10px] font-black text-[#00B894] uppercase tracking-wider">1 unidade</span>
-                                        <span className="text-sm font-black text-gray-800" style={{ color: previewText }}>R$ {product?.price_display || '97,00'}</span>
+                                        <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: previewAccent }}>1 unidade</span>
+                                        <span className="text-sm font-black" style={{ color: previewText }}>R$ {product?.price_display || '97,00'}</span>
                                     </div>
                                 </div>
 
                                 <div className="space-y-2 px-1">
-                                    <div className="flex justify-between items-center text-[10px] text-gray-500" style={{ color: previewMuted }}>
+                                    <div className="flex justify-between items-center text-[10px]" style={{ color: previewMuted }}>
                                         <span>Subtotal</span>
                                         <span className="font-bold">R$ {product?.price_display || '97,00'}</span>
                                     </div>
-                                    <div className="flex justify-between items-center text-[10px] text-gray-500" style={{ color: previewMuted }}>
+                                    <div className="flex justify-between items-center text-[10px]" style={{ color: previewMuted }}>
                                         <span>Frete</span>
-                                        <span className="text-[#00B894] font-black uppercase tracking-widest">Grátis</span>
+                                        <span className="font-black uppercase tracking-widest" style={{ color: previewAccent }}>Grátis</span>
                                     </div>
-                                    <div className="pt-3 mt-3 border-t border-gray-200 flex justify-between items-center" style={{ borderColor: previewBorder }}>
-                                        <span className="text-xs font-black text-gray-800" style={{ color: previewText }}>Total</span>
-                                        <span className="text-lg font-black text-gray-800" style={{ color: previewText }}>R$ {product?.price_display || '97,00'}</span>
+                                    <div className="pt-3 mt-3 border-t flex justify-between items-center" style={{ borderColor: previewBorder }}>
+                                        <span className="text-xs font-black" style={{ color: previewText }}>Total</span>
+                                        <span className="text-lg font-black" style={{ color: previewText }}>R$ {product?.price_display || '97,00'}</span>
                                     </div>
                                 </div>
                             </div>
