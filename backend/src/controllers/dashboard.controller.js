@@ -100,6 +100,49 @@ class DashboardController {
         }
     }
 
+    async getSales(req, res, next) {
+        try {
+            const userId = req.user.id;
+            const { status, method, start, end, search } = req.query;
+
+            let query = supabase
+                .from('orders')
+                .select('*, products(name)')
+                .eq('seller_id', userId)
+                .order('created_at', { ascending: false });
+
+            if (status) query = query.eq('status', status);
+            if (method) query = query.eq('payment_method', method);
+            if (start) query = query.gte('created_at', start);
+            if (end) query = query.lte('created_at', end);
+
+            // Se houver busca, aplicamos filtros de texto
+            if (search) {
+                query = query.or(`buyer_name.ilike.%${search}%,buyer_email.ilike.%${search}%,buyer_cpf.ilike.%${search}%,product_name.ilike.%${search}%`);
+            }
+
+            const { data: sales, error } = await query;
+
+            if (error) throw error;
+
+            const totalAmount = sales?.reduce((sum, o) => sum + o.amount, 0) || 0;
+
+            res.json({
+                sales: sales?.map(o => ({
+                    ...o,
+                    product_name: o.products?.name || o.product_name,
+                    amount_display: (o.amount / 100).toFixed(2)
+                })),
+                summary: {
+                    count: sales?.length || 0,
+                    total_amount_display: (totalAmount / 100).toFixed(2)
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     _groupByMonth(orders) {
         const months = {};
         const labels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];

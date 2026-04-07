@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { dashboardAPI } from '@/lib/api';
-import { FiShoppingCart, FiRefreshCw } from 'react-icons/fi';
+import { FiShoppingCart, FiRefreshCw, FiSearch } from 'react-icons/fi';
 
 export default function SalesPage() {
     const [sales, setSales] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [methodFilter, setMethodFilter] = useState('');
     const [rangePreset, setRangePreset] = useState('last7');
@@ -36,6 +37,7 @@ export default function SalesPage() {
         setRefreshing(true);
         try {
             const params: any = {
+                search: search || undefined,
                 status: statusFilter || undefined,
                 method: methodFilter || undefined
             };
@@ -101,6 +103,20 @@ export default function SalesPage() {
             </h1>
 
             <div className="glass-card" style={{ padding: 20, marginBottom: 20, display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 250px' }}>
+                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Pesquisar (Nome, E-mail, CPF, Produto)</label>
+                    <div style={{ position: 'relative' }}>
+                        <input 
+                            className="input-field" 
+                            style={{ paddingLeft: 40 }}
+                            placeholder="Buscar venda..." 
+                            value={search} 
+                            onChange={(e) => setSearch(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleRefresh()}
+                        />
+                        <FiSearch style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} size={16} />
+                    </div>
+                </div>
                 <div style={{ minWidth: 160 }}>
                     <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Status</label>
                     <select className="input-field" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>

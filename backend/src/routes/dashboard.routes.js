@@ -6,5 +6,6 @@ const router = express.Router();
 
 router.use(auth, sellerOnly);
 router.get('/stats', dashboardController.getStats);
+router.get('/sales', dashboardController.getSales);
 
 module.exports = router;
