@@ -436,28 +436,6 @@ export default function CheckoutPage() {
                             </div>
                         )}
 
-                        {/* Digital Wallets */}
-                        <div className="mb-10">
-                            <h3 className="text-lg font-bold mb-6" style={{ color: textPrimary }}>Pague com carteiras digitais</h3>
-                            <div className="flex flex-wrap gap-4">
-                                {['apple', 'google', 'visa'].map(wallet => (
-                                    <div key={wallet} className="flex-1 min-w-[100px] h-14 rounded-xl border-2 flex items-center justify-center grayscale hover:grayscale-0 transition-all cursor-pointer shadow-sm" style={{ background: inputBg, borderColor: borderColor }}>
-                                        <img 
-                                            src={wallet === 'apple' ? 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Apple_Pay_logo.svg/2560px-Apple_Pay_logo.svg.png' : 
-                                                 wallet === 'google' ? 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Google_Pay_Logo.svg/2560px-Google_Pay_Logo.svg.png' :
-                                                 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/2560px-Visa_Inc._logo.svg.png'} 
-                                            alt={wallet} 
-                                            className="h-6 object-contain"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="relative flex items-center justify-center my-8">
-                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t" style={{ borderColor: borderColor }}></div></div>
-                                <span className="relative px-4 text-xs font-bold uppercase tracking-widest" style={{ background: bgCard, color: textMuted }}>ou</span>
-                            </div>
-                        </div>
-
                         {/* Payment Methods */}
                         <div className="mb-10">
                             <div className="grid grid-cols-1 gap-3">
@@ -498,19 +476,6 @@ export default function CheckoutPage() {
                                         <div className="text-xs font-bold" style={{ color: accent }}>com desconto</div>
                                     </div>
                                     {paymentMethod === 'pix' && <div className="w-6 h-6 rounded-full flex items-center justify-center text-white" style={{ background: accent }}><FiCheck size={14} /></div>}
-                                </button>
-                                <button 
-                                    type="button" 
-                                    className="flex items-center gap-4 p-5 rounded-2xl border-2 opacity-50 cursor-not-allowed text-left"
-                                    style={{ borderColor: borderColor }}
-                                >
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.05)', color: textMuted }}>
-                                        <FiPackage size={24} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="font-bold" style={{ color: textPrimary }}>Boleto</div>
-                                        <div className="text-xs font-bold" style={{ color: accent }}>com desconto</div>
-                                    </div>
                                 </button>
                             </div>
                         </div>

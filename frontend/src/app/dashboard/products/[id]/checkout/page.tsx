@@ -375,20 +375,6 @@ export default function CheckoutCustomizationPage() {
                                     </div>
                                 )}
 
-                                <div>
-                                    <h4 className="text-sm font-bold text-gray-800 mb-4">Pague com</h4>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="h-14 rounded-xl border-2 border-[#00B894] bg-[#00B894]/5 flex items-center gap-3 px-4">
-                                            <div className="w-8 h-8 rounded-lg bg-[#00B894] text-white flex items-center justify-center"><FiCreditCard size={16} /></div>
-                                            <span className="text-xs font-bold text-gray-800">Cartão</span>
-                                        </div>
-                                        <div className="h-14 rounded-xl border-2 border-gray-100 flex items-center gap-3 px-4 opacity-50">
-                                            <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-400 flex items-center justify-center"><FiSmartphone size={16} /></div>
-                                            <span className="text-xs font-bold text-gray-800">Pix</span>
-                                        </div>
-                                    </div>
-                                </div>
-
                                 <div className="space-y-4">
                                     <h4 className="text-sm font-bold text-gray-800">Dados pessoais</h4>
                                     {[
