@@ -103,7 +103,16 @@ export default function ContentEditorPage() {
                 headers: { Authorization: `Bearer ${token}` },
                 body: formData
             });
-            const data = await res.json();
+
+            let data: any;
+            const contentType = res.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                data = await res.json();
+            } else {
+                const text = await res.text();
+                throw new Error(res.status === 413 ? 'Arquivo muito grande (máximo 100MB)' : text);
+            }
+
             if (!res.ok) throw new Error(data.error || 'Erro no upload');
 
             await contentAPI.addFile(activeLessonForFiles.id, {
