@@ -217,6 +217,75 @@ class ContentController {
             next(error);
         }
     }
+
+    // Files
+    async listFiles(req, res, next) {
+        try {
+            const { lessonId } = req.params;
+            const isOwner = await assertLessonOwnership(lessonId, req.user.id);
+            if (!isOwner) return res.status(403).json({ error: 'Acesso negado.' });
+
+            const { data, error } = await supabase
+                .from('product_files')
+                .select('*')
+                .eq('lesson_id', lessonId)
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+            res.json({ files: data });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async addFile(req, res, next) {
+        try {
+            const { lessonId } = req.params;
+            const { title, file_url, file_type } = req.body;
+
+            const isOwner = await assertLessonOwnership(lessonId, req.user.id);
+            if (!isOwner) return res.status(403).json({ error: 'Acesso negado.' });
+
+            const { data, error } = await supabase
+                .from('product_files')
+                .insert({ lesson_id: lessonId, title, file_url, file_type: file_type || 'file' })
+                .select()
+                .single();
+
+            if (error) throw error;
+            res.status(201).json({ file: data, message: 'Arquivo adicionado!' });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async deleteFile(req, res, next) {
+        try {
+            const { fileId } = req.params;
+
+            // Verifica ownership via join
+            const { data: file } = await supabase
+                .from('product_files')
+                .select('lesson_id')
+                .eq('id', fileId)
+                .single();
+
+            if (!file) return res.status(404).json({ error: 'Arquivo não encontrado.' });
+
+            const isOwner = await assertLessonOwnership(file.lesson_id, req.user.id);
+            if (!isOwner) return res.status(403).json({ error: 'Acesso negado.' });
+
+            const { error } = await supabase
+                .from('product_files')
+                .delete()
+                .eq('id', fileId);
+
+            if (error) throw error;
+            res.json({ message: 'Arquivo removido!' });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new ContentController();

@@ -19,4 +19,9 @@ router.post('/modules/:moduleId/lessons', contentController.createLesson);
 router.put('/lessons/:lessonId', contentController.updateLesson);
 router.delete('/lessons/:lessonId', contentController.deleteLesson);
 
+// Files (attachments per lesson)
+router.get('/lessons/:lessonId/files', contentController.listFiles);
+router.post('/lessons/:lessonId/files', contentController.addFile);
+router.delete('/files/:fileId', contentController.deleteFile);
+
 module.exports = router;

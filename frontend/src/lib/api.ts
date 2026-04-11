@@ -95,6 +95,10 @@ export const contentAPI = {
     createLesson: (moduleId: string, data: any) => api.post(`/content/modules/${moduleId}/lessons`, data),
     updateLesson: (lessonId: string, data: any) => api.put(`/content/lessons/${lessonId}`, data),
     deleteLesson: (lessonId: string) => api.delete(`/content/lessons/${lessonId}`),
+
+    listFiles: (lessonId: string) => api.get(`/content/lessons/${lessonId}/files`),
+    addFile: (lessonId: string, data: any) => api.post(`/content/lessons/${lessonId}/files`, data),
+    deleteFile: (fileId: string) => api.delete(`/content/files/${fileId}`),
 };
 
 // Member Area (Student Side)
