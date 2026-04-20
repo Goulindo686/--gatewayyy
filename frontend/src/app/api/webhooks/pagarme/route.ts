@@ -250,6 +250,8 @@ export async function POST(req: NextRequest) {
 
             // Get platform fee percentage
             let feePercentage = parseFloat(process.env.PLATFORM_FEE_PERCENTAGE || '2');
+            const PLATFORM_FLAT_FEE = 150; // R$ 1,50 em centavos
+            let sellerDisplayName: string | null = null;
             try {
                 const { data: settingsRow } = await supabase
                     .from('platform_settings')
@@ -263,14 +265,15 @@ export async function POST(req: NextRequest) {
             try {
                 const { data: sellerUser } = await supabase
                     .from('users')
-                    .select('role')
+                    .select('role, name, email')
                     .eq('id', order.seller_id)
                     .single();
                 if (sellerUser?.role === 'admin') {
                     feePercentage = 0;
                 }
+                sellerDisplayName = sellerUser?.name || sellerUser?.email || null;
             } catch {}
-            const feeAmount = Math.round(order.amount * (feePercentage / 100));
+            const feeAmount = feePercentage > 0 ? Math.min(PLATFORM_FLAT_FEE, order.amount) : 0;
 
             // Update original 'sale' or 'api_sale' transaction to confirmed
             await supabase.from('transactions')
@@ -285,7 +288,7 @@ export async function POST(req: NextRequest) {
                     type: 'fee',
                     amount: feeAmount,
                     status: 'confirmed',
-                    description: `Taxa de plataforma (${feePercentage}%) - Pedido ${order.id}`
+                    description: `Taxa de plataforma (R$ 1,50) - Pedido ${order.id}`
                 });
             }
 
@@ -328,6 +331,38 @@ export async function POST(req: NextRequest) {
                         }
                     }
                 }
+            }
+
+            // Send Web Push Notification (Admin: taxa recebida)
+            try {
+                if (feeAmount > 0) {
+                    const { data: admins } = await supabase
+                        .from('users')
+                        .select('id')
+                        .eq('role', 'admin');
+
+                    const feeFormatted = new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                    }).format(feeAmount / 100);
+
+                    const sellerLabel = sellerDisplayName || order.seller_id;
+                    const body = `${feeFormatted} • ${sellerLabel} • ${productName}`;
+
+                    if (admins && admins.length > 0) {
+                        await Promise.allSettled(
+                            admins.map((a: any) =>
+                                sendPushNotification(a.id, {
+                                    title: '📈 Taxa Recebida',
+                                    body,
+                                    url: '/admin/transactions',
+                                })
+                            )
+                        );
+                    }
+                }
+            } catch (adminPushError) {
+                console.error('Error sending Admin Push notification:', adminPushError);
             }
 
             // Send Telegram Notification
