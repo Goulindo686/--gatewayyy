@@ -6,17 +6,22 @@ import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
     try {
-        const body = await req.json();
-        const { items: items_cart, buyer, store_slug } = body;
+        const contentType = req.headers.get('content-type') || '';
+        if (!contentType.toLowerCase().includes('application/json')) {
+            return NextResponse.json({ error: 'Content-Type inválido (use application/json)' }, { status: 415 });
+        }
 
         // Rate limit por IP: 10 checkouts por hora
         const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
-        const rlIp = await checkRateLimit({ key: `store_checkout:ip:${ip}`, limit: 10, windowSecs: 3600 });
+        const rlIp = await checkRateLimit({ key: `store_checkout:ip:${ip}`, limit: 10, windowSecs: 3600, failOpen: false });
         if (!rlIp.allowed) return rateLimitResponse(rlIp.resetAt);
+
+        const body = await req.json();
+        const { items: items_cart, buyer, store_slug } = body;
 
         // Rate limit por email: 5 checkouts por hora
         if (buyer?.email) {
-            const rlEmail = await checkRateLimit({ key: `store_checkout:email:${buyer.email.toLowerCase().trim()}`, limit: 5, windowSecs: 3600 });
+            const rlEmail = await checkRateLimit({ key: `store_checkout:email:${buyer.email.toLowerCase().trim()}`, limit: 5, windowSecs: 3600, failOpen: false });
             if (!rlEmail.allowed) return rateLimitResponse(rlEmail.resetAt);
         }
         const enableCreditCard = process.env.ENABLE_CREDIT_CARD ? (process.env.ENABLE_CREDIT_CARD === 'true') : false;

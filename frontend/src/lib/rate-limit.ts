@@ -19,6 +19,7 @@ interface RateLimitOptions {
     key: string;        // identificador único (ip, api_key, email, etc.)
     limit: number;      // máximo de requisições permitidas
     windowSecs: number; // janela de tempo em segundos
+    failOpen?: boolean;
 }
 
 interface RateLimitResult {
@@ -27,7 +28,7 @@ interface RateLimitResult {
     resetAt: Date;
 }
 
-export async function checkRateLimit({ key, limit, windowSecs }: RateLimitOptions): Promise<RateLimitResult> {
+export async function checkRateLimit({ key, limit, windowSecs, failOpen = true }: RateLimitOptions): Promise<RateLimitResult> {
     const now = new Date();
     // Arredonda para o início da janela atual
     const windowMs = windowSecs * 1000;
@@ -44,7 +45,7 @@ export async function checkRateLimit({ key, limit, windowSecs }: RateLimitOption
 
         if (error) {
             // Se a função RPC não existir, usa fallback com upsert manual
-            return await fallbackRateLimit({ key, limit, windowStart, resetAt });
+            return await fallbackRateLimit({ key, limit, windowStart, resetAt, windowSecs, failOpen });
         }
 
         const count = data as number;
@@ -54,19 +55,31 @@ export async function checkRateLimit({ key, limit, windowSecs }: RateLimitOption
             resetAt
         };
     } catch {
-        // Em caso de erro no banco, permite a requisição (fail open)
-        return { allowed: true, remaining: limit, resetAt };
+        return failOpen ? { allowed: true, remaining: limit, resetAt } : { allowed: false, remaining: 0, resetAt };
     }
 }
 
-async function fallbackRateLimit({ key, limit, windowStart, resetAt }: {
-    key: string; limit: number; windowStart: Date; resetAt: Date;
+async function fallbackRateLimit({ key, limit, windowStart, resetAt, windowSecs, failOpen }: {
+    key: string;
+    limit: number;
+    windowStart: Date;
+    resetAt: Date;
+    windowSecs: number;
+    failOpen: boolean;
 }): Promise<RateLimitResult> {
-    // Limpa janelas antigas primeiro
-    await supabase
-        .from('rate_limits')
-        .delete()
-        .lt('window_start', new Date(Date.now() - 3600_000).toISOString());
+    try {
+        if (Math.random() < 0.01) {
+            const cleanupBeforeMs = Date.now() - Math.max(3600_000, windowSecs * 5 * 1000);
+            await supabase
+                .from('rate_limits')
+                .delete()
+                .lt('window_start', new Date(cleanupBeforeMs).toISOString());
+        }
+    } catch {
+        if (!failOpen) {
+            return { allowed: false, remaining: 0, resetAt };
+        }
+    }
 
     // Busca contagem atual
     const { data: existing } = await supabase
@@ -85,9 +98,16 @@ async function fallbackRateLimit({ key, limit, windowStart, resetAt }: {
             .eq('key', key)
             .eq('window_start', windowStart.toISOString());
     } else {
-        await supabase
+        const { error } = await supabase
             .from('rate_limits')
             .insert({ key, window_start: windowStart.toISOString(), count: 1 });
+        if (error) {
+            await supabase
+                .from('rate_limits')
+                .update({ count: currentCount })
+                .eq('key', key)
+                .eq('window_start', windowStart.toISOString());
+        }
     }
 
     return {

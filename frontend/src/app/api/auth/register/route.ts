@@ -9,13 +9,18 @@ import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
     try {
-        const body = await req.json();
-        const { name, email, password, cpf_cnpj, phone, terms_accepted } = body;
+        const contentType = req.headers.get('content-type') || '';
+        if (!contentType.toLowerCase().includes('application/json')) {
+            return jsonError('Content-Type inválido (use application/json)', 415);
+        }
 
         // Rate limit por IP: 5 registros por hora
         const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
-        const rl = await checkRateLimit({ key: `register:${ip}`, limit: 5, windowSecs: 3600 });
+        const rl = await checkRateLimit({ key: `register:${ip}`, limit: 5, windowSecs: 3600, failOpen: false });
         if (!rl.allowed) return rateLimitResponse(rl.resetAt);
+
+        const body = await req.json();
+        const { name, email, password, cpf_cnpj, phone, terms_accepted } = body;
 
         if (!name || !email || !password || !cpf_cnpj) {
             return jsonError('Nome, email, senha e CPF/CNPJ são obrigatórios');

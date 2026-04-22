@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Rate limit: 20 requisições por minuto por API key (Supabase — funciona em serverless)
-        const rl = await checkRateLimit({ key: `v1_pix:${apiKey}`, limit: 20, windowSecs: 60 });
+        const rl = await checkRateLimit({ key: `v1_pix:${apiKey}`, limit: 20, windowSecs: 60, failOpen: false });
         if (!rl.allowed) {
             const res = rateLimitResponse(rl.resetAt);
             return new NextResponse(res.body, { status: 429, headers: { ...corsHeaders, ...Object.fromEntries(res.headers) } });
