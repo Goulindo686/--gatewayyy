@@ -2,6 +2,9 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { jsonError, jsonSuccess } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
 
@@ -32,7 +35,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         .eq('id', product.user_id)
         .single();
 
-    return jsonSuccess({
+    const response = jsonSuccess({
         product: {
             ...product,
             price: effectivePrice / 100,
@@ -44,4 +47,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             }))
         }
     });
+    response.headers.set('Cache-Control', 'no-store, max-age=0');
+    return response;
 }

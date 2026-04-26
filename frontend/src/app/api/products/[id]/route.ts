@@ -2,6 +2,9 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const auth = await getAuthUser(req);
@@ -22,7 +25,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (plansError) console.error('Plans fetch error:', plansError);
 
-    return jsonSuccess({
+    const response = jsonSuccess({
         product: {
             ...product,
             price: product.price / 100,
@@ -33,6 +36,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             }))
         }
     });
+    response.headers.set('Cache-Control', 'no-store, max-age=0');
+    return response;
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -90,7 +95,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             }
         }
 
-        return jsonSuccess({ product });
+        const response = jsonSuccess({ product });
+        response.headers.set('Cache-Control', 'no-store, max-age=0');
+        return response;
     } catch (err) {
         return jsonError('Erro interno', 500);
     }
