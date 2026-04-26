@@ -21,7 +21,7 @@ const DEFAULT_SETTINGS = {
     countdown_color: '#6C5CE7',
     notice_text: '',
     notice_type: 'warning',
-    accent_color: '#00B894',
+    accent_color: '#6C5CE7',
     hide_product_image: false,
     banner_mode_desktop: 'cover',
     banner_mode_mobile: 'contain',
@@ -171,7 +171,7 @@ export default function CheckoutCustomizationPage() {
         );
     }
 
-    const previewBg = settings.theme === 'light' ? '#ffffff' : '#0a0a0f';
+    const previewBg = settings.theme === 'light' ? '#f3f4f6' : '#0a0a0f';
     const previewHeaderBg = settings.theme === 'light' ? '#ffffff' : '#16161f';
     const previewText = settings.theme === 'light' ? '#1e293b' : '#f8fafc';
     const previewMuted = settings.theme === 'light' ? '#64748b' : '#94a3b8';
@@ -414,91 +414,128 @@ export default function CheckoutCustomizationPage() {
                             </div>
                         )}
 
-                        {/* Header Preview */}
-                        <header className="w-full py-3 px-6 border-b flex items-center justify-between sticky top-0 z-10" style={{ background: previewHeaderBg, borderColor: previewBorder }}>
-                            <div className="flex items-center gap-2">
-                                <img src="/favicon.png" alt="GouPay" className="w-6 h-6 object-contain" />
-                                <span className="text-lg font-black tracking-tighter" style={{ color: previewText }}>
-                                    Gou<span style={{ color: previewAccent }}>Pay</span>
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-bold" style={{ background: previewCard, borderColor: previewBorder, color: previewMuted }}>
-                                <img src="https://flagcdn.com/w20/br.png" alt="BR" className="w-4 h-3 object-cover rounded-sm" />
-                                PT-BR <FiChevronDown size={10} />
-                            </div>
-                        </header>
-
-                        <div className="flex flex-col md:flex-row flex-1">
-                            {/* Form Preview */}
-                            <div className="flex-1 p-8 space-y-8" style={{ background: previewBg }}>
-                                {settings.notice_text && (
-                                    <div className="p-3 rounded-xl text-center font-bold text-[10px] uppercase tracking-wider border-2" style={{ 
-                                        background: settings.notice_type === 'warning' ? '#FDCB6E22' : settings.notice_type === 'info' ? '#74B9FF22' : '#55EFC422',
-                                        borderColor: settings.notice_type === 'warning' ? '#FDCB6E' : settings.notice_type === 'info' ? '#74B9FF' : '#55EFC4',
-                                        color: settings.notice_type === 'warning' ? '#b8860b' : settings.notice_type === 'info' ? '#2171b5' : '#0e8c5e'
-                                    }}>
-                                        {settings.notice_text}
-                                    </div>
-                                )}
-
-                                <div className="space-y-4">
-                                    <h4 className="text-sm font-bold" style={{ color: previewText }}>Dados pessoais</h4>
-                                    {[
-                                        { label: 'Nome completo', value: 'Ana Cristina da Silva' },
-                                        { label: 'E-mail', value: 'ana.silva@exemplo.com' },
-                                        { label: 'CPF', value: '000.000.000-00' },
-                                        ...(settings.hide_phone ? [] : [{ label: 'Celular', value: '(11) 99999-9999' }])
-                                    ].map(f => (
-                                        <div key={f.label}>
-                                            <label className="text-[10px] font-bold uppercase tracking-widest mb-1.5 block" style={{ color: previewMuted }}>{f.label}</label>
-                                            <div className="w-full h-12 rounded-xl border-2 px-4 flex items-center text-xs font-medium italic" style={{ background: previewInputBg, borderColor: previewBorder, color: previewMuted }}>
-                                                {f.value}
+                        <div className="flex-1 overflow-y-auto" style={{ background: previewBg }}>
+                            <div className="px-6 py-8">
+                                <div className="mx-auto w-full max-w-[560px]">
+                                    <div className="rounded-3xl border shadow-sm overflow-hidden" style={{ background: previewHeaderBg, borderColor: previewBorder }}>
+                                        <div className="p-5 flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <button type="button" className="flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold" style={{ background: previewInputBg, borderColor: previewBorder, color: previewText }}>
+                                                    <img src="https://flagcdn.com/w20/br.png" alt="BR" className="w-4 h-3 object-cover rounded-sm" />
+                                                    Brasil <FiChevronDown size={12} />
+                                                </button>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-70" style={{ color: previewMuted }}>
+                                                <FiLock size={12} />
+                                                GouPay
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
 
-                                <div className="pt-6 border-t flex items-center justify-between" style={{ borderColor: previewBorder }}>
-                                    <div className="flex items-center gap-1.5 opacity-50" style={{ color: previewMuted }}>
-                                        <FiLock size={12} />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">Seguro</span>
-                                    </div>
-                                    <div className="h-12 px-8 rounded-xl text-white font-black text-sm flex items-center justify-center" style={{ background: previewAccent }}>
-                                        Continuar
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Summary Preview */}
-                            <div className="w-full md:w-[300px] p-8 border-l" style={{ background: previewCard, borderColor: previewBorder }}>
-                                <h4 className="text-xs font-black uppercase tracking-widest mb-6" style={{ color: previewMuted }}>Resumo</h4>
-                                
-                                <div className="rounded-2xl p-4 border shadow-sm space-y-4 mb-6" style={{ background: previewBg, borderColor: previewBorder }}>
-                                    <div className="flex gap-3">
-                                        {!settings.hide_product_image && (
-                                            <div className="w-14 h-14 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: previewCard, color: previewMuted }}>
-                                                <FiPackage size={24} />
+                                        <div className="px-5 pb-5">
+                                            <div className="rounded-2xl border p-4" style={{ background: previewInputBg, borderColor: previewBorder }}>
+                                                <div className="flex gap-4">
+                                                    {!settings.hide_product_image && (
+                                                        <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 border flex items-center justify-center" style={{ borderColor: previewBorder, background: previewCard, color: previewMuted }}>
+                                                            <FiPackage size={20} />
+                                                        </div>
+                                                    )}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="min-w-0">
+                                                                <div className="text-xs font-black truncate" style={{ color: previewText }}>{product?.name || 'Produto Exemplo'}</div>
+                                                                <div className="text-[10px] opacity-70 mt-0.5" style={{ color: previewMuted }}>Checkout seguro</div>
+                                                            </div>
+                                                            <div className="text-xs font-black whitespace-nowrap" style={{ color: previewText }}>
+                                                                R$ {product?.price_display || '97,00'}
+                                                            </div>
+                                                        </div>
+                                                        <div className="mt-2 text-[10px] opacity-70" style={{ color: previewMuted }}>
+                                                            Ver mais
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="text-xs font-bold truncate" style={{ color: previewText }}>{product?.name || 'Produto Exemplo'}</div>
-                                            <div className="text-[10px] mt-1" style={{ color: previewMuted }}>Entrega imediata</div>
+                                        </div>
+
+                                        <div className="px-5 pb-6 space-y-6">
+                                            {settings.notice_text && (
+                                                <div className="p-3 rounded-2xl text-center font-bold text-[10px] uppercase tracking-wider border-2" style={{
+                                                    background: settings.notice_type === 'warning' ? '#FDCB6E22' : settings.notice_type === 'info' ? '#74B9FF22' : '#55EFC422',
+                                                    borderColor: settings.notice_type === 'warning' ? '#FDCB6E' : settings.notice_type === 'info' ? '#74B9FF' : '#55EFC4',
+                                                    color: settings.notice_type === 'warning' ? '#b8860b' : settings.notice_type === 'info' ? '#2171b5' : '#0e8c5e'
+                                                }}>
+                                                    {settings.notice_text}
+                                                </div>
+                                            )}
+
+                                            <div className="space-y-4">
+                                                <h4 className="text-sm font-black" style={{ color: previewText }}>Seus dados</h4>
+                                                {[
+                                                    { label: 'Nome completo', value: 'Ana Cristina da Silva' },
+                                                    { label: 'E-mail', value: 'ana.silva@exemplo.com' },
+                                                    { label: 'CPF', value: '000.000.000-00' },
+                                                    ...(settings.hide_phone ? [] : [{ label: 'Seu celular', value: '(11) 99999-9999' }])
+                                                ].map(f => (
+                                                    <div key={f.label}>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest mb-1.5 block opacity-60" style={{ color: previewMuted }}>{f.label}</label>
+                                                        <div className="w-full h-12 rounded-2xl border px-4 flex items-center text-xs font-medium italic" style={{ background: previewInputBg, borderColor: previewBorder, color: previewMuted }}>
+                                                            {f.value}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <h4 className="text-sm font-black" style={{ color: previewText }}>Pagamento</h4>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="rounded-2xl border p-4" style={{ background: previewCard, borderColor: previewAccent }}>
+                                                        <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 text-white" style={{ background: previewAccent }}>
+                                                            <FiCreditCard size={18} />
+                                                        </div>
+                                                        <div className="text-xs font-black" style={{ color: previewText }}>Cartão de crédito</div>
+                                                    </div>
+                                                    <div className="rounded-2xl border p-4" style={{ background: previewInputBg, borderColor: previewBorder }}>
+                                                        <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: previewCard, color: previewMuted }}>
+                                                            <FiSmartphone size={18} />
+                                                        </div>
+                                                        <div className="text-xs font-black" style={{ color: previewText }}>Pix</div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center justify-between pt-2">
-                                        <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: previewAccent }}>1 unidade</span>
-                                        <span className="text-sm font-black" style={{ color: previewText }}>R$ {product?.price_display || '97,00'}</span>
-                                    </div>
-                                </div>
 
-                                <div className="space-y-2 px-1">
-                                    <div className="flex justify-between items-center text-[10px]" style={{ color: previewMuted }}>
-                                        <span>Subtotal</span>
-                                        <span className="font-bold">R$ {product?.price_display || '97,00'}</span>
-                                    </div>
-                                    <div className="pt-3 mt-3 border-t flex justify-between items-center" style={{ borderColor: previewBorder }}>
-                                        <span className="text-xs font-black" style={{ color: previewText }}>Total</span>
-                                        <span className="text-lg font-black" style={{ color: previewText }}>R$ {product?.price_display || '97,00'}</span>
+                                    <div className="mt-6 rounded-3xl border shadow-sm overflow-hidden" style={{ background: previewHeaderBg, borderColor: previewBorder }}>
+                                        <div className="p-6">
+                                            <div className="text-sm font-black mb-4" style={{ color: previewText }}>Resumo</div>
+
+                                            <div className="space-y-3">
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div className="text-xs font-semibold leading-snug" style={{ color: previewText }}>{product?.name || 'Produto Exemplo'}</div>
+                                                    <div className="text-xs font-semibold whitespace-nowrap" style={{ color: previewText }}>R$ {product?.price_display || '97,00'}</div>
+                                                </div>
+
+                                                <div className="pt-3 border-t space-y-2" style={{ borderColor: previewBorder }}>
+                                                    <div className="flex items-center justify-between text-xs" style={{ color: previewMuted }}>
+                                                        <span>Subtotal</span>
+                                                        <span className="font-bold" style={{ color: previewText }}>R$ {product?.price_display || '97,00'}</span>
+                                                    </div>
+                                                    <div className="pt-3 border-t flex items-center justify-between" style={{ borderColor: previewBorder }}>
+                                                        <span className="text-xs font-black" style={{ color: previewText }}>Total</span>
+                                                        <span className="text-lg font-black tracking-tight" style={{ color: previewText }}>R$ {product?.price_display || '97,00'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-6 w-full h-12 rounded-2xl text-white font-black text-sm flex items-center justify-center" style={{ background: previewAccent }}>
+                                                Comprar agora
+                                            </div>
+
+                                            <div className="mt-4 flex items-center justify-center gap-2 opacity-60" style={{ color: previewMuted }}>
+                                                <FiLock size={12} />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Ambiente seguro</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
