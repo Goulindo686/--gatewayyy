@@ -42,13 +42,13 @@ export default function FeesPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 15 }}>
                             <span style={{ color: 'var(--text-muted)' }}>Taxa por venda</span>
-                            <span style={{ fontWeight: 700, fontSize: 18 }}>R$ 1,50 <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 14 }}>+ 1,09%</span></span>
+                            <span style={{ fontWeight: 700, fontSize: 18 }}>R$ 2,00 <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 14 }}>+ 1,09%</span></span>
                         </div>
                         <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 0' }} />
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                             <FiInfo size={13} style={{ color: 'var(--text-muted)', marginTop: 2, flexShrink: 0 }} />
                             <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                                R$1,50 fixo + 1,09% sobre o valor da venda. Sem taxas ocultas.
+                                R$2,00 fixo + 1,09% sobre o valor da venda. Sem taxas ocultas.
                             </span>
                         </div>
                     </div>
@@ -97,11 +97,11 @@ export default function FeesPage() {
                         <tbody>
                             {pixExamples.map(({ sale }) => {
                                 const pagarme = sale * 0.0109;
-                                const seller = sale - 1.50 - pagarme;
+                                const seller = sale - 2.0 - pagarme;
                                 return (
                                     <tr key={sale} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                                         <td style={{ padding: '12px 12px', fontWeight: 600 }}>R$ {sale.toFixed(2)}</td>
-                                        <td style={{ padding: '12px 12px', textAlign: 'right', color: 'var(--danger)' }}>R$ 1,50</td>
+                                        <td style={{ padding: '12px 12px', textAlign: 'right', color: 'var(--danger)' }}>R$ 2,00</td>
                                         <td style={{ padding: '12px 12px', textAlign: 'right', color: 'var(--text-muted)' }}>R$ {pagarme.toFixed(2)}</td>
                                         <td style={{ padding: '12px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--success)' }}>R$ {seller.toFixed(2)}</td>
                                     </tr>
@@ -114,7 +114,7 @@ export default function FeesPage() {
                 <div style={{ marginTop: 20, display: 'flex', alignItems: 'flex-start', gap: 10, padding: 16, borderRadius: 10, background: 'rgba(0,206,201,0.05)', border: '1px solid rgba(0,206,201,0.1)' }}>
                     <FiCheckCircle size={16} color="#00cec9" style={{ marginTop: 2, flexShrink: 0 }} />
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                        A taxa é sempre <strong>R$1,50 fixo + 1,09%</strong> sobre o valor da venda. Simples, transparente e sem surpresas.
+                        A taxa é sempre <strong>R$2,00 fixo + 1,09%</strong> sobre o valor da venda. Simples, transparente e sem surpresas.
                     </p>
                 </div>
             </div>

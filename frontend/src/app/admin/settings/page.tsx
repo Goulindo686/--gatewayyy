@@ -49,13 +49,13 @@ export default function AdminSettingsPage() {
                 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                         <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Taxa fixa por venda</span>
-                        <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--danger)' }}>R$ 1,50 + 1,09%</span>
+                        <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--danger)' }}>R$ 2,00 + 1,09%</span>
                     </div>
                     <div style={{ height: 1, background: 'var(--border-color)', margin: '12px 0' }} />
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                         <FiInfo size={14} style={{ color: 'var(--text-muted)', marginTop: 2, flexShrink: 0 }} />
                         <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                            A taxa cobrada por venda é R$1,50 fixo + 1,09% sobre o valor total da transação.
+                            A taxa cobrada por venda é R$2,00 fixo + 1,09% sobre o valor total da transação.
                         </p>
                     </div>
                 </div>
@@ -64,7 +64,7 @@ export default function AdminSettingsPage() {
                     <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Exemplos de divisão por venda (PIX)</div>
                     {[10, 50, 100, 500].map(val => {
                         const pagarme = (val * 0.0109).toFixed(2);
-                        const seller = (val - 1.50 - parseFloat(pagarme)).toFixed(2);
+                        const seller = (val - 2.0 - parseFloat(pagarme)).toFixed(2);
                         return (
                             <div key={val} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
                                 <span style={{ color: 'var(--text-muted)' }}>Venda R${val},00</span>

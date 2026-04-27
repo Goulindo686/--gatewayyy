@@ -10,7 +10,7 @@ const LEFT_ITEMS = [
 ];
 
 const RIGHT_ITEMS = [
-  { icon: <FiTrendingUp size={20} />, title: 'Taxa mais justa', desc: 'R$1,50 + 1,09% por venda.' },
+  { icon: <FiTrendingUp size={20} />, title: 'Taxa mais justa', desc: 'R$2,00 + 1,09% por venda.' },
   { icon: <FiBarChart2 size={20} />, title: 'Dashboard completo', desc: 'Métricas em tempo real.' },
 ];
 

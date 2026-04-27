@@ -250,7 +250,7 @@ export async function POST(req: NextRequest) {
 
             // Get platform fee percentage
             let feePercentage = parseFloat(process.env.PLATFORM_FEE_PERCENTAGE || '2');
-            const PLATFORM_FLAT_FEE = 150; // R$ 1,50 em centavos
+            const PLATFORM_FLAT_FEE = 200; // R$ 2,00 em centavos
             let sellerDisplayName: string | null = null;
             try {
                 const { data: settingsRow } = await supabase
@@ -288,7 +288,7 @@ export async function POST(req: NextRequest) {
                     type: 'fee',
                     amount: feeAmount,
                     status: 'confirmed',
-                    description: `Taxa de plataforma (R$ 1,50) - Pedido ${order.id}`
+                    description: `Taxa de plataforma (R$ 2,00) - Pedido ${order.id}`
                 });
             }
 

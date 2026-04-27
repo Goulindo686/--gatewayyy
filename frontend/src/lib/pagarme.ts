@@ -98,7 +98,7 @@ export class PagarmeService {
 
         const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
         const sellId = (data.seller_recipient_id || '').trim();
-        const PLATFORM_FLAT_FEE = 150; // R$1,50 em centavos
+        const PLATFORM_FLAT_FEE = 200; // R$2,00 em centavos
 
         // Se feePercentage === 0 (admin), não cobra taxa da plataforma
         const applyFee = (data.platform_fee_percentage || 0) > 0;
@@ -233,7 +233,7 @@ export class PagarmeService {
 
         const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
         const sellId = (data.seller_recipient_id || '').trim();
-        const PLATFORM_FLAT_FEE = 150; // R$1,50 em centavos
+        const PLATFORM_FLAT_FEE = 200; // R$2,00 em centavos
 
         const totalAmountCents = data.items.reduce((sum: number, item: any) => sum + Math.round(item.price * 100) * item.quantity, 0);
 

@@ -293,7 +293,7 @@ export default function LandingPage() {
             </h1>
 
             <p style={{ color: 'rgba(255,255,255,0.82)', fontSize: 'clamp(14px, 1.5vw, 17px)', lineHeight: 1.75, marginBottom: 32, maxWidth: 460, textShadow: '0 1px 8px rgba(0,0,0,0.3)' }} className="landingHeroSubtitle">
-              Checkout de alta conversão, Pix instantâneo, área de membros e loja integrada. Taxa: <strong style={{ color: '#c4b5fd' }}>R$1,50 + 1,09%</strong> por venda.
+              Checkout de alta conversão, Pix instantâneo, área de membros e loja integrada. Taxa: <strong style={{ color: '#c4b5fd' }}>R$2,00 + 1,09%</strong> por venda.
             </p>
 
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 40 }} className="landingHeroActions">
@@ -396,7 +396,7 @@ export default function LandingPage() {
               transition: 'transform 0.15s ease',
             }} id="cardTaxa">
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Taxa por venda</div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: 'white', letterSpacing: -0.5 }}>R$1,50</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: 'white', letterSpacing: -0.5 }}>R$2,00</div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>+ 1,09% gateway</div>
             </div>
           </div>
@@ -459,7 +459,7 @@ export default function LandingPage() {
           {[0, 1].map(copy => (
             <div key={copy} style={{ display: 'flex', alignItems: 'center', gap: 0, whiteSpace: 'nowrap' }}>
               {[
-                { icon: <FiZap size={16} color="#6c5ce7" />, text: <><strong style={{ color: '#6c5ce7' }}>R$1,50 + 1,09%</strong> por venda</> },
+                { icon: <FiZap size={16} color="#6c5ce7" />, text: <><strong style={{ color: '#6c5ce7' }}>R$2,00 + 1,09%</strong> por venda</> },
                 { icon: <FiLock size={15} color="#a29bfe" />, text: <span style={{ color: '#a29bfe' }}>Sem mensalidade</span> },
                 { icon: <FiLock size={15} color="#a29bfe" />, text: <span style={{ color: '#a29bfe' }}>Sem taxa de adesão</span> },
                 { icon: <FiTrendingUp size={15} color="#6c5ce7" />, text: <span style={{ color: '#6c5ce7' }}>Pix recebido na hora</span> },
@@ -469,7 +469,7 @@ export default function LandingPage() {
                 { icon: <HiOutlineCurrencyDollar size={16} color="#6c5ce7" />, text: <span style={{ color: '#6c5ce7' }}>Saques via Pix</span> },
                 { icon: <HiOutlineLightningBolt size={15} color="#a29bfe" />, text: <span style={{ color: '#a29bfe' }}>Área de membros integrada</span> },
                 { icon: <HiOutlineGlobeAlt size={15} color="#6c5ce7" />, text: <span style={{ color: '#6c5ce7' }}>Loja virtual completa</span> },
-                { icon: <FiZap size={16} color="#6c5ce7" />, text: <><strong style={{ color: '#6c5ce7' }}>R$1,50 + 1,09%</strong> por venda</> },
+                { icon: <FiZap size={16} color="#6c5ce7" />, text: <><strong style={{ color: '#6c5ce7' }}>R$2,00 + 1,09%</strong> por venda</> },
               ].map((item, i) => (
                 <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, padding: '0 32px', borderRight: '1px solid rgba(108,92,231,0.15)' }}>
                   {item.icon} {item.text}
@@ -766,7 +766,7 @@ Body:
             Pronto para <span className="gradient-text">começar a vender</span>?
           </h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 32, fontSize: 16 }}>
-            Crie sua conta em menos de 2 minutos. Sem mensalidade. Apenas <strong>R$1,50 + 1,09%</strong> por venda realizada.
+            Crie sua conta em menos de 2 minutos. Sem mensalidade. Apenas <strong>R$2,00 + 1,09%</strong> por venda realizada.
           </p>
           <Link href="/register" className="btn-primary" style={{ padding: '16px 40px', fontSize: 16, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             Criar Conta Grátis <FiArrowRight size={18} />
