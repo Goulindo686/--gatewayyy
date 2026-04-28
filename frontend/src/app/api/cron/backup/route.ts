@@ -211,7 +211,7 @@ export async function GET(request: NextRequest) {
         console.log(`✅ Encontradas ${tables.length} tabelas`);
         
         // 2. Fazer backup de todas as tabelas
-        const backupPromises = tables.map(table => backupTable(table));
+        const backupPromises = tables.map((table: string) => backupTable(table));
         const backupResults = await Promise.all(backupPromises);
         
         // Filtrar resultados válidos
