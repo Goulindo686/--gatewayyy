@@ -11,11 +11,11 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: "/favicon.png", type: "image/png" },
-      { url: "/favicon.ico", type: "image/x-icon" },
+      { url: "/logo.png", type: "image/png" },
+      { url: "/logo.png", sizes: "32x32", type: "image/png" },
     ],
-    shortcut: "/favicon.ico",
-    apple: "/favicon.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
   },
   appleWebApp: {
     capable: true,
@@ -26,14 +26,14 @@ export const metadata: Metadata = {
     title: "GouPay",
     description: "Gateway de pagamentos e marketplace SaaS. Venda seus produtos online com checkout profissional, split de pagamentos e saques via Pix.",
     siteName: "GouPay",
-    images: ["/favicon.ico"],
+    images: ["/logo.png"],
     type: "website",
     locale: "pt_BR",
   },
   twitter: {
     card: "summary",
     title: "GouPay",
-    images: ["/favicon.ico"],
+    images: ["/logo.png"],
   },
 };
 
