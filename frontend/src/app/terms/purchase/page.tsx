@@ -27,7 +27,7 @@ export default function TermsPurchasePage() {
             Este documento descreve as condições aplicáveis a compras realizadas por meio do checkout da GouPay e esclarece responsabilidades entre Comprador, Vendedor e Plataforma.
           </p>
           <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 0 }}>
-            Última atualização: 03/03/2026
+            Última atualização: 28/04/2026
           </p>
         </div>
 

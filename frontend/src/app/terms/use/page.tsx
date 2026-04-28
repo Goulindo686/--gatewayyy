@@ -27,7 +27,7 @@ export default function TermsUsePage() {
             Estes Termos regulam o acesso e uso da plataforma GouPay, incluindo painel do vendedor, recursos de loja, checkout, integrações e funcionalidades relacionadas.
           </p>
           <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 0 }}>
-            Última atualização: 03/03/2026
+            Última atualização: 28/04/2026
           </p>
         </div>
 
@@ -104,6 +104,22 @@ export default function TermsUsePage() {
         <div style={{ height: 18 }} />
 
         <div className="glass-card" style={{ padding: 28 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 900, marginBottom: 12, color: 'var(--danger)' }}>⚠️ 6.1. RESPONSABILIDADE EXCLUSIVA DO VENDEDOR E ISENÇÃO DA PLATAFORMA</h2>
+          <div style={{ display: 'grid', gap: 12, color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.8 }}>
+            <div style={{ background: 'rgba(255,59,48,0.1)', padding: 16, borderRadius: 8, border: '1px solid rgba(255,59,48,0.3)' }}>
+              <strong style={{ color: 'var(--danger)', display: 'block', marginBottom: 8 }}>DECLARAÇÃO IMPORTANTE:</strong>
+              A GouPay é uma plataforma tecnológica que fornece infraestrutura de checkout e processamento de pagamentos. A GouPay NÃO é vendedora, fabricante, distribuidora ou responsável pelos Produtos anunciados pelos Vendedores.
+            </div>
+            <div><strong style={{ color: 'var(--text-primary)' }}>Responsabilidade do Vendedor:</strong> O Vendedor é o ÚNICO e EXCLUSIVO responsável por: (a) legalidade, licitude e conformidade do Produto com todas as leis aplicáveis; (b) obtenção de autorizações, licenças, alvarás e permissões necessárias para comercializar o Produto; (c) veracidade das informações, descrições e promessas; (d) qualidade, entrega, suporte e garantias do Produto; (e) cumprimento de obrigações fiscais, tributárias, trabalhistas e regulatórias; (f) violações de direitos autorais, marcas, patentes ou propriedade intelectual de terceiros; (g) danos causados a Compradores ou terceiros decorrentes do Produto.</div>
+            <div><strong style={{ color: 'var(--text-primary)' }}>Isenção da Plataforma:</strong> A GouPay NÃO verifica, valida, certifica, garante ou endossa a legalidade, qualidade, segurança ou adequação dos Produtos. A GouPay NÃO é responsável por: (a) produtos ilegais, irregulares ou não autorizados vendidos por Vendedores; (b) fraudes, golpes, promessas falsas ou práticas enganosas de Vendedores; (c) não entrega, entrega parcial, defeitos ou vícios dos Produtos; (d) violações de direitos de terceiros cometidas por Vendedores; (e) danos diretos, indiretos, lucros cessantes ou danos morais decorrentes de Produtos vendidos na Plataforma.</div>
+            <div><strong style={{ color: 'var(--text-primary)' }}>Limitação de Responsabilidade:</strong> Em nenhuma hipótese a GouPay será responsabilizada solidária, subsidiária ou conjuntamente com o Vendedor por qualquer ilícito, irregularidade, dano ou prejuízo causado pelo Produto ou pela conduta do Vendedor. Qualquer reclamação, ação judicial ou procedimento administrativo relacionado ao Produto deve ser direcionado EXCLUSIVAMENTE ao Vendedor.</div>
+            <div><strong style={{ color: 'var(--text-primary)' }}>Direito de Regresso:</strong> Caso a GouPay seja demandada judicialmente ou administrativamente por atos, produtos ou condutas de responsabilidade exclusiva do Vendedor, a GouPay terá direito de regresso integral contra o Vendedor, incluindo honorários advocatícios, custas processuais e indenizações pagas a terceiros.</div>
+          </div>
+        </div>
+
+        <div style={{ height: 18 }} />
+
+        <div className="glass-card" style={{ padding: 28 }}>
           <h2 style={{ fontSize: 18, fontWeight: 900, marginBottom: 12 }}>7. Tarifas, repasses e retenções</h2>
           <div style={{ display: 'grid', gap: 12, color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.8 }}>
             <div>As tarifas aplicáveis são informadas na Plataforma e podem variar conforme método de pagamento, risco transacional, categoria, produto e regras operacionais.</div>
@@ -125,7 +141,20 @@ export default function TermsUsePage() {
         <div style={{ height: 18 }} />
 
         <div className="glass-card" style={{ padding: 28 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 900, marginBottom: 12 }}>9. Suspensão, encerramento e alterações</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 900, marginBottom: 12 }}>9. Monitoramento, moderação e cooperação legal</h2>
+          <div style={{ display: 'grid', gap: 12, color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.8 }}>
+            <div>A GouPay se reserva o direito, mas NÃO tem a obrigação, de monitorar, revisar, moderar ou investigar produtos, transações e atividades na Plataforma.</div>
+            <div>Podemos utilizar sistemas automatizados, análises de risco, inteligência artificial e revisões manuais para identificar atividades suspeitas, fraudes ou violações destes Termos.</div>
+            <div>Ao identificar produtos ilegais, irregulares ou que violem estes Termos, podemos: (a) suspender ou encerrar contas; (b) bloquear checkouts e produtos; (c) reter repasses temporária ou definitivamente; (d) reportar às autoridades competentes; (e) cooperar com investigações policiais, judiciais e administrativas.</div>
+            <div>A GouPay cooperará integralmente com autoridades policiais, judiciais, fiscais e regulatórias, fornecendo informações, dados, registros e evidências quando solicitado por ordem judicial, requisição legal ou no exercício de poder de polícia.</div>
+            <div>O Vendedor autoriza expressamente a GouPay a compartilhar seus dados cadastrais, transacionais e de produtos com autoridades competentes quando necessário para cumprimento de obrigações legais ou investigações.</div>
+          </div>
+        </div>
+
+        <div style={{ height: 18 }} />
+
+        <div className="glass-card" style={{ padding: 28 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 900, marginBottom: 12 }}>10. Suspensão, encerramento e alterações</h2>
           <div style={{ display: 'grid', gap: 12, color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.8 }}>
             <div>Podemos suspender ou encerrar contas quando houver indícios de fraude, violação destes Termos, riscos a terceiros, exigências legais ou operacionais.</div>
             <div>O Usuário pode solicitar encerramento da conta, observadas obrigações pendentes (por exemplo: transações em andamento, disputas e obrigações legais/contábeis).</div>
@@ -136,7 +165,7 @@ export default function TermsUsePage() {
         <div style={{ height: 18 }} />
 
         <div className="glass-card" style={{ padding: 28 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 900, marginBottom: 12 }}>10. Contato</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 900, marginBottom: 12 }}>11. Contato</h2>
           <div style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.8 }}>
             Para falar com a GouPay, use o canal informado no rodapé do site ou o atendimento dentro da Plataforma.
           </div>
