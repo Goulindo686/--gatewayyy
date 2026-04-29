@@ -65,11 +65,12 @@ export default function BillingsPage() {
     const loadData = async () => {
         try {
             const token = localStorage.getItem('token');
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
             const headers = { Authorization: `Bearer ${token}` };
 
             const [statsRes, billingsRes] = await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/stats`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/charges?limit=100`, { headers })
+                fetch(`${API_URL}/billing/stats`, { headers }),
+                fetch(`${API_URL}/billing/charges?limit=100`, { headers })
             ]);
 
             if (statsRes.ok) {
@@ -101,7 +102,8 @@ export default function BillingsPage() {
         setCreating(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/charges`, {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+            const response = await fetch(`${API_URL}/billing/charges`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -148,7 +150,8 @@ export default function BillingsPage() {
     const checkPaymentStatus = async (billingId: string) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/charges/${billingId}`, {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+            const response = await fetch(`${API_URL}/billing/charges/${billingId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
