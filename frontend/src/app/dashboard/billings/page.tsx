@@ -50,6 +50,8 @@ export default function BillingsPage() {
     // Form state
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
+    const [customerName, setCustomerName] = useState('');
+    const [customerDoc, setCustomerDoc] = useState('');
     const [creating, setCreating] = useState(false);
 
     useEffect(() => {
@@ -87,9 +89,7 @@ export default function BillingsPage() {
 
     const handleCreateCharge = async (e: React.FormEvent) => {
         e.preventDefault();
-        
-        const amountValue = parseFloat(amount);
-        if (!amountValue || amountValue <= 0) {
+        if (!amount || parseFloat(amount) <= 0) {
             toast.error('Digite um valor válido');
             return;
         }
@@ -97,15 +97,19 @@ export default function BillingsPage() {
         setCreating(true);
         try {
             const { data } = await billingAPI.createCharge({
-                amount: amountValue,
-                description: description || 'Cobrança'
+                amount: parseFloat(amount),
+                description: description || 'Cobrança',
+                customer_name: customerName,
+                customer_doc: customerDoc
             });
 
-            toast.success('Cobrança criada com sucesso!');
+            toast.success('Cobrança gerada com sucesso!');
             
-            setShowCreateModal(false);
             setAmount('');
             setDescription('');
+            setCustomerName('');
+            setCustomerDoc('');
+            setShowCreateModal(false);
             
             // Show payment modal
             setSelectedBilling(data.billing);
@@ -390,7 +394,7 @@ export default function BillingsPage() {
                                 />
                             </div>
 
-                            <div style={{ marginBottom: 24 }}>
+                            <div style={{ marginBottom: 20 }}>
                                 <label className="form-label">Descrição (opcional)</label>
                                 <input
                                     type="text"
@@ -400,6 +404,31 @@ export default function BillingsPage() {
                                     placeholder="Ex: Pagamento de serviço"
                                     maxLength={100}
                                 />
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                                <div>
+                                    <label className="form-label">Nome do Cliente</label>
+                                    <input
+                                        type="text"
+                                        value={customerName}
+                                        onChange={(e) => setCustomerName(e.target.value)}
+                                        className="form-input"
+                                        placeholder="Nome completo"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="form-label">CPF/CNPJ do Cliente</label>
+                                    <input
+                                        type="text"
+                                        value={customerDoc}
+                                        onChange={(e) => setCustomerDoc(e.target.value)}
+                                        className="form-input"
+                                        placeholder="000.000.000-00"
+                                        required
+                                    />
+                                </div>
                             </div>
 
                             {user?.role !== 'admin' && (

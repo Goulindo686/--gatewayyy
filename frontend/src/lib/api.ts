@@ -144,7 +144,7 @@ export const billingAPI = {
     getStats: () => internalApi.get('/billing/stats'),
     listCharges: (params?: any) => internalApi.get('/billing/charges', { params }),
     getCharge: (id: string) => internalApi.get(`/billing/charges/${id}`),
-    createCharge: (data: { amount: number; description?: string }) => internalApi.post('/billing/charges', data),
+    createCharge: (data: { amount: number; description?: string; customer_name?: string; customer_doc?: string }) => internalApi.post('/billing/charges', data),
     cancelCharge: (id: string) => internalApi.patch(`/billing/charges/${id}/cancel`),
 };
 

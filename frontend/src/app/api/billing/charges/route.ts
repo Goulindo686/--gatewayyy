@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         if (!auth) return jsonError('Não autorizado', 401);
 
         const userId = auth.user.id;
-        const { amount, description } = await req.json();
+        const { amount, description, customer_name, customer_doc } = await req.json();
 
         // Validate amount
         if (!amount || amount <= 0) {
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
             return jsonError('Valor mínimo é R$ 1,00', 400);
         }
 
-        // Get user data WITH cpf_cnpj and phone (needed for Pagar.me)
+        // Get user data WITH cpf_cnpj and phone (needed for Pagar.me fallback)
         const { data: user, error: userError } = await supabase
             .from('users')
             .select('id, name, email, role, status, cpf_cnpj, phone')
@@ -124,10 +124,12 @@ export async function POST(req: NextRequest) {
         const platformFeeAmount = applyFee ? Math.min(PLATFORM_FLAT_FEE, amountCents) : 0;
         const sellerAmount = amountCents - platformFeeAmount;
 
-        // Use real user CPF — Pagar.me rejects dummy CPFs in production
-        const userCpf = user.cpf_cnpj?.replace(/\D/g, '') || '';
-        if (!userCpf) {
-            return jsonError('Você precisa cadastrar seu CPF/CNPJ nas configurações antes de gerar cobranças.', 400);
+        // Use real customer data if provided, otherwise fallback to seller's data
+        const finalCustomerName = customer_name || user.name || 'Cliente';
+        const finalCustomerDoc = (customer_doc || user.cpf_cnpj || '').replace(/\D/g, '');
+        
+        if (!finalCustomerDoc) {
+            return jsonError('Você precisa informar o CPF/CNPJ do cliente ou cadastrar o seu nas configurações.', 400);
         }
 
         // Create order on Pagar.me — SAME way as V1 PIX API (which works)
@@ -137,9 +139,9 @@ export async function POST(req: NextRequest) {
                 amount: amountCents,
                 payment_method: 'pix',
                 customer: {
-                    name: user.name || 'Cliente',
-                    email: user.email,
-                    cpf: userCpf,
+                    name: finalCustomerName,
+                    email: user.email, // We use seller's email for notifications if customer email not provided
+                    cpf: finalCustomerDoc,
                     phone: user.phone?.replace(/\D/g, '') || '11999999999'
                 },
                 seller_recipient_id: recipient.pagarme_recipient_id,
