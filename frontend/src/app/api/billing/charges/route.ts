@@ -64,30 +64,6 @@ export async function POST(req: NextRequest) {
         const userId = auth.user.id;
         const { amount, description } = await req.json();
 
-        const extractPix = (pagarmeOrder: any) => {
-            const charge = pagarmeOrder?.charges?.[0];
-            const lastTransaction = charge?.last_transaction;
-
-            const candidates = [
-                lastTransaction?.pix,
-                lastTransaction,
-                charge?.pix,
-                pagarmeOrder?.payments?.[0]?.pix,
-                pagarmeOrder?.payments?.[0],
-            ].filter(Boolean);
-
-            for (const c of candidates) {
-                const qrCode = c?.qr_code || c?.qrCode;
-                const qrCodeUrl = c?.qr_code_url || c?.qrCodeUrl;
-                const expiresAt = c?.expires_at || c?.expiresAt;
-
-                if (qrCode || qrCodeUrl) {
-                    return { qr_code: qrCode, qr_code_url: qrCodeUrl, expires_at: expiresAt };
-                }
-            }
-            return null;
-        };
-
         // Validate amount
         if (!amount || amount <= 0) {
             return jsonError('Valor inválido.', 400);
@@ -123,14 +99,6 @@ export async function POST(req: NextRequest) {
             return jsonError('Você precisa configurar sua conta de recebimento primeiro nas configurações.', 400);
         }
 
-        // Get platform settings
-        const { data: settings } = await supabase
-            .from('platform_settings')
-            .select('*')
-            .single();
-
-        const platformRecipientId = settings?.platform_recipient_id || process.env.PLATFORM_RECIPIENT_ID;
-        
         // Calculate fees - Admin doesn't pay fees
         const PLATFORM_FLAT_FEE = 200; // R$2,00
         let platformFeeAmount = 0;
@@ -141,48 +109,125 @@ export async function POST(req: NextRequest) {
             sellerAmount = amountCents - platformFeeAmount;
         }
 
-        // Create order on Pagar.me using the service to ensure consistent logic (address, split, etc.)
+        // Determine fee percentage for PagarmeService
+        let feePercentage = 2; // default
+        try {
+            const { data: settingsRow } = await supabase
+                .from('platform_settings')
+                .select('fee_percentage')
+                .limit(1)
+                .single();
+            if (settingsRow?.fee_percentage !== undefined && settingsRow.fee_percentage >= 0) {
+                feePercentage = settingsRow.fee_percentage;
+            }
+        } catch {}
+        if (user.role === 'admin') feePercentage = 0;
+
+        // Create order on Pagar.me - using same logic as checkout/pay
         let pagarmeOrder;
         try {
+            const ipHeader = req.headers.get('x-forwarded-for') || '';
+            const ip = ipHeader.split(',')[0].trim() || undefined;
+            const sessionId = uuidv4();
+
             pagarmeOrder = await PagarmeService.createOrder({
                 amount: amountCents,
                 payment_method: 'pix',
                 customer: {
                     name: user.name || 'Cliente',
                     email: user.email || 'cliente@example.com',
-                    cpf: '00000000000'
+                    cpf: '00000000000',
+                    phone: '11999999999'
                 },
                 seller_recipient_id: recipient.pagarme_recipient_id,
-                platform_fee_percentage: user.role === 'admin' ? 0 : 1, // Any > 0 triggers the flat fee in the service
-                ip: req.headers.get('x-forwarded-for')?.split(',')[0].trim() || undefined
+                platform_fee_percentage: feePercentage,
+                ip,
+                session_id: sessionId
             });
         } catch (pagarmeErr: any) {
-            console.error('[BILLING] Pagarme Service Error:', pagarmeErr.response?.data || pagarmeErr.message);
-            throw pagarmeErr;
+            console.error('[BILLING] Pagar.me API Error:', pagarmeErr.response?.data || pagarmeErr.message);
+            const errorBody = pagarmeErr.response?.data;
+            const errorMsg = errorBody?.message ||
+                (errorBody?.errors ? JSON.stringify(errorBody.errors) : pagarmeErr.message);
+            return jsonError(`Erro na API de Pagamento: ${errorMsg}`, 400);
         }
-        
+
+        // Check for failed charge
+        const charge = pagarmeOrder.charges?.[0];
+        if (charge?.status === 'failed' || pagarmeOrder.status === 'failed') {
+            console.error('[BILLING] Order failed:', JSON.stringify(pagarmeOrder, null, 2));
+            return jsonError('Pagamento recusado pelo Pagar.me.', 400);
+        }
+
+        // Extract PIX data - same logic as checkout/pay
+        const extractPix = (order: any) => {
+            const ch = order?.charges?.[0];
+            const lt = ch?.last_transaction;
+            const candidates = [
+                lt?.pix,
+                lt,
+                ch?.pix,
+                order?.payments?.[0]?.pix,
+                order?.payments?.[0],
+            ].filter(Boolean);
+
+            for (const c of candidates) {
+                const qrCode = c?.qr_code || c?.qrCode;
+                const qrCodeUrl = c?.qr_code_url || c?.qrCodeUrl;
+                const expiresAt = c?.expires_at || c?.expiresAt;
+                if (qrCode || qrCodeUrl) {
+                    return { qr_code: qrCode, qr_code_url: qrCodeUrl, expires_at: expiresAt };
+                }
+            }
+            return null;
+        };
+
         let pixData = extractPix(pagarmeOrder);
-        
-        // Retry if Pix data is missing
+
+        // Retry - exact same pattern as checkout/pay route
         if (!pixData) {
+            console.log('[BILLING] PIX data not in initial response, fetching hydrated order...');
             try {
-                // Wait 1s and try fetching the order again
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                const hydratedRes = await pagarmeApi.get(`/orders/${pagarmeOrder.id}`);
-                const hydratedOrder = hydratedRes.data;
-                pixData = extractPix(hydratedOrder);
-                if (pixData) pagarmeOrder = hydratedOrder;
+                const hydrated = await PagarmeService.getOrder(pagarmeOrder.id);
+                pixData = extractPix(hydrated);
+                if (pixData) pagarmeOrder = hydrated;
             } catch (e) {
-                console.error('[BILLING] Error fetching hydrated order:', e);
+                console.error('[BILLING] Hydration attempt 1 failed:', e);
             }
         }
 
+        // Second retry with delay
         if (!pixData) {
-            console.error('[BILLING] PIX data missing in Pagarme response:', JSON.stringify(pagarmeOrder, null, 2));
-            return jsonError('O Pagar.me não retornou os dados do PIX. Verifique se o PIX está habilitado na sua conta Pagar.me.', 500);
+            console.log('[BILLING] PIX data still missing, retry #2 after 2s...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            try {
+                const hydrated2 = await PagarmeService.getOrder(pagarmeOrder.id);
+                pixData = extractPix(hydrated2);
+                if (pixData) pagarmeOrder = hydrated2;
+            } catch (e) {
+                console.error('[BILLING] Hydration attempt 2 failed:', e);
+            }
         }
 
-        const charge = pagarmeOrder.charges?.[0];
+        // Third retry with longer delay
+        if (!pixData) {
+            console.log('[BILLING] PIX data still missing, retry #3 after 3s...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            try {
+                const hydrated3 = await PagarmeService.getOrder(pagarmeOrder.id);
+                console.log('[BILLING] Hydrated order #3 structure:', JSON.stringify(hydrated3, null, 2));
+                pixData = extractPix(hydrated3);
+                if (pixData) pagarmeOrder = hydrated3;
+            } catch (e) {
+                console.error('[BILLING] Hydration attempt 3 failed:', e);
+            }
+        }
+
+        // If still no PIX data, save the billing anyway but return the pagarme order id so
+        // the frontend can display a fallback message
+        if (!pixData) {
+            console.error('[BILLING] PIX data missing after 3 retries. Full response:', JSON.stringify(pagarmeOrder, null, 2));
+        }
 
         // Save billing charge to database
         const billingData = {
@@ -194,9 +239,9 @@ export async function POST(req: NextRequest) {
             status: 'pending',
             pagarme_order_id: pagarmeOrder.id,
             pagarme_charge_id: charge?.id,
-            pix_qr_code: pixData.qr_code,
-            pix_qr_code_url: pixData.qr_code_url,
-            pix_expires_at: pixData.expires_at
+            pix_qr_code: pixData?.qr_code || null,
+            pix_qr_code_url: pixData?.qr_code_url || null,
+            pix_expires_at: pixData?.expires_at || null
         };
 
         const { data: billing, error: billingError } = await supabase
@@ -232,3 +277,4 @@ export async function POST(req: NextRequest) {
         return jsonError(error.response?.data?.message || error.message || 'Erro ao processar cobrança', 500);
     }
 }
+
