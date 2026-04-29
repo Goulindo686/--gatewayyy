@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FiDollarSign, FiCopy, FiCheck, FiX, FiClock, FiTrendingUp, FiAlertCircle, FiRefreshCw } from 'react-icons/fi';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
+import { billingAPI } from '@/lib/api';
 
 interface Billing {
     id: string;
@@ -64,23 +65,17 @@ export default function BillingsPage() {
 
     const loadData = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-            const headers = { Authorization: `Bearer ${token}` };
-
             const [statsRes, billingsRes] = await Promise.all([
-                fetch(`${API_URL}/billing/stats`, { headers }),
-                fetch(`${API_URL}/billing/charges?limit=100`, { headers })
+                billingAPI.getStats(),
+                billingAPI.listCharges({ limit: 100 })
             ]);
 
-            if (statsRes.ok) {
-                const data = await statsRes.json();
-                setStats(data.stats);
+            if (statsRes.data) {
+                setStats(statsRes.data.stats);
             }
 
-            if (billingsRes.ok) {
-                const data = await billingsRes.json();
-                setBillings(data.billings);
+            if (billingsRes.data) {
+                setBillings(billingsRes.data.billings);
             }
         } catch (error) {
             console.error('Error loading data:', error);
@@ -101,26 +96,11 @@ export default function BillingsPage() {
 
         setCreating(true);
         try {
-            const token = localStorage.getItem('token');
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-            const response = await fetch(`${API_URL}/billing/charges`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    amount: amountValue,
-                    description: description || 'Cobrança'
-                })
+            const { data } = await billingAPI.createCharge({
+                amount: amountValue,
+                description: description || 'Cobrança'
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Erro ao criar cobrança');
-            }
-
-            const data = await response.json();
             toast.success('Cobrança criada com sucesso!');
             
             setShowCreateModal(false);
@@ -134,7 +114,8 @@ export default function BillingsPage() {
             // Reload data
             loadData();
         } catch (error: any) {
-            toast.error(error.message || 'Erro ao criar cobrança');
+            const errorMessage = error.response?.data?.error || error.message || 'Erro ao criar cobrança';
+            toast.error(errorMessage);
         } finally {
             setCreating(false);
         }
@@ -149,22 +130,15 @@ export default function BillingsPage() {
 
     const checkPaymentStatus = async (billingId: string) => {
         try {
-            const token = localStorage.getItem('token');
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-            const response = await fetch(`${API_URL}/billing/charges/${billingId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const { data } = await billingAPI.getCharge(billingId);
 
-            if (response.ok) {
-                const data = await response.json();
-                if (data.billing.status === 'paid') {
-                    toast.success('Pagamento confirmado! 🎉');
-                    setShowPaymentModal(false);
-                    setSelectedBilling(null);
-                    loadData();
-                } else {
-                    toast('Aguardando pagamento...', { icon: '⏳' });
-                }
+            if (data.billing.status === 'paid') {
+                toast.success('Pagamento confirmado! 🎉');
+                setShowPaymentModal(false);
+                setSelectedBilling(null);
+                loadData();
+            } else {
+                toast('Aguardando pagamento...', { icon: '⏳' });
             }
         } catch (error) {
             console.error('Error checking payment:', error);

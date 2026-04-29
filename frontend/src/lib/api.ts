@@ -139,4 +139,13 @@ export const storeAPI = {
     createOrder: (data: any) => internalApi.post('/store-checkout', data),
 };
 
+// Billings
+export const billingAPI = {
+    getStats: () => api.get('/billing/stats'),
+    listCharges: (params?: any) => api.get('/billing/charges', { params }),
+    getCharge: (id: string) => api.get(`/billing/charges/${id}`),
+    createCharge: (data: { amount: number; description?: string }) => api.post('/billing/charges', data),
+    cancelCharge: (id: string) => api.patch(`/billing/charges/${id}/cancel`),
+};
+
 export default api;
