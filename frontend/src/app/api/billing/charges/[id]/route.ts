@@ -4,12 +4,12 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const auth = await getAuthUser(req);
         if (!auth) return jsonError('Não autorizado', 401);
 
-        const { id } = params;
+        const { id } = await params;
         const userId = auth.user.id;
         const isAdmin = auth.user.role === 'admin';
 
@@ -43,12 +43,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const auth = await getAuthUser(req);
         if (!auth) return jsonError('Não autorizado', 401);
 
-        const { id } = params;
+        const { id } = await params;
         const userId = auth.user.id;
 
         const { data: billing, error: fetchError } = await supabase
