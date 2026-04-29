@@ -64,6 +64,30 @@ export async function POST(req: NextRequest) {
         const userId = auth.user.id;
         const { amount, description } = await req.json();
 
+        const extractPix = (pagarmeOrder: any) => {
+            const charge = pagarmeOrder?.charges?.[0];
+            const lastTransaction = charge?.last_transaction;
+
+            const candidates = [
+                lastTransaction?.pix,
+                lastTransaction,
+                charge?.pix,
+                pagarmeOrder?.payments?.[0]?.pix,
+                pagarmeOrder?.payments?.[0],
+            ].filter(Boolean);
+
+            for (const c of candidates) {
+                const qrCode = c?.qr_code || c?.qrCode;
+                const qrCodeUrl = c?.qr_code_url || c?.qrCodeUrl;
+                const expiresAt = c?.expires_at || c?.expiresAt;
+
+                if (qrCode || qrCodeUrl) {
+                    return { qr_code: qrCode, qr_code_url: qrCodeUrl, expires_at: expiresAt };
+                }
+            }
+            return null;
+        };
+
         // Validate amount
         if (!amount || amount <= 0) {
             return jsonError('Valor inválido.', 400);
@@ -163,8 +187,29 @@ export async function POST(req: NextRequest) {
             orderData.payments[0].split = splitRules;
         }
 
-        const response = await pagarmeApi.post('/orders', orderData);
-        const pagarmeOrder = response.data;
+        let response = await pagarmeApi.post('/orders', orderData);
+        let pagarmeOrder = response.data;
+        
+        let pixData = extractPix(pagarmeOrder);
+        
+        // Retry if Pix data is missing
+        if (!pixData) {
+            try {
+                // Wait 1s and try fetching the order again
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                const hydratedRes = await pagarmeApi.get(`/orders/${pagarmeOrder.id}`);
+                const hydratedOrder = hydratedRes.data;
+                pixData = extractPix(hydratedOrder);
+                if (pixData) pagarmeOrder = hydratedOrder;
+            } catch (e) {
+                console.error('[BILLING] Error fetching hydrated order:', e);
+            }
+        }
+
+        if (!pixData) {
+            return jsonError('O Pagar.me não retornou os dados do PIX. Verifique sua configuração.', 500);
+        }
+
         const charge = pagarmeOrder.charges?.[0];
 
         // Save billing charge to database
@@ -177,9 +222,9 @@ export async function POST(req: NextRequest) {
             status: 'pending',
             pagarme_order_id: pagarmeOrder.id,
             pagarme_charge_id: charge?.id,
-            pix_qr_code: charge?.last_transaction?.qr_code,
-            pix_qr_code_url: charge?.last_transaction?.qr_code_url,
-            pix_expires_at: charge?.last_transaction?.expires_at
+            pix_qr_code: pixData.qr_code,
+            pix_qr_code_url: pixData.qr_code_url,
+            pix_expires_at: pixData.expires_at
         };
 
         const { data: billing, error: billingError } = await supabase
@@ -190,7 +235,7 @@ export async function POST(req: NextRequest) {
 
         if (billingError) {
              console.error('[BILLING CHARGES POST] DB Error:', billingError);
-             return jsonError('Erro ao salvar cobrança no banco de dados. Verifique se as migrações foram executadas.', 500);
+             return jsonError('Erro ao salvar cobrança no banco de dados.', 500);
         }
 
         return jsonSuccess({
