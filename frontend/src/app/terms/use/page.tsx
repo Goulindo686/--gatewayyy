@@ -16,6 +16,8 @@ export default function TermsUsePage() {
             <Link href="/terms/sales" style={{ color: 'var(--text-secondary)', fontWeight: 700, textDecoration: 'none' }}>Termos de Venda</Link>
             <span style={{ opacity: 0.35 }}>•</span>
             <Link href="/terms/content-policy" style={{ color: 'var(--text-secondary)', fontWeight: 700, textDecoration: 'none' }}>Política de Conteúdo</Link>
+            <span style={{ opacity: 0.35 }}>•</span>
+            <Link href="/terms/privacy" style={{ color: 'var(--text-secondary)', fontWeight: 700, textDecoration: 'none' }}>Privacidade</Link>
           </div>
         </div>
 
@@ -131,10 +133,13 @@ export default function TermsUsePage() {
         <div style={{ height: 18 }} />
 
         <div className="glass-card" style={{ padding: 28 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 900, marginBottom: 12 }}>8. Privacidade e dados</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 900, marginBottom: 12 }}>8. Privacidade e Proteção de Dados</h2>
           <div style={{ display: 'grid', gap: 12, color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.8 }}>
-            <div>Tratamos dados pessoais e registros de transações para operar a Plataforma, processar pagamentos, prevenir fraudes, cumprir obrigações legais e melhorar a experiência.</div>
+            <div>A GouPay trata dados pessoais em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei 13.709/2018) e registros de transações para operar a Plataforma, processar pagamentos, prevenir fraudes, cumprir obrigações legais e melhorar a experiência.</div>
             <div>Ao utilizar o checkout, o Comprador fornece dados necessários para processar o pagamento e viabilizar entrega/acesso ao Produto.</div>
+            <div style={{ marginTop: 8, padding: 14, background: 'rgba(108, 92, 231, 0.1)', borderRadius: 8, border: '1px solid rgba(108, 92, 231, 0.3)' }}>
+              <strong style={{ color: 'var(--accent-primary)' }}>Para informações detalhadas sobre coleta, uso, compartilhamento, segurança e seus direitos sobre dados pessoais, consulte nossa <Link href="/terms/privacy" style={{ color: 'var(--accent-primary)', fontWeight: 800, textDecoration: 'none' }}>Política de Privacidade</Link>.</strong>
+            </div>
           </div>
         </div>
 
@@ -165,7 +170,18 @@ export default function TermsUsePage() {
         <div style={{ height: 18 }} />
 
         <div className="glass-card" style={{ padding: 28 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 900, marginBottom: 12 }}>11. Contato</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 900, marginBottom: 12 }}>11. Foro e Lei Aplicável</h2>
+          <div style={{ display: 'grid', gap: 12, color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.8 }}>
+            <div>Estes Termos e Condições de Uso são regidos e interpretados de acordo com as leis da República Federativa do Brasil, sem prejuízo de tratados e convenções internacionais dos quais o Brasil seja signatário.</div>
+            <div>Fica eleito o foro da comarca da sede da GouPay para dirimir quaisquer dúvidas, controvérsias ou litígios decorrentes destes Termos, com renúncia expressa a qualquer outro, por mais privilegiado que seja.</div>
+            <div>Esta cláusula de eleição de foro não se aplica a relações de consumo quando o consumidor residir em local diverso, hipótese em que prevalecerá o foro de seu domicílio, conforme Art. 101, I do Código de Defesa do Consumidor.</div>
+          </div>
+        </div>
+
+        <div style={{ height: 18 }} />
+
+        <div className="glass-card" style={{ padding: 28 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 900, marginBottom: 12 }}>12. Contato</h2>
           <div style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.8 }}>
             Para falar com a GouPay, use o canal informado no rodapé do site ou o atendimento dentro da Plataforma.
           </div>
