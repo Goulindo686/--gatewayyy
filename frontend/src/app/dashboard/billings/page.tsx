@@ -410,7 +410,7 @@ export default function BillingsPage() {
                                     marginBottom: 20,
                                     fontSize: 13
                                 }}>
-                                    <strong>Taxa da plataforma:</strong> R$ 1,50 por cobrança paga
+                                    <strong>Taxa da plataforma:</strong> R$ 2,00 por cobrança paga
                                 </div>
                             )}
 

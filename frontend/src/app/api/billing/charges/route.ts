@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
         const platformRecipientId = settings?.platform_recipient_id || process.env.PLATFORM_RECIPIENT_ID;
         
         // Calculate fees - Admin doesn't pay fees
-        const PLATFORM_FLAT_FEE = 150; // R$1,50
+        const PLATFORM_FLAT_FEE = 200; // R$2,00
         let platformFeeAmount = 0;
         let sellerAmount = amountCents;
 
@@ -150,14 +150,17 @@ export async function POST(req: NextRequest) {
                 code: uuidv4()
             }],
             customer: {
-                name: 'Cliente',
-                email: 'cliente@example.com',
+                name: user.name || 'Cliente',
+                email: user.email || 'cliente@example.com',
                 document: '00000000000',
                 type: 'individual'
             },
             payments: [{
                 payment_method: 'pix',
-                pix: { expires_in: 86400 } // 24 hours
+                pix: { 
+                    expires_in: 86400,
+                    additional_information: [{ name: 'Pagamento', value: process.env.PLATFORM_NAME || 'GouPay' }]
+                }
             }]
         };
 
@@ -207,7 +210,8 @@ export async function POST(req: NextRequest) {
         }
 
         if (!pixData) {
-            return jsonError('O Pagar.me não retornou os dados do PIX. Verifique sua configuração.', 500);
+            console.error('[BILLING] PIX data missing in Pagarme response:', JSON.stringify(pagarmeOrder, null, 2));
+            return jsonError('O Pagar.me não retornou os dados do PIX. Verifique se o PIX está habilitado na sua conta Pagar.me.', 500);
         }
 
         const charge = pagarmeOrder.charges?.[0];
