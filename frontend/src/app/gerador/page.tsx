@@ -226,12 +226,29 @@ export default function GeradorInteligente() {
       
       if (response.ok && data.success) {
         alert('✅ Página salva com sucesso!');
+        setShowSaveModal(false);
       } else {
-        alert('❌ Erro ao salvar: ' + (data.message || 'Erro desconhecido'));
+        const errorMsg = data.message || 'Erro desconhecido';
+        
+        // Mensagem específica para erro de tabela não encontrada
+        if (errorMsg.includes('relation') || errorMsg.includes('does not exist') || errorMsg.includes('generated_pages')) {
+          alert('❌ Erro: A tabela do banco de dados ainda não foi criada.\n\n' +
+                'Por favor, execute o SQL no Supabase:\n' +
+                '1. Acesse o SQL Editor do Supabase\n' +
+                '2. Execute o arquivo: backend/src/config/generator_schema.sql\n\n' +
+                'Erro técnico: ' + errorMsg);
+        } else {
+          alert('❌ Erro ao salvar: ' + errorMsg);
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar:', error);
-      alert('❌ Erro ao salvar página. Verifique se o backend está rodando.');
+      alert('❌ Erro ao salvar página.\n\n' +
+            'Possíveis causas:\n' +
+            '• Backend não está rodando (verifique http://localhost:3001)\n' +
+            '• Tabela do banco não foi criada (execute o SQL)\n' +
+            '• Problema de conexão\n\n' +
+            'Erro: ' + (error.message || 'Desconhecido'));
     } finally {
       setSaving(false);
     }
