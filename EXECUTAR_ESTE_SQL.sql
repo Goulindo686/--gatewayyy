@@ -9,6 +9,17 @@
 -- 6. Clique em: "Run" (ou Ctrl+Enter)
 -- ============================================
 
+-- REMOVER POLÍTICAS ANTIGAS (se existirem)
+DROP POLICY IF EXISTS "Users can view own pages" ON generated_pages;
+DROP POLICY IF EXISTS "Users can create own pages" ON generated_pages;
+DROP POLICY IF EXISTS "Users can update own pages" ON generated_pages;
+DROP POLICY IF EXISTS "Users can delete own pages" ON generated_pages;
+DROP POLICY IF EXISTS "Published pages are publicly visible" ON generated_pages;
+
+-- REMOVER TRIGGER E FUNÇÃO ANTIGOS (se existirem)
+DROP TRIGGER IF EXISTS trigger_update_generated_pages_updated_at ON generated_pages;
+DROP FUNCTION IF EXISTS update_generated_pages_updated_at() CASCADE;
+
 -- Criar tabela para páginas geradas
 CREATE TABLE IF NOT EXISTS generated_pages (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -33,13 +44,6 @@ CREATE INDEX IF NOT EXISTS idx_generated_pages_created_at ON generated_pages(cre
 
 -- Ativar RLS (Row Level Security)
 ALTER TABLE generated_pages ENABLE ROW LEVEL SECURITY;
-
--- Remover políticas antigas se existirem
-DROP POLICY IF EXISTS "Users can view own pages" ON generated_pages;
-DROP POLICY IF EXISTS "Users can create own pages" ON generated_pages;
-DROP POLICY IF EXISTS "Users can update own pages" ON generated_pages;
-DROP POLICY IF EXISTS "Users can delete own pages" ON generated_pages;
-DROP POLICY IF EXISTS "Published pages are publicly visible" ON generated_pages;
 
 -- Criar políticas de segurança
 CREATE POLICY "Users can view own pages"
@@ -67,9 +71,6 @@ CREATE POLICY "Published pages are publicly visible"
   FOR SELECT
   USING (is_published = true);
 
--- Remover função antiga se existir
-DROP FUNCTION IF EXISTS update_generated_pages_updated_at() CASCADE;
-
 -- Criar função para atualizar updated_at automaticamente
 CREATE OR REPLACE FUNCTION update_generated_pages_updated_at()
 RETURNS TRIGGER AS $$
@@ -78,9 +79,6 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
--- Remover trigger antigo se existir
-DROP TRIGGER IF EXISTS trigger_update_generated_pages_updated_at ON generated_pages;
 
 -- Criar trigger para atualizar updated_at
 CREATE TRIGGER trigger_update_generated_pages_updated_at
