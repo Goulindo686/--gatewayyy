@@ -49,41 +49,6 @@ export default function GeradorInteligente() {
     components: []
   });
 
-  const templates = [
-    {
-      id: 'sales-page',
-      name: 'Página de Vendas',
-      description: 'Página otimizada para conversão com seções de benefícios, depoimentos e CTA',
-      icon: FileText,
-      preview: '/templates/sales-page.png',
-      components: ['header', 'hero', 'features', 'testimonials', 'cta', 'footer']
-    },
-    {
-      id: 'store',
-      name: 'Loja Completa',
-      description: 'E-commerce com catálogo de produtos, carrinho e checkout integrado',
-      icon: ShoppingBag,
-      preview: '/templates/store.png',
-      components: ['header', 'hero', 'products', 'cta', 'footer']
-    },
-    {
-      id: 'landing',
-      name: 'Landing Page',
-      description: 'Página de captura com foco em conversão e formulário de contato',
-      icon: Layout,
-      preview: '/templates/landing.png',
-      components: ['header', 'hero', 'features', 'cta']
-    },
-    {
-      id: 'custom',
-      name: 'Personalizado',
-      description: 'Comece do zero e adicione os componentes que desejar',
-      icon: Wand2,
-      preview: '/templates/custom.png',
-      components: []
-    }
-  ];
-
   const availableComponents = [
     { type: 'header', name: 'Cabeçalho', icon: Layout, description: 'Menu de navegação' },
     { type: 'hero', name: 'Hero Section', icon: Sparkles, description: 'Seção principal de destaque' },
@@ -95,21 +60,13 @@ export default function GeradorInteligente() {
   ];
 
   const selectTemplate = (templateId: TemplateType) => {
-    const template = templates.find(t => t.id === templateId);
-    if (template) {
-      const components = template.components.map((type, index) => ({
-        id: `${type}-${index}`,
-        type: type as ComponentType,
-        config: getDefaultConfig(type as ComponentType)
-      }));
-      
-      setPageConfig({
-        ...pageConfig,
-        template: templateId,
-        components
-      });
-      setStep('editor');
-    }
+    // Sempre começa vazio para personalização total
+    setPageConfig({
+      ...pageConfig,
+      template: templateId,
+      components: []
+    });
+    setStep('editor');
   };
 
   const getDefaultConfig = (type: ComponentType): Record<string, any> => {
@@ -166,8 +123,7 @@ export default function GeradorInteligente() {
       },
       cta: {
         title: 'Pronto Para Começar?',
-        buttonText: 'Comece Agora',
-        backgroundColor: '#6366f1'
+        buttonText: 'Comece Agora'
       },
       footer: {
         text: '© 2024 Todos os direitos reservados',
@@ -248,7 +204,9 @@ export default function GeradorInteligente() {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/generator/pages`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      
+      const response = await fetch(`${apiUrl}/api/generator/pages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -266,14 +224,14 @@ export default function GeradorInteligente() {
 
       const data = await response.json();
       
-      if (data.success) {
+      if (response.ok && data.success) {
         alert('✅ Página salva com sucesso!');
       } else {
-        alert('❌ Erro ao salvar: ' + data.message);
+        alert('❌ Erro ao salvar: ' + (data.message || 'Erro desconhecido'));
       }
     } catch (error) {
       console.error('Erro ao salvar:', error);
-      alert('❌ Erro ao salvar página');
+      alert('❌ Erro ao salvar página. Verifique se o backend está rodando.');
     } finally {
       setSaving(false);
     }
@@ -368,10 +326,10 @@ export default function GeradorInteligente() {
           `;
         case 'cta':
           return `
-            <section style="background: ${comp.config.backgroundColor}; padding: 4rem 2rem; text-align: center; color: white;">
+            <section style="background: ${theme.primaryColor}; padding: 4rem 2rem; text-align: center; color: white;">
               <div style="max-width: 800px; margin: 0 auto;">
                 <h2 style="font-size: 2.5rem; font-weight: bold; margin-bottom: 2rem;">${comp.config.title}</h2>
-                <button style="background: white; color: ${comp.config.backgroundColor}; padding: 1rem 2rem; border: none; border-radius: 0.5rem; font-size: 1.125rem; font-weight: bold; cursor: pointer;">
+                <button style="background: white; color: ${theme.primaryColor}; padding: 1rem 2rem; border: none; border-radius: 0.5rem; font-size: 1.125rem; font-weight: bold; cursor: pointer;">
                   ${comp.config.buttonText}
                 </button>
               </div>
@@ -506,56 +464,34 @@ export default function GeradorInteligente() {
           >
             <div className="text-center">
               <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">
-                Escolha um Template
+                Criar Nova Página
               </h2>
               <p className="text-lg text-slate-600 dark:text-slate-400">
-                Comece com um modelo profissional ou crie do zero
+                Comece do zero e adicione os componentes que desejar
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {templates.map((template, index) => {
-                const Icon = template.icon;
-                return (
-                  <motion.button
-                    key={template.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={() => selectTemplate(template.id as TemplateType)}
-                    className="group relative bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 transition-all hover:shadow-xl"
-                  >
-                    <div className="flex flex-col items-center text-center space-y-4">
-                      <div className="p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl group-hover:scale-110 transition-transform">
-                        <Icon className="w-8 h-8 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
-                          {template.name}
-                        </h3>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">
-                          {template.description}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-1 justify-center">
-                        {template.components.slice(0, 4).map((comp) => (
-                          <span
-                            key={comp}
-                            className="px-2 py-1 bg-slate-100 dark:bg-slate-700 text-xs text-slate-600 dark:text-slate-400 rounded"
-                          >
-                            {comp}
-                          </span>
-                        ))}
-                        {template.components.length > 4 && (
-                          <span className="px-2 py-1 bg-slate-100 dark:bg-slate-700 text-xs text-slate-600 dark:text-slate-400 rounded">
-                            +{template.components.length - 4}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </motion.button>
-                );
-              })}
+            <div className="max-w-md mx-auto">
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={() => selectTemplate('custom')}
+                className="group relative bg-white dark:bg-slate-800 rounded-2xl p-8 border-2 border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 transition-all hover:shadow-xl w-full"
+              >
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="p-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl group-hover:scale-110 transition-transform">
+                    <Wand2 className="w-12 h-12 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+                      Começar a Criar
+                    </h3>
+                    <p className="text-slate-600 dark:text-slate-400">
+                      Crie sua página personalizada adicionando componentes como cabeçalho, hero, produtos, depoimentos e muito mais
+                    </p>
+                  </div>
+                </div>
+              </motion.button>
             </div>
           </motion.div>
         )}

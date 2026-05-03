@@ -209,13 +209,13 @@ export default function PagePreview({ theme, components }: PagePreviewProps) {
         return (
           <section
             key={component.id}
-            style={{ backgroundColor: component.config.backgroundColor }}
+            style={{ backgroundColor: theme.primaryColor }}
             className="py-16 px-4 text-white text-center"
           >
             <div className="max-w-4xl mx-auto">
               <h2 className="text-4xl font-bold mb-8">{component.config.title}</h2>
               <button className="px-8 py-4 bg-white rounded-lg text-lg font-bold hover:opacity-90 transition-opacity"
-                style={{ color: component.config.backgroundColor }}
+                style={{ color: theme.primaryColor }}
               >
                 {component.config.buttonText}
               </button>

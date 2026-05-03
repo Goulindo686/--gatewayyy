@@ -307,16 +307,10 @@ export default function ComponentEditor({
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Cor de Fundo
-              </label>
-              <input
-                type="color"
-                value={component.config.backgroundColor}
-                onChange={(e) => onUpdate({ ...component.config, backgroundColor: e.target.value })}
-                className="w-full h-10 rounded-lg cursor-pointer"
-              />
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+              <p className="text-xs text-indigo-700 dark:text-indigo-300">
+                💡 A cor de fundo usa automaticamente a cor principal do tema
+              </p>
             </div>
           </div>
         );
