@@ -8,6 +8,8 @@ import {
   Image as ImageIcon, Box, ArrowLeft
 } from 'lucide-react';
 import Link from 'next/link';
+import ComponentEditor from '@/components/generator/ComponentEditor';
+import PagePreview from '@/components/generator/PagePreview';
 
 type TemplateType = 'sales-page' | 'store' | 'landing' | 'custom';
 type ComponentType = 'header' | 'hero' | 'features' | 'products' | 'testimonials' | 'cta' | 'footer';
@@ -148,6 +150,68 @@ export default function GeradorInteligente() {
       }
     };
     return defaults[type] || {};
+  };
+
+  const addComponent = (type: ComponentType) => {
+    const newComponent = {
+      id: `${type}-${Date.now()}`,
+      type,
+      config: getDefaultConfig(type)
+    };
+    setPageConfig({
+      ...pageConfig,
+      components: [...pageConfig.components, newComponent]
+    });
+  };
+
+  const updateComponent = (id: string, newConfig: any) => {
+    setPageConfig({
+      ...pageConfig,
+      components: pageConfig.components.map(comp =>
+        comp.id === id ? { ...comp, config: newConfig } : comp
+      )
+    });
+  };
+
+  const deleteComponent = (id: string) => {
+    setPageConfig({
+      ...pageConfig,
+      components: pageConfig.components.filter(comp => comp.id !== id)
+    });
+  };
+
+  const duplicateComponent = (id: string) => {
+    const component = pageConfig.components.find(comp => comp.id === id);
+    if (component) {
+      const newComponent = {
+        ...component,
+        id: `${component.type}-${Date.now()}`
+      };
+      const index = pageConfig.components.findIndex(comp => comp.id === id);
+      const newComponents = [...pageConfig.components];
+      newComponents.splice(index + 1, 0, newComponent);
+      setPageConfig({
+        ...pageConfig,
+        components: newComponents
+      });
+    }
+  };
+
+  const moveComponent = (id: string, direction: 'up' | 'down') => {
+    const index = pageConfig.components.findIndex(comp => comp.id === id);
+    if (index === -1) return;
+    
+    const newComponents = [...pageConfig.components];
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    if (newIndex < 0 || newIndex >= newComponents.length) return;
+    
+    [newComponents[index], newComponents[newIndex]] = [newComponents[newIndex], newComponents[index]];
+    
+    setPageConfig({
+      ...pageConfig,
+      components: newComponents
+    });
   };
 
   return (
@@ -297,7 +361,8 @@ export default function GeradorInteligente() {
                     return (
                       <button
                         key={component.type}
-                        className="w-full flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900 transition-colors text-left"
+                        onClick={() => addComponent(component.type as ComponentType)}
+                        className="w-full flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900 hover:border-indigo-500 border-2 border-transparent transition-all text-left"
                       >
                         <Icon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                         <div className="flex-1">
@@ -373,35 +438,61 @@ export default function GeradorInteligente() {
             {/* Canvas - Área de Edição */}
             <div className="lg:col-span-3">
               <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 min-h-[600px]">
-                <div className="text-center py-12">
-                  <Sparkles className="w-16 h-16 text-indigo-600 dark:text-indigo-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                    Editor Visual
-                  </h3>
-                  <p className="text-slate-600 dark:text-slate-400 mb-6">
-                    Arraste componentes da barra lateral para começar a construir sua página
-                  </p>
-                  {pageConfig.components.length === 0 && (
+                {pageConfig.components.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Sparkles className="w-16 h-16 text-indigo-600 dark:text-indigo-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                      Editor Visual
+                    </h3>
+                    <p className="text-slate-600 dark:text-slate-400 mb-6">
+                      Clique nos componentes da barra lateral para adicionar à sua página
+                    </p>
                     <div className="text-sm text-slate-500 dark:text-slate-500">
                       Nenhum componente adicionado ainda
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                        Componentes da Página ({pageConfig.components.length})
+                      </h3>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Clique para expandir e editar cada componente
+                      </p>
+                    </div>
+                    {pageConfig.components.map((component, index) => (
+                      <ComponentEditor
+                        key={component.id}
+                        component={component}
+                        onUpdate={(config) => updateComponent(component.id, config)}
+                        onDelete={() => deleteComponent(component.id)}
+                        onDuplicate={() => duplicateComponent(component.id)}
+                        onMoveUp={() => moveComponent(component.id, 'up')}
+                        onMoveDown={() => moveComponent(component.id, 'down')}
+                        canMoveUp={index > 0}
+                        canMoveDown={index < pageConfig.components.length - 1}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         )}
 
         {step === 'preview' && (
-          <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
-            <div className="text-center py-12">
-              <Eye className="w-16 h-16 text-indigo-600 dark:text-indigo-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div className="border-b border-slate-200 dark:border-slate-700 p-4 bg-slate-50 dark:bg-slate-700">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                 Preview da Página
               </h3>
-              <p className="text-slate-600 dark:text-slate-400">
+              <p className="text-sm text-slate-600 dark:text-slate-400">
                 Visualize como sua página ficará para os visitantes
               </p>
+            </div>
+            <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+              <PagePreview theme={pageConfig.theme} components={pageConfig.components} />
             </div>
           </div>
         )}
