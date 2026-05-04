@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { supabase } = require('../config/database');
 const pagarmeService = require('../services/pagarme.service');
+const emailService = require('../services/email.service');
 
 class AuthController {
     async register(req, res, next) {
@@ -138,16 +139,37 @@ class AuthController {
         try {
             const { email } = req.body;
 
-            const resetToken = uuidv4();
-            const resetExpires = new Date(Date.now() + 3600000); // 1 hour
-
-            const { error } = await supabase
+            // Check if user exists
+            const { data: user } = await supabase
                 .from('users')
-                .update({
-                    password_reset_token: resetToken,
-                    password_reset_expires: resetExpires.toISOString()
-                })
-                .eq('email', email);
+                .select('id, name, email')
+                .eq('email', email)
+                .single();
+
+            // If user exists, generate token and send email
+            if (user) {
+                const resetToken = uuidv4();
+                const resetExpires = new Date(Date.now() + 3600000); // 1 hour
+
+                const { error } = await supabase
+                    .from('users')
+                    .update({
+                        password_reset_token: resetToken,
+                        password_reset_expires: resetExpires.toISOString()
+                    })
+                    .eq('email', email);
+
+                if (!error) {
+                    // Send password reset email
+                    try {
+                        await emailService.sendPasswordResetEmail(email, resetToken, user.name);
+                        console.log(`[AUTH] Password reset email sent to: ${email}`);
+                    } catch (emailError) {
+                        console.error('[AUTH] Failed to send password reset email:', emailError);
+                        // Don't fail the request if email fails, just log it
+                    }
+                }
+            }
 
             // Always return success to prevent email enumeration
             res.json({
