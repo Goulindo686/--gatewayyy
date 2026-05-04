@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { jsonError, jsonSuccess } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+import { createClient } from '@supabase/supabase-js';
 
 export async function POST(req: NextRequest) {
     try {
@@ -14,7 +15,45 @@ export async function POST(req: NextRequest) {
             return jsonError('Senha deve ter no mínimo 6 caracteres');
         }
 
-        // Find user by reset token
+        // Try Supabase Auth first (if token looks like a JWT)
+        if (token.includes('.')) {
+            try {
+                const supabaseAuth = createClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                );
+
+                // Update password using Supabase Auth
+                const { error: authError } = await supabaseAuth.auth.updateUser({
+                    password: password
+                });
+
+                if (!authError) {
+                    console.log('[RESET PASSWORD] Password updated via Supabase Auth');
+                    
+                    // Also update our custom users table for consistency
+                    const { data: { user } } = await supabaseAuth.auth.getUser(token);
+                    if (user) {
+                        const password_hash = await bcrypt.hash(password, 12);
+                        await supabase
+                            .from('users')
+                            .update({
+                                password_hash,
+                                password_reset_token: null,
+                                password_reset_expires: null,
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('email', user.email);
+                    }
+
+                    return jsonSuccess({ message: 'Senha alterada com sucesso!' });
+                }
+            } catch (authErr) {
+                console.log('[RESET PASSWORD] Not a Supabase Auth token, trying custom token...');
+            }
+        }
+
+        // Fallback to custom token system
         const { data: users, error: findError } = await supabase
             .from('users')
             .select('*')
@@ -50,6 +89,7 @@ export async function POST(req: NextRequest) {
             return jsonError('Erro ao atualizar senha', 500);
         }
 
+        console.log('[RESET PASSWORD] Password updated via custom token');
         return jsonSuccess({ message: 'Senha alterada com sucesso!' });
     } catch (err) {
         console.error('Reset password error:', err);

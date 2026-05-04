@@ -18,12 +18,28 @@ function ResetPasswordForm() {
     const [token, setToken] = useState('');
 
     useEffect(() => {
+        // Supabase Auth sends token as hash fragment (#access_token=...)
+        // Our custom system sends token as query param (?token=...)
+        
+        // Check for Supabase Auth token (hash fragment)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const type = hashParams.get('type');
+        
+        // Check for custom token (query param)
         const tokenParam = searchParams.get('token');
-        if (!tokenParam) {
+        
+        if (type === 'recovery' && accessToken) {
+            // Supabase Auth recovery token
+            setToken(accessToken);
+            console.log('[RESET PASSWORD] Using Supabase Auth token');
+        } else if (tokenParam) {
+            // Custom token
+            setToken(tokenParam);
+            console.log('[RESET PASSWORD] Using custom token');
+        } else {
             toast.error('Token inválido ou ausente');
             router.push('/login');
-        } else {
-            setToken(tokenParam);
         }
     }, [searchParams, router]);
 
