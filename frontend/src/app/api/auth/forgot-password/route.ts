@@ -20,8 +20,9 @@ export async function POST(req: NextRequest) {
         const user = users?.[0];
 
         // If user exists, generate reset token
+        let resetToken: string | null = null;
         if (user) {
-            const resetToken = uuidv4();
+            resetToken = uuidv4();
             const resetExpires = new Date(Date.now() + 3600000); // 1 hour
 
             const { error } = await supabase
@@ -53,8 +54,8 @@ export async function POST(req: NextRequest) {
         return jsonSuccess({ 
             message: 'Se o email existir, as instruções de recuperação serão enviadas.',
             // Only include resetUrl in development
-            ...(process.env.NODE_ENV === 'development' && user ? { 
-                resetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${user.password_reset_token}` 
+            ...(process.env.NODE_ENV === 'development' && resetToken ? { 
+                resetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}` 
             } : {})
         });
     } catch (err) {
