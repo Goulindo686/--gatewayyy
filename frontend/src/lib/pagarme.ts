@@ -12,7 +12,7 @@ const pagarmeApi = axios.create({
 export class PagarmeService {
     static async createRecipient(data: {
         name: string; email: string; cpf_cnpj: string; type: string;
-        bank_code?: string; agency?: string; account?: string; account_digit?: string; account_type?: string;
+        bank_code?: string; agency?: string; agency_digit?: string; account?: string; account_digit?: string; account_type?: string;
     }) {
         const response = await pagarmeApi.post('/recipients', {
             name: data.name,
@@ -25,6 +25,7 @@ export class PagarmeService {
                 holder_document: data.cpf_cnpj,
                 bank: data.bank_code || '001',
                 branch_number: data.agency || '0001',
+                branch_check_digit: data.agency_digit || '0',
                 account_number: data.account || '0000000',
                 account_check_digit: data.account_digit || '0',
                 type: data.account_type || 'checking'
@@ -323,7 +324,7 @@ export class PagarmeService {
 
     static async updateRecipient(recipientId: string, data: {
         name: string; email: string; cpf_cnpj: string; type: string;
-        bank_code: string; agency: string; account: string; account_digit: string; account_type: string;
+        bank_code: string; agency: string; agency_digit?: string; account: string; account_digit: string; account_type: string;
     }) {
         const response = await pagarmeApi.put(`/recipients/${recipientId}`, {
             name: data.name,
@@ -335,6 +336,7 @@ export class PagarmeService {
                 holder_document: data.cpf_cnpj,
                 bank: data.bank_code,
                 branch_number: data.agency,
+                branch_check_digit: data.agency_digit || '0',
                 account_number: data.account,
                 account_check_digit: data.account_digit || '0',
                 type: data.account_type || 'checking'

@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
   pix_key_type VARCHAR(20), -- cpf, cnpj, email, phone, random
   bank_name VARCHAR(100),
   bank_agency VARCHAR(10),
+  bank_agency_digit VARCHAR(2),
   bank_account VARCHAR(20),
   bank_account_digit VARCHAR(2),
   bank_account_type VARCHAR(20), -- checking, savings

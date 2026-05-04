@@ -18,7 +18,7 @@ class PagarmeService {
                     holder_document: seller.cpf_cnpj?.replace(/[^\d]/g, ''),
                     bank: seller.bank_name || '001',
                     branch_number: seller.bank_agency || '0001',
-                    branch_check_digit: '0',
+                    branch_check_digit: seller.bank_agency_digit?.replace(/[^\d]/g, '') || '0',
                     account_number: seller.bank_account || '00000',
                     account_check_digit: seller.bank_account_digit || '0',
 

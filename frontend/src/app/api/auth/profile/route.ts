@@ -44,7 +44,7 @@ export async function PUT(req: NextRequest) {
             'address_street', 'address_number', 'address_complement',
             'address_neighborhood', 'address_city', 'address_state', 'address_zipcode',
             'pix_key', 'pix_key_type',
-            'bank_name', 'bank_agency', 'bank_account', 'bank_account_digit', 'bank_account_type',
+            'bank_name', 'bank_agency', 'bank_agency_digit', 'bank_account', 'bank_account_digit', 'bank_account_type',
             'store_name', 'store_slug', 'store_description', 'store_active',
             'store_theme', 'store_banner_url',
             'webhook_url'
@@ -134,6 +134,7 @@ export async function PUT(req: NextRequest) {
                 }
 
                 const cleanAgency = body.bank_agency?.replace(/\D/g, '');
+                const cleanAgencyDigit = body.bank_agency_digit?.replace(/\D/g, '') || '0';
                 const cleanAccount = body.bank_account?.replace(/\D/g, '');
 
                 const recipientData = {
@@ -143,6 +144,7 @@ export async function PUT(req: NextRequest) {
                     type: newDoc.length > 11 ? 'company' : 'individual',
                     bank_code: cleanBankCode || '001',
                     agency: cleanAgency || '0001',
+                    agency_digit: cleanAgencyDigit,
                     account: cleanAccount,
                     account_digit: body.bank_account_digit || '0',
                     account_type: body.bank_account_type || 'checking'

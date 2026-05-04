@@ -33,7 +33,7 @@ export default function SettingsPage() {
         address_street: '', address_number: '', address_complement: '',
         address_neighborhood: '', address_city: '', address_state: '', address_zipcode: '',
         pix_key: '', pix_key_type: 'cpf',
-        bank_name: '', bank_agency: '', bank_account: '', bank_account_digit: '', bank_account_type: 'checking'
+        bank_name: '', bank_agency: '', bank_agency_digit: '', bank_account: '', bank_account_digit: '', bank_account_type: 'checking'
     });
 
     useEffect(() => {
@@ -214,6 +214,7 @@ export default function SettingsPage() {
                 address_city: u.address_city || '', address_state: u.address_state || '', address_zipcode: u.address_zipcode || '',
                 pix_key: u.pix_key || '', pix_key_type: u.pix_key_type || 'cpf',
                 bank_name: u.bank_name || '', bank_agency: u.bank_agency || '',
+                bank_agency_digit: u.bank_agency_digit || '',
                 bank_account: u.bank_account || '',
                 bank_account_digit: u.bank_account_digit || '',
                 bank_account_type: u.bank_account_type || 'checking'
@@ -545,8 +546,12 @@ console.log(data.pix.qr_code); // Pix Copia e Cola`}
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Agência</label>
-                                    <input className="input-field" placeholder="0001" value={form.bank_agency} onChange={e => update('bank_agency', e.target.value)} />
+                                    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Agência / Dígito</label>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <input className="input-field" placeholder="0001" style={{ flex: 1 }} value={form.bank_agency} onChange={e => update('bank_agency', e.target.value)} />
+                                        <input className="input-field" placeholder="D" style={{ width: 50, textAlign: 'center' }} maxLength={1} value={form.bank_agency_digit} onChange={e => update('bank_agency_digit', e.target.value)} />
+                                    </div>
+                                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Alguns bancos possuem dígito na agência</p>
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Conta / Dígito</label>
