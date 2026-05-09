@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest } from 'next/server';
-import { supabase } from '@/lib/db';
+import { supabase, fetchAll } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { PagarmeService } from '@/lib/pagarme';
 
@@ -14,9 +14,9 @@ export async function GET(req: NextRequest) {
     const start = url.searchParams.get('start') || '';
     const end = url.searchParams.get('end') || '';
 
-    // Base stats
-    const { data: products } = await supabase
-        .from('products').select('id').eq('user_id', userId);
+    // Base stats - use count for efficiency
+    const { count: totalProducts } = await supabase
+        .from('products').select('*', { count: 'exact', head: true }).eq('user_id', userId);
 
     let totalSoldDec = 0;
     let availableDec = 0;
@@ -26,26 +26,27 @@ export async function GET(req: NextRequest) {
     let usedPagarme = false;
 
     // 1. Get stats from local Database (Baseline)
-    const [ordersData, billingsData, fees, withdrawals, pendingSales] = await Promise.all([
-        supabase.from('orders').select('amount').eq('seller_id', userId).eq('status', 'paid'),
-        supabase.from('billings').select('amount').eq('user_id', userId).eq('status', 'paid'),
-        supabase.from('transactions').select('amount').eq('user_id', userId).eq('type', 'fee'),
-        supabase.from('transactions').select('amount').eq('user_id', userId).eq('type', 'withdrawal'),
-        supabase.from('transactions').select('amount').eq('user_id', userId).in('type', ['sale', 'api_sale']).eq('status', 'pending')
+    // We use fetchAll to bypass the 1000 row limit of Supabase/PostgREST
+    const [orders, billings, fees, withdrawals, pendingSales] = await Promise.all([
+        fetchAll(supabase.from('orders').select('amount, created_at').eq('seller_id', userId).eq('status', 'paid')),
+        fetchAll(supabase.from('billings').select('amount, created_at').eq('user_id', userId).eq('status', 'paid')),
+        fetchAll(supabase.from('transactions').select('amount').eq('user_id', userId).eq('type', 'fee')),
+        fetchAll(supabase.from('transactions').select('amount').eq('user_id', userId).eq('type', 'withdrawal')),
+        fetchAll(supabase.from('transactions').select('amount').eq('user_id', userId).in('type', ['sale', 'api_sale']).eq('status', 'pending'))
     ]);
 
-    const totalOrders = (ordersData.data || []).reduce((s, t) => s + (t.amount || 0), 0);
-    const totalBillings = (billingsData.data || []).reduce((s, t) => s + (t.amount || 0), 0);
+    const totalOrdersAmount = (orders || []).reduce((s, t) => s + (t.amount || 0), 0);
+    const totalBillingsAmount = (billings || []).reduce((s, t) => s + (t.amount || 0), 0);
 
-    totalSoldDec = (totalOrders + totalBillings) / 100;
-    totalFeesDec = (fees.data || []).reduce((s, t) => s + (t.amount || 0), 0) / 100;
-    totalWithdrawnDec = (withdrawals.data || []).reduce((s, t) => s + (t.amount || 0), 0) / 100;
-    pendingDec = (pendingSales.data || []).reduce((s, t) => s + (t.amount || 0), 0) / 100;
+    totalSoldDec = (totalOrdersAmount + totalBillingsAmount) / 100;
+    totalFeesDec = (fees || []).reduce((s, t) => s + (t.amount || 0), 0) / 100;
+    totalWithdrawnDec = (withdrawals || []).reduce((s, t) => s + (t.amount || 0), 0) / 100;
+    pendingDec = (pendingSales || []).reduce((s, t) => s + (t.amount || 0), 0) / 100;
 
     // Initial available balance is Gross - Fees - Withdrawn
     availableDec = totalSoldDec - totalFeesDec - totalWithdrawnDec;
 
-    // 2. Overlay com saldo em tempo real da Pagar.me apenas quando NÃO há filtros de período
+    // 2. Overlay with real-time balance from Pagar.me only when NO period filters are applied
     if (!start && !end) {
         const { data: recipient } = await supabase
             .from('recipients').select('pagarme_recipient_id').eq('user_id', userId).single();
@@ -53,8 +54,7 @@ export async function GET(req: NextRequest) {
         if (recipient?.pagarme_recipient_id) {
             try {
                 const balance = await PagarmeService.getRecipientBalance(recipient.pagarme_recipient_id);
-                console.log(`[STATS] Balance for ${recipient.pagarme_recipient_id}:`, JSON.stringify(balance, null, 2));
-
+                
                 const getAmount = (field: any) => {
                     if (!field) return 0;
                     if (Array.isArray(field)) {
@@ -74,46 +74,28 @@ export async function GET(req: NextRequest) {
         }
     }
 
-    // Monthly sales (with optional period filters)
-    let monthlyQuery = supabase
-        .from('orders').select('amount, created_at')
-        .eq('seller_id', userId).eq('status', 'paid')
-        .order('created_at', { ascending: true });
-
-    let billingMonthlyQuery = supabase
-        .from('billings').select('amount, created_at')
-        .eq('user_id', userId).eq('status', 'paid')
-        .order('created_at', { ascending: true });
-
-    if (start) {
-        monthlyQuery = monthlyQuery.gte('created_at', new Date(start).toISOString());
-        billingMonthlyQuery = billingMonthlyQuery.gte('created_at', new Date(start).toISOString());
-    }
-    if (end) {
-        monthlyQuery = monthlyQuery.lte('created_at', new Date(end).toISOString());
-        billingMonthlyQuery = billingMonthlyQuery.lte('created_at', new Date(end).toISOString());
-    }
-
-    const [{ data: monthlySales }, { data: monthlyBillings }] = await Promise.all([
-        monthlyQuery,
-        billingMonthlyQuery
-    ]);
-
+    // Monthly sales grouping
     const monthlyMap: Record<string, number> = {};
     const processSale = (o: any) => {
+        // Filter by date if provided
+        if (start && new Date(o.created_at) < new Date(start)) return;
+        if (end && new Date(o.created_at) > new Date(end)) return;
+
         const d = new Date(o.created_at);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         monthlyMap[key] = (monthlyMap[key] || 0) + o.amount;
     };
 
-    (monthlySales || []).forEach(processSale);
-    (monthlyBillings || []).forEach(processSale);
+    (orders || []).forEach(processSale);
+    (billings || []).forEach(processSale);
 
-    const monthly_sales = Object.entries(monthlyMap).map(([month, amount]) => ({
-        month, amount: (amount / 100).toFixed(2)
-    }));
+    const monthly_sales = Object.entries(monthlyMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, amount]) => ({
+            month, amount: (amount / 100).toFixed(2)
+        }));
 
-    // Recent orders (with optional period filters)
+    // Recent orders (limited to 10)
     let recentQuery = supabase
         .from('orders').select('id, product_id, buyer_name, amount, amount_display, payment_method, status, created_at, products(name)')
         .eq('seller_id', userId)
@@ -132,7 +114,7 @@ export async function GET(req: NextRequest) {
             pending_balance: pendingDec.toFixed(2),
             total_withdrawn: totalWithdrawnDec.toFixed(2),
             total_fees: totalFeesDec.toFixed(2),
-            total_products: products?.length || 0,
+            total_products: totalProducts || 0,
             net_revenue: (totalSoldDec - totalFeesDec).toFixed(2)
         },
         monthly_sales,

@@ -21,3 +21,26 @@ export const supabase = new Proxy({} as SupabaseClient, {
         return (getSupabase() as any)[prop];
     }
 });
+
+/**
+ * Helper to fetch all rows from a Supabase query, bypassing the default 1000 row limit.
+ * Use this only when you need to perform client-side aggregation (sums, etc) on large datasets.
+ */
+export async function fetchAll<T = any>(queryBuilder: any): Promise<T[]> {
+    let allData: T[] = [];
+    let from = 0;
+    const step = 1000;
+
+    while (true) {
+        const { data, error } = await queryBuilder.range(from, from + step - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        
+        allData.push(...data);
+        if (data.length < step) break;
+        from += step;
+    }
+
+    return allData;
+}
+

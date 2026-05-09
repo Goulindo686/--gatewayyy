@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest } from 'next/server';
-import { supabase } from '@/lib/db';
+import { supabase, fetchAll } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -11,36 +11,11 @@ export async function GET(req: NextRequest) {
 
         const userId = auth.user.id;
 
-        // Get all billings for user
-        const { data: billings, error } = await supabase
+        // Get all billings for user - use fetchAll to bypass 1000 row limit
+        const billings = await fetchAll(supabase
             .from('billings')
             .select('status, amount, fee_amount, net_amount')
-            .eq('user_id', userId);
-
-        if (error) {
-            console.error('[BILLING STATS] Error:', error);
-            // If table doesn't exist yet, return empty stats instead of crashing
-            if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
-                 return jsonSuccess({
-                    stats: {
-                        total_billings: 0,
-                        pending: 0,
-                        paid: 0,
-                        expired: 0,
-                        cancelled: 0,
-                        total_amount: 0,
-                        total_paid: 0,
-                        total_fees: 0,
-                        total_net: 0,
-                        total_amount_display: "0.00",
-                        total_paid_display: "0.00",
-                        total_fees_display: "0.00",
-                        total_net_display: "0.00"
-                    }
-                });
-            }
-            return jsonError(error.message, 500);
-        }
+            .eq('user_id', userId));
 
         const stats = {
             total_billings: billings.length,
@@ -64,7 +39,27 @@ export async function GET(req: NextRequest) {
             }
         });
     } catch (error: any) {
-        console.error('[BILLING STATS] Unexpected Error:', error);
+        console.error('[BILLING STATS] Error:', error);
+        // If table doesn't exist yet or other Postgres error
+        if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
+             return jsonSuccess({
+                stats: {
+                    total_billings: 0,
+                    pending: 0,
+                    paid: 0,
+                    expired: 0,
+                    cancelled: 0,
+                    total_amount: 0,
+                    total_paid: 0,
+                    total_fees: 0,
+                    total_net: 0,
+                    total_amount_display: "0.00",
+                    total_paid_display: "0.00",
+                    total_fees_display: "0.00",
+                    total_net_display: "0.00"
+                }
+            });
+        }
         return jsonError(error.message, 500);
     }
 }

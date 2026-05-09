@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest } from 'next/server';
-import { supabase } from '@/lib/db';
+import { supabase, fetchAll } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { PagarmeService } from '@/lib/pagarme';
 
@@ -17,8 +17,7 @@ export async function GET(req: NextRequest) {
         if (recipient?.pagarme_recipient_id) {
             try {
                 const balance = await PagarmeService.getRecipientBalance(recipient.pagarme_recipient_id);
-                console.log(`Withdrawals Balance API:`, JSON.stringify(balance, null, 2));
-
+                
                 const getAmount = (field: any) => {
                     if (!field) return 0;
                     if (Array.isArray(field)) {
@@ -35,9 +34,9 @@ export async function GET(req: NextRequest) {
                 // Fetch recipient status for KYC check
                 const pRecipient = await PagarmeService.getRecipient(recipient.pagarme_recipient_id);
 
-                // Fetch total sold from orders (Gross)
-                const { data: orders } = await supabase
-                    .from('orders').select('amount').eq('seller_id', auth.user.id).eq('status', 'paid');
+                // Fetch total sold from orders (Gross) - use fetchAll to bypass 1000 row limit
+                const orders = await fetchAll(supabase
+                    .from('orders').select('amount').eq('seller_id', auth.user.id).eq('status', 'paid'));
                 const totalSold = (orders || []).reduce((sum, o) => sum + (o.amount || 0), 0);
 
                 return jsonSuccess({
@@ -54,18 +53,13 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        // Fallback: Calculate balance from transactions
-        const { data: sales } = await supabase
-            .from('transactions').select('amount').eq('user_id', auth.user.id).eq('type', 'sale').eq('status', 'confirmed');
-
-        const { data: fees } = await supabase
-            .from('transactions').select('amount').eq('user_id', auth.user.id).eq('type', 'fee');
-
-        const { data: withdrawals } = await supabase
-            .from('transactions').select('amount').eq('user_id', auth.user.id).eq('type', 'withdrawal');
-
-        const { data: pendingSales } = await supabase
-            .from('transactions').select('amount').eq('user_id', auth.user.id).eq('type', 'sale').eq('status', 'pending');
+        // Fallback: Calculate balance from transactions - use fetchAll for all
+        const [sales, fees, withdrawals, pendingSales] = await Promise.all([
+            fetchAll(supabase.from('transactions').select('amount').eq('user_id', auth.user.id).eq('type', 'sale').eq('status', 'confirmed')),
+            fetchAll(supabase.from('transactions').select('amount').eq('user_id', auth.user.id).eq('type', 'fee')),
+            fetchAll(supabase.from('transactions').select('amount').eq('user_id', auth.user.id).eq('type', 'withdrawal')),
+            fetchAll(supabase.from('transactions').select('amount').eq('user_id', auth.user.id).eq('type', 'sale').eq('status', 'pending'))
+        ]);
 
         const totalSold = (sales || []).reduce((sum, t) => sum + (t.amount || 0), 0);
         const totalFees = (fees || []).reduce((sum, t) => sum + (t.amount || 0), 0);
