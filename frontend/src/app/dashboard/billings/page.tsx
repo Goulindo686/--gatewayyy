@@ -691,67 +691,199 @@ export default function BillingsPage() {
 
             {/* Payment Modal */}
             {showPaymentModal && selectedBilling && (
-                <div className="modal-overlay" onClick={() => setShowPaymentModal(false)}>
-                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                            <h3 style={{ fontSize: 20, fontWeight: 600 }}>Pagamento via PIX</h3>
-                            <button onClick={() => setShowPaymentModal(false)} className="btn-icon">
-                                <FiX size={20} />
+                <div
+                    onClick={() => setShowPaymentModal(false)}
+                    style={{
+                        position: 'fixed', inset: 0, zIndex: 1000,
+                        background: 'rgba(0,0,0,0.55)',
+                        backdropFilter: 'blur(6px)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '16px',
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            width: '100%', maxWidth: 480,
+                            background: 'var(--bg-card)',
+                            borderRadius: 20,
+                            border: '1px solid var(--border-color)',
+                            boxShadow: '0 24px 64px rgba(0,0,0,0.35)',
+                            overflow: 'hidden',
+                        }}
+                    >
+                        {/* Header */}
+                        <div style={{
+                            padding: '22px 28px 20px',
+                            borderBottom: '1px solid var(--border-color)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <div style={{
+                                    width: 38, height: 38, borderRadius: 10,
+                                    background: 'rgba(16,185,129,0.12)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    color: 'var(--success)',
+                                }}>
+                                    <FiDollarSign size={18} />
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Pagamento via PIX</div>
+                                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>Escaneie o QR Code ou copie o código</div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowPaymentModal(false)}
+                                style={{
+                                    width: 32, height: 32, borderRadius: 8,
+                                    border: '1px solid var(--border-color)',
+                                    background: 'var(--bg-secondary)',
+                                    color: 'var(--text-secondary)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                <FiX size={16} />
                             </button>
                         </div>
 
-                        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                            <div style={{ marginBottom: 16 }}>
-                                <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 4 }}>Valor da cobrança</div>
-                                <div style={{ fontSize: 32, fontWeight: 700 }}>R$ {selectedBilling.amount_display}</div>
+                        <div style={{ padding: '24px 28px 28px' }}>
+
+                            {/* Valor em destaque */}
+                            <div style={{
+                                padding: '16px 20px',
+                                borderRadius: 12,
+                                background: 'rgba(124,58,237,0.06)',
+                                border: '1px solid rgba(124,58,237,0.15)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                marginBottom: 24,
+                            }}>
+                                <div>
+                                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 4 }}>
+                                        Valor da cobrança
+                                    </div>
+                                    <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
+                                        R$ {selectedBilling.amount_display}
+                                    </div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Você recebe</div>
+                                    <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--success)' }}>
+                                        R$ {selectedBilling.net_display}
+                                    </div>
+                                </div>
                             </div>
 
-                            {selectedBilling.pix_qr_code_url && (
+                            {/* QR Code */}
+                            {selectedBilling.pix_qr_code && (
                                 <div style={{
-                                    display: 'inline-block',
-                                    padding: 16,
-                                    background: 'white',
-                                    borderRadius: 12,
-                                    marginBottom: 20
+                                    display: 'flex', justifyContent: 'center',
+                                    marginBottom: 20,
                                 }}>
-                                    <QRCodeSVG value={selectedBilling.pix_qr_code} size={200} />
+                                    <div style={{
+                                        padding: 16,
+                                        background: 'white',
+                                        borderRadius: 16,
+                                        border: '1px solid var(--border-color)',
+                                        boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                                        display: 'inline-flex',
+                                    }}>
+                                        <QRCodeSVG value={selectedBilling.pix_qr_code} size={188} />
+                                    </div>
                                 </div>
                             )}
 
-                            <div style={{ marginBottom: 20 }}>
-                                <label className="form-label" style={{ textAlign: 'left' }}>PIX Copia e Cola</label>
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                    <input
-                                        type="text"
-                                        value={selectedBilling.pix_qr_code}
-                                        readOnly
-                                        className="form-input"
-                                        style={{ fontSize: 12, fontFamily: 'monospace' }}
-                                    />
+                            {/* Instrução */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                justifyContent: 'center',
+                                marginBottom: 20,
+                                fontSize: 13, color: 'var(--text-muted)',
+                            }}>
+                                <FiClock size={14} />
+                                Aguardando pagamento · expira em 30 minutos
+                            </div>
+
+                            {/* PIX Copia e Cola */}
+                            <div style={{ marginBottom: 12 }}>
+                                <label style={{
+                                    display: 'block', fontSize: 12, fontWeight: 700,
+                                    color: 'var(--text-secondary)', textTransform: 'uppercase',
+                                    letterSpacing: '0.6px', marginBottom: 8,
+                                }}>
+                                    PIX Copia e Cola
+                                </label>
+                                <div style={{
+                                    display: 'flex', gap: 8, alignItems: 'stretch',
+                                }}>
+                                    <div style={{
+                                        flex: 1,
+                                        background: 'var(--bg-secondary)',
+                                        border: '1.5px solid var(--border-color)',
+                                        borderRadius: 12,
+                                        padding: '10px 14px',
+                                        fontSize: 11,
+                                        fontFamily: 'monospace',
+                                        color: 'var(--text-secondary)',
+                                        overflow: 'hidden',
+                                        whiteSpace: 'nowrap',
+                                        textOverflow: 'ellipsis',
+                                        display: 'flex', alignItems: 'center',
+                                    }}>
+                                        {selectedBilling.pix_qr_code}
+                                    </div>
                                     <button
                                         onClick={() => copyToClipboard(selectedBilling.pix_qr_code)}
-                                        className="btn btn-primary"
-                                        style={{ minWidth: 100 }}
+                                        style={{
+                                            height: 46, minWidth: 46, borderRadius: 12,
+                                            border: copiedQR ? '1.5px solid var(--success)' : '1.5px solid var(--border-color)',
+                                            background: copiedQR ? 'rgba(16,185,129,0.1)' : 'var(--bg-secondary)',
+                                            color: copiedQR ? 'var(--success)' : 'var(--text-secondary)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                            flexShrink: 0,
+                                            gap: 6, padding: '0 14px',
+                                            fontWeight: 600, fontSize: 13,
+                                        }}
                                     >
-                                        {copiedQR ? <FiCheck size={18} /> : <FiCopy size={18} />}
+                                        {copiedQR ? <><FiCheck size={15} /> Copiado</> : <><FiCopy size={15} /> Copiar</>}
                                     </button>
                                 </div>
                             </div>
 
+                            {/* Verificar pagamento */}
                             <button
                                 onClick={() => checkPaymentStatus(selectedBilling.id)}
-                                className="btn btn-secondary"
-                                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                                style={{
+                                    width: '100%', height: 46, borderRadius: 10,
+                                    border: '1.5px solid var(--border-color)',
+                                    background: 'var(--bg-secondary)',
+                                    color: 'var(--text-primary)',
+                                    fontWeight: 600, fontSize: 14,
+                                    cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                    transition: 'border-color 0.2s',
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent-primary)')}
+                                onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-color)')}
                             >
-                                <FiRefreshCw size={18} />
+                                <FiRefreshCw size={15} />
                                 Verificar Pagamento
                             </button>
 
-                            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 16 }}>
-                                O pagamento será confirmado automaticamente após a aprovação
+                            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 14, textAlign: 'center' }}>
+                                O pagamento é confirmado automaticamente após a aprovação
                             </p>
                         </div>
                     </div>
+
+                    <style>{`
+                        @keyframes spin { to { transform: rotate(360deg); } }
+                        input[type=number]::-webkit-inner-spin-button,
+                        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+                        input[type=number] { -moz-appearance: textfield; }
+                    `}</style>
                 </div>
             )}
         </div>
