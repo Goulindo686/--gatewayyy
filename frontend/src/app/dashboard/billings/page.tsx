@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiDollarSign, FiCopy, FiCheck, FiX, FiClock, FiTrendingUp, FiAlertCircle, FiRefreshCw, FiUser, FiFileText, FiCreditCard, FiZap } from 'react-icons/fi';
+import { FiDollarSign, FiCopy, FiCheck, FiX, FiClock, FiTrendingUp, FiAlertCircle, FiRefreshCw, FiUser, FiFileText, FiCreditCard, FiZap, FiDownload, FiMessageCircle, FiPhone } from 'react-icons/fi';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import { billingAPI } from '@/lib/api';
@@ -46,6 +46,9 @@ export default function BillingsPage() {
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedBilling, setSelectedBilling] = useState<Billing | null>(null);
     const [copiedQR, setCopiedQR] = useState(false);
+    const [whatsappNumber, setWhatsappNumber] = useState('');
+    const [showWhatsappInput, setShowWhatsappInput] = useState(false);
+    const qrCanvasRef = useRef<HTMLDivElement>(null);
     
     // Form state
     const [amount, setAmount] = useState('');
@@ -147,6 +150,178 @@ export default function BillingsPage() {
         } catch (error) {
             console.error('Error checking payment:', error);
         }
+    };
+
+    const downloadBilling = async (billing: Billing) => {
+        try {
+            // Pega o SVG do QR Code já renderizado no DOM
+            const qrSvgEl = qrCanvasRef.current?.querySelector('svg');
+
+            const canvas = document.createElement('canvas');
+            const W = 600, H = 820;
+            canvas.width = W;
+            canvas.height = H;
+            const ctx = canvas.getContext('2d')!;
+
+            // ── Fundo branco ──
+            ctx.fillStyle = '#ffffff';
+            ctx.roundRect(0, 0, W, H, 24);
+            ctx.fill();
+
+            // ── Faixa roxa no topo ──
+            ctx.fillStyle = '#7c3aed';
+            ctx.beginPath();
+            ctx.roundRect(0, 0, W, 140, [24, 24, 0, 0]);
+            ctx.fill();
+
+            // ── Logo texto GouPay ──
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 32px Inter, Arial, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('GouPay', W / 2, 58);
+
+            // ── Subtítulo ──
+            ctx.fillStyle = 'rgba(255,255,255,0.75)';
+            ctx.font = '15px Inter, Arial, sans-serif';
+            ctx.fillText('Cobrança via PIX', W / 2, 84);
+
+            // ── Linha separadora ──
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(40, 108);
+            ctx.lineTo(W - 40, 108);
+            ctx.stroke();
+
+            // ── Data ──
+            const dateStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+            ctx.fillStyle = 'rgba(255,255,255,0.65)';
+            ctx.font = '13px Inter, Arial, sans-serif';
+            ctx.fillText(dateStr, W / 2, 128);
+
+            // ── Valor ──
+            ctx.fillStyle = '#111827';
+            ctx.font = 'bold 13px Inter, Arial, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('VALOR DA COBRANÇA', W / 2, 182);
+            ctx.fillStyle = '#7c3aed';
+            ctx.font = 'bold 48px Inter, Arial, sans-serif';
+            ctx.fillText(`R$ ${billing.amount_display}`, W / 2, 238);
+
+            // ── Descrição ──
+            if (billing.description && billing.description !== 'Cobrança') {
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '15px Inter, Arial, sans-serif';
+                ctx.fillText(billing.description, W / 2, 268);
+            }
+
+            // ── Divisor ──
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(40, 290);
+            ctx.lineTo(W - 40, 290);
+            ctx.stroke();
+
+            // ── QR Code via SVG → imagem ──
+            if (qrSvgEl) {
+                const svgData = new XMLSerializer().serializeToString(qrSvgEl);
+                const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+                const svgUrl = URL.createObjectURL(svgBlob);
+                await new Promise<void>((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        // Fundo branco do QR
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.roundRect(W / 2 - 110, 308, 220, 220, 16);
+                        ctx.fill();
+                        ctx.strokeStyle = '#e5e7eb';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.roundRect(W / 2 - 110, 308, 220, 220, 16);
+                        ctx.stroke();
+                        ctx.drawImage(img, W / 2 - 96, 322, 192, 192);
+                        URL.revokeObjectURL(svgUrl);
+                        resolve();
+                    };
+                    img.src = svgUrl;
+                });
+            }
+
+            // ── Instrução QR ──
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '13px Inter, Arial, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Escaneie o QR Code com o app do seu banco', W / 2, 556);
+
+            // ── Divisor ──
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(40, 576);
+            ctx.lineTo(W - 40, 576);
+            ctx.stroke();
+
+            // ── Código PIX (truncado) ──
+            ctx.fillStyle = '#374151';
+            ctx.font = 'bold 12px Inter, Arial, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('PIX COPIA E COLA', W / 2, 604);
+
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '11px monospace, Courier New';
+            const pixCode = billing.pix_qr_code;
+            const maxLen = 62;
+            const truncated = pixCode.length > maxLen ? pixCode.slice(0, maxLen) + '...' : pixCode;
+            ctx.fillText(truncated, W / 2, 626);
+
+            // ── Rodapé ──
+            ctx.fillStyle = '#f3f4f6';
+            ctx.beginPath();
+            ctx.roundRect(0, H - 80, W, 80, [0, 0, 24, 24]);
+            ctx.fill();
+
+            ctx.fillStyle = '#7c3aed';
+            ctx.font = 'bold 16px Inter, Arial, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('GouPay', W / 2, H - 46);
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '12px Inter, Arial, sans-serif';
+            ctx.fillText('goupay.com.br · Pagamentos instantâneos via PIX', W / 2, H - 26);
+
+            // ── Download ──
+            const link = document.createElement('a');
+            link.download = `cobranca-goupay-${billing.id.slice(0, 8)}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            toast.success('Cobrança baixada com sucesso!');
+        } catch (err) {
+            console.error(err);
+            toast.error('Erro ao gerar imagem');
+        }
+    };
+
+    const shareWhatsApp = (billing: Billing, phone?: string) => {
+        const msg = [
+            `💜 *Cobrança GouPay*`,
+            ``,
+            `📋 *Descrição:* ${billing.description || 'Cobrança'}`,
+            `💰 *Valor:* R$ ${billing.amount_display}`,
+            ``,
+            `Para pagar, use o PIX Copia e Cola abaixo:`,
+            ``,
+            billing.pix_qr_code,
+            ``,
+            `_Gerado por GouPay · Pagamentos via PIX_`,
+        ].join('\n');
+
+        const encoded = encodeURIComponent(msg);
+        const num = phone ? phone.replace(/\D/g, '') : '';
+        const url = num
+            ? `https://wa.me/55${num}?text=${encoded}`
+            : `https://wa.me/?text=${encoded}`;
+        window.open(url, '_blank');
     };
 
     const getStatusBadge = (status: string) => {
@@ -710,6 +885,9 @@ export default function BillingsPage() {
                             border: '1px solid var(--border-color)',
                             boxShadow: '0 24px 64px rgba(0,0,0,0.35)',
                             overflow: 'hidden',
+                            maxHeight: '92vh',
+                            display: 'flex',
+                            flexDirection: 'column',
                         }}
                     >
                         {/* Header */}
@@ -747,7 +925,7 @@ export default function BillingsPage() {
                             </button>
                         </div>
 
-                        <div style={{ padding: '24px 28px 28px' }}>
+                        <div style={{ padding: '24px 28px 28px', overflowY: 'auto', flex: 1 }}>
 
                             {/* Valor em destaque */}
                             <div style={{
@@ -780,14 +958,16 @@ export default function BillingsPage() {
                                     display: 'flex', justifyContent: 'center',
                                     marginBottom: 20,
                                 }}>
-                                    <div style={{
-                                        padding: 16,
-                                        background: 'white',
-                                        borderRadius: 16,
-                                        border: '1px solid var(--border-color)',
-                                        boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-                                        display: 'inline-flex',
-                                    }}>
+                                    <div
+                                        ref={qrCanvasRef}
+                                        style={{
+                                            padding: 16,
+                                            background: 'white',
+                                            borderRadius: 16,
+                                            border: '1px solid var(--border-color)',
+                                            boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                                            display: 'inline-flex',
+                                        }}>
                                         <QRCodeSVG value={selectedBilling.pix_qr_code} size={188} />
                                     </div>
                                 </div>
@@ -872,9 +1052,143 @@ export default function BillingsPage() {
                                 Verificar Pagamento
                             </button>
 
-                            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 14, textAlign: 'center' }}>
+                            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 14, marginBottom: 20, textAlign: 'center' }}>
                                 O pagamento é confirmado automaticamente após a aprovação
                             </p>
+
+                            {/* Divisor */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: 10,
+                                marginBottom: 16,
+                            }}>
+                                <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
+                                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                                    Compartilhar cobrança
+                                </span>
+                                <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
+                            </div>
+
+                            {/* Botões Download + WhatsApp */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                                {/* Download */}
+                                <button
+                                    onClick={() => downloadBilling(selectedBilling)}
+                                    style={{
+                                        height: 46, borderRadius: 10,
+                                        border: '1.5px solid var(--border-color)',
+                                        background: 'var(--bg-secondary)',
+                                        color: 'var(--text-primary)',
+                                        fontWeight: 600, fontSize: 13,
+                                        cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                                        transition: 'all 0.2s',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                                        e.currentTarget.style.color = 'var(--accent-primary)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.borderColor = 'var(--border-color)';
+                                        e.currentTarget.style.color = 'var(--text-primary)';
+                                    }}
+                                >
+                                    <FiDownload size={15} />
+                                    Baixar imagem
+                                </button>
+
+                                {/* WhatsApp direto (sem número) */}
+                                <button
+                                    onClick={() => setShowWhatsappInput(!showWhatsappInput)}
+                                    style={{
+                                        height: 46, borderRadius: 10,
+                                        border: '1.5px solid #22c55e',
+                                        background: showWhatsappInput ? '#22c55e' : 'rgba(34,197,94,0.08)',
+                                        color: showWhatsappInput ? 'white' : '#16a34a',
+                                        fontWeight: 600, fontSize: 13,
+                                        cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                                        transition: 'all 0.2s',
+                                    }}
+                                >
+                                    <FiMessageCircle size={15} />
+                                    WhatsApp
+                                </button>
+                            </div>
+
+                            {/* Input número WhatsApp (expansível) */}
+                            {showWhatsappInput && (
+                                <div style={{
+                                    borderRadius: 12,
+                                    border: '1.5px solid #22c55e',
+                                    background: 'rgba(34,197,94,0.05)',
+                                    padding: '14px 16px',
+                                    marginBottom: 4,
+                                }}>
+                                    <div style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <FiPhone size={13} />
+                                        Enviar para um número específico
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <div style={{
+                                            flex: 1,
+                                            display: 'flex', alignItems: 'center',
+                                            background: 'var(--bg-card)',
+                                            border: '1.5px solid var(--border-color)',
+                                            borderRadius: 10, overflow: 'hidden',
+                                        }}>
+                                            <span style={{
+                                                padding: '0 10px', fontSize: 13, fontWeight: 600,
+                                                color: 'var(--text-muted)', borderRight: '1px solid var(--border-color)',
+                                                height: 42, display: 'flex', alignItems: 'center', flexShrink: 0,
+                                                background: 'var(--bg-secondary)',
+                                            }}>+55</span>
+                                            <input
+                                                type="tel"
+                                                value={whatsappNumber}
+                                                onChange={(e) => setWhatsappNumber(e.target.value)}
+                                                placeholder="(11) 99999-9999"
+                                                style={{
+                                                    flex: 1, border: 'none', outline: 'none',
+                                                    background: 'transparent',
+                                                    padding: '0 12px',
+                                                    fontSize: 14, color: 'var(--text-primary)',
+                                                    height: 42,
+                                                }}
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={() => shareWhatsApp(selectedBilling, whatsappNumber)}
+                                            style={{
+                                                height: 42, padding: '0 16px', borderRadius: 10,
+                                                border: 'none',
+                                                background: '#22c55e',
+                                                color: 'white',
+                                                fontWeight: 700, fontSize: 13,
+                                                cursor: 'pointer',
+                                                display: 'flex', alignItems: 'center', gap: 6,
+                                                flexShrink: 0,
+                                            }}
+                                        >
+                                            <FiMessageCircle size={14} />
+                                            Enviar
+                                        </button>
+                                    </div>
+                                    <button
+                                        onClick={() => shareWhatsApp(selectedBilling)}
+                                        style={{
+                                            marginTop: 8, width: '100%', height: 36,
+                                            borderRadius: 8, border: 'none',
+                                            background: 'transparent',
+                                            color: '#16a34a',
+                                            fontWeight: 600, fontSize: 12,
+                                            cursor: 'pointer',
+                                            textDecoration: 'underline',
+                                        }}
+                                    >
+                                        Ou abrir WhatsApp sem número específico
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
 
