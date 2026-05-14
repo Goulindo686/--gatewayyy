@@ -11,9 +11,9 @@
   --text-primary: #111827;
   --text-secondary: #4b5563;
   --text-muted: #6b7280;
-  --accent-primary: #8e44ad;
-  --accent-secondary: #a29bfe;
-  --accent-gradient: linear-gradient(135deg, #8e44ad 0%, #9b59b6 50%, #a29bfe 100%);
+  --accent-primary: #7c3aed;
+  --accent-secondary: #9333ea;
+  --accent-gradient: linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%);
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -34,9 +34,9 @@
   --text-primary: #111827;
   --text-secondary: #4b5563;
   --text-muted: #6b7280;
-  --accent-primary: #6c5ce7;
-  --accent-secondary: #6c5ce7;
-  --accent-gradient: linear-gradient(135deg, #6c5ce7 0%, #8e44ad 55%, #a29bfe 100%);
+  --accent-primary: #7c3aed;
+  --accent-secondary: #9333ea;
+  --accent-gradient: linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%);
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -54,13 +54,13 @@
   --text-primary: #f0f0f5;
   --text-secondary: #8888a0;
   --text-muted: #55556a;
-  --accent-primary: #8e44ad;
-  --accent-secondary: #a29bfe;
-  --accent-gradient: linear-gradient(135deg, #8e44ad 0%, #9b59b6 50%, #a29bfe 100%);
+  --accent-primary: #7c3aed;
+  --accent-secondary: #9333ea;
+  --accent-gradient: linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%);
   --success: #00cec9;
   --warning: #fdcb6e;
   --danger: #ff6b6b;
-  --info: #8e44ad;
+  --info: #7c3aed;
   --glass-bg: rgba(22, 22, 31, 0.8);
   --header-bg: rgba(10, 10, 15, 0.6);
 }
@@ -147,31 +147,33 @@ body {
 
 /* Buttons */
 .btn-primary {
-  background: var(--accent-gradient);
+  background: var(--accent-primary);
   color: white;
   font-weight: 600;
   padding: 12px 28px;
-  border-radius: 12px;
+  border-radius: 10px;
   border: none;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
   font-size: 14px;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
+  box-shadow: 0 1px 3px rgba(124, 58, 237, 0.25);
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(108, 92, 231, 0.4);
+  background: #6d28d9;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
 }
 
 .btn-primary:active {
-  transform: translateY(0);
+  background: #5b21b6;
+  box-shadow: none;
 }
 
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none;
+  box-shadow: none;
 }
 
 .btn-secondary {

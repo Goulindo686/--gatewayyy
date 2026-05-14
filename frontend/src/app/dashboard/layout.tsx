@@ -493,10 +493,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             </div>
                             <span className="badge badge-success dashboard-online-badge" style={{ fontSize: 11 }}>Online</span>
                             <button ref={avatarRef} onClick={() => setProfileOpen(!profileOpen)} style={{
-                                width: 38, height: 38, borderRadius: '50%', background: 'var(--accent-gradient)',
+                                width: 38, height: 38, borderRadius: '50%', background: 'var(--accent-primary)',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 fontSize: 15, fontWeight: 700, color: 'white', border: '2px solid transparent',
-                                cursor: 'pointer', transition: 'all 0.2s',
+                                cursor: 'pointer', transition: 'background 0.2s',
                                 outline: profileOpen ? '2px solid var(--accent-primary)' : 'none',
                                 outlineOffset: 2
                             }} className="dashboard-avatar-btn">

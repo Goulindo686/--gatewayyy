@@ -299,9 +299,9 @@ export default function LandingPage() {
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 40 }} className="landingHeroActions">
               <Link href="/register" style={{
                 padding: '13px 24px', fontSize: 15, display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999,
-                background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                background: '#7c3aed',
                 color: 'white', fontWeight: 700, textDecoration: 'none',
-                boxShadow: '0 8px 32px rgba(109,40,217,0.5)',
+                boxShadow: '0 4px 18px rgba(124,58,237,0.45)',
               }}>
                 Criar conta grátis <FiArrowRight size={16} />
               </Link>
