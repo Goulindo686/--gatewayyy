@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiDollarSign, FiCopy, FiCheck, FiX, FiClock, FiTrendingUp, FiAlertCircle, FiRefreshCw } from 'react-icons/fi';
+import { FiDollarSign, FiCopy, FiCheck, FiX, FiClock, FiTrendingUp, FiAlertCircle, FiRefreshCw, FiUser, FiFileText, FiCreditCard, FiZap } from 'react-icons/fi';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import { billingAPI } from '@/lib/api';
@@ -369,101 +369,323 @@ export default function BillingsPage() {
 
             {/* Create Modal */}
             {showCreateModal && (
-                <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                            <h3 style={{ fontSize: 20, fontWeight: 600 }}>Nova Cobrança</h3>
-                            <button onClick={() => setShowCreateModal(false)} className="btn-icon">
-                                <FiX size={20} />
+                <div
+                    onClick={() => setShowCreateModal(false)}
+                    style={{
+                        position: 'fixed', inset: 0, zIndex: 1000,
+                        background: 'rgba(0,0,0,0.55)',
+                        backdropFilter: 'blur(6px)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '16px',
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            width: '100%', maxWidth: 520,
+                            background: 'var(--bg-card)',
+                            borderRadius: 20,
+                            border: '1px solid var(--border-color)',
+                            boxShadow: '0 24px 64px rgba(0,0,0,0.35)',
+                            overflow: 'hidden',
+                        }}
+                    >
+                        {/* Modal header */}
+                        <div style={{
+                            padding: '22px 28px 20px',
+                            borderBottom: '1px solid var(--border-color)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <div style={{
+                                    width: 38, height: 38, borderRadius: 10,
+                                    background: 'rgba(124,58,237,0.12)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    color: 'var(--accent-primary)',
+                                }}>
+                                    <FiZap size={18} />
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Nova Cobrança</div>
+                                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>Gere um PIX instantâneo</div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowCreateModal(false)}
+                                style={{
+                                    width: 32, height: 32, borderRadius: 8,
+                                    border: '1px solid var(--border-color)',
+                                    background: 'var(--bg-secondary)',
+                                    color: 'var(--text-secondary)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                <FiX size={16} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreateCharge}>
+                        <form onSubmit={handleCreateCharge} style={{ padding: '24px 28px 28px' }}>
+
+                            {/* Valor — destaque principal */}
                             <div style={{ marginBottom: 20 }}>
-                                <label className="form-label">Valor (R$)</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    min="0.01"
-                                    value={amount}
-                                    onChange={(e) => setAmount(e.target.value)}
-                                    className="form-input"
-                                    placeholder="0,00"
-                                    required
-                                    autoFocus
-                                />
-                            </div>
-
-                            <div style={{ marginBottom: 20 }}>
-                                <label className="form-label">Descrição (opcional)</label>
-                                <input
-                                    type="text"
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    className="form-input"
-                                    placeholder="Ex: Pagamento de serviço"
-                                    maxLength={100}
-                                />
-                            </div>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-                                <div>
-                                    <label className="form-label">Nome do Cliente</label>
-                                    <input
-                                        type="text"
-                                        value={customerName}
-                                        onChange={(e) => setCustomerName(e.target.value)}
-                                        className="form-input"
-                                        placeholder="Nome completo"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="form-label">CPF/CNPJ do Cliente</label>
-                                    <input
-                                        type="text"
-                                        value={customerDoc}
-                                        onChange={(e) => setCustomerDoc(e.target.value)}
-                                        className="form-input"
-                                        placeholder="000.000.000-00"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            {user?.role !== 'admin' && (
-                                <div style={{
-                                    padding: 12,
-                                    borderRadius: 8,
-                                    background: 'var(--bg-secondary)',
-                                    marginBottom: 20,
-                                    fontSize: 13
+                                <label style={{
+                                    display: 'block', fontSize: 12, fontWeight: 700,
+                                    color: 'var(--text-secondary)', textTransform: 'uppercase',
+                                    letterSpacing: '0.6px', marginBottom: 8,
                                 }}>
-                                    <strong>Taxa da plataforma:</strong> R$ 2,00 por cobrança paga
+                                    Valor da cobrança
+                                </label>
+                                <div style={{
+                                    display: 'flex', alignItems: 'center',
+                                    background: 'var(--bg-secondary)',
+                                    border: '1.5px solid var(--border-color)',
+                                    borderRadius: 12,
+                                    overflow: 'hidden',
+                                    transition: 'border-color 0.2s',
+                                }}
+                                    onFocusCapture={(e) => (e.currentTarget.style.borderColor = 'var(--accent-primary)')}
+                                    onBlurCapture={(e) => (e.currentTarget.style.borderColor = 'var(--border-color)')}
+                                >
+                                    <span style={{
+                                        padding: '0 14px',
+                                        fontSize: 18, fontWeight: 700,
+                                        color: 'var(--text-muted)',
+                                        borderRight: '1px solid var(--border-color)',
+                                        height: 54, display: 'flex', alignItems: 'center',
+                                        background: 'var(--bg-card)',
+                                        flexShrink: 0,
+                                    }}>R$</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0.01"
+                                        value={amount}
+                                        onChange={(e) => setAmount(e.target.value)}
+                                        placeholder="0,00"
+                                        required
+                                        autoFocus
+                                        style={{
+                                            flex: 1, border: 'none', outline: 'none',
+                                            background: 'transparent',
+                                            padding: '0 16px',
+                                            fontSize: 22, fontWeight: 700,
+                                            color: 'var(--text-primary)',
+                                            height: 54,
+                                        }}
+                                    />
                                 </div>
-                            )}
 
-                            <div style={{ display: 'flex', gap: 12 }}>
+                                {/* Preview taxa em tempo real */}
+                                {amount && parseFloat(amount) > 0 && (
+                                    <div style={{
+                                        marginTop: 10,
+                                        padding: '10px 14px',
+                                        borderRadius: 10,
+                                        background: 'rgba(124,58,237,0.06)',
+                                        border: '1px solid rgba(124,58,237,0.15)',
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                        fontSize: 13,
+                                    }}>
+                                        <span style={{ color: 'var(--text-secondary)' }}>
+                                            Taxa: <span style={{ color: 'var(--danger)', fontWeight: 600 }}>− R$ 2,00</span>
+                                        </span>
+                                        <span style={{ color: 'var(--text-secondary)' }}>
+                                            Você recebe:{' '}
+                                            <span style={{ color: 'var(--success)', fontWeight: 700 }}>
+                                                R$ {Math.max(0, parseFloat(amount) - 2).toFixed(2).replace('.', ',')}
+                                            </span>
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Descrição */}
+                            <div style={{ marginBottom: 16 }}>
+                                <label style={{
+                                    display: 'block', fontSize: 12, fontWeight: 700,
+                                    color: 'var(--text-secondary)', textTransform: 'uppercase',
+                                    letterSpacing: '0.6px', marginBottom: 8,
+                                }}>
+                                    Descrição <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(opcional)</span>
+                                </label>
+                                <div style={{
+                                    display: 'flex', alignItems: 'center',
+                                    background: 'var(--bg-secondary)',
+                                    border: '1.5px solid var(--border-color)',
+                                    borderRadius: 12, overflow: 'hidden',
+                                    transition: 'border-color 0.2s',
+                                }}
+                                    onFocusCapture={(e) => (e.currentTarget.style.borderColor = 'var(--accent-primary)')}
+                                    onBlurCapture={(e) => (e.currentTarget.style.borderColor = 'var(--border-color)')}
+                                >
+                                    <span style={{
+                                        padding: '0 14px', color: 'var(--text-muted)',
+                                        display: 'flex', alignItems: 'center', height: 46, flexShrink: 0,
+                                    }}>
+                                        <FiFileText size={16} />
+                                    </span>
+                                    <input
+                                        type="text"
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        placeholder="Ex: Pagamento de serviço"
+                                        maxLength={100}
+                                        style={{
+                                            flex: 1, border: 'none', outline: 'none',
+                                            background: 'transparent',
+                                            padding: '0 12px 0 0',
+                                            fontSize: 14, color: 'var(--text-primary)',
+                                            height: 46,
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Nome + CPF/CNPJ */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+                                <div>
+                                    <label style={{
+                                        display: 'block', fontSize: 12, fontWeight: 700,
+                                        color: 'var(--text-secondary)', textTransform: 'uppercase',
+                                        letterSpacing: '0.6px', marginBottom: 8,
+                                    }}>
+                                        Nome do cliente
+                                    </label>
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center',
+                                        background: 'var(--bg-secondary)',
+                                        border: '1.5px solid var(--border-color)',
+                                        borderRadius: 12, overflow: 'hidden',
+                                        transition: 'border-color 0.2s',
+                                    }}
+                                        onFocusCapture={(e) => (e.currentTarget.style.borderColor = 'var(--accent-primary)')}
+                                        onBlurCapture={(e) => (e.currentTarget.style.borderColor = 'var(--border-color)')}
+                                    >
+                                        <span style={{
+                                            padding: '0 12px', color: 'var(--text-muted)',
+                                            display: 'flex', alignItems: 'center', height: 46, flexShrink: 0,
+                                        }}>
+                                            <FiUser size={15} />
+                                        </span>
+                                        <input
+                                            type="text"
+                                            value={customerName}
+                                            onChange={(e) => setCustomerName(e.target.value)}
+                                            placeholder="Nome completo"
+                                            required
+                                            style={{
+                                                flex: 1, border: 'none', outline: 'none',
+                                                background: 'transparent',
+                                                padding: '0 10px 0 0',
+                                                fontSize: 13, color: 'var(--text-primary)',
+                                                height: 46,
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={{
+                                        display: 'block', fontSize: 12, fontWeight: 700,
+                                        color: 'var(--text-secondary)', textTransform: 'uppercase',
+                                        letterSpacing: '0.6px', marginBottom: 8,
+                                    }}>
+                                        CPF / CNPJ
+                                    </label>
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center',
+                                        background: 'var(--bg-secondary)',
+                                        border: '1.5px solid var(--border-color)',
+                                        borderRadius: 12, overflow: 'hidden',
+                                        transition: 'border-color 0.2s',
+                                    }}
+                                        onFocusCapture={(e) => (e.currentTarget.style.borderColor = 'var(--accent-primary)')}
+                                        onBlurCapture={(e) => (e.currentTarget.style.borderColor = 'var(--border-color)')}
+                                    >
+                                        <span style={{
+                                            padding: '0 12px', color: 'var(--text-muted)',
+                                            display: 'flex', alignItems: 'center', height: 46, flexShrink: 0,
+                                        }}>
+                                            <FiCreditCard size={15} />
+                                        </span>
+                                        <input
+                                            type="text"
+                                            value={customerDoc}
+                                            onChange={(e) => setCustomerDoc(e.target.value)}
+                                            placeholder="000.000.000-00"
+                                            required
+                                            style={{
+                                                flex: 1, border: 'none', outline: 'none',
+                                                background: 'transparent',
+                                                padding: '0 10px 0 0',
+                                                fontSize: 13, color: 'var(--text-primary)',
+                                                height: 46,
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Botões */}
+                            <div style={{ display: 'flex', gap: 10 }}>
                                 <button
                                     type="button"
                                     onClick={() => setShowCreateModal(false)}
-                                    className="btn btn-secondary"
-                                    style={{ flex: 1 }}
                                     disabled={creating}
+                                    style={{
+                                        flex: 1, height: 46, borderRadius: 10,
+                                        border: '1px solid var(--border-color)',
+                                        background: 'var(--bg-secondary)',
+                                        color: 'var(--text-secondary)',
+                                        fontWeight: 600, fontSize: 14,
+                                        cursor: 'pointer',
+                                    }}
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="submit"
-                                    className="btn btn-primary"
-                                    style={{ flex: 1 }}
                                     disabled={creating}
+                                    style={{
+                                        flex: 2, height: 46, borderRadius: 10,
+                                        border: 'none',
+                                        background: creating ? 'rgba(124,58,237,0.5)' : 'var(--accent-primary)',
+                                        color: 'white',
+                                        fontWeight: 700, fontSize: 14,
+                                        cursor: creating ? 'not-allowed' : 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                        boxShadow: creating ? 'none' : '0 2px 10px rgba(124,58,237,0.3)',
+                                        transition: 'background 0.2s, box-shadow 0.2s',
+                                    }}
                                 >
-                                    {creating ? 'Gerando...' : 'Gerar Cobrança'}
+                                    {creating ? (
+                                        <>
+                                            <span style={{
+                                                width: 16, height: 16, borderRadius: '50%',
+                                                border: '2px solid rgba(255,255,255,0.3)',
+                                                borderTopColor: 'white',
+                                                animation: 'spin 0.7s linear infinite',
+                                                display: 'inline-block',
+                                            }} />
+                                            Gerando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <FiZap size={16} />
+                                            Gerar Cobrança PIX
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </form>
                     </div>
+
+                    <style>{`
+                        @keyframes spin { to { transform: rotate(360deg); } }
+                        input[type=number]::-webkit-inner-spin-button,
+                        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+                        input[type=number] { -moz-appearance: textfield; }
+                    `}</style>
                 </div>
             )}
 
