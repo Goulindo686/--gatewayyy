@@ -93,7 +93,6 @@ app.use('/api/member', memberRoutes);
 app.use('/api/store-categories', storeCategoriesRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/billing', billingRoutes);
-app.use('/api/products', orderBumpRoutes);
 app.use('/api/order-bumps', orderBumpRoutes);
 
 // 404 handler

@@ -14,6 +14,11 @@ router.get('/public/:product_id/bumps', publicReadLimiter, orderBumpController.l
 router.use(auth, sellerOnly);
 
 // CRUD de order bumps de um produto
+// Montado em /api/order-bumps — rotas ficam:
+//   GET    /api/order-bumps/:product_id/bumps
+//   POST   /api/order-bumps/:product_id/bumps
+//   PUT    /api/order-bumps/:product_id/bumps/:bump_id
+//   DELETE /api/order-bumps/:product_id/bumps/:bump_id
 router.get('/:product_id/bumps', orderBumpController.list);
 
 router.post('/:product_id/bumps', [

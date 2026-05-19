@@ -68,10 +68,10 @@ export const checkoutAPI = {
 
 // Order Bumps
 export const orderBumpsAPI = {
-    list: (productId: string) => api.get(`/products/${productId}/bumps`),
-    create: (productId: string, data: any) => api.post(`/products/${productId}/bumps`, data),
-    update: (productId: string, bumpId: string, data: any) => api.put(`/products/${productId}/bumps/${bumpId}`, data),
-    delete: (productId: string, bumpId: string) => api.delete(`/products/${productId}/bumps/${bumpId}`),
+    list: (productId: string) => api.get(`/order-bumps/${productId}/bumps`),
+    create: (productId: string, data: any) => api.post(`/order-bumps/${productId}/bumps`, data),
+    update: (productId: string, bumpId: string, data: any) => api.put(`/order-bumps/${productId}/bumps/${bumpId}`, data),
+    delete: (productId: string, bumpId: string) => api.delete(`/order-bumps/${productId}/bumps/${bumpId}`),
 };
 
 // Withdrawals

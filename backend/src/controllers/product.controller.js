@@ -57,8 +57,31 @@ class ProductController {
             const { data, count, error } = await query;
             if (error) throw error;
 
+            // Busca os planos de todos os produtos de uma vez
+            const productIds = (data || []).map(p => p.id);
+            let plansMap = {};
+            if (productIds.length > 0) {
+                const { data: allPlans } = await supabase
+                    .from('product_plans')
+                    .select('id, name, price, sort_order, product_id')
+                    .in('product_id', productIds)
+                    .order('sort_order', { ascending: true });
+
+                for (const plan of (allPlans || [])) {
+                    if (!plansMap[plan.product_id]) plansMap[plan.product_id] = [];
+                    plansMap[plan.product_id].push({
+                        ...plan,
+                        price_display: (plan.price / 100).toFixed(2)
+                    });
+                }
+            }
+
             res.json({
-                products: data?.map(p => ({ ...p, price_display: (p.price / 100).toFixed(2) })),
+                products: data?.map(p => ({
+                    ...p,
+                    price_display: (p.price / 100).toFixed(2),
+                    plans: plansMap[p.id] || []
+                })),
                 total: count,
                 page: parseInt(page),
                 totalPages: Math.ceil((count || 0) / limit)
@@ -82,7 +105,25 @@ class ProductController {
                 return res.status(404).json({ error: 'Produto não encontrado.' });
             }
 
-            res.json({ product: { ...data, price_display: (data.price / 100).toFixed(2) } });
+            // Busca os planos do produto
+            const { data: plans } = await supabase
+                .from('product_plans')
+                .select('id, name, price, sort_order')
+                .eq('product_id', data.id)
+                .order('sort_order', { ascending: true });
+
+            const plansWithDisplay = (plans || []).map(p => ({
+                ...p,
+                price_display: (p.price / 100).toFixed(2)
+            }));
+
+            res.json({
+                product: {
+                    ...data,
+                    price_display: (data.price / 100).toFixed(2),
+                    plans: plansWithDisplay
+                }
+            });
         } catch (error) {
             next(error);
         }

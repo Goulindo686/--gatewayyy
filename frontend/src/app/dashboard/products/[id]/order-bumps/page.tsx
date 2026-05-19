@@ -84,11 +84,13 @@ export default function OrderBumpsPage() {
             ]);
             setProduct(productRes.data.product);
             setBumps(bumpsRes.data.order_bumps || []);
-            // Exclui o próprio produto da lista de bumps disponíveis
-            const allProducts = (productsRes.data.products || []).filter(
+
+            // Filtra produtos disponíveis (exclui o próprio produto)
+            // O list agora já retorna os planos embutidos em cada produto
+            const availableProducts = (productsRes.data.products || []).filter(
                 (p: any) => p.id !== productId && p.status === 'active'
             );
-            setMyProducts(allProducts);
+            setMyProducts(availableProducts);
         } catch {
             toast.error('Erro ao carregar dados');
         } finally {
