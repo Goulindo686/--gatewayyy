@@ -66,12 +66,12 @@ export const checkoutAPI = {
     getOrderStatus: (id: string) => api.get(`/checkout/order/${id}`),
 };
 
-// Order Bumps
+// Order Bumps (Internal Next.js API)
 export const orderBumpsAPI = {
-    list: (productId: string) => api.get(`/order-bumps/${productId}/bumps`),
-    create: (productId: string, data: any) => api.post(`/order-bumps/${productId}/bumps`, data),
-    update: (productId: string, bumpId: string, data: any) => api.put(`/order-bumps/${productId}/bumps/${bumpId}`, data),
-    delete: (productId: string, bumpId: string) => api.delete(`/order-bumps/${productId}/bumps/${bumpId}`),
+    list: (productId: string) => internalApi.get(`/order-bumps/${productId}/bumps`),
+    create: (productId: string, data: any) => internalApi.post(`/order-bumps/${productId}/bumps`, data),
+    update: (productId: string, bumpId: string, data: any) => internalApi.put(`/order-bumps/${productId}/bumps/${bumpId}`, data),
+    delete: (productId: string, bumpId: string) => internalApi.delete(`/order-bumps/${productId}/bumps/${bumpId}`),
 };
 
 // Withdrawals
