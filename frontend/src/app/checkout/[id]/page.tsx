@@ -399,9 +399,12 @@ export default function CheckoutPage() {
                     cvv: form.card_cvv, installments: form.installments
                 };
             }
-            // Envia os bumps selecionados
+            // Envia os bumps selecionados com o plano escolhido pelo comprador
             if (selectedBumps.size > 0) {
-                payload.selected_bumps = Array.from(selectedBumps);
+                payload.selected_bumps = Array.from(selectedBumps).map(bumpId => ({
+                    bump_id: bumpId,
+                    plan_id: selectedBumpPlans[bumpId]?.id || null
+                }));
             }
             const { data } = await checkoutAPI.pay(payload);
             setResult(data);

@@ -173,17 +173,18 @@ class PagarmeService {
      * Create a single item order (Original Checkout)
      * Expects product price in CENTS (integer) from DB
      */
-    async createOrder({ product, buyer, paymentMethod, cardData, sellerId, platformRecipientId, sellerRecipientId, feePercentage }) {
+    async createOrder({ product, buyer, paymentMethod, cardData, sellerId, platformRecipientId, sellerRecipientId, feePercentage, totalAmount }) {
         try {
             // Taxa fixa da plataforma: R$1,50 (150 centavos)
             const PLATFORM_FLAT_FEE = 150;
-            const totalAmountCents = product.price; // já em centavos
+            // Usa totalAmount se fornecido (produto + order bumps), senão usa só o preço do produto
+            const totalAmountCents = totalAmount || product.price;
             const platformFeeAmount = Math.min(PLATFORM_FLAT_FEE, totalAmountCents);
             const sellerAmount = totalAmountCents - platformFeeAmount;
 
             const orderData = {
                 items: [{
-                    amount: product.price, // Already in cents from DB
+                    amount: totalAmountCents, // Total incluindo bumps
                     description: product.name,
                     quantity: 1,
                     code: product.id

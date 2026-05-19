@@ -76,6 +76,15 @@ class CheckoutController {
             let bumpItems = [];
             let bumpTotalCents = 0;
             if (Array.isArray(selected_bumps) && selected_bumps.length > 0) {
+                // Suporta tanto array de strings (legado) quanto array de objetos {bump_id, plan_id}
+                const bumpIds = selected_bumps.map(b => typeof b === 'string' ? b : b.bump_id);
+                const bumpPlanMap = {};
+                for (const b of selected_bumps) {
+                    if (typeof b === 'object' && b.bump_id && b.plan_id) {
+                        bumpPlanMap[b.bump_id] = b.plan_id;
+                    }
+                }
+
                 const { data: bumps } = await supabase
                     .from('order_bumps')
                     .select(`
@@ -85,15 +94,43 @@ class CheckoutController {
                     `)
                     .eq('product_id', product_id)
                     .eq('is_active', true)
-                    .in('id', selected_bumps);
+                    .in('id', bumpIds);
 
                 for (const bump of (bumps || [])) {
-                    const price = bump.custom_price
-                        || bump.bump_plan?.price
-                        || bump.bump_product?.price
-                        || 0;
+                    let price = 0;
+
+                    if (bump.custom_price) {
+                        // Preço customizado definido pelo vendedor — usa direto
+                        price = bump.custom_price;
+                    } else if (bump.bump_plan_id && bump.bump_plan?.price) {
+                        // Plano fixo definido pelo vendedor
+                        price = bump.bump_plan.price;
+                    } else {
+                        // Plano escolhido pelo comprador no checkout
+                        const chosenPlanId = bumpPlanMap[bump.id];
+                        if (chosenPlanId) {
+                            const { data: chosenPlan } = await supabase
+                                .from('product_plans')
+                                .select('id, price')
+                                .eq('id', chosenPlanId)
+                                .eq('product_id', bump.bump_product_id)
+                                .single();
+                            if (chosenPlan?.price) {
+                                price = chosenPlan.price;
+                            }
+                        }
+                        // Fallback: preço base do produto do bump
+                        if (!price && bump.bump_product?.price) {
+                            price = bump.bump_product.price;
+                        }
+                    }
+
                     if (price > 0) {
-                        bumpItems.push({ bump, price });
+                        bumpItems.push({
+                            bump,
+                            price,
+                            chosen_plan_id: bumpPlanMap[bump.id] || bump.bump_plan_id || null
+                        });
                         bumpTotalCents += price;
                     }
                 }
@@ -156,11 +193,11 @@ class CheckoutController {
 
             // Salva os itens de order bump
             if (bumpItems.length > 0) {
-                const bumpInserts = bumpItems.map(({ bump, price }) => ({
+                const bumpInserts = bumpItems.map(({ bump, price, chosen_plan_id }) => ({
                     order_id: order.id,
                     order_bump_id: bump.id,
                     bump_product_id: bump.bump_product_id,
-                    bump_plan_id: bump.bump_plan_id || null,
+                    bump_plan_id: chosen_plan_id || null,
                     amount: price
                 }));
                 await supabase.from('order_bump_items').insert(bumpInserts);
