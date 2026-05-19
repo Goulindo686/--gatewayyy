@@ -66,6 +66,14 @@ export const checkoutAPI = {
     getOrderStatus: (id: string) => api.get(`/checkout/order/${id}`),
 };
 
+// Order Bumps
+export const orderBumpsAPI = {
+    list: (productId: string) => api.get(`/products/${productId}/bumps`),
+    create: (productId: string, data: any) => api.post(`/products/${productId}/bumps`, data),
+    update: (productId: string, bumpId: string, data: any) => api.put(`/products/${productId}/bumps/${bumpId}`, data),
+    delete: (productId: string, bumpId: string) => api.delete(`/products/${productId}/bumps/${bumpId}`),
+};
+
 // Withdrawals
 export const withdrawalsAPI = {
     request: (amount: number) => api.post('/withdrawals', { amount }),

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Script from 'next/script';
 import { productsAPI, checkoutAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiShoppingCart, FiCreditCard, FiSmartphone, FiCheck, FiCopy, FiPackage, FiArrowRight, FiClock, FiLock, FiChevronDown } from 'react-icons/fi';
+import { FiShoppingCart, FiCreditCard, FiSmartphone, FiCheck, FiCopy, FiPackage, FiArrowRight, FiClock, FiLock, FiChevronDown, FiTag, FiPlusCircle } from 'react-icons/fi';
 import FacebookPixel from '@/components/FacebookPixel';
 
 const DEFAULT_SETTINGS = {
@@ -111,6 +111,8 @@ function OrderSummary({
     textSecondary,
     textMuted,
     accent,
+    grandTotalCents,
+    selectedBumpsCount,
 }: {
     product: any;
     selectedPlan: any;
@@ -123,11 +125,13 @@ function OrderSummary({
     textSecondary: string;
     textMuted: string;
     accent: string;
+    grandTotalCents: number;
+    selectedBumpsCount: number;
 }) {
-    const totalDisplay = selectedPlan ? selectedPlan.price_display : product.price_display;
-    const totalCents = selectedPlan?.price || product?.price || 0;
+    const mainDisplay = selectedPlan ? selectedPlan.price_display : product.price_display;
+    const grandTotalDisplay = (grandTotalCents / 100).toFixed(2);
     const installmentsSafe = Math.max(1, Number(installments) || 1);
-    const perInstallment = (totalCents / 100) / installmentsSafe;
+    const perInstallment = (grandTotalCents / 100) / installmentsSafe;
 
     return (
         <div className="rounded-3xl border shadow-sm overflow-hidden" style={{ background: isLight ? '#fff' : 'rgba(255,255,255,0.04)', borderColor }}>
@@ -137,13 +141,24 @@ function OrderSummary({
                 <div className="space-y-3">
                     <div className="flex items-start justify-between gap-4">
                         <div className="text-sm font-semibold leading-snug" style={{ color: textPrimary }}>{product.name}</div>
-                        <div className="text-sm font-semibold whitespace-nowrap" style={{ color: textPrimary }}>R$ {totalDisplay}</div>
+                        <div className="text-sm font-semibold whitespace-nowrap" style={{ color: textPrimary }}>R$ {mainDisplay}</div>
                     </div>
+
+                    {selectedBumpsCount > 0 && (
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="text-sm font-semibold leading-snug opacity-80" style={{ color: textPrimary }}>
+                                + {selectedBumpsCount} oferta{selectedBumpsCount > 1 ? 's' : ''} adicional{selectedBumpsCount > 1 ? 'is' : ''}
+                            </div>
+                            <div className="text-sm font-semibold whitespace-nowrap" style={{ color: accent }}>
+                                + R$ {((grandTotalCents - (selectedPlan?.price || product?.price || 0)) / 100).toFixed(2)}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="pt-3 border-t space-y-2" style={{ borderColor }}>
                         <div className="flex items-center justify-between text-sm" style={{ color: textPrimary }}>
                             <span className="opacity-70" style={{ color: textSecondary }}>Subtotal</span>
-                            <span className="font-bold">R$ {totalDisplay}</span>
+                            <span className="font-bold">R$ {grandTotalDisplay}</span>
                         </div>
                         {paymentMethod === 'credit_card' && (
                             <div className="flex items-center justify-between text-sm" style={{ color: textPrimary }}>
@@ -153,7 +168,11 @@ function OrderSummary({
                         )}
                         <div className="pt-3 border-t flex items-center justify-between" style={{ borderColor }}>
                             <span className="text-base font-black" style={{ color: textPrimary }}>Total</span>
-                            <span className="text-xl font-black tracking-tight" style={{ color: textPrimary }}>{paymentMethod === 'credit_card' ? `${installmentsSafe}x R$ ${perInstallment.toFixed(2)}` : `R$ ${totalDisplay}`}</span>
+                            <span className="text-xl font-black tracking-tight" style={{ color: textPrimary }}>
+                                {paymentMethod === 'credit_card'
+                                    ? `${installmentsSafe}x R$ ${perInstallment.toFixed(2)}`
+                                    : `R$ ${grandTotalDisplay}`}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -187,6 +206,8 @@ export default function CheckoutPage() {
     const [product, setProduct] = useState<any>(null);
     const [plans, setPlans] = useState<any[]>([]);
     const [selectedPlan, setSelectedPlan] = useState<any>(null);
+    const [orderBumps, setOrderBumps] = useState<any[]>([]);
+    const [selectedBumps, setSelectedBumps] = useState<Set<string>>(new Set());
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
@@ -236,6 +257,9 @@ export default function CheckoutPage() {
             const pl = Array.isArray(data.product?.plans) ? data.product.plans : [];
             setPlans(pl);
             setSelectedPlan(pl.length > 0 ? pl[0] : null);
+            // Carrega order bumps vindos junto com o produto
+            const bumps = Array.isArray(data.product?.order_bumps) ? data.product.order_bumps : [];
+            setOrderBumps(bumps);
             const s = { ...DEFAULT_SETTINGS, ...(data.product.checkout_settings || {}) };
             setSettings(s);
             // Start countdown timer if enabled
@@ -255,6 +279,27 @@ export default function CheckoutPage() {
             setLoading(false);
         }
     };
+
+    const toggleBump = (bumpId: string) => {
+        setSelectedBumps(prev => {
+            const next = new Set(prev);
+            if (next.has(bumpId)) {
+                next.delete(bumpId);
+            } else {
+                next.add(bumpId);
+            }
+            return next;
+        });
+    };
+
+    // Calcula total incluindo bumps selecionados
+    const bumpsTotalCents = orderBumps
+        .filter(b => selectedBumps.has(b.id))
+        .reduce((acc: number, b: any) => acc + (b.effective_price || 0), 0);
+
+    const mainPriceCents = selectedPlan?.price || product?.price || 0;
+    const grandTotalCents = mainPriceCents + bumpsTotalCents;
+    const grandTotalDisplay = (grandTotalCents / 100).toFixed(2);
 
     const autoLoginAndRedirect = (authData: any) => {
         if (authData?.token && authData?.user) {
@@ -330,6 +375,10 @@ export default function CheckoutPage() {
                     exp_month: parseInt(form.card_exp_month), exp_year: parseInt(form.card_exp_year),
                     cvv: form.card_cvv, installments: form.installments
                 };
+            }
+            // Envia os bumps selecionados
+            if (selectedBumps.size > 0) {
+                payload.selected_bumps = Array.from(selectedBumps);
             }
             const { data } = await checkoutAPI.pay(payload);
             setResult(data);
@@ -777,6 +826,138 @@ export default function CheckoutPage() {
                     </div>
                 </div>
 
+                {/* ===== ORDER BUMPS ===== */}
+                {orderBumps.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                        {orderBumps.map((bump: any) => {
+                            const isSelected = selectedBumps.has(bump.id);
+                            const bumpProduct = bump.bump_product;
+                            const bumpPlan = bump.bump_plan;
+                            const planOptions = bumpProduct?.plans || [];
+
+                            return (
+                                <div
+                                    key={bump.id}
+                                    className="rounded-3xl border overflow-hidden transition-all"
+                                    style={{
+                                        borderColor: isSelected ? accent : (isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)'),
+                                        background: isSelected
+                                            ? (isLight ? `${accent}08` : `${accent}12`)
+                                            : (isLight ? '#fff' : 'rgba(255,255,255,0.04)'),
+                                        boxShadow: isSelected ? `0 0 0 2px ${accent}40` : 'none',
+                                    }}
+                                >
+                                    {/* Badge topo */}
+                                    <div
+                                        className="px-5 py-2 flex items-center gap-2"
+                                        style={{ background: bump.badge_color || '#E17055' }}
+                                    >
+                                        <FiTag size={12} color="#fff" />
+                                        <span className="text-xs font-black text-white uppercase tracking-widest">
+                                            {bump.badge_text || 'OFERTA EXCLUSIVA'}
+                                        </span>
+                                    </div>
+
+                                    <div className="p-5">
+                                        {/* Produto do bump */}
+                                        <div className="flex gap-4 mb-4">
+                                            {bumpProduct?.image_url && (
+                                                <div
+                                                    className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 border"
+                                                    style={{ borderColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)' }}
+                                                >
+                                                    <img
+                                                        src={bumpProduct.image_url}
+                                                        alt={bumpProduct.name}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-black mb-1" style={{ color: textPrimary }}>
+                                                    {bump.title}
+                                                </div>
+                                                <div className="text-xs font-semibold opacity-70 mb-1" style={{ color: textSecondary }}>
+                                                    {bumpProduct?.name}
+                                                    {bumpPlan && (
+                                                        <span style={{ color: accent }}> — {bumpPlan.name}</span>
+                                                    )}
+                                                </div>
+                                                {bump.description && (
+                                                    <div className="text-xs leading-relaxed opacity-70" style={{ color: textSecondary }}>
+                                                        {bump.description}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Planos do produto do bump (se tiver múltiplos e nenhum plano fixo) */}
+                                        {!bumpPlan && planOptions.length > 1 && (
+                                            <div className="mb-4">
+                                                <div className="text-xs font-black uppercase tracking-wider opacity-50 mb-2" style={{ color: textSecondary }}>
+                                                    Escolha o plano
+                                                </div>
+                                                <div className="grid gap-2">
+                                                    {planOptions.map((pl: any) => (
+                                                        <div
+                                                            key={pl.id}
+                                                            className="flex items-center justify-between px-4 py-2 rounded-xl border text-sm"
+                                                            style={{
+                                                                borderColor: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)',
+                                                                background: isLight ? '#f9fafb' : 'rgba(255,255,255,0.03)',
+                                                                color: textPrimary
+                                                            }}
+                                                        >
+                                                            <span className="font-semibold">{pl.name}</span>
+                                                            <span className="font-black">R$ {(pl.price / 100).toFixed(2)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Preço + CTA */}
+                                        <div className="flex items-center justify-between gap-4 flex-wrap">
+                                            <div>
+                                                <div className="text-xs opacity-60 mb-0.5" style={{ color: textSecondary }}>
+                                                    Adicionar por apenas
+                                                </div>
+                                                <div className="text-2xl font-black" style={{ color: accent }}>
+                                                    R$ {bump.effective_price_display || '—'}
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleBump(bump.id)}
+                                                className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm transition-all"
+                                                style={{
+                                                    background: isSelected ? accent : 'transparent',
+                                                    color: isSelected ? '#fff' : accent,
+                                                    border: `2px solid ${accent}`,
+                                                    minWidth: 180,
+                                                    justifyContent: 'center',
+                                                }}
+                                            >
+                                                {isSelected ? (
+                                                    <>
+                                                        <FiCheck size={16} /> Adicionado!
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <FiPlusCircle size={16} />
+                                                        <span className="truncate">{bump.call_to_action || 'Sim! Quero esta oferta'}</span>
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
                 <div className="mt-6">
                     <OrderSummary
                         product={product}
@@ -790,6 +971,8 @@ export default function CheckoutPage() {
                         textSecondary={textSecondary}
                         textMuted={textMuted}
                         accent={accent}
+                        grandTotalCents={grandTotalCents}
+                        selectedBumpsCount={selectedBumps.size}
                     />
                 </div>
 

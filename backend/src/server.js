@@ -26,6 +26,7 @@ const memberRoutes = require('./routes/member.routes');
 const storeCategoriesRoutes = require('./routes/store_categories.routes');
 const storeRoutes = require('./routes/store.routes');
 const billingRoutes = require('./routes/billing.routes');
+const orderBumpRoutes = require('./routes/order_bump.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -92,6 +93,8 @@ app.use('/api/member', memberRoutes);
 app.use('/api/store-categories', storeCategoriesRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/products', orderBumpRoutes);
+app.use('/api/order-bumps', orderBumpRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -4,7 +4,7 @@ const pagarmeService = require('../services/pagarme.service');
 class CheckoutController {
     async processPayment(req, res, next) {
         try {
-            const { product_id, payment_method, buyer, card_data } = req.body;
+            const { product_id, payment_method, buyer, card_data, selected_bumps } = req.body;
 
             // Get product
             const { data: product, error: productError } = await supabase
@@ -72,6 +72,36 @@ class CheckoutController {
                 feePercentage = 0;
             }
 
+            // Resolve order bumps selecionados
+            let bumpItems = [];
+            let bumpTotalCents = 0;
+            if (Array.isArray(selected_bumps) && selected_bumps.length > 0) {
+                const { data: bumps } = await supabase
+                    .from('order_bumps')
+                    .select(`
+                        id, custom_price, bump_product_id, bump_plan_id,
+                        bump_product:bump_product_id (id, price),
+                        bump_plan:bump_plan_id (id, price)
+                    `)
+                    .eq('product_id', product_id)
+                    .eq('is_active', true)
+                    .in('id', selected_bumps);
+
+                for (const bump of (bumps || [])) {
+                    const price = bump.custom_price
+                        || bump.bump_plan?.price
+                        || bump.bump_product?.price
+                        || 0;
+                    if (price > 0) {
+                        bumpItems.push({ bump, price });
+                        bumpTotalCents += price;
+                    }
+                }
+            }
+
+            const mainProductPrice = product.price;
+            const totalAmountCents = mainProductPrice + bumpTotalCents;
+
             // Create order on Pagar.me
             const pagarmeOrder = await pagarmeService.createOrder({
                 product,
@@ -81,7 +111,8 @@ class CheckoutController {
                 sellerId: product.user_id,
                 platformRecipientId,
                 sellerRecipientId,
-                feePercentage
+                feePercentage,
+                totalAmount: totalAmountCents
             });
 
             const charge = pagarmeOrder.charges?.[0];
@@ -94,7 +125,7 @@ class CheckoutController {
                 buyer_email: buyer.email?.toLowerCase().trim(),
                 buyer_cpf: buyer.cpf,
                 buyer_phone: buyer.phone,
-                amount: product.price,
+                amount: totalAmountCents,
                 payment_method,
                 status: charge?.status === 'paid' ? 'paid' : 'pending',
                 pagarme_order_id: pagarmeOrder.id,
@@ -122,6 +153,18 @@ class CheckoutController {
                 .single();
 
             if (orderError) throw orderError;
+
+            // Salva os itens de order bump
+            if (bumpItems.length > 0) {
+                const bumpInserts = bumpItems.map(({ bump, price }) => ({
+                    order_id: order.id,
+                    order_bump_id: bump.id,
+                    bump_product_id: bump.bump_product_id,
+                    bump_plan_id: bump.bump_plan_id || null,
+                    amount: price
+                }));
+                await supabase.from('order_bump_items').insert(bumpInserts);
+            }
 
             // If paid immediately (credit card), create transaction records
             if (charge?.status === 'paid') {

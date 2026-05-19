@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { productsAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiPlus, FiEdit2, FiTrash2, FiCopy, FiPackage, FiX, FiUpload, FiImage, FiBook, FiSettings, FiSend } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiCopy, FiPackage, FiX, FiUpload, FiImage, FiBook, FiSettings, FiSend, FiTag } from 'react-icons/fi';
 import axios from 'axios';
 
 export default function ProductsPage() {
@@ -274,6 +274,9 @@ export default function ProductsPage() {
                                     </Link>
                                     <Link href={`/dashboard/products/${product.id}/checkout`} className="btn-secondary" style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} title="Personalizar Checkout">
                                         <FiSettings size={14} />
+                                    </Link>
+                                    <Link href={`/dashboard/products/${product.id}/order-bumps`} className="btn-secondary" style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} title="Order Bumps">
+                                        <FiTag size={14} />
                                     </Link>
                                     <button onClick={() => openEdit(product)} className="btn-secondary" style={{ padding: '8px 12px', flexShrink: 0 }}>
                                         <FiEdit2 size={14} />

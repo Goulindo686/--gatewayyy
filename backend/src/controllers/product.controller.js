@@ -169,11 +169,58 @@ class ProductController {
 
             const seller = sellers && sellers.length > 0 ? sellers[0] : null;
 
+            // Get product plans
+            const { data: plans } = await supabase
+                .from('product_plans')
+                .select('id, name, price, sort_order')
+                .eq('product_id', data.id)
+                .order('sort_order', { ascending: true });
+
+            // Get active order bumps
+            const { data: orderBumps } = await supabase
+                .from('order_bumps')
+                .select(`
+                    id, title, description, call_to_action,
+                    custom_price, badge_text, badge_color, sort_order,
+                    bump_product:bump_product_id (
+                        id, name, price, image_url,
+                        plans:product_plans (id, name, price, sort_order)
+                    ),
+                    bump_plan:bump_plan_id (id, name, price)
+                `)
+                .eq('product_id', data.id)
+                .eq('is_active', true)
+                .order('sort_order', { ascending: true });
+
+            // Calcula preço efetivo de cada bump
+            const bumpsWithPrice = (orderBumps || []).map(bump => {
+                let effectivePrice = bump.custom_price;
+                if (!effectivePrice) {
+                    if (bump.bump_plan) {
+                        effectivePrice = bump.bump_plan.price;
+                    } else if (bump.bump_product) {
+                        effectivePrice = bump.bump_product.price;
+                    }
+                }
+                return {
+                    ...bump,
+                    effective_price: effectivePrice,
+                    effective_price_display: effectivePrice ? (effectivePrice / 100).toFixed(2) : null
+                };
+            });
+
+            const plansWithDisplay = (plans || []).map(p => ({
+                ...p,
+                price_display: (p.price / 100).toFixed(2)
+            }));
+
             res.json({
                 product: {
                     ...data,
                     price_display: (data.price / 100).toFixed(2),
-                    seller_name: seller?.name
+                    seller_name: seller?.name,
+                    plans: plansWithDisplay,
+                    order_bumps: bumpsWithPrice
                 }
             });
         } catch (error) {
