@@ -208,6 +208,8 @@ export default function CheckoutPage() {
     const [selectedPlan, setSelectedPlan] = useState<any>(null);
     const [orderBumps, setOrderBumps] = useState<any[]>([]);
     const [selectedBumps, setSelectedBumps] = useState<Set<string>>(new Set());
+    // Mapa bumpId → plano selecionado (para bumps com múltiplos planos sem plano fixo)
+    const [selectedBumpPlans, setSelectedBumpPlans] = useState<Record<string, any>>({});
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
@@ -285,6 +287,8 @@ export default function CheckoutPage() {
             const next = new Set(prev);
             if (next.has(bumpId)) {
                 next.delete(bumpId);
+                // Limpa o plano selecionado ao desmarcar
+                setSelectedBumpPlans(p => { const n = { ...p }; delete n[bumpId]; return n; });
             } else {
                 next.add(bumpId);
             }
@@ -292,11 +296,28 @@ export default function CheckoutPage() {
         });
     };
 
+    const selectBumpPlan = (bumpId: string, plan: any) => {
+        setSelectedBumpPlans(prev => ({ ...prev, [bumpId]: plan }));
+        // Garante que o bump fica marcado ao escolher um plano
+        setSelectedBumps(prev => new Set(prev).add(bumpId));
+    };
+
+    // Retorna o preço efetivo de um bump em reais, considerando plano escolhido pelo comprador
+    const getBumpPrice = (bump: any): number => {
+        if (bump.custom_price != null) return bump.custom_price;
+        if (bump.bump_plan) return bump.bump_plan.price / 100;
+        const chosenPlan = selectedBumpPlans[bump.id];
+        if (chosenPlan) return chosenPlan.price / 100;
+        const plans = bump.bump_product?.plans || [];
+        if (plans.length === 1) return plans[0].price / 100;
+        return bump.bump_product?.price / 100 || 0;
+    };
+
     // Calcula total incluindo bumps selecionados
     // Todos os valores estão em REAIS (product.price já vem dividido pela rota pública)
     const bumpsTotal = orderBumps
         .filter(b => selectedBumps.has(b.id))
-        .reduce((acc: number, b: any) => acc + (b.effective_price || 0), 0);
+        .reduce((acc: number, b: any) => acc + getBumpPrice(b), 0);
 
     const mainPrice = selectedPlan?.price || product?.price || 0;
     const grandTotal = mainPrice + bumpsTotal;
@@ -835,8 +856,11 @@ export default function CheckoutPage() {
                         {orderBumps.map((bump: any) => {
                             const isSelected = selectedBumps.has(bump.id);
                             const bumpProduct = bump.bump_product;
-                            const bumpPlan = bump.bump_plan;
-                            const planOptions = bumpProduct?.plans || [];
+                            const bumpPlan = bump.bump_plan; // plano fixo definido pelo vendedor
+                            const planOptions: any[] = bumpProduct?.plans || [];
+                            const needsPlanChoice = !bumpPlan && planOptions.length > 1;
+                            const chosenPlan = selectedBumpPlans[bump.id];
+                            const displayPrice = getBumpPrice(bump).toFixed(2);
 
                             return (
                                 <div
@@ -851,10 +875,7 @@ export default function CheckoutPage() {
                                     }}
                                 >
                                     {/* Badge topo */}
-                                    <div
-                                        className="px-5 py-2 flex items-center gap-2"
-                                        style={{ background: bump.badge_color || '#E17055' }}
-                                    >
+                                    <div className="px-5 py-2 flex items-center gap-2" style={{ background: bump.badge_color || '#E17055' }}>
                                         <FiTag size={12} color="#fff" />
                                         <span className="text-xs font-black text-white uppercase tracking-widest">
                                             {bump.badge_text || 'OFERTA EXCLUSIVA'}
@@ -862,59 +883,61 @@ export default function CheckoutPage() {
                                     </div>
 
                                     <div className="p-5">
-                                        {/* Produto do bump */}
+                                        {/* Info do produto */}
                                         <div className="flex gap-4 mb-4">
                                             {bumpProduct?.image_url && (
-                                                <div
-                                                    className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 border"
-                                                    style={{ borderColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)' }}
-                                                >
-                                                    <img
-                                                        src={bumpProduct.image_url}
-                                                        alt={bumpProduct.name}
-                                                        className="w-full h-full object-cover"
-                                                    />
+                                                <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 border" style={{ borderColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)' }}>
+                                                    <img src={bumpProduct.image_url} alt={bumpProduct.name} className="w-full h-full object-cover" />
                                                 </div>
                                             )}
                                             <div className="flex-1 min-w-0">
-                                                <div className="text-sm font-black mb-1" style={{ color: textPrimary }}>
-                                                    {bump.title}
-                                                </div>
+                                                <div className="text-sm font-black mb-1" style={{ color: textPrimary }}>{bump.title}</div>
                                                 <div className="text-xs font-semibold opacity-70 mb-1" style={{ color: textSecondary }}>
                                                     {bumpProduct?.name}
-                                                    {bumpPlan && (
-                                                        <span style={{ color: accent }}> — {bumpPlan.name}</span>
-                                                    )}
+                                                    {bumpPlan && <span style={{ color: accent }}> — {bumpPlan.name}</span>}
+                                                    {!bumpPlan && chosenPlan && <span style={{ color: accent }}> — {chosenPlan.name}</span>}
                                                 </div>
                                                 {bump.description && (
-                                                    <div className="text-xs leading-relaxed opacity-70" style={{ color: textSecondary }}>
-                                                        {bump.description}
-                                                    </div>
+                                                    <div className="text-xs leading-relaxed opacity-70" style={{ color: textSecondary }}>{bump.description}</div>
                                                 )}
                                             </div>
                                         </div>
 
-                                        {/* Planos do produto do bump (se tiver múltiplos e nenhum plano fixo) */}
-                                        {!bumpPlan && planOptions.length > 1 && (
+                                        {/* Seletor de plano clicável */}
+                                        {needsPlanChoice && (
                                             <div className="mb-4">
-                                                <div className="text-xs font-black uppercase tracking-wider opacity-50 mb-2" style={{ color: textSecondary }}>
+                                                <div className="text-xs font-black uppercase tracking-wider opacity-60 mb-2" style={{ color: textSecondary }}>
                                                     Escolha o plano
                                                 </div>
                                                 <div className="grid gap-2">
-                                                    {planOptions.map((pl: any) => (
-                                                        <div
-                                                            key={pl.id}
-                                                            className="flex items-center justify-between px-4 py-2 rounded-xl border text-sm"
-                                                            style={{
-                                                                borderColor: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)',
-                                                                background: isLight ? '#f9fafb' : 'rgba(255,255,255,0.03)',
-                                                                color: textPrimary
-                                                            }}
-                                                        >
-                                                            <span className="font-semibold">{pl.name}</span>
-                                                            <span className="font-black">R$ {(pl.price / 100).toFixed(2)}</span>
-                                                        </div>
-                                                    ))}
+                                                    {planOptions.map((pl: any) => {
+                                                        const planActive = chosenPlan?.id === pl.id;
+                                                        return (
+                                                            <button
+                                                                key={pl.id}
+                                                                type="button"
+                                                                onClick={() => selectBumpPlan(bump.id, pl)}
+                                                                className="w-full flex items-center justify-between px-4 py-3 rounded-2xl border text-sm transition-all"
+                                                                style={{
+                                                                    borderColor: planActive ? accent : (isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'),
+                                                                    background: planActive ? `${accent}12` : (isLight ? '#f9fafb' : 'rgba(255,255,255,0.03)'),
+                                                                    color: textPrimary,
+                                                                    boxShadow: planActive ? `0 0 0 2px ${accent}40` : 'none',
+                                                                }}
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                                                                        style={{ borderColor: planActive ? accent : (isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)') }}>
+                                                                        {planActive && <div className="w-2 h-2 rounded-full" style={{ background: accent }} />}
+                                                                    </div>
+                                                                    <span className="font-semibold">{pl.name}</span>
+                                                                </div>
+                                                                <span className="font-black" style={{ color: planActive ? accent : textPrimary }}>
+                                                                    R$ {pl.price_display || (pl.price / 100).toFixed(2)}
+                                                                </span>
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         )}
@@ -926,13 +949,19 @@ export default function CheckoutPage() {
                                                     Adicionar por apenas
                                                 </div>
                                                 <div className="text-2xl font-black" style={{ color: accent }}>
-                                                    R$ {bump.effective_price_display || '—'}
+                                                    R$ {displayPrice}
                                                 </div>
                                             </div>
 
                                             <button
                                                 type="button"
-                                                onClick={() => toggleBump(bump.id)}
+                                                onClick={() => {
+                                                    if (needsPlanChoice && !chosenPlan && !isSelected) {
+                                                        selectBumpPlan(bump.id, planOptions[0]);
+                                                    } else {
+                                                        toggleBump(bump.id);
+                                                    }
+                                                }}
                                                 className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm transition-all"
                                                 style={{
                                                     background: isSelected ? accent : 'transparent',
@@ -943,14 +972,9 @@ export default function CheckoutPage() {
                                                 }}
                                             >
                                                 {isSelected ? (
-                                                    <>
-                                                        <FiCheck size={16} /> Adicionado!
-                                                    </>
+                                                    <><FiCheck size={16} /> Adicionado!</>
                                                 ) : (
-                                                    <>
-                                                        <FiPlusCircle size={16} />
-                                                        <span className="truncate">{bump.call_to_action || 'Sim! Quero esta oferta'}</span>
-                                                    </>
+                                                    <><FiPlusCircle size={16} /><span className="truncate">{bump.call_to_action || 'Sim! Quero esta oferta'}</span></>
                                                 )}
                                             </button>
                                         </div>
