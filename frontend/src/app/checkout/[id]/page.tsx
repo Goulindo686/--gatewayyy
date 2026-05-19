@@ -129,9 +129,9 @@ function OrderSummary({
     selectedBumpsCount: number;
 }) {
     const mainDisplay = selectedPlan ? selectedPlan.price_display : product.price_display;
-    const grandTotalDisplay = (grandTotalCents / 100).toFixed(2);
+    const grandTotalDisplay = grandTotalCents.toFixed(2);
     const installmentsSafe = Math.max(1, Number(installments) || 1);
-    const perInstallment = (grandTotalCents / 100) / installmentsSafe;
+    const perInstallment = grandTotalCents / installmentsSafe;
 
     return (
         <div className="rounded-3xl border shadow-sm overflow-hidden" style={{ background: isLight ? '#fff' : 'rgba(255,255,255,0.04)', borderColor }}>
@@ -150,7 +150,7 @@ function OrderSummary({
                                 + {selectedBumpsCount} oferta{selectedBumpsCount > 1 ? 's' : ''} adicional{selectedBumpsCount > 1 ? 'is' : ''}
                             </div>
                             <div className="text-sm font-semibold whitespace-nowrap" style={{ color: accent }}>
-                                + R$ {((grandTotalCents - (selectedPlan?.price || product?.price || 0)) / 100).toFixed(2)}
+                                + R$ {(grandTotalCents - (selectedPlan?.price || product?.price || 0)).toFixed(2)}
                             </div>
                         </div>
                     )}
@@ -293,13 +293,16 @@ export default function CheckoutPage() {
     };
 
     // Calcula total incluindo bumps selecionados
-    const bumpsTotalCents = orderBumps
+    // Todos os valores estão em REAIS (product.price já vem dividido pela rota pública)
+    const bumpsTotal = orderBumps
         .filter(b => selectedBumps.has(b.id))
         .reduce((acc: number, b: any) => acc + (b.effective_price || 0), 0);
 
-    const mainPriceCents = selectedPlan?.price || product?.price || 0;
-    const grandTotalCents = mainPriceCents + bumpsTotalCents;
-    const grandTotalDisplay = (grandTotalCents / 100).toFixed(2);
+    const mainPrice = selectedPlan?.price || product?.price || 0;
+    const grandTotal = mainPrice + bumpsTotal;
+    // grandTotalCents é passado ao OrderSummary — mantemos o nome mas o valor já é em reais
+    const grandTotalCents = grandTotal;
+    const grandTotalDisplay = grandTotal.toFixed(2);
 
     const autoLoginAndRedirect = (authData: any) => {
         if (authData?.token && authData?.user) {
