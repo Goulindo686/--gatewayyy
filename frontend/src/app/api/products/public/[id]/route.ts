@@ -85,6 +85,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             seller_name: seller?.name || 'Vendedor',
             plans: (plans || []).map(p => ({
                 ...p,
+                price: p.price / 100,                    // em reais
                 price_display: (p.price / 100).toFixed(2),
             })),
             order_bumps: orderBumps,

@@ -824,7 +824,7 @@ export default function CheckoutPage() {
                                                 style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }}
                                             >
                                                 {[...Array(12)].map((_, i) => (
-                                                    <option key={i + 1} value={i + 1}>{i + 1}x de R$ {((selectedPlan?.price || product?.price || 0) / 100 / (i + 1)).toFixed(2)}</option>
+                                                    <option key={i + 1} value={i + 1}>{i + 1}x de R$ {(Number(selectedPlan?.price || product?.price || 0) / (i + 1)).toFixed(2)}</option>
                                                 ))}
                                             </select>
                                         </div>
