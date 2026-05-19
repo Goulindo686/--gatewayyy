@@ -150,7 +150,7 @@ function OrderSummary({
                                 + {selectedBumpsCount} oferta{selectedBumpsCount > 1 ? 's' : ''} adicional{selectedBumpsCount > 1 ? 'is' : ''}
                             </div>
                             <div className="text-sm font-semibold whitespace-nowrap" style={{ color: accent }}>
-                                + R$ {(grandTotalCents - (selectedPlan?.price || product?.price || 0)).toFixed(2)}
+                                + R$ {(grandTotalCents - Number(selectedPlan?.price || product?.price || 0)).toFixed(2)}
                             </div>
                         </div>
                     )}
@@ -304,24 +304,23 @@ export default function CheckoutPage() {
 
     // Retorna o preço efetivo de um bump em reais, considerando plano escolhido pelo comprador
     const getBumpPrice = (bump: any): number => {
-        if (bump.custom_price != null) return bump.custom_price;
-        if (bump.bump_plan) return bump.bump_plan.price / 100;
+        if (bump.custom_price != null) return Number(bump.custom_price);
+        if (bump.bump_plan) return Number(bump.bump_plan.price) / 100;
         const chosenPlan = selectedBumpPlans[bump.id];
-        if (chosenPlan) return chosenPlan.price / 100;
+        if (chosenPlan) return Number(chosenPlan.price) / 100;
         const plans = bump.bump_product?.plans || [];
-        if (plans.length === 1) return plans[0].price / 100;
-        return bump.bump_product?.price / 100 || 0;
+        if (plans.length === 1) return Number(plans[0].price) / 100;
+        return Number(bump.bump_product?.price) / 100 || 0;
     };
 
     // Calcula total incluindo bumps selecionados
-    // Todos os valores estão em REAIS (product.price já vem dividido pela rota pública)
+    // product.price e selectedPlan.price chegam como string da rota pública — forçar Number()
     const bumpsTotal = orderBumps
         .filter(b => selectedBumps.has(b.id))
         .reduce((acc: number, b: any) => acc + getBumpPrice(b), 0);
 
-    const mainPrice = selectedPlan?.price || product?.price || 0;
+    const mainPrice = Number(selectedPlan?.price || product?.price || 0);
     const grandTotal = mainPrice + bumpsTotal;
-    // grandTotalCents é passado ao OrderSummary — mantemos o nome mas o valor já é em reais
     const grandTotalCents = grandTotal;
     const grandTotalDisplay = grandTotal.toFixed(2);
 
