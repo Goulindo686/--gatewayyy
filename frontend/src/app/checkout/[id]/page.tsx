@@ -246,7 +246,7 @@ export default function CheckoutPage() {
     useEffect(() => {
         if (params.id) loadProduct(params.id as string);
         return () => {
-            if (pollingRef.current) clearInterval(pollingRef.current);
+            if (pollingRef.current) clearTimeout(pollingRef.current);
             if (countdownRef.current) clearInterval(countdownRef.current);
             if (timerRef.current) clearInterval(timerRef.current);
         };
@@ -342,17 +342,29 @@ export default function CheckoutPage() {
     };
 
     const startPixPolling = (orderId: string) => {
-        pollingRef.current = setInterval(async () => {
+        // Estratégia de backoff exponencial para reduzir Edge Requests:
+        // Começa verificando a cada 5s, vai aumentando progressivamente até 30s.
+        // Após 10 minutos sem pagamento, para de verificar automaticamente.
+        let attempt = 0;
+        const MAX_ATTEMPTS = 40; // ~10 minutos no total
+        const getDelay = (n: number) => Math.min(5000 + n * 1500, 30000); // 5s → 30s
+
+        const poll = async () => {
+            if (attempt >= MAX_ATTEMPTS) return; // timeout — para de verificar
+            attempt++;
             try {
                 const { data } = await checkoutAPI.getOrderStatus(orderId);
                 if (data.order?.status === 'paid') {
-                    clearInterval(pollingRef.current);
                     setPixPaid(true);
                     toast.success('Pagamento confirmado! 🎉');
                     if (data.auth) autoLoginAndRedirect(data.auth);
+                    return; // para o polling
                 }
-            } catch (err) { /* retry */ }
-        }, 3000);
+            } catch (err) { /* retry na próxima rodada */ }
+            pollingRef.current = setTimeout(poll, getDelay(attempt));
+        };
+
+        pollingRef.current = setTimeout(poll, getDelay(0));
     };
 
     const handlePay = async (e: React.FormEvent) => {

@@ -68,6 +68,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         };
 
         const load = async () => {
+            // Não faz requisição se a aba estiver em segundo plano
+            if (document.visibilityState === 'hidden') return;
             try {
                 const { data } = await dashboardAPI.getStats();
                 if (cancelled) return;
@@ -79,10 +81,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         };
 
         load();
-        const id = window.setInterval(load, 8000);
+        // Reduzido de 8s para 60s — o saldo não precisa atualizar em tempo real no sidebar
+        const id = window.setInterval(load, 60000);
+
+        // Quando o usuário volta para a aba, atualiza imediatamente
+        const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+        document.addEventListener('visibilitychange', onVisible);
+
         return () => {
             cancelled = true;
             window.clearInterval(id);
+            document.removeEventListener('visibilitychange', onVisible);
         };
     }, []);
 
