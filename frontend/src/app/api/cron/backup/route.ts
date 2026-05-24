@@ -10,16 +10,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Cliente Supabase
-const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
-);
+function getSupabaseAdmin() {
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_KEY;
+    if (!url || !key) {
+        throw new Error('SUPABASE_URL ou SUPABASE_SERVICE_KEY não configurados');
+    }
+    return createClient(url, key);
+}
 
 /**
  * Buscar todas as tabelas do banco automaticamente
  */
-async function getAllTables() {
+async function getAllTables(supabase: ReturnType<typeof getSupabaseAdmin>) {
     try {
         // Query para listar todas as tabelas do schema public
         const { data, error } = await supabase.rpc('get_all_tables');
@@ -66,7 +69,7 @@ async function getAllTables() {
 /**
  * Fazer backup de uma tabela
  */
-async function backupTable(tableName: string) {
+async function backupTable(supabase: ReturnType<typeof getSupabaseAdmin>, tableName: string) {
     try {
         const skipTables = new Set([
             'api_keys',
@@ -159,7 +162,7 @@ function generateSQL(backupData: any[], totalTables: number) {
 /**
  * Salvar backup no Supabase Storage (GRÁTIS até 1GB)
  */
-async function saveBackupToStorage(sql: string, filename: string) {
+async function saveBackupToStorage(supabase: ReturnType<typeof getSupabaseAdmin>, sql: string, filename: string) {
     try {
         // Converter SQL para Blob
         const blob = new Blob([sql], { type: 'text/plain' });
@@ -189,7 +192,7 @@ async function saveBackupToStorage(sql: string, filename: string) {
 /**
  * Limpar backups antigos (manter últimos 30 dias)
  */
-async function cleanOldBackups() {
+async function cleanOldBackups(supabase: ReturnType<typeof getSupabaseAdmin>) {
     try {
         const { data: files } = await supabase.storage
             .from('backups')
@@ -239,17 +242,19 @@ export async function GET(request: NextRequest) {
                 { status: 401 }
             );
         }
+
+        const supabase = getSupabaseAdmin();
         
         console.log('🕐 Iniciando backup automático...');
         const startTime = Date.now();
         
         // 1. Buscar todas as tabelas do banco
         console.log('📋 Buscando lista de tabelas...');
-        const tables = await getAllTables();
+        const tables = await getAllTables(supabase);
         console.log(`✅ Encontradas ${tables.length} tabelas`);
         
         // 2. Fazer backup de todas as tabelas
-        const backupPromises = tables.map((table: string) => backupTable(table));
+        const backupPromises = tables.map((table: string) => backupTable(supabase, table));
         const backupResults = await Promise.all(backupPromises);
         
         // Filtrar resultados válidos
@@ -269,7 +274,7 @@ export async function GET(request: NextRequest) {
         const timestamp = new Date().toISOString().split('T')[0];
         const filename = `backup-${timestamp}.sql`;
         
-        const saved = await saveBackupToStorage(sql, filename);
+        const saved = await saveBackupToStorage(supabase, sql, filename);
         
         if (!saved) {
             return NextResponse.json(
@@ -279,7 +284,7 @@ export async function GET(request: NextRequest) {
         }
         
         // 4. Limpar backups antigos
-        await cleanOldBackups();
+        await cleanOldBackups(supabase);
         
         // 5. Resumo
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
