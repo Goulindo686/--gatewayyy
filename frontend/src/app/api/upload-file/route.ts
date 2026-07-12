@@ -4,6 +4,7 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 
 const MAX_SIZE = 100 * 1024 * 1024; // 100MB
@@ -16,6 +17,23 @@ export async function POST(req: NextRequest) {
     try {
         const auth = await getAuthUser(req);
         if (!auth) return jsonErr('Não autorizado', 401);
+
+        const ip =
+            req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+            req.headers.get('x-real-ip') ||
+            'unknown';
+
+        const rlIp = await checkRateLimit({ key: `upload_file:ip:${ip}`, limit: 30, windowSecs: 3600, failOpen: true });
+        if (!rlIp.allowed) {
+            const res = rateLimitResponse(rlIp.resetAt);
+            return new NextResponse(res.body, { status: 429, headers: Object.fromEntries(res.headers) });
+        }
+
+        const rlUser = await checkRateLimit({ key: `upload_file:user:${auth.user.id}`, limit: 30, windowSecs: 3600, failOpen: true });
+        if (!rlUser.allowed) {
+            const res = rateLimitResponse(rlUser.resetAt);
+            return new NextResponse(res.body, { status: 429, headers: Object.fromEntries(res.headers) });
+        }
 
         let formData: FormData;
         try {

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { withdrawalsAPI, authAPI } from '@/lib/api';
+import { useEffect, useRef, useState } from 'react';
+import { authAPI } from '@/lib/api';
+import axios from 'axios';
 import toast from 'react-hot-toast';
 import { FiDollarSign, FiArrowDown, FiClock, FiCheckCircle, FiXCircle, FiInfo, FiLock, FiAlertTriangle } from 'react-icons/fi';
 
@@ -12,6 +13,7 @@ export default function WithdrawalsPage() {
     const [amount, setAmount] = useState('');
     const [requesting, setRequesting] = useState(false);
     const [verifying, setVerifying] = useState(false);
+    const requestingRef = useRef(false);
     const WITHDRAWAL_FEE = 3.67;
 
     useEffect(() => {
@@ -20,12 +22,15 @@ export default function WithdrawalsPage() {
 
     const loadData = async () => {
         try {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+            const headers = { Authorization: `Bearer ${token}` };
+
             const [balanceRes, withdrawalsRes] = await Promise.all([
-                withdrawalsAPI.getBalance(),
-                withdrawalsAPI.list()
+                axios.get('/api/withdrawals/balance', { headers }),
+                axios.get('/api/withdrawals', { headers })
             ]);
-            setBalance(balanceRes.data);
-            setWithdrawals(withdrawalsRes.data.withdrawals || []);
+            setBalance(balanceRes.data.data || balanceRes.data);
+            setWithdrawals(withdrawalsRes.data.data?.withdrawals || withdrawalsRes.data.withdrawals || []);
         } catch (err) {
             console.error(err);
         } finally {
@@ -60,6 +65,8 @@ export default function WithdrawalsPage() {
     };
 
     const handleWithdraw = async () => {
+        if (requestingRef.current) return;
+
         const value = parseFloat(amount);
         const available = parseFloat(balance?.available || '0');
         const maxConsideringFee = Math.max(0, available - WITHDRAWAL_FEE);
@@ -69,23 +76,28 @@ export default function WithdrawalsPage() {
             return toast.error(`Saldo insuficiente considerando a taxa de R$ ${WITHDRAWAL_FEE.toFixed(2).replace('.', ',')}. Máximo por saque: R$ ${maxText}`);
         }
 
+        requestingRef.current = true;
         setRequesting(true);
         try {
-            await withdrawalsAPI.request(value);
-            toast.success('Saque solicitado com sucesso!');
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+            await axios.post('/api/withdrawals', { amount: value }, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            toast.success('Saque solicitado!');
             setAmount('');
             loadData();
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Erro ao solicitar saque');
         } finally {
+            requestingRef.current = false;
             setRequesting(false);
         }
     };
 
     const statusConfig: Record<string, { icon: any; color: string; label: string }> = {
-        pending: { icon: <FiClock size={14} />, color: 'var(--warning)', label: 'Pendente' },
-        processing: { icon: <FiClock size={14} />, color: 'var(--info)', label: 'Processando' },
-        completed: { icon: <FiCheckCircle size={14} />, color: 'var(--success)', label: 'Concluído' },
+        pending: { icon: <FiClock size={14} />, color: 'var(--warning)', label: 'Em analise' },
+        processing: { icon: <FiClock size={14} />, color: 'var(--warning)', label: 'Em analise' },
+        completed: { icon: <FiCheckCircle size={14} />, color: 'var(--success)', label: 'Sacado' },
         failed: { icon: <FiXCircle size={14} />, color: 'var(--danger)', label: 'Falhou' },
     };
 

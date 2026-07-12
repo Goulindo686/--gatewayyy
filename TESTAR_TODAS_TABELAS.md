@@ -6,7 +6,7 @@ Depois execute este comando:
 
 ```bash
 curl -X POST https://www.goupay.com.br/api/cron/backup \
-  -H "Authorization: Bearer Goulindo2026#" \
+  -H "Authorization: Bearer SUA_SENHA_DO_CRON_SECRET" \
   -H "Content-Type: application/json"
 ```
 

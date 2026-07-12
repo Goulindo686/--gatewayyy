@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -10,6 +11,17 @@ export async function POST(req: NextRequest) {
     if (!auth) return jsonError('Não autorizado', 401);
 
     try {
+        const ip =
+            req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+            req.headers.get('x-real-ip') ||
+            'unknown';
+
+        const rlIp = await checkRateLimit({ key: `upload:ip:${ip}`, limit: 60, windowSecs: 3600, failOpen: true });
+        if (!rlIp.allowed) return rateLimitResponse(rlIp.resetAt);
+
+        const rlUser = await checkRateLimit({ key: `upload:user:${auth.user.id}`, limit: 60, windowSecs: 3600, failOpen: true });
+        if (!rlUser.allowed) return rateLimitResponse(rlUser.resetAt);
+
         const formData = await req.formData();
         const file = formData.get('file') as File;
 

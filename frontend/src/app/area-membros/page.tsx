@@ -129,12 +129,15 @@ export default function MemberAreaPage() {
                                 </div>
                                 <div style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column' }}>
                                     <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{product.name}</h3>
-                                    <p style={{
-                                        color: 'var(--text-secondary)', fontSize: 13, marginBottom: 24, flex: 1,
-                                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'
-                                    }}>
-                                        {product.description || 'Acesse o conteúdo exclusivo deste produto.'}
-                                    </p>
+
+                                    {product.description && (
+                                        <p style={{
+                                            color: 'var(--text-secondary)', fontSize: 13, marginBottom: 24, flex: 1,
+                                            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'
+                                        }}>
+                                            {product.description}
+                                        </p>
+                                    )}
                                     <Link href={`/area-membros/curso/${product.id}`} className="btn-primary" style={{
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%'
                                     }}>

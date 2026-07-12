@@ -189,10 +189,10 @@ export default function LandingPage() {
               gap: 18,
               padding: '10px 16px',
               borderRadius: 999,
-              border: '1px solid rgba(108,92,231,0.14)',
-              background: 'rgba(255,255,255,0.82)',
+              border: '1px solid rgba(124, 58, 237, 0.12)',
+              background: 'rgba(255, 255, 255, 0.84)',
               backdropFilter: 'blur(18px)',
-              boxShadow: '0 14px 44px rgba(17, 24, 39, 0.10)'
+              boxShadow: '0 18px 46px rgba(88, 28, 135, 0.1)'
             }} className="landingHeaderBar">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} className="landingLogo">
                 <img
@@ -210,8 +210,8 @@ export default function LandingPage() {
                   gap: 16,
                   padding: '8px 12px',
                   borderRadius: 999,
-                  border: '1px solid rgba(108,92,231,0.14)',
-                  background: 'rgba(255,255,255,0.70)'
+                  border: '1px solid transparent',
+                  background: 'transparent'
                 }} className="landingNav">
                   {[
                     { href: '#inicio', label: 'Início' },
@@ -247,8 +247,8 @@ export default function LandingPage() {
                     fontWeight: 900,
                     padding: '10px 14px',
                     borderRadius: 999,
-                    border: '1px solid var(--border-color)',
-                    background: 'rgba(255,255,255,0.65)',
+                    border: '1px solid rgba(124,58,237,0.12)',
+                    background: 'rgba(255,255,255,0.76)',
                     color: 'var(--text-primary)'
                   }}
                 >
@@ -268,7 +268,7 @@ export default function LandingPage() {
         ref={heroRef}
         style={{
           position: 'relative',
-          background: 'url(https://i.imgur.com/CRMOAPY.jpeg) center center / cover no-repeat',
+          background: '#ffffff',
           overflow: 'hidden',
           paddingTop: 'calc(env(safe-area-inset-top) + 110px)',
           paddingBottom: 60,
@@ -279,37 +279,83 @@ export default function LandingPage() {
         className="landingHero"
       >
         {/* Overlay escuro sutil só no lado esquerdo para legibilidade */}
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(10,5,40,0.72) 0%, rgba(10,5,40,0.45) 45%, rgba(10,5,40,0.1) 75%, transparent 100%)', pointerEvents: 'none' }} />
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: [
+            'radial-gradient(circle at 80% 35%, rgba(124,58,237,0.14) 0%, rgba(124,58,237,0.00) 34%)',
+            'radial-gradient(circle at 12% 20%, rgba(167,139,250,0.16) 0%, rgba(167,139,250,0.00) 28%)',
+            'linear-gradient(180deg, #ffffff 0%, #fbf9ff 58%, #ffffff 100%)'
+          ].join(', '),
+          pointerEvents: 'none'
+        }} />
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: [
+            'radial-gradient(circle, rgba(124,58,237,0.16) 1px, transparent 1px)'
+          ].join(', '),
+          backgroundSize: '22px 22px',
+          maskImage: 'linear-gradient(110deg, transparent 0%, black 18%, black 82%, transparent 100%)',
+          opacity: 0.42,
+          pointerEvents: 'none'
+        }} />
+        <div style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 180,
+          background: 'linear-gradient(0deg, #ffffff 0%, rgba(255,255,255,0) 100%)',
+          pointerEvents: 'none'
+        }} />
+        <div className="heroCurveLines" />
 
-        <div style={{ position: 'relative', zIndex: 2, maxWidth: 1200, margin: '0 auto', padding: '0 48px', width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, alignItems: 'center' }} className="heroGrid">
+        <div style={{ position: 'relative', zIndex: 2, maxWidth: 1320, margin: '0 auto', padding: '0 44px', width: '100%', display: 'grid', gridTemplateColumns: '0.82fr 1.18fr', gap: 46, alignItems: 'center' }} className="heroGrid">
 
           {/* Coluna esquerda — texto */}
           <div className="heroLeft">
-            <h1 style={{ fontSize: 'clamp(32px, 4.2vw, 58px)', fontWeight: 900, lineHeight: 1.08, letterSpacing: -1.5, color: 'white', marginBottom: 20, textShadow: '0 2px 24px rgba(0,0,0,0.4)' }} className="landingHeroTitle">
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 12px',
+              marginBottom: 18,
+              borderRadius: 999,
+              border: '1px solid rgba(124,58,237,0.14)',
+              background: 'rgba(124,58,237,0.08)',
+              color: '#6d28d9',
+              fontSize: 12,
+              fontWeight: 800
+            }}>
+              <FiLock size={14} /> Infraestrutura para vendas digitais
+            </div>
+
+            <h1 style={{ fontSize: 'clamp(34px, 4.3vw, 60px)', fontWeight: 900, lineHeight: 1.04, letterSpacing: -1.6, color: '#0f172a', marginBottom: 20 }} className="landingHeroTitle">
               O gateway que faz<br />
-              <span style={{ background: 'linear-gradient(135deg, #c4b5fd, #a78bfa, #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              <span style={{ background: 'linear-gradient(135deg, #6d28d9 0%, #8b5cf6 52%, #4f46e5 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 seu negócio crescer
               </span>
             </h1>
 
-            <p style={{ color: 'rgba(255,255,255,0.82)', fontSize: 'clamp(14px, 1.5vw, 17px)', lineHeight: 1.75, marginBottom: 32, maxWidth: 460, textShadow: '0 1px 8px rgba(0,0,0,0.3)' }} className="landingHeroSubtitle">
+            <p style={{ color: '#64748b', fontSize: 'clamp(14px, 1.5vw, 17px)', lineHeight: 1.75, marginBottom: 32, maxWidth: 500 }} className="landingHeroSubtitle">
               Checkout de alta conversão, Pix instantâneo, área de membros e loja integrada. Taxa: <strong style={{ color: '#c4b5fd' }}>R$2,00 + 1,09%</strong> por venda.
             </p>
 
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 40 }} className="landingHeroActions">
               <Link href="/register" style={{
                 padding: '13px 24px', fontSize: 15, display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999,
-                background: '#7c3aed',
-                color: 'white', fontWeight: 700, textDecoration: 'none',
-                boxShadow: '0 4px 18px rgba(124,58,237,0.45)',
+                background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                color: 'white', fontWeight: 800, textDecoration: 'none',
+                boxShadow: '0 18px 42px rgba(124,58,237,0.28)',
               }}>
                 Criar conta grátis <FiArrowRight size={16} />
               </Link>
               <Link href="#features" style={{
                 padding: '13px 24px', fontSize: 15, borderRadius: 999,
-                background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)',
-                border: '1.5px solid rgba(255,255,255,0.25)',
-                color: 'rgba(255,255,255,0.92)', textDecoration: 'none', fontWeight: 600,
+                background: 'rgba(255,255,255,0.78)', backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(124,58,237,0.16)',
+                color: '#334155', textDecoration: 'none', fontWeight: 700,
                 display: 'inline-flex', alignItems: 'center',
               }}>
                 Ver recursos
@@ -323,59 +369,77 @@ export default function LandingPage() {
                 { value: '100%', label: 'Automático' },
                 { value: 'Grátis', label: 'Sem mensalidade' },
               ].map((s, i) => (
-                <div key={i} style={{ borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.15)' : 'none', paddingLeft: i > 0 ? 28 : 0 }}>
-                  <div style={{ fontSize: 20, fontWeight: 900, color: 'white', letterSpacing: -0.5, textShadow: '0 2px 12px rgba(0,0,0,0.3)' }}>{s.value}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: 500, marginTop: 2 }}>{s.label}</div>
+                <div key={i} style={{ border: '1px solid rgba(124,58,237,0.12)', background: 'rgba(255,255,255,0.72)', borderRadius: 16, padding: '12px 16px', minWidth: 122, boxShadow: '0 16px 36px rgba(88,28,135,0.08)' }}>
+                  <div style={{ fontSize: 19, fontWeight: 900, color: '#0f172a', letterSpacing: -0.4 }}>{s.value}</div>
+                  <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginTop: 2 }}>{s.label}</div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Coluna direita — mockup dashboard profissional */}
-          <div style={{ position: 'relative' }} className="heroRight" id="heroMockup">
+          <div style={{ position: 'relative', minHeight: 500 }} className="heroRight" id="heroMockup">
             {/* Glow atrás do mockup */}
-            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '90%', height: '60%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.35) 0%, transparent 70%)', pointerEvents: 'none', zIndex: 0 }} />
+            <div style={{
+              position: 'absolute',
+              inset: '-9% -4% 5% 18%',
+              border: '1px solid rgba(124,58,237,0.08)',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(124,58,237,0.12), rgba(124,58,237,0.00) 68%)',
+              transform: 'skewY(-3deg)',
+              pointerEvents: 'none',
+              zIndex: 0
+            }} />
 
             {/* Frame do browser */}
             <div id="mockupFrame" style={{
               position: 'relative', zIndex: 2,
-              borderRadius: 16,
+              borderRadius: 20,
               overflow: 'hidden',
-              border: '1px solid rgba(255,255,255,0.15)',
-              boxShadow: '0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)',
-              background: '#0f0e1a',
-              transform: 'perspective(1000px) rotateY(-4deg) rotateX(2deg)',
+              border: '1px solid rgba(124,58,237,0.12)',
+              boxShadow: '0 34px 80px rgba(88,28,135,0.18), 0 0 0 1px rgba(255,255,255,0.88)',
+              background: 'rgba(255,255,255,0.78)',
+              transform: 'perspective(1000px) rotateY(-2deg) rotateX(1deg)',
               transition: 'transform 0.15s ease, box-shadow 0.15s ease',
               willChange: 'transform',
             }}>
               {/* Barra do browser */}
-              <div style={{ background: '#1a1830', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ background: 'rgba(255,255,255,0.88)', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid rgba(124,58,237,0.10)' }}>
                 <div style={{ display: 'flex', gap: 5 }}>
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f56' }} />
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffbd2e' }} />
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#27c93f' }} />
                 </div>
-                <div style={{ flex: 1, background: 'rgba(255,255,255,0.06)', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>
+                <div style={{ flex: 1, background: 'rgba(124,58,237,0.055)', borderRadius: 7, padding: '4px 12px', fontSize: 11, color: '#7c3aed', textAlign: 'center', fontWeight: 700 }}>
                   goupay.com.br/dashboard
                 </div>
               </div>
               {/* Screenshot */}
               <img
-                src="https://i.imgur.com/OuIZdBG.png"
-                alt="Dashboard GouPay"
+                src="https://i.imgur.com/M24u2FU.png"
+                alt="Visual GouPay em destaque"
                 referrerPolicy="no-referrer"
                 loading="eager"
-                style={{ width: '100%', display: 'block' }}
+                style={{ width: '100%', display: 'block', background: 'linear-gradient(135deg, rgba(124,58,237,0.04), rgba(255,255,255,0.92))' }}
               />
             </div>
+
+            <img
+              src="https://i.imgur.com/8gcYDam.jpeg"
+              alt="Notificacoes de venda GouPay"
+              referrerPolicy="no-referrer"
+              loading="eager"
+              className="heroAccentImage"
+            />
 
             {/* Card flutuante — saldo */}
             <div style={{
               position: 'absolute', bottom: '12%', left: '-8%', zIndex: 5,
-              background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(16px)',
+              background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)',
               borderRadius: 14, padding: '12px 16px',
-              boxShadow: '0 16px 48px rgba(0,0,0,0.25)',
+              boxShadow: '0 18px 48px rgba(88,28,135,0.14)',
               minWidth: 140,
+              border: '1px solid rgba(255,255,255,0.70)',
               transition: 'transform 0.15s ease',
             }} id="cardSaldo">
               <div style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Saldo disponível</div>
@@ -389,10 +453,11 @@ export default function LandingPage() {
             {/* Card flutuante — taxa */}
             <div style={{
               position: 'absolute', top: '8%', right: '-6%', zIndex: 5,
-              background: 'rgba(124,58,237,0.9)', backdropFilter: 'blur(16px)',
+              background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', backdropFilter: 'blur(16px)',
               borderRadius: 14, padding: '12px 16px',
-              boxShadow: '0 16px 48px rgba(124,58,237,0.4)',
+              boxShadow: '0 18px 52px rgba(42,32,122,0.48)',
               minWidth: 120,
+              border: '1px solid rgba(255,255,255,0.16)',
               transition: 'transform 0.15s ease',
             }} id="cardTaxa">
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Taxa por venda</div>
@@ -423,16 +488,118 @@ export default function LandingPage() {
           @media (max-width: 640px) {
             .landingHeroTitle { font-size: 28px !important; }
             .landingHeroSubtitle { font-size: 14px !important; }
-            .landingHeroStats { gap: 16px !important; flex-wrap: wrap !important; justify-content: center !important; }
-            .landingHeroStats > div { border-left: none !important; padding-left: 0 !important; }
+            .landingHeroStats {
+              display: grid !important;
+              grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+              gap: 14px !important;
+              width: 100% !important;
+              max-width: 292px !important;
+              margin: 0 auto !important;
+              justify-content: center !important;
+            }
+            .landingHeroStats > div {
+              min-width: 0 !important;
+              width: 100% !important;
+              min-height: 68px !important;
+              padding: 12px 10px !important;
+              display: flex !important;
+              flex-direction: column !important;
+              align-items: center !important;
+              justify-content: center !important;
+              text-align: center !important;
+              border-left: none !important;
+            }
+            .landingHeroStats > div:nth-child(3) {
+              grid-column: 1 / -1 !important;
+              width: min(148px, 100%) !important;
+              justify-self: center !important;
+            }
             .landingHeroActions { flex-direction: row !important; flex-wrap: wrap !important; justify-content: center !important; }
             .landingHeroActions a { font-size: 14px !important; padding: 12px 18px !important; }
             .landingHero { padding-top: calc(env(safe-area-inset-top) + 160px) !important; }
             .heroGrid { padding: 0 16px !important; }
             /* Mostra mockup em mobile, menor */
-            .heroRight { display: block !important; max-width: 320px !important; margin: 0 auto !important; }
+            .heroRight {
+              display: block !important;
+              width: min(100%, 330px) !important;
+              max-width: 330px !important;
+              min-height: 388px !important;
+              margin: 4px auto 0 !important;
+              padding-bottom: 92px !important;
+            }
+            #mockupFrame {
+              transform: none !important;
+              border-radius: 18px !important;
+              box-shadow: 0 24px 58px rgba(88,28,135,0.16), 0 0 0 1px rgba(255,255,255,0.9) !important;
+            }
             /* Esconde cards flutuantes em mobile */
             #cardSaldo, #cardTaxa { display: none !important; }
+          }
+          .heroAccentImage {
+            position: absolute;
+            right: -18px;
+            bottom: -52px;
+            width: min(235px, 34%);
+            aspect-ratio: 9 / 16;
+            object-fit: cover;
+            border-radius: 30px;
+            border: 7px solid rgba(255,255,255,0.96);
+            box-shadow: 0 28px 70px rgba(88,28,135,0.28);
+            animation: heroFloatSoft 5.8s ease-in-out infinite;
+            z-index: 6;
+          }
+          .heroCurveLines {
+            position: absolute;
+            left: -8%;
+            right: -8%;
+            bottom: -90px;
+            height: 250px;
+            pointer-events: none;
+            opacity: 0.34;
+            background:
+              repeating-radial-gradient(ellipse at 48% 0%, transparent 0 22px, rgba(124,58,237,0.24) 23px 24px, transparent 25px 42px);
+            mask-image: linear-gradient(90deg, transparent 0%, black 12%, black 88%, transparent 100%);
+          }
+          .heroRight {
+            animation: heroRiseIn 0.8s ease-out both;
+          }
+          .heroLeft {
+            animation: heroCopyIn 0.7s ease-out both;
+          }
+          @keyframes heroFloatSoft {
+            0%, 100% { transform: translate3d(0, 0, 0) rotate(-2deg); }
+            50% { transform: translate3d(0, -12px, 0) rotate(2deg); }
+          }
+          @keyframes heroRiseIn {
+            from { opacity: 0; transform: translate3d(26px, 18px, 0) scale(0.98); }
+            to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+          }
+          @keyframes heroCopyIn {
+            from { opacity: 0; transform: translate3d(-18px, 14px, 0); }
+            to { opacity: 1; transform: translate3d(0, 0, 0); }
+          }
+          @media (max-width: 640px) {
+            .heroAccentImage {
+              right: 14px;
+              bottom: 18px;
+              width: min(29%, 92px);
+              border-width: 5px;
+              border-radius: 18px;
+              box-shadow: 0 18px 44px rgba(88,28,135,0.24);
+            }
+          }
+          .landingNav a:first-child {
+            color: #6d28d9 !important;
+            box-shadow: inset 0 -2px 0 #7c3aed;
+          }
+          .landingHeroActions a:first-child:hover,
+          .landingActions a:last-child:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 22px 48px rgba(124,58,237,0.32) !important;
+          }
+          .landingHeroActions a,
+          .landingActions a {
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
           }
         `}</style>
       </section>
@@ -493,12 +660,12 @@ export default function LandingPage() {
         </Reveal>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 24 }}>
           {[
-            { icon: <FiLock size={24} />, title: 'Checkout Seguro', desc: 'Página de pagamento profissional com Pix e cartão de crédito. SSL e antifraude integrados.' },
-            { icon: <HiOutlineLightningBolt size={24} />, title: 'Entrega Automática', desc: 'Pagamento aprovado? Liberação e entrega do conteúdo acontecem automaticamente.' },
-            { icon: <FiZap size={24} />, title: 'Pix Instantâneo', desc: 'Receba via Pix em segundos. QR Code gerado automaticamente para cada pagamento.' },
-            { icon: <HiOutlineChartBar size={24} />, title: 'Dashboard Completo', desc: 'Acompanhe vendas, saldo, saques e métricas em tempo real com gráficos interativos.' },
-            { icon: <HiOutlineCurrencyDollar size={24} />, title: 'Saques via Pix', desc: 'Solicite saques a qualquer momento. O valor é transferido diretamente para sua conta.' },
-            { icon: <HiOutlineShieldCheck size={24} />, title: 'Segurança Total', desc: 'Controle de chargeback, logs de transações e proteção contra fraude integrados.' },
+            { icon: <FiMessageCircle size={24} />, title: 'Recuperação de Vendas', desc: 'Recupere Pix pendentes com lembretes enviados por Gmail e WhatsApp, ajudando clientes a concluírem a compra.' },
+            { icon: <HiOutlineCurrencyDollar size={24} />, title: 'Taxa Simples', desc: 'Venda com previsibilidade: apenas R$2,00 por venda aprovada, sem mensalidade e sem complicação.' },
+            { icon: <HiOutlineShieldCheck size={24} />, title: 'Antifraude e Banco Virtual', desc: 'Conte com camadas de antifraude e uma estrutura de banco virtual liberada pelo Banco Central para operar com mais confiança.' },
+            { icon: <FiZap size={24} />, title: 'Saque na Hora', desc: 'Solicite seu saque via Pix e receba o valor rapidamente na sua conta, sem esperar dias para movimentar seu dinheiro.' },
+            { icon: <HiOutlineLightningBolt size={24} />, title: 'Entrega Automática', desc: 'Pagamento aprovado? O acesso ao produto digital é liberado automaticamente para o cliente.' },
+            { icon: <HiOutlineChartBar size={24} />, title: 'Gestão Completa', desc: 'Acompanhe vendas, clientes, recuperação, saques e desempenho dos produtos em um painel profissional.' },
           ].map((feature, i) => (
             <Reveal key={i} direction="up" delay={i * 0.08}>
               <motion.div
@@ -810,6 +977,9 @@ Body:
                 <a href="https://wa.me/5532998284648?text=Ol%C3%A1!%20Preciso%20de%20ajuda%20com%20a%20plataforma%20GouPay." target="_blank" rel="noreferrer" style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none' }}>
                   Fale com a gente
                 </a>
+                <a href="mailto:support@goupay.com.br" style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none' }}>
+                  support@goupay.com.br
+                </a>
               </div>
             </div>
 
@@ -949,16 +1119,13 @@ Body:
           .landingHero::before {
             content: '';
             position: absolute;
-            inset: -2px;
+            inset: 0;
             z-index: 2;
             pointer-events: none;
-            opacity: 0.92;
+            opacity: 0.42;
             background:
-              radial-gradient(680px circle at var(--mx) var(--my), rgba(108,92,231,0.40) 0%, rgba(108,92,231,0.00) 58%),
-              radial-gradient(520px circle at calc(var(--mx) + 140px) calc(var(--my) + 110px), rgba(0,206,201,0.24) 0%, rgba(0,206,201,0.00) 62%),
-              radial-gradient(860px circle at 20% 10%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.00) 55%);
-            mix-blend-mode: screen;
-            filter: saturate(1.1);
+              linear-gradient(115deg, rgba(124,58,237,0.10) 0%, rgba(124,58,237,0.00) 38%),
+              linear-gradient(250deg, rgba(167,139,250,0.12) 0%, rgba(167,139,250,0.00) 34%);
           }
           .landingHero::after {
             content: '';
@@ -966,22 +1133,13 @@ Body:
             inset: 0;
             z-index: 3;
             pointer-events: none;
-            background:
-              radial-gradient(2px 2px at 12% 22%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.00) 65%),
-              radial-gradient(1.6px 1.6px at 78% 30%, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.00) 70%),
-              radial-gradient(1.8px 1.8px at 34% 70%, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.00) 70%),
-              radial-gradient(1.5px 1.5px at 62% 78%, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.00) 72%);
-            opacity: 0.55;
-            animation: heroTwinkle 6.5s ease-in-out infinite;
+            background: linear-gradient(180deg, rgba(124,58,237,0.05) 0%, rgba(255,255,255,0.00) 26%, rgba(124,58,237,0.04) 100%);
+            opacity: 0.62;
           }
           .landingHeroImg {
             transform: translate3d(var(--tx), var(--ty), 0) scale(1.035);
             will-change: transform;
             transition: transform 120ms ease;
-          }
-          @keyframes heroTwinkle {
-            0%, 100% { opacity: 0.42; transform: translate3d(0, 0, 0); }
-            50% { opacity: 0.65; transform: translate3d(0, -4px, 0); }
           }
           @media (prefers-reduced-motion: reduce) {
             .landingHero::before,

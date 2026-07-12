@@ -6,7 +6,7 @@ import Script from 'next/script';
 import { productsAPI, checkoutAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { FiShoppingCart, FiCreditCard, FiSmartphone, FiCheck, FiCopy, FiPackage, FiArrowRight, FiClock, FiLock, FiChevronDown, FiTag, FiPlusCircle } from 'react-icons/fi';
-import FacebookPixel from '@/components/FacebookPixel';
+import FacebookPixel, { getFacebookCookies, trackFacebookPurchase } from '@/components/FacebookPixel';
 
 const DEFAULT_SETTINGS = {
     theme: 'light', // Alterado para light por padrão conforme a imagem
@@ -202,7 +202,7 @@ function OrderSummary({
 export default function CheckoutPage() {
     const params = useParams();
     const router = useRouter();
-    const enableCreditCard = process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD ? (process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD === 'true') : false;
+    const enableCreditCard = false;
     const [product, setProduct] = useState<any>(null);
     const [plans, setPlans] = useState<any[]>([]);
     const [selectedPlan, setSelectedPlan] = useState<any>(null);
@@ -217,6 +217,7 @@ export default function CheckoutPage() {
     const [result, setResult] = useState<any>(null);
     const [pixPaid, setPixPaid] = useState(false);
     const pollingRef = useRef<any>(null);
+    const purchaseTrackedRef = useRef(false);
     const [countdown, setCountdown] = useState(5);
     const countdownRef = useRef<any>(null);
     const [timerSeconds, setTimerSeconds] = useState(0);
@@ -245,6 +246,7 @@ export default function CheckoutPage() {
  
     useEffect(() => {
         if (params.id) loadProduct(params.id as string);
+        if (params.id && typeof window !== 'undefined') persistTrackingParameters(params.id as string);
         return () => {
             if (pollingRef.current) clearTimeout(pollingRef.current);
             if (countdownRef.current) clearInterval(countdownRef.current);
@@ -341,6 +343,82 @@ export default function CheckoutPage() {
         }, 1000);
     };
 
+    const trackPurchaseOnce = (order: any) => {
+        if (purchaseTrackedRef.current || !order?.id || !product?.facebook_pixel_id) return;
+        const amount = Number(order.amount_display || grandTotalDisplay || 0);
+        trackFacebookPurchase(product, amount, order.id);
+        purchaseTrackedRef.current = true;
+    };
+
+    const TRACKING_KEYS = [
+        'src', 'sck',
+        'utm_id', 'utm_source', 'utm_campaign', 'utm_medium', 'utm_content', 'utm_term',
+        'fbclid', 'gclid', 'ttclid', 'msclkid',
+        'campaign_id', 'adset_id', 'ad_id',
+        'campaign_name', 'adset_name', 'ad_name',
+        'fbp', 'fbc'
+    ];
+
+    const getTrackingStorageKey = (productId?: string) => `goupay_tracking_${productId || 'global'}`;
+
+    const readStoredTracking = (productId?: string) => {
+        if (typeof window === 'undefined') return {};
+        const candidates = [
+            getTrackingStorageKey(productId),
+            getTrackingStorageKey('global')
+        ];
+        for (const key of candidates) {
+            try {
+                const raw = window.localStorage.getItem(key);
+                if (!raw) continue;
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') return parsed;
+            } catch {}
+        }
+        return {};
+    };
+
+    const persistTrackingParameters = (productId?: string) => {
+        if (typeof window === 'undefined') return;
+        const search = new URLSearchParams(window.location.search);
+        const collected: Record<string, string> = {};
+        TRACKING_KEYS.forEach((key) => {
+            const value = search.get(key);
+            if (value) collected[key] = value;
+        });
+
+        const hasTracking = Object.keys(collected).length > 0;
+        if (!hasTracking) return;
+
+        const stored = readStoredTracking(productId);
+        const payload = {
+            ...stored,
+            ...collected,
+            landing_url: window.location.href,
+            referrer: document.referrer || stored.referrer || null,
+            captured_at: new Date().toISOString()
+        };
+
+        try {
+            window.localStorage.setItem(getTrackingStorageKey(productId), JSON.stringify(payload));
+            window.localStorage.setItem(getTrackingStorageKey('global'), JSON.stringify(payload));
+        } catch {}
+    };
+
+    const getTrackingParameters = () => {
+        if (typeof window === 'undefined') return {};
+        const search = new URLSearchParams(window.location.search);
+        const stored = readStoredTracking(params.id as string);
+        const tracking: Record<string, string | null> = {
+            landing_url: window.location.href,
+            referrer: document.referrer || stored.referrer || null,
+        };
+        TRACKING_KEYS.forEach((key) => {
+            tracking[key] = search.get(key) || stored[key] || null;
+        });
+        return tracking;
+    };
+
     const startPixPolling = (orderId: string) => {
         // Estratégia de backoff exponencial para reduzir Edge Requests:
         // Começa verificando a cada 5s, vai aumentando progressivamente até 30s.
@@ -356,6 +434,7 @@ export default function CheckoutPage() {
                 const { data } = await checkoutAPI.getOrderStatus(orderId);
                 if (data.order?.status === 'paid') {
                     setPixPaid(true);
+                    trackPurchaseOnce(data.order);
                     toast.success('Pagamento confirmado! 🎉');
                     if (data.auth) autoLoginAndRedirect(data.auth);
                     return; // para o polling
@@ -373,7 +452,7 @@ export default function CheckoutPage() {
         try {
             const methodToSend = enableCreditCard ? paymentMethod : 'pix';
             if (!isValidCPF(form.cpf)) { toast.error('CPF inválido'); setProcessing(false); return; }
-            if (!settings.hide_phone && !isValidPhone(form.phone)) { toast.error('Telefone inválido'); setProcessing(false); return; }
+            if ((!settings.hide_phone || methodToSend === 'credit_card') && !isValidPhone(form.phone)) { toast.error('WhatsApp inválido'); setProcessing(false); return; }
             if (methodToSend === 'credit_card') {
                 if (!isValidCEP(form.cep)) { toast.error('CEP inválido'); setProcessing(false); return; }
                 if (!isValidUF(form.state)) { toast.error('UF inválida'); setProcessing(false); return; }
@@ -388,7 +467,7 @@ export default function CheckoutPage() {
                     name: form.name,
                     email: form.email,
                     cpf: form.cpf,
-                    ...(settings.hide_phone ? {} : { phone: form.phone }),
+                    ...(!settings.hide_phone || methodToSend === 'credit_card' ? { phone: form.phone } : {}),
                     ...(includeAddress ? {
                         address: {
                             line_1: `${form.street || ''}, ${form.number || ''}, ${form.neighborhood || ''}`.trim(),
@@ -404,6 +483,11 @@ export default function CheckoutPage() {
                 }
             };
             const payload: any = buyer;
+            payload.facebook = {
+                ...getFacebookCookies(),
+                event_source_url: typeof window !== 'undefined' ? window.location.href : undefined
+            };
+            payload.tracking = getTrackingParameters();
             if (methodToSend === 'credit_card') {
                 payload.card_data = {
                     number: form.card_number.replace(/\s/g, ''), holder_name: form.card_holder,
@@ -421,6 +505,7 @@ export default function CheckoutPage() {
             const { data } = await checkoutAPI.pay(payload);
             setResult(data);
             if (data.order?.status === 'paid') {
+                trackPurchaseOnce(data.order);
                 toast.success('Pagamento aprovado! 🎉');
                 if (data.auth) autoLoginAndRedirect(data.auth);
             } else if (methodToSend === 'pix') {
@@ -645,12 +730,14 @@ export default function CheckoutPage() {
                                             R$ {selectedPlan ? selectedPlan.price_display : product.price_display}
                                         </div>
                                     </div>
-                                    <details className="mt-2">
-                                        <summary className="text-xs font-semibold cursor-pointer opacity-70" style={{ color: textSecondary }}>Ver mais</summary>
-                                        <div className="text-xs leading-relaxed opacity-70 mt-2" style={{ color: textSecondary }}>
-                                            {product.description || 'Produto digital com entrega imediata via e-mail.'}
-                                        </div>
-                                    </details>
+                                    {product.description && (
+                                        <details className="mt-2">
+                                            <summary className="text-xs font-semibold cursor-pointer opacity-70" style={{ color: textSecondary }}>Ver mais</summary>
+                                            <div className="text-xs leading-relaxed opacity-70 mt-2" style={{ color: textSecondary }}>
+                                                {product.description}
+                                            </div>
+                                        </details>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -727,9 +814,9 @@ export default function CheckoutPage() {
                                             />
                                         </div>
                                     </div>
-                                    {!settings.hide_phone && (
+                                    {(!settings.hide_phone || paymentMethod === 'credit_card') && (
                                         <div className="group">
-                                            <label className="text-xs font-black uppercase tracking-wider mb-2 block opacity-60" style={{ color: textSecondary }}>Seu celular *</label>
+                                            <label className="text-xs font-black uppercase tracking-wider mb-2 block opacity-60" style={{ color: textSecondary }}>WhatsApp *</label>
                                             <div className="flex gap-3">
                                                 <div className="h-14 px-4 rounded-2xl border flex items-center gap-2 shrink-0" style={{ background: isLight ? '#fff' : inputBg, borderColor }}>
                                                     <img src="https://flagcdn.com/w20/br.png" alt="BR" className="w-5 h-3.5 object-cover rounded-sm" />

@@ -57,13 +57,16 @@ class BillingController {
 
             const platformRecipientId = settings?.platform_recipient_id || process.env.PLATFORM_RECIPIENT_ID;
             
-            // Calculate fees - Admin doesn't pay fees
-            const PLATFORM_FLAT_FEE = 150; // R$1,50
+            // Taxa da plataforma: R$2,00 fixo + 1,09% sobre o total
+            const PLATFORM_FLAT_FEE = 200; // R$2,00
+            const PLATFORM_PERCENT = 0.0109;
+
             let platformFeeAmount = 0;
             let sellerAmount = amountCents;
 
             if (user.role !== 'admin') {
-                platformFeeAmount = Math.min(PLATFORM_FLAT_FEE, amountCents);
+                const percentFee = Math.round(amountCents * PLATFORM_PERCENT);
+                platformFeeAmount = Math.min(PLATFORM_FLAT_FEE + percentFee, amountCents);
                 sellerAmount = amountCents - platformFeeAmount;
             }
 

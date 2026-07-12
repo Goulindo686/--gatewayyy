@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FiHome, FiPackage, FiDollarSign, FiSettings, FiLogOut, FiMenu, FiX, FiPercent, FiBookOpen, FiUser, FiMessageCircle, FiShoppingBag, FiShoppingCart, FiCalendar, FiChevronLeft, FiChevronRight, FiShield, FiRepeat, FiCreditCard } from 'react-icons/fi';
+import { FiHome, FiPackage, FiDollarSign, FiSettings, FiLogOut, FiMenu, FiX, FiPercent, FiBookOpen, FiUser, FiMessageCircle, FiShoppingBag, FiShoppingCart, FiCalendar, FiChevronLeft, FiChevronRight, FiShield, FiRepeat, FiCreditCard, FiMail, FiCode } from 'react-icons/fi';
 import { ThemeToggle } from '@/components/theme-toggle';
+import OnboardingBar from '@/components/OnboardingBar';
 import { dashboardAPI } from '@/lib/api';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -81,8 +82,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         };
 
         load();
-        // Reduzido de 8s para 60s — o saldo não precisa atualizar em tempo real no sidebar
-        const id = window.setInterval(load, 60000);
+        // Atualiza em baixa frequencia; o saldo nao precisa atualizar em tempo real no sidebar.
+        const id = window.setInterval(load, 300000);
 
         // Quando o usuário volta para a aba, atualiza imediatamente
         const onVisible = () => { if (document.visibilityState === 'visible') load(); };
@@ -112,15 +113,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const handleLogout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_user');
         router.push('/login');
     };
 
     const handleExitImpersonation = () => {
         const adminToken = localStorage.getItem('admin_token');
+        const adminUser = localStorage.getItem('admin_user');
         if (adminToken) {
             localStorage.setItem('token', adminToken);
+            if (adminUser) localStorage.setItem('user', adminUser);
             localStorage.removeItem('admin_token');
-            localStorage.removeItem('user');
+            localStorage.removeItem('admin_user');
         }
         router.push('/admin/sellers');
     };
@@ -298,10 +303,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: '/dashboard', icon: <FiHome size={18} />, label: 'Dashboard' },
         { href: '/dashboard/products', icon: <FiPackage size={18} />, label: 'Produtos' },
         { href: '/dashboard/sales', icon: <FiShoppingCart size={18} />, label: 'Vendas' },
+        { href: '/dashboard/sales-recovery', icon: <FiMail size={18} />, label: 'Recuperação' },
         { href: '/dashboard/billings', icon: <FiCreditCard size={18} />, label: 'Cobranças' },
         { href: '/dashboard/subscriptions', icon: <FiRepeat size={18} />, label: 'Assinaturas' },
         { href: '/dashboard/withdrawals', icon: <FiDollarSign size={18} />, label: 'Saques' },
         { href: '/dashboard/fees', icon: <FiPercent size={18} />, label: 'Taxas' },
+        { href: '/dashboard/integrations', icon: <FiCode size={18} />, label: 'Integrações' },
         { href: '/dashboard/settings', icon: <FiSettings size={18} />, label: 'Configurações' },
         { href: '/dashboard/store/settings', icon: <FiShoppingBag size={18} />, label: 'Minha Loja' },
         { href: '/dashboard/contact', icon: <FiMessageCircle size={18} />, label: 'Falar com a gente' },
@@ -516,6 +523,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                     
                 </header>
+
+                {/* Barra de onboarding — aparece apenas para usuários com cadastro incompleto */}
+                <OnboardingBar />
 
                 {/* Dashboard Filters below header (right aligned) */}
                 {pathname === '/dashboard' && (

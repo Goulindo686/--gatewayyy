@@ -186,18 +186,18 @@ export default function PaymentPage() {
     }
 
     return (
-        <div style={{ minHeight: '100vh', background: '#0a0a0c', color: '#e2e8f0', fontFamily: 'Outfit, Inter, sans-serif', padding: '0 24px 60px' }}>
+        <div className="storePaymentPage" style={{ minHeight: '100vh', background: '#0a0a0c', color: '#e2e8f0', fontFamily: 'Outfit, Inter, sans-serif', padding: '0 24px 60px' }}>
 
             {/* Top Bar (Image 2 inspired) */}
-            <div style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="paymentTopbar" style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: '#64748b' }}>Página de pagamento</span>
                 <span style={{ fontSize: 13, fontWeight: 700, color: '#64748b' }}>{new Date(order.created_at).toLocaleDateString('pt-BR')} {new Date(order.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
 
-            <div style={{ maxWidth: 1000, margin: '40px auto' }}>
+            <div className="paymentShell" style={{ maxWidth: 1000, margin: '40px auto' }}>
 
                 {/* Order Summary Strip (Image 2) */}
-                <div style={{ background: '#141417', borderRadius: 20, padding: '24px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32, border: '1px solid rgba(255,255,255,0.03)' }}>
+                <div className="paymentSummaryStrip" style={{ background: '#141417', borderRadius: 20, padding: '24px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32, border: '1px solid rgba(255,255,255,0.03)' }}>
                     <div>
                         <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>ID do Pedido</div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>#{order.id.substring(0, 8)}</div>
@@ -216,7 +216,7 @@ export default function PaymentPage() {
 
                 {/* Main QR Code Box (Image 2 Content) - Only for Pix */}
                 {order.payment_method === 'pix' ? (
-                    <div style={{ background: '#141417', borderRadius: 32, padding: 48, textAlign: 'center', border: '1px solid rgba(255,255,255,0.03)', position: 'relative' }}>
+                    <div className="paymentPixCard" style={{ background: '#141417', borderRadius: 32, padding: 48, textAlign: 'center', border: '1px solid rgba(255,255,255,0.03)', position: 'relative' }}>
 
                         <div style={{ marginBottom: 32 }}>
                             <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 8 }}>Tempo restante</div>
@@ -227,7 +227,7 @@ export default function PaymentPage() {
 
                         <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 20 }}>QR Code</div>
 
-                        <div style={{
+                        <div className="paymentQrBox" style={{
                             width: '100%', maxWidth: 300, margin: '0 auto 32px', background: 'white', padding: 12, borderRadius: 24,
                             border: '4px solid #ff9f43', boxShadow: '0 0 30px rgba(255, 159, 67, 0.2)',
                             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 240
@@ -250,7 +250,7 @@ export default function PaymentPage() {
 
                         <div style={{ maxWidth: 500, margin: '0 auto' }}>
                             <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 12, textAlign: 'left' }}>PIX Copia e cola</div>
-                            <div style={{
+                            <div className="paymentPixCode" style={{
                                 background: '#0a0a0c', padding: '16px', borderRadius: 12, fontSize: 12, color: '#64748b',
                                 textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                 border: '1px solid rgba(255,255,255,0.05)', marginBottom: 16
@@ -272,7 +272,7 @@ export default function PaymentPage() {
                         </div>
                     </div>
                 ) : (
-                    <div style={{ background: '#141417', borderRadius: 32, padding: 48, textAlign: 'center', border: '1px solid rgba(255,255,255,0.03)' }}>
+                    <div className="paymentPixCard" style={{ background: '#141417', borderRadius: 32, padding: 48, textAlign: 'center', border: '1px solid rgba(255,255,255,0.03)' }}>
                         <FiCheckCircle size={64} style={{ color: '#00cec9', marginBottom: 24 }} />
                         <h2 style={{ fontSize: 24, fontWeight: 800, color: 'white', marginBottom: 12 }}>Pagamento em processamento</h2>
                         <p style={{ color: '#94a3b8' }}>Estamos aguardando a confirmação do seu pagamento via Pix.</p>
@@ -280,7 +280,7 @@ export default function PaymentPage() {
                 )}
 
                 {/* Important Section (Image 2 Footer) */}
-                <div style={{ marginTop: 40, background: 'rgba(0, 206, 201, 0.03)', borderRadius: 24, padding: 32, border: '1px solid rgba(0, 206, 201, 0.1)' }}>
+                <div className="paymentHelpCard" style={{ marginTop: 40, background: 'rgba(0, 206, 201, 0.03)', borderRadius: 24, padding: 32, border: '1px solid rgba(0, 206, 201, 0.1)' }}>
                     <h3 style={{ fontSize: 18, fontWeight: 800, color: 'white', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
                         <FiShield style={{ color: '#00cec9' }} /> Importante: Como pagar com o Pix
                     </h3>
@@ -307,6 +307,76 @@ export default function PaymentPage() {
                     </div>
                 </div>
             </div>
+            <style jsx>{`
+                .storePaymentPage {
+                    background:
+                        radial-gradient(circle at top left, rgba(0,206,201,0.08), transparent 34%),
+                        radial-gradient(circle at top right, rgba(255,159,67,0.07), transparent 32%),
+                        #0a0a0c !important;
+                }
+                .paymentSummaryStrip,
+                .paymentPixCard,
+                .paymentHelpCard {
+                    box-shadow: 0 20px 70px rgba(0,0,0,0.24);
+                }
+                .paymentPixCard {
+                    border-color: rgba(0,206,201,0.10) !important;
+                }
+                @media (max-width: 720px) {
+                    .storePaymentPage {
+                        padding: 0 12px 36px !important;
+                    }
+                    .paymentTopbar {
+                        padding: 18px 0 !important;
+                        gap: 8px;
+                    }
+                    .paymentTopbar span {
+                        font-size: 12px !important;
+                    }
+                    .paymentShell {
+                        margin: 22px auto !important;
+                    }
+                    .paymentSummaryStrip {
+                        display: grid !important;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 16px;
+                        padding: 18px !important;
+                        border-radius: 18px !important;
+                    }
+                    .paymentSummaryStrip > div:last-child {
+                        grid-column: 1 / -1;
+                    }
+                    .paymentPixCard {
+                        padding: 20px 14px !important;
+                        border-radius: 20px !important;
+                    }
+                    .paymentQrBox {
+                        max-width: 248px !important;
+                        min-height: 212px !important;
+                        border-radius: 18px !important;
+                        margin-bottom: 22px !important;
+                    }
+                    .paymentQrBox svg {
+                        width: 190px !important;
+                        height: 190px !important;
+                    }
+                    .paymentPixCode {
+                        white-space: normal !important;
+                        word-break: break-all;
+                        max-height: 96px;
+                        overflow: auto !important;
+                    }
+                    .paymentHelpCard {
+                        margin-top: 22px !important;
+                        padding: 18px !important;
+                        border-radius: 18px !important;
+                    }
+                    .paymentHelpCard h3 {
+                        font-size: 16px !important;
+                        margin-bottom: 18px !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 }

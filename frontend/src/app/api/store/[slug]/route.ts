@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
         // Simple eq with slug, since it should be sanitized
         const { data: users, error: userError } = await supabase
             .from('users')
-            .select('id, name, store_name, store_description, store_theme, store_banner_url, store_active')
+            .select('id, name, store_name, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text')
             .ilike('store_slug', slug);
 
         if (userError) {
@@ -46,6 +46,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
             .select('*')
             .eq('user_id', user.id)
             .eq('status', 'active')
+            .eq('type', 'digital')
             .eq('show_in_store', true)
             .order('created_at', { ascending: false });
 
@@ -96,7 +97,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
                 name: user.store_name,
                 description: user.store_description,
                 theme: user.store_theme || 'light',
-                banner_url: user.store_banner_url
+                banner_url: user.store_banner_url,
+                template: user.store_template || 'creator',
+                accent_color: user.store_accent_color || '#6c5ce7',
+                headline: user.store_headline || user.store_name,
+                cta_text: user.store_cta_text || 'Ver produtos',
+                badge_text: user.store_badge_text || 'Produtos digitais com acesso online'
             },
             categories: categories || [],
             products: formattedProducts

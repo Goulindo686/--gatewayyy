@@ -46,7 +46,8 @@ export async function PUT(req: NextRequest) {
             'pix_key', 'pix_key_type',
             'bank_name', 'bank_agency', 'bank_agency_digit', 'bank_account', 'bank_account_digit', 'bank_account_type',
             'store_name', 'store_slug', 'store_description', 'store_active',
-            'store_theme', 'store_banner_url',
+            'store_theme', 'store_banner_url', 'store_template', 'store_accent_color',
+            'store_headline', 'store_cta_text', 'store_badge_text',
             'webhook_url'
         ];
 
@@ -57,6 +58,8 @@ export async function PUT(req: NextRequest) {
                 if (field === 'cpf_cnpj') {
                     const value = typeof body[field] === 'string' ? body[field].trim() : body[field];
                     updateData[field] = value === '' ? null : value;
+                } else if (field === 'store_badge_text') {
+                    updateData[field] = typeof body[field] === 'string' ? body[field].trim().slice(0, 60) : body[field];
                 } else {
                     updateData[field] = body[field];
                 }

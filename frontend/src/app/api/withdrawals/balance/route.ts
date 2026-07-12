@@ -3,11 +3,29 @@ export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { supabase, fetchAll } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { PagarmeService } from '@/lib/pagarme';
+
+async function getReservedWithdrawals(userId: string) {
+    const { data } = await supabase
+        .from('withdrawals')
+        .select('amount')
+        .eq('user_id', userId)
+        .in('status', ['pending', 'processing']);
+
+    return (data || []).reduce((sum, w) => sum + (w.amount || 0), 0);
+}
 
 export async function GET(req: NextRequest) {
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Não autorizado', 401);
+
+    const ip =
+        req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+        req.headers.get('x-real-ip') ||
+        'unknown';
+    const rl = await checkRateLimit({ key: `withdrawals:balance:ip:${ip}`, limit: 120, windowSecs: 60, failOpen: true });
+    if (!rl.allowed) return rateLimitResponse(rl.resetAt);
 
     try {
         // Get recipient ID
@@ -28,6 +46,7 @@ export async function GET(req: NextRequest) {
                 };
 
                 const available = balance.available_amount !== undefined ? balance.available_amount : getAmount(balance.available);
+                const reservedWithdrawals = await getReservedWithdrawals(auth.user.id);
                 const pending = balance.waiting_funds_amount !== undefined ? balance.waiting_funds_amount : getAmount(balance.waiting_funds);
                 const transferred = balance.transferred_amount !== undefined ? balance.transferred_amount : getAmount(balance.transferred);
 
@@ -40,7 +59,7 @@ export async function GET(req: NextRequest) {
                 const totalSold = (orders || []).reduce((sum, o) => sum + (o.amount || 0), 0);
 
                 return jsonSuccess({
-                    available: (available / 100).toFixed(2),
+                    available: (Math.max(0, available - reservedWithdrawals) / 100).toFixed(2),
                     pending: (pending / 100).toFixed(2),
                     total_sold: (totalSold / 100).toFixed(2),
                     total_withdrawn: (transferred / 100).toFixed(2),
@@ -65,7 +84,8 @@ export async function GET(req: NextRequest) {
         const totalFees = (fees || []).reduce((sum, t) => sum + (t.amount || 0), 0);
         const totalWithdrawn = (withdrawals || []).reduce((sum, t) => sum + (t.amount || 0), 0);
         const pendingAmount = (pendingSales || []).reduce((sum, t) => sum + (t.amount || 0), 0);
-        const available = totalSold - totalFees - totalWithdrawn;
+        const reservedWithdrawals = await getReservedWithdrawals(auth.user.id);
+        const available = totalSold - totalFees - totalWithdrawn - reservedWithdrawals;
 
         return jsonSuccess({
             available: (available / 100).toFixed(2),

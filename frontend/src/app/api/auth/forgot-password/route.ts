@@ -1,29 +1,50 @@
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30; // aumenta o timeout para 30 segundos
+export const runtime = 'nodejs';
 
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { jsonError, jsonSuccess } from '@/lib/auth';
+import { sendPasswordResetEmail } from '@/lib/email';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
     try {
+        const requestId = uuidv4().slice(0, 8);
         const { email } = await req.json();
 
         if (!email) return jsonError('Email é obrigatório');
 
-        // Check if user exists in our custom users table
-        const { data: users } = await supabase
+        const normalizedEmail = String(email).toLowerCase().trim();
+        if (!normalizedEmail) return jsonError('Email é obrigatório');
+
+        const ip =
+            req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+            req.headers.get('x-real-ip') ||
+            'unknown';
+
+        const rlIp = await checkRateLimit({ key: `auth:forgot:ip:${ip}`, limit: 10, windowSecs: 900, failOpen: false });
+        if (!rlIp.allowed) return rateLimitResponse(rlIp.resetAt);
+
+        const rlEmail = await checkRateLimit({ key: `auth:forgot:email:${normalizedEmail}`, limit: 3, windowSecs: 3600, failOpen: false });
+        if (!rlEmail.allowed) return rateLimitResponse(rlEmail.resetAt);
+
+        const { data: users, error: userErr } = await supabase
             .from('users')
             .select('id, email, name')
-            .eq('email', email);
+            .ilike('email', normalizedEmail)
+            .limit(1);
 
         const user = users?.[0];
-        let resetToken: string | null = null;
+        console.log(`[FORGOT-PASSWORD][${requestId}] Email: ${normalizedEmail}, User found: ${!!user}`);
+        if (userErr) {
+            console.error(`[FORGOT-PASSWORD][${requestId}] Erro ao buscar usuário:`, userErr.message, userErr.code, userErr.details);
+        }
 
-        // If user exists, generate reset token
         if (user) {
-            resetToken = uuidv4();
-            const resetExpires = new Date(Date.now() + 3600000); // 1 hour
+            const resetToken = uuidv4();
+            const resetExpires = new Date(Date.now() + 3600000);
 
             const { error } = await supabase
                 .from('users')
@@ -34,32 +55,23 @@ export async function POST(req: NextRequest) {
                 .eq('id', user.id);
 
             if (!error) {
-                // Build reset URL
-                const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.goupay.com.br'}/reset-password?token=${resetToken}`;
-                
-                console.log('\n=== PASSWORD RESET REQUEST ===');
-                console.log('Email:', email);
-                console.log('Reset URL:', resetUrl);
-                console.log('Token:', resetToken);
-                console.log('Expires:', new Date(Date.now() + 3600000).toISOString());
-                console.log('==============================\n');
-
-                // TODO: Integrate with email service
-                // For now, we're logging the link
-                // In production, you can:
-                // 1. Use Supabase Edge Functions to send email
-                // 2. Call backend API to send email via nodemailer
-                // 3. Use a service like Resend, SendGrid, etc.
+                try {
+                    await sendPasswordResetEmail({
+                        toEmail: user.email,
+                        userName: user.name,
+                        resetToken,
+                    });
+                    console.log(`[FORGOT-PASSWORD][${requestId}] Email de recuperação enviado para ${user.email}`);
+                } catch (sendErr: any) {
+                    console.error(`[FORGOT-PASSWORD][${requestId}] Erro ao enviar email de recuperação:`, sendErr?.message, sendErr?.code);
+                }
+            } else {
+                console.error(`[FORGOT-PASSWORD][${requestId}] Erro ao salvar token de recuperação no banco:`, error.message, error.code, error.details);
             }
         }
 
-        // Always return success for security (don't reveal if email exists)
-        return jsonSuccess({ 
-            message: 'Se o email existir, as instruções de recuperação serão enviadas.',
-            // In development, include the reset URL for testing
-            ...(process.env.NODE_ENV === 'development' && resetToken ? {
-                dev_reset_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.goupay.com.br'}/reset-password?token=${resetToken}`
-            } : {})
+        return jsonSuccess({
+            message: 'Se o email existir, as instruções de recuperação serão enviadas.'
         });
     } catch (err) {
         console.error('Forgot password error:', err);

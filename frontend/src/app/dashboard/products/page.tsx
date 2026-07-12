@@ -18,13 +18,15 @@ export default function ProductsPage() {
     const [selectedProductForEnroll, setSelectedProductForEnroll] = useState<any>(null);
     const [editing, setEditing] = useState<any>(null);
     const [form, setForm] = useState({
-        name: '', price: '', image_url: '', type: 'digital', status: 'active',
+        name: '', description: '', price: '', image_url: '', type: 'digital', status: 'active',
         facebook_pixel_id: '', facebook_api_token: ''
     });
     const [plans, setPlans] = useState<Array<{ name: string; price: string }>>([{ name: 'Padrão', price: '' }]);
     const [isSubscription, setIsSubscription] = useState(false);
     const [subInterval, setSubInterval] = useState<'month' | 'week' | 'year'>('month');
     const [uploading, setUploading] = useState(false);
+    const [testingPixel, setTestingPixel] = useState(false);
+    const [pixelTestCode, setPixelTestCode] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
 
@@ -43,7 +45,8 @@ export default function ProductsPage() {
 
     const openCreate = () => {
         setEditing(null);
-        setForm({ name: '', price: '', image_url: '', type: 'digital', status: 'active', facebook_pixel_id: '', facebook_api_token: '' });
+        setForm({ name: '', description: '', price: '', image_url: '', type: 'digital', status: 'active', facebook_pixel_id: '', facebook_api_token: '' });
+        setPixelTestCode('');
         setSelectedFile(null);
         setImagePreview(null);
         setPlans([{ name: 'Padrão', price: '' }]);
@@ -59,6 +62,7 @@ export default function ProductsPage() {
             const p = data.product || product;
             setForm({
                 name: p.name,
+                description: p.description || '',
                 price: p.price_display || (p.price / 100).toFixed(2),
                 image_url: p.image_url || '',
                 type: p.type,
@@ -66,16 +70,36 @@ export default function ProductsPage() {
                 facebook_pixel_id: p.facebook_pixel_id || '',
                 facebook_api_token: p.facebook_api_token || ''
             });
+            setPixelTestCode('');
             const loadedPlans = Array.isArray(p.plans) && p.plans.length > 0
                 ? p.plans.map((pl: any) => ({ name: pl.name, price: pl.price_display || (pl.price / 100).toFixed(2) }))
                 : [{ name: 'Padrão', price: p.price_display || (p.price / 100).toFixed(2) }];
             setPlans(loadedPlans);
+
+            // Detecta se é produto de assinatura e carrega o intervalo atual
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+            try {
+                const subRes = await axios.get(`/api/subscriptions/plans?product_id=${p.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const subPlans = subRes.data?.plans || [];
+                if (subPlans.length > 0) {
+                    setIsSubscription(true);
+                    setSubInterval(subPlans[0].interval || 'month');
+                } else {
+                    setIsSubscription(false);
+                }
+            } catch {
+                setIsSubscription(false);
+            }
+
             setSelectedFile(null);
             setImagePreview(p.image_url || null);
             setShowModal(true);
         } catch {
             setForm({
                 name: product.name,
+                description: product.description || '',
                 price: product.price_display || (product.price / 100).toFixed(2),
                 image_url: product.image_url || '',
                 type: product.type,
@@ -84,6 +108,7 @@ export default function ProductsPage() {
                 facebook_api_token: product.facebook_api_token || ''
             });
             setPlans([{ name: 'Padrão', price: product.price_display || (product.price / 100).toFixed(2) }]);
+            setIsSubscription(false);
             setSelectedFile(null);
             setImagePreview(product.image_url || null);
             setShowModal(true);
@@ -127,33 +152,70 @@ export default function ProductsPage() {
                 return;
             }
 
-            const productData: any = { ...form, image_url: finalImageUrl, plans: normalizedPlans };
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+            const productData: any = { ...form, description: form.description.trim() || null, image_url: finalImageUrl, plans: normalizedPlans };
             if (!editing && normalizedPlans[0]) productData.price = normalizedPlans[0].price;
 
             let savedProduct: any;
             if (editing) {
-                const { data } = await productsAPI.update(editing.id, productData);
+                // Usa a Next.js API Route para garantir que product_plans é atualizado
+                const { data } = await axios.put(`/api/products/${editing.id}`, productData, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
                 savedProduct = data.product;
-                toast.success('Produto atualizado!');
+
+                // Se for assinatura, atualiza os planos no Pagar.me
+                // (desativa os antigos e cria novos com o preço atualizado)
+                if (isSubscription) {
+                    try {
+                        // Busca planos existentes no Pagar.me
+                        const subRes = await axios.get(`/api/subscriptions/plans?product_id=${editing.id}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        const existingSubPlans = subRes.data?.plans || [];
+
+                        // Desativa os planos antigos
+                        for (const oldPlan of existingSubPlans) {
+                            await axios.delete(`/api/subscriptions/plans/${oldPlan.id}`, {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                        }
+
+                        // Cria novos planos com os preços atualizados
+                        for (const pl of normalizedPlans) {
+                            await axios.post('/api/subscriptions/plans', {
+                                name: `${form.name} — ${pl.name}`,
+                                amount: pl.price,
+                                interval: subInterval,
+                                interval_count: 1,
+                                product_id: editing.id
+                            }, { headers: { 'Authorization': `Bearer ${token}` } });
+                        }
+                        toast.success('Produto e planos de assinatura atualizados!');
+                    } catch (subErr: any) {
+                        toast.error('Produto salvo, mas erro ao atualizar planos: ' + (subErr.response?.data?.error || subErr.message));
+                    }
+                } else {
+                    toast.success('Produto atualizado!');
+                }
             } else {
                 const { data } = await productsAPI.create(productData);
                 savedProduct = data.product;
                 toast.success('Produto criado!');
-            }
 
-            // Se for assinatura, cria plano no Pagar.me para cada plano de preço
-            if (isSubscription && !editing && savedProduct) {
-                const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-                for (const pl of normalizedPlans) {
-                    await axios.post('/api/subscriptions/plans', {
-                        name: `${form.name} — ${pl.name}`,
-                        amount: pl.price,
-                        interval: subInterval,
-                        interval_count: 1,
-                        product_id: savedProduct.id
-                    }, { headers: { 'Authorization': `Bearer ${token}` } });
+                // Se for assinatura, cria plano no Pagar.me para cada plano de preço
+                if (isSubscription && savedProduct) {
+                    for (const pl of normalizedPlans) {
+                        await axios.post('/api/subscriptions/plans', {
+                            name: `${form.name} — ${pl.name}`,
+                            amount: pl.price,
+                            interval: subInterval,
+                            interval_count: 1,
+                            product_id: savedProduct.id
+                        }, { headers: { 'Authorization': `Bearer ${token}` } });
+                    }
+                    toast.success('Planos de assinatura criados!');
                 }
-                toast.success('Planos de assinatura criados!');
             }
 
             setShowModal(false);
@@ -208,6 +270,30 @@ export default function ProductsPage() {
 
     const update = (field: string, value: string) => setForm({ ...form, [field]: value });
 
+    const testFacebookPixel = async () => {
+        if (!form.facebook_pixel_id.trim()) return toast.error('Informe o Pixel ID');
+        if (!form.facebook_api_token.trim()) return toast.error('Informe o Access Token');
+
+        setTestingPixel(true);
+        try {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+            const { data } = await axios.post('/api/products/facebook-test', {
+                product_id: editing?.id,
+                product_name: form.name || 'Teste de Pixel',
+                facebook_pixel_id: form.facebook_pixel_id,
+                facebook_api_token: form.facebook_api_token,
+                test_event_code: pixelTestCode.trim() || undefined
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success(data.message || 'Pixel testado com sucesso!');
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Erro ao testar Pixel');
+        } finally {
+            setTestingPixel(false);
+        }
+    };
+
     if (loading) {
         return (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
@@ -256,9 +342,12 @@ export default function ProductsPage() {
                                         {product.type === 'digital' ? 'Digital' : 'Físico'}
                                     </span>
                                 </div>
-                                <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 16, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                    {product.description || 'Sem descrição'}
-                                </p>
+
+                                {product.description && (
+                                    <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 16, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                        {product.description}
+                                    </p>
+                                )}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <span style={{ fontSize: 22, fontWeight: 700 }} className="gradient-text">
                                         R$ {product.price_display || (product.price / 100).toFixed(2)}
@@ -321,25 +410,45 @@ export default function ProductsPage() {
                                     value={form.name} onChange={e => update('name', e.target.value)} />
                             </div>
 
-                            {/* Toggle Assinatura */}
-                            {!editing && (
+                            <div style={{ marginBottom: 16 }}>
+                                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Descricao do produto</label>
+                                <textarea
+                                    className="input-field"
+                                    rows={4}
+                                    maxLength={600}
+                                    placeholder="Explique o que o cliente vai receber. Opcional."
+                                    value={form.description}
+                                    onChange={e => update('description', e.target.value)}
+                                />
+                                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                                    Se deixar vazio, nenhuma descricao sera exibida.
+                                </p>
+                            </div>
+
+                            {/* Toggle Assinatura — aparece na criação ou quando editando produto de assinatura */}
+                            {(!editing || isSubscription) && (
                                 <div style={{ marginBottom: 16, padding: 14, borderRadius: 12, border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.02)' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                         <div>
                                             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Produto de Assinatura</div>
                                             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Cobra o cliente automaticamente a cada ciclo via cartão</div>
                                         </div>
-                                        <button type="button" onClick={() => setIsSubscription(!isSubscription)} style={{
-                                            width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-                                            background: isSubscription ? 'var(--accent-primary)' : 'var(--border-color)',
-                                            position: 'relative', transition: 'background 0.2s', flexShrink: 0
-                                        }}>
-                                            <span style={{
-                                                position: 'absolute', top: 3, left: isSubscription ? 23 : 3,
-                                                width: 18, height: 18, borderRadius: '50%', background: 'white',
-                                                transition: 'left 0.2s', display: 'block'
-                                            }} />
-                                        </button>
+                                        {/* Na edição de assinatura, o toggle fica fixo como ativo */}
+                                        {!editing ? (
+                                            <button type="button" onClick={() => setIsSubscription(!isSubscription)} style={{
+                                                width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+                                                background: isSubscription ? 'var(--accent-primary)' : 'var(--border-color)',
+                                                position: 'relative', transition: 'background 0.2s', flexShrink: 0
+                                            }}>
+                                                <span style={{
+                                                    position: 'absolute', top: 3, left: isSubscription ? 23 : 3,
+                                                    width: 18, height: 18, borderRadius: '50%', background: 'white',
+                                                    transition: 'left 0.2s', display: 'block'
+                                                }} />
+                                            </button>
+                                        ) : (
+                                            <span style={{ fontSize: 11, color: 'var(--accent-primary)', fontWeight: 600, background: 'rgba(108,92,231,0.12)', padding: '3px 10px', borderRadius: 20 }}>Ativo</span>
+                                        )}
                                     </div>
                                     {isSubscription && (
                                         <div style={{ marginTop: 12 }}>
@@ -424,7 +533,7 @@ export default function ProductsPage() {
                             <div style={{ marginBottom: 16 }}>
                                 <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Facebook Pixel ID (Opcional)</label>
                                 <input type="text" className="input-field" placeholder="Ex: 1234567890"
-                                    value={form.facebook_pixel_id} onChange={e => update('facebook_pixel_id', e.target.value)} />
+                                    value={form.facebook_pixel_id} onChange={e => update('facebook_pixel_id', e.target.value.replace(/\D/g, ''))} />
                                 <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
                                     ID do Pixel para rastreamento de eventos no checkout.
                                 </p>
@@ -437,6 +546,23 @@ export default function ProductsPage() {
                                 <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
                                     Token de acesso para enviar eventos via API (Server-side) quando o pagamento for aprovado.
                                 </p>
+                                <input
+                                    type="text"
+                                    className="input-field"
+                                    placeholder="Codigo de teste do Meta (opcional)"
+                                    value={pixelTestCode}
+                                    onChange={e => setPixelTestCode(e.target.value)}
+                                    style={{ marginTop: 10 }}
+                                />
+                                <button
+                                    type="button"
+                                    className="btn-secondary"
+                                    onClick={testFacebookPixel}
+                                    disabled={testingPixel || !form.facebook_pixel_id || !form.facebook_api_token}
+                                    style={{ marginTop: 10, width: '100%' }}
+                                >
+                                    {testingPixel ? 'Testando Pixel...' : 'Testar Pixel do Facebook'}
+                                </button>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, marginBottom: 24 }}>

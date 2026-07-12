@@ -1,8 +1,9 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest } from 'next/server';
-import { supabase } from '@/lib/db';
+import { fetchAll, supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
+import { normalizeFacebookSettings } from '@/lib/facebook-capi';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(req: NextRequest) {
@@ -28,12 +29,67 @@ export async function GET(req: NextRequest) {
     const subPlansByProduct: Record<string, any> = {};
     (subPlans || []).forEach(sp => { subPlansByProduct[sp.product_id] = sp; });
 
+    const salesByProduct: Record<string, number> = {};
+    try {
+        const paidOrders = await fetchAll<{ product_id: string | null }>(
+            supabase
+                .from('orders')
+                .select('product_id')
+                .eq('seller_id', auth.user.id)
+                .eq('status', 'paid')
+                .in('product_id', productIds)
+        );
+
+        for (const o of paidOrders) {
+            if (!o?.product_id) continue;
+            salesByProduct[o.product_id] = (salesByProduct[o.product_id] || 0) + 1;
+        }
+    } catch {}
+
+    try {
+        const planIds = (subPlans || []).map((p: any) => p.id).filter(Boolean);
+        if (planIds.length > 0) {
+            const planToProduct: Record<string, string> = {};
+            (subPlans || []).forEach((p: any) => { if (p?.id && p?.product_id) planToProduct[p.id] = p.product_id; });
+
+            const subscriptions = await fetchAll<{ subscription_plan_id: string | null }>(
+                supabase
+                    .from('subscriptions')
+                    .select('subscription_plan_id')
+                    .eq('seller_id', auth.user.id)
+                    .in('subscription_plan_id', planIds)
+                    .in('status', ['active', 'past_due', 'canceled'])
+            );
+
+            for (const s of subscriptions) {
+                const pid = s?.subscription_plan_id ? planToProduct[s.subscription_plan_id] : null;
+                if (!pid) continue;
+                salesByProduct[pid] = (salesByProduct[pid] || 0) + 1;
+            }
+        }
+    } catch {}
+
     const formattedProducts = products.map(p => ({
         ...p,
         price: p.price / 100,
         price_display: (p.price / 100).toFixed(2),
+        sales_count: salesByProduct[p.id] || 0,
         subscription_plan: subPlansByProduct[p.id] || null
     }));
+
+    try {
+        const updates = formattedProducts
+            .filter((p: any) => typeof p?.sales_count === 'number' && Number.isFinite(p.sales_count))
+            .map((p: any) =>
+                supabase
+                    .from('products')
+                    .update({ sales_count: p.sales_count })
+                    .eq('id', p.id)
+            );
+        if (updates.length > 0) {
+            await Promise.allSettled(updates);
+        }
+    } catch {}
 
     return jsonSuccess({ products: formattedProducts });
 }
@@ -45,6 +101,10 @@ export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
         const { name, description, price, image_url, type, status, facebook_pixel_id, facebook_api_token, plans } = body;
+        const cleanDescription = typeof description === 'string' && description.trim()
+            ? description.trim()
+            : null;
+        const facebookSettings = normalizeFacebookSettings({ facebook_pixel_id, facebook_api_token });
 
         if (!name) return jsonError('Nome é obrigatório');
 
@@ -63,14 +123,14 @@ export async function POST(req: NextRequest) {
             id: uuidv4(),
             user_id: auth.user.id,
             name,
-            description,
+            description: cleanDescription,
             price: basePrice,
             price_display: basePriceDisplay,
             image_url,
             type: type || 'digital',
             status: status || 'active',
-            facebook_pixel_id,
-            facebook_api_token
+            facebook_pixel_id: facebookSettings.facebook_pixel_id,
+            facebook_api_token: facebookSettings.facebook_api_token
         }).select().single();
 
         if (error) {

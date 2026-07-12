@@ -34,10 +34,18 @@ export default function AdminSellersPage() {
     };
 
     const impersonate = async (id: string, name: string) => {
+        const reason = window.prompt(`Informe o motivo para acessar a conta de ${name}:`)?.trim();
+        if (!reason) return;
+        if (reason.length < 8) {
+            toast.error('Informe um motivo com pelo menos 8 caracteres.');
+            return;
+        }
+
         try {
-            const { data } = await adminAPI.impersonate(id);
+            const { data } = await adminAPI.impersonate(id, reason);
             // Salva token admin para poder voltar depois
             localStorage.setItem('admin_token', localStorage.getItem('token') || '');
+            localStorage.setItem('admin_user', localStorage.getItem('user') || '');
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
             toast.success(`Entrando como ${name}...`);

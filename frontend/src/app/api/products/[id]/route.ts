@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
+import { normalizeFacebookSettings } from '@/lib/facebook-capi';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -50,7 +51,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         const updateData: any = {};
 
         if (body.name) updateData.name = body.name;
-        if (body.description !== undefined) updateData.description = body.description;
+        if (body.description !== undefined) {
+            updateData.description = typeof body.description === 'string' && body.description.trim()
+                ? body.description.trim()
+                : null;
+        }
         if (body.price) {
             updateData.price = Math.round(parseFloat(body.price) * 100);
             updateData.price_display = parseFloat(body.price).toFixed(2);
@@ -59,8 +64,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         if (body.type) updateData.type = body.type;
         if (body.status) updateData.status = body.status;
         if (body.checkout_settings !== undefined) updateData.checkout_settings = body.checkout_settings;
-        if (body.facebook_pixel_id !== undefined) updateData.facebook_pixel_id = body.facebook_pixel_id;
-        if (body.facebook_api_token !== undefined) updateData.facebook_api_token = body.facebook_api_token;
+        const facebookSettings = normalizeFacebookSettings(body);
+        if (facebookSettings.facebook_pixel_id !== undefined) updateData.facebook_pixel_id = facebookSettings.facebook_pixel_id;
+        if (facebookSettings.facebook_api_token !== undefined) updateData.facebook_api_token = facebookSettings.facebook_api_token;
 
         // Novos campos da loja
         if (body.store_category_id !== undefined) updateData.store_category_id = body.store_category_id;

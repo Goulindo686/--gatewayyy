@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiSave, FiUser, FiCreditCard, FiKey, FiBell, FiCheckCircle, FiCode, FiCopy, FiPlus, FiGlobe, FiZap, FiSmartphone, FiXCircle, FiSend } from 'react-icons/fi';
+import { FiSave, FiUser, FiCreditCard, FiKey, FiBell, FiCheckCircle, FiCode, FiCopy, FiPlus, FiGlobe, FiZap, FiSmartphone, FiXCircle, FiSend, FiEye, FiEyeOff, FiRefreshCw, FiTrash2, FiPower } from 'react-icons/fi';
 import axios from 'axios';
 
 // Converte a VAPID public key de base64url para Uint8Array (necessario para subscribe)
@@ -20,6 +20,7 @@ export default function SettingsPage() {
     const [testingWebhook, setTestingWebhook] = useState(false);
     const [tab, setTab] = useState('profile');
     const [apiKeys, setApiKeys] = useState<any[]>([]);
+    const [visibleApiKeys, setVisibleApiKeys] = useState<Record<string, boolean>>({});
     const [loadingKeys, setLoadingKeys] = useState(false);
     const [pushSubscribed, setPushSubscribed] = useState(false);
     const [pushLoading, setPushLoading] = useState(false);
@@ -183,6 +184,64 @@ export default function SettingsPage() {
         }
     };
 
+    const toggleApiKeyVisibility = (id: string) => {
+        setVisibleApiKeys(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    const maskApiKey = (keyValue: string) => {
+        if (!keyValue) return '********';
+        const prefix = keyValue.slice(0, 8);
+        const suffix = keyValue.slice(-4);
+        return `${prefix}${'*'.repeat(24)}${suffix}`;
+    };
+
+    const updateApiKeyStatus = async (id: string, isActive: boolean) => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.patch(`/api/auth/api-keys/${id}`, { is_active: isActive }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success(isActive ? 'Chave reativada!' : 'Chave revogada!');
+            loadApiKeys();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Erro ao atualizar chave');
+        }
+    };
+
+    const renewApiKey = async (id: string) => {
+        if (!window.confirm('Renovar esta chave? A chave atual deixara de funcionar imediatamente.')) return;
+        try {
+            const token = localStorage.getItem('token');
+            const { data } = await axios.put(`/api/auth/api-keys/${id}`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setVisibleApiKeys(prev => ({ ...prev, [id]: true }));
+            toast.success('Chave renovada! Copie a nova chave agora.');
+            setApiKeys(prev => prev.map(key => key.id === id ? data.key : key));
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Erro ao renovar chave');
+        }
+    };
+
+    const deleteApiKey = async (id: string) => {
+        if (!window.confirm('Apagar esta chave de API? Essa acao nao pode ser desfeita.')) return;
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`/api/auth/api-keys/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setVisibleApiKeys(prev => {
+                const next = { ...prev };
+                delete next[id];
+                return next;
+            });
+            toast.success('Chave apagada!');
+            loadApiKeys();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Erro ao apagar chave');
+        }
+    };
+
     const testWebhook = async () => {
         if (!form.webhook_url) return toast.error('Configure uma URL primeiro');
         setTestingWebhook(true);
@@ -246,7 +305,6 @@ export default function SettingsPage() {
         { key: 'bank', label: 'Dados Bancários', icon: <FiCreditCard size={16} /> },
         { key: 'pix', label: 'Chave Pix', icon: <FiKey size={16} /> },
         { key: 'notifications', label: 'Notificações', icon: <FiBell size={16} /> },
-        { key: 'api', label: 'API & Integração', icon: <FiCode size={16} /> }
     ];
 
     if (loading) {
@@ -396,32 +454,58 @@ export default function SettingsPage() {
                                                     overflowWrap: 'break-word',
                                                     maxWidth: '100%',
                                                     display: 'inline-block'
-                                                }}>{key.api_key}</code>
+                                                }}>{visibleApiKeys[key.id] ? key.api_key : maskApiKey(key.api_key)}</code>
                                                 {key.is_active ? (
                                                     <span style={{ fontSize: 10, background: '#dcfce7', color: '#166534', padding: '2px 6px', borderRadius: 99, whiteSpace: 'nowrap' }}>ATIVA</span>
                                                 ) : (
                                                     <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '2px 6px', borderRadius: 99, whiteSpace: 'nowrap' }}>INATIVA</span>
                                                 )}
                                             </div>
-                                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Criada em: {new Date(key.created_at).toLocaleDateString()}</p>
+                                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                                Criada em: {new Date(key.created_at).toLocaleDateString()}
+                                                {key.last_used_at ? ` • Ultimo uso: ${new Date(key.last_used_at).toLocaleDateString()}` : ''}
+                                            </p>
                                         </div>
-                                        <button 
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(key.api_key);
-                                                toast.success('Copiada!');
-                                            }} 
-                                            style={{ 
-                                                background: 'transparent', 
-                                                border: 'none', 
-                                                color: 'var(--text-secondary)', 
-                                                cursor: 'pointer',
-                                                padding: 8,
-                                                flexShrink: 0
-                                            }}
-                                            title="Copiar Chave"
-                                        >
-                                            <FiCopy size={18} />
-                                        </button>
+                                        <div className="api-key-actions" style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+                                            <button
+                                                onClick={() => toggleApiKeyVisibility(key.id)}
+                                                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 8 }}
+                                                title={visibleApiKeys[key.id] ? 'Esconder chave' : 'Mostrar chave'}
+                                            >
+                                                {visibleApiKeys[key.id] ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(key.api_key);
+                                                    toast.success('Copiada!');
+                                                }}
+                                                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 8 }}
+                                                title="Copiar chave"
+                                            >
+                                                <FiCopy size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => updateApiKeyStatus(key.id, !key.is_active)}
+                                                style={{ background: 'transparent', border: 'none', color: key.is_active ? '#f59e0b' : '#16a34a', cursor: 'pointer', padding: 8 }}
+                                                title={key.is_active ? 'Revogar chave' : 'Reativar chave'}
+                                            >
+                                                <FiPower size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => renewApiKey(key.id)}
+                                                style={{ background: 'transparent', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 8 }}
+                                                title="Renovar chave"
+                                            >
+                                                <FiRefreshCw size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => deleteApiKey(key.id)}
+                                                style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 8 }}
+                                                title="Apagar chave"
+                                            >
+                                                <FiTrash2 size={18} />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                                 {apiKeys.length === 0 && (

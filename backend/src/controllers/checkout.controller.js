@@ -241,9 +241,16 @@ class CheckoutController {
     }
 
     async _createTransactionRecords(order, product, feePercentage) {
-        // Taxa fixa da plataforma: R$1,50 (150 centavos)
-        const PLATFORM_FLAT_FEE = 150;
-        const feeAmount = Math.min(PLATFORM_FLAT_FEE, order.amount);
+        // Taxa da plataforma:
+        //   PIX    → R$2,00 fixo + 1,09%
+        //   Cartão → 2% sobre o total
+        let feeAmount;
+        if (order.payment_method === 'credit_card') {
+            feeAmount = Math.round(order.amount * 0.02);
+        } else {
+            const percentFee = Math.round(order.amount * 0.0109);
+            feeAmount = Math.min(200 + percentFee, order.amount);
+        }
         const sellerAmount = order.amount - feeAmount;
 
         // Seller transaction

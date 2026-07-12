@@ -3,19 +3,32 @@ export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { comparePassword, generateToken, jsonError, jsonSuccess } from '@/lib/auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
     try {
+        const ip =
+            req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+            req.headers.get('x-real-ip') ||
+            'unknown';
+
+        const rlIp = await checkRateLimit({ key: `auth:login:ip:${ip}`, limit: 30, windowSecs: 900, failOpen: false });
+        if (!rlIp.allowed) return rateLimitResponse(rlIp.resetAt);
+
         const { email, password } = await req.json();
 
         if (!email || !password) {
             return jsonError('Email e senha são obrigatórios');
         }
 
+        const normalizedEmail = String(email).toLowerCase().trim();
+        const rlEmail = await checkRateLimit({ key: `auth:login:email:${normalizedEmail}`, limit: 15, windowSecs: 3600, failOpen: false });
+        if (!rlEmail.allowed) return rateLimitResponse(rlEmail.resetAt);
+
         const { data: user } = await supabase
             .from('users')
             .select('*')
-            .ilike('email', email.toLowerCase().trim())
+            .ilike('email', normalizedEmail)
             .single();
 
         if (!user) return jsonError('Credenciais inválidas', 401);
@@ -29,8 +42,8 @@ export async function POST(req: NextRequest) {
 
         const token = generateToken({ userId: user.id, role: user.role });
 
-        const normalizedEmail = (user.email || '').toLowerCase().trim();
-        if (normalizedEmail) {
+        const userEmailNormalized = (user.email || '').toLowerCase().trim();
+        if (userEmailNormalized) {
             const { data: paidOrders } = await supabase
                 .from('orders')
                 .select(`
@@ -41,7 +54,7 @@ export async function POST(req: NextRequest) {
                     )
                 `)
                 .eq('status', 'paid')
-                .ilike('buyer_email', normalizedEmail);
+                .ilike('buyer_email', userEmailNormalized);
 
             const enrollmentsToUpsert = (paidOrders || [])
                 .filter((o: any) => o?.product_id && o?.products?.type === 'digital')

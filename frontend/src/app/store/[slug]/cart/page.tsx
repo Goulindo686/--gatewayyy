@@ -13,7 +13,9 @@ export default function CartPage() {
     const searchParams = useSearchParams();
     const { items, addItem, updateQuantity, removeItem, totalAmount, clearCart } = useCart();
 
-    const enableCreditCard = process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD ? (process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD === 'true') : false;
+    const enableCreditCard = process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD
+        ? (process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD === 'true')
+        : true;
     const [paymentMethod, setPaymentMethod] = useState<'pix' | 'credit_card'>('pix');
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -34,6 +36,15 @@ export default function CartPage() {
     const [cardCvv, setCardCvv] = useState('');
     const [installments, setInstallments] = useState(1);
     const sanitizeCard = (v: string) => (v || '').replace(/\D/g, '');
+    const onlyDigits = (v: string) => (v || '').replace(/\D/g, '');
+    const formatCpf = (v: string) => onlyDigits(v).slice(0, 11).replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    const formatPhone = (v: string) => {
+        const d = onlyDigits(v).slice(0, 11);
+        if (d.length <= 10) return d.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2');
+        return d.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
+    };
+    const formatCep = (v: string) => onlyDigits(v).slice(0, 8).replace(/(\d{5})(\d)/, '$1-$2');
+    const formatCardNumber = (v: string) => onlyDigits(v).slice(0, 19).replace(/(.{4})/g, '$1 ').trim();
     const isValidCard = (v: string) => {
         const num = sanitizeCard(v);
         if (num.length < 13 || num.length > 19) return false;
@@ -233,10 +244,11 @@ export default function CartPage() {
                                     </div>
                                     <div style={{ marginBottom: 20 }}>
                                         <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Nome completo</label>
-                                        <input
-                                            placeholder="Seu nome"
-                                            value={name}
-                                            onChange={e => setName(e.target.value)}
+                                            <input
+                                                autoComplete="name"
+                                                placeholder="Seu nome"
+                                                value={name}
+                                                onChange={e => setName(e.target.value)}
                                             style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
                                         />
                                     </div>
@@ -245,6 +257,7 @@ export default function CartPage() {
                                             <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Email</label>
                                             <input
                                                 type="email"
+                                                autoComplete="email"
                                                 placeholder="seu@email.com"
                                                 value={email}
                                                 onChange={e => setEmail(e.target.value)}
@@ -255,6 +268,7 @@ export default function CartPage() {
                                             <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Confirmar Email</label>
                                             <input
                                                 type="email"
+                                                autoComplete="email"
                                                 placeholder="seu@email.com"
                                                 value={confirmEmail}
                                                 onChange={e => setConfirmEmail(e.target.value)}
@@ -266,18 +280,22 @@ export default function CartPage() {
                                         <div>
                                             <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>CPF</label>
                                             <input
+                                                inputMode="numeric"
+                                                autoComplete="off"
                                                 placeholder="000.000.000-00"
                                                 value={cpf}
-                                                onChange={e => setCpf(e.target.value)}
+                                                onChange={e => setCpf(formatCpf(e.target.value))}
                                                 style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
                                             />
                                         </div>
                                         <div>
                                             <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Telefone</label>
                                             <input
+                                                inputMode="tel"
+                                                autoComplete="tel"
                                                 placeholder="(11) 99999-9999"
                                                 value={phone}
-                                                onChange={e => setPhone(e.target.value)}
+                                                onChange={e => setPhone(formatPhone(e.target.value))}
                                                 style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
                                             />
                                         </div>
@@ -290,15 +308,18 @@ export default function CartPage() {
                                                     <div>
                                                         <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>CEP</label>
                                                         <input
+                                                            inputMode="numeric"
+                                                            autoComplete="postal-code"
                                                             placeholder="00000-000"
                                                             value={cep}
-                                                            onChange={e => setCep(e.target.value)}
+                                                            onChange={e => setCep(formatCep(e.target.value))}
                                                             style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
                                                         />
                                                     </div>
                                                     <div>
                                                         <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Cidade</label>
                                                         <input
+                                                            autoComplete="address-level2"
                                                             placeholder="Cidade"
                                                             value={city}
                                                             onChange={e => setCity(e.target.value)}
@@ -310,6 +331,7 @@ export default function CartPage() {
                                                     <div>
                                                         <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Estado</label>
                                                         <input
+                                                            autoComplete="address-level1"
                                                             placeholder="UF"
                                                             maxLength={2}
                                                             value={state}
@@ -320,6 +342,7 @@ export default function CartPage() {
                                                     <div>
                                                         <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Bairro</label>
                                                         <input
+                                                            autoComplete="address-line2"
                                                             placeholder="Bairro"
                                                             value={neighborhood}
                                                             onChange={e => setNeighborhood(e.target.value)}
@@ -331,6 +354,7 @@ export default function CartPage() {
                                                     <div>
                                                         <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Rua</label>
                                                         <input
+                                                            autoComplete="address-line1"
                                                             placeholder="Rua"
                                                             value={street}
                                                             onChange={e => setStreet(e.target.value)}
@@ -352,17 +376,20 @@ export default function CartPage() {
                                                 <h3 style={{ fontSize: 13, fontWeight: 800, color: '#94a3b8', marginBottom: 10 }}>Dados do cartão</h3>
                                                 <div style={{ marginBottom: 12 }}>
                                                     <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Número do cartão</label>
-                                                    <input
-                                                        placeholder="0000 0000 0000 0000"
-                                                        value={cardNumber}
-                                                        onChange={e => setCardNumber(e.target.value)}
+                                                        <input
+                                                            inputMode="numeric"
+                                                            autoComplete="cc-number"
+                                                            placeholder="0000 0000 0000 0000"
+                                                            value={cardNumber}
+                                                            onChange={e => setCardNumber(formatCardNumber(e.target.value))}
                                                         style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
                                                     />
                                                 </div>
                                                 <div style={{ marginBottom: 12 }}>
                                                     <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Nome no cartão</label>
-                                                    <input
-                                                        placeholder="Nome como está no cartão"
+                                                        <input
+                                                            autoComplete="cc-name"
+                                                            placeholder="Nome como está no cartão"
                                                         value={cardHolder}
                                                         onChange={e => setCardHolder(e.target.value)}
                                                         style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
@@ -371,31 +398,37 @@ export default function CartPage() {
                                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
                                                     <div>
                                                         <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Mês</label>
-                                                        <input
+                                                            <input
+                                                                inputMode="numeric"
+                                                                autoComplete="cc-exp-month"
                                                             placeholder="MM"
                                                             maxLength={2}
                                                             value={cardExpMonth}
-                                                            onChange={e => setCardExpMonth(e.target.value)}
+                                                            onChange={e => setCardExpMonth(onlyDigits(e.target.value).slice(0, 2))}
                                                             style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
                                                         />
                                                     </div>
                                                     <div>
                                                         <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Ano</label>
-                                                        <input
+                                                            <input
+                                                                inputMode="numeric"
+                                                                autoComplete="cc-exp-year"
                                                             placeholder="AA"
                                                             maxLength={2}
                                                             value={cardExpYear}
-                                                            onChange={e => setCardExpYear(e.target.value)}
+                                                            onChange={e => setCardExpYear(onlyDigits(e.target.value).slice(0, 2))}
                                                             style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
                                                         />
                                                     </div>
                                                     <div>
                                                         <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>CVV</label>
-                                                        <input
+                                                            <input
+                                                                inputMode="numeric"
+                                                                autoComplete="cc-csc"
                                                             placeholder="000"
                                                             maxLength={4}
                                                             value={cardCvv}
-                                                            onChange={e => setCardCvv(e.target.value)}
+                                                            onChange={e => setCardCvv(onlyDigits(e.target.value).slice(0, 4))}
                                                             style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
                                                         />
                                                     </div>
@@ -444,9 +477,12 @@ export default function CartPage() {
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                                         <div style={{ fontSize: 15, fontWeight: 700, color: 'white' }}>{item.name}</div>
                                                         {('plan_name' in item) && (item as any).plan_name ? <div style={{ fontSize: 12, color: '#00cec9', fontWeight: 700 }}>{(item as any).plan_name}</div> : null}
-                                                        <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>
-                                                            {(details[item.id]?.description || 'Sem descrição')}
-                                                        </div>
+
+                                                        {details[item.id]?.description && (
+                                                            <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>
+                                                                {details[item.id].description}
+                                                            </div>
+                                                        )}
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#141417', borderRadius: 8, padding: '4px 8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                                                                 <FiMinus size={14} style={{ cursor: 'pointer' }} onClick={() => updateQuantity(item.id, -1)} />
@@ -523,9 +559,12 @@ export default function CartPage() {
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                                         <div style={{ fontSize: 15, fontWeight: 700, color: 'white' }}>{item.name}</div>
                                                         {('plan_name' in item) && (item as any).plan_name ? <div style={{ fontSize: 12, color: '#00cec9', fontWeight: 700 }}>{(item as any).plan_name}</div> : null}
-                                                        <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>
-                                                            {(details[item.id]?.description || 'Sem descrição')}
-                                                        </div>
+
+                                                        {details[item.id]?.description && (
+                                                            <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>
+                                                                {details[item.id].description}
+                                                            </div>
+                                                        )}
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#141417', borderRadius: 8, padding: '4px 8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                                                                 <FiMinus size={14} style={{ cursor: 'pointer' }} onClick={() => updateQuantity(item.id, -1)} />
@@ -592,6 +631,7 @@ export default function CartPage() {
                                     <div style={{ marginBottom: 20 }}>
                                         <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Nome completo</label>
                                         <input
+                                            autoComplete="name"
                                             placeholder="Seu nome"
                                             value={name}
                                             onChange={e => setName(e.target.value)}
@@ -603,6 +643,7 @@ export default function CartPage() {
                                             <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Email</label>
                                             <input
                                                 type="email"
+                                                autoComplete="email"
                                                 placeholder="seu@email.com"
                                                 value={email}
                                                 onChange={e => setEmail(e.target.value)}
@@ -613,6 +654,7 @@ export default function CartPage() {
                                             <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Confirmar Email</label>
                                             <input
                                                 type="email"
+                                                autoComplete="email"
                                                 placeholder="seu@email.com"
                                                 value={confirmEmail}
                                                 onChange={e => setConfirmEmail(e.target.value)}
@@ -624,18 +666,22 @@ export default function CartPage() {
                                         <div>
                                             <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>CPF</label>
                                             <input
+                                                inputMode="numeric"
+                                                autoComplete="off"
                                                 placeholder="000.000.000-00"
                                                 value={cpf}
-                                                onChange={e => setCpf(e.target.value)}
+                                                onChange={e => setCpf(formatCpf(e.target.value))}
                                                 style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
                                             />
                                         </div>
                                         <div>
                                             <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Telefone</label>
                                             <input
+                                                inputMode="tel"
+                                                autoComplete="tel"
                                                 placeholder="(11) 99999-9999"
                                                 value={phone}
-                                                onChange={e => setPhone(e.target.value)}
+                                                onChange={e => setPhone(formatPhone(e.target.value))}
                                                 style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
                                             />
                                         </div>
@@ -688,6 +734,39 @@ export default function CartPage() {
                 </div>
             </div>
             <style jsx>{`
+                .storeCartPage {
+                    background:
+                        radial-gradient(circle at top left, rgba(0,206,201,0.08), transparent 32%),
+                        radial-gradient(circle at top right, rgba(99,102,241,0.08), transparent 30%),
+                        #0a0a0c !important;
+                }
+                .storeCartCard {
+                    box-shadow: 0 20px 70px rgba(0,0,0,0.22);
+                }
+                .storeCartPage input,
+                .storeCartPage select {
+                    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+                }
+                .storeCartPage input:focus,
+                .storeCartPage select:focus {
+                    outline: none;
+                    border-color: rgba(0,206,201,0.55) !important;
+                    box-shadow: 0 0 0 3px rgba(0,206,201,0.10);
+                    background: #0d0d10 !important;
+                }
+                .storeCartPayMethods button {
+                    min-height: 58px;
+                }
+                .storeCartPayMethods button:hover,
+                .storeCartItemRow:hover {
+                    border-color: rgba(255,255,255,0.12) !important;
+                }
+                .storeCartSummaryWrap .storeCartCard {
+                    border-color: rgba(0,206,201,0.12) !important;
+                }
+                .storeCartSummaryWrap button:hover:not(:disabled) {
+                    transform: translateY(-1px);
+                }
                 @media (max-width: 980px) {
                     .storeCartPage {
                         -webkit-text-size-adjust: 100% !important;
@@ -716,7 +795,7 @@ export default function CartPage() {
                 }
                 @media (max-width: 640px) {
                     .storeCartPage {
-                        padding: 24px 14px !important;
+                        padding: 22px 12px !important;
                     }
                     .storeCartPage h1 {
                         font-size: 20px !important;
@@ -725,30 +804,34 @@ export default function CartPage() {
                         margin-bottom: 24px !important;
                     }
                     .storeCartCard {
-                        padding: 16px !important;
-                        border-radius: 20px !important;
+                        padding: 15px !important;
+                        border-radius: 18px !important;
                     }
                     .storeCartCard h2 {
                         font-size: 16px !important;
                         margin-bottom: 16px !important;
                     }
                     .storeCartPayMethods {
-                        flex-direction: column !important;
+                        grid-template-columns: 1fr !important;
+                        gap: 10px !important;
                     }
                     .storeCartGrid2 {
                         grid-template-columns: 1fr !important;
                         gap: 12px !important;
                     }
                     .storeCartItemRow {
-                        grid-template-columns: 64px 1fr !important;
+                        grid-template-columns: 58px 1fr !important;
                         gap: 12px !important;
                         padding: 10px !important;
-                        border-radius: 14px !important;
+                        border-radius: 12px !important;
                     }
                     .storeCartItemImage {
-                        width: 64px !important;
-                        height: 64px !important;
+                        width: 58px !important;
+                        height: 58px !important;
                         border-radius: 10px !important;
+                    }
+                    .storeCartItemRow button {
+                        font-size: 12px !important;
                     }
                 }
             `}</style>

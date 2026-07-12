@@ -5,6 +5,9 @@ import { supabase } from '@/lib/db';
 import { PagarmeService } from '@/lib/pagarme';
 import { jsonError, jsonSuccess, generateToken, hashPassword } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { sendPurchaseApprovedEmail } from '@/lib/email';
+import { sendFacebookEvent } from '@/lib/facebook-capi';
+import { decryptUtmifyToken, sendUtmifyOrderWithLog } from '@/lib/utmify';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -21,13 +24,35 @@ export async function POST(req: NextRequest) {
 
         const body = await req.json();
         const { product_id, buyer, card_data, plan_id, selected_bumps } = body;
+        const facebook = body.facebook || {};
+        const tracking = body.tracking || {};
+        const normalizeTracking = (input: any) => {
+            const allowed = [
+                'src', 'sck',
+                'utm_id', 'utm_source', 'utm_campaign', 'utm_medium', 'utm_content', 'utm_term',
+                'fbclid', 'gclid', 'ttclid', 'msclkid',
+                'campaign_id', 'adset_id', 'ad_id',
+                'campaign_name', 'adset_name', 'ad_name',
+                'fbp', 'fbc',
+                'landing_url', 'referrer', 'captured_at'
+            ];
+            const out: Record<string, string> = {};
+            for (const key of allowed) {
+                const value = input?.[key];
+                if (typeof value === 'string' && value.trim()) out[key] = value.trim().slice(0, 1000);
+            }
+            return out;
+        };
+        const trackingParams = normalizeTracking(tracking);
 
         // Rate limit por email: 5 checkouts por hora
         if (buyer?.email) {
             const rlEmail = await checkRateLimit({ key: `checkout:email:${buyer.email.toLowerCase().trim()}`, limit: 5, windowSecs: 3600, failOpen: false });
             if (!rlEmail.allowed) return rateLimitResponse(rlEmail.resetAt);
         }
-        const enableCreditCard = process.env.ENABLE_CREDIT_CARD ? (process.env.ENABLE_CREDIT_CARD === 'true') : false;
+        const enableCreditCard = process.env.ENABLE_CREDIT_CARD
+            ? (process.env.ENABLE_CREDIT_CARD === 'true')
+            : true;
         const normalizedPaymentMethod = (body.payment_method === 'card' ? 'credit_card' : body.payment_method) || 'pix';
 
         const extractPix = (pagarmeOrder: any) => {
@@ -199,7 +224,7 @@ export async function POST(req: NextRequest) {
                     ? (product.price >= 100 ? Math.round(product.price) : Math.round(product.price * 100))
                     : Math.round(parseFloat(product.price_display) * 100));
             totalCents = baseCents + bumpTotalCents;
-            const ipHeader = req.headers.get('x-forwarded-for') || '';
+            const ipHeader = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '';
             const ip = ipHeader.split(',')[0].trim() || undefined;
             const sessionId = uuidv4();
             pagarmeOrder = await PagarmeService.createOrder({
@@ -210,7 +235,13 @@ export async function POST(req: NextRequest) {
                 seller_recipient_id: recipient.pagarme_recipient_id,
                 platform_fee_percentage: feePercentage,
                 ip,
-                session_id: sessionId
+                session_id: sessionId,
+                items: [{
+                    amount: totalCents,
+                    description: product.name,
+                    quantity: 1,
+                    code: product.id
+                }]
             });
         } catch (pagarmeErr: any) {
             console.error('Pagar.me API Error:', pagarmeErr.response?.data || pagarmeErr.message);
@@ -244,6 +275,8 @@ export async function POST(req: NextRequest) {
         }
 
         const orderId = uuidv4();
+        const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('x-real-ip') || undefined;
+        const clientUserAgent = req.headers.get('user-agent') || undefined;
 
         let pix: { qr_code?: string; qr_code_url?: string; expires_at?: string } | null = null;
         if (normalizedPaymentMethod === 'pix') {
@@ -264,13 +297,38 @@ export async function POST(req: NextRequest) {
         await supabase.from('orders').insert({
             id: orderId, seller_id: product.user_id, product_id: product.id,
             buyer_name: buyer.name, buyer_email: buyer.email, buyer_cpf: buyer.cpf,
+            buyer_phone: buyer.phone?.replace(/\D/g, ''),
             amount: totalCents,
             payment_method: normalizedPaymentMethod, status: charge?.status === 'paid' ? 'paid' : 'pending',
             pagarme_order_id: pagarmeOrder.id, pagarme_charge_id: charge?.id,
             pix_qr_code: pix?.qr_code,
             pix_qr_code_url: pix?.qr_code_url,
-            pix_expires_at: pix?.expires_at
+            pix_expires_at: pix?.expires_at,
+            facebook_event_id: orderId,
+            facebook_fbp: typeof facebook.fbp === 'string' ? facebook.fbp : null,
+            facebook_fbc: typeof facebook.fbc === 'string' ? facebook.fbc : null,
+            client_ip: clientIp,
+            client_user_agent: clientUserAgent
         });
+
+        try {
+            await supabase.from('orders')
+                .update({
+                    utm_source: trackingParams.utm_source || null,
+                    utm_campaign: trackingParams.utm_campaign || null,
+                    utm_medium: trackingParams.utm_medium || null,
+                    utm_content: trackingParams.utm_content || null,
+                    utm_term: trackingParams.utm_term || null,
+                    utm_src: trackingParams.src || null,
+                    utm_sck: trackingParams.sck || null,
+                    tracking_params: trackingParams,
+                    landing_url: trackingParams.landing_url || null,
+                    referrer: trackingParams.referrer || null,
+                })
+                .eq('id', orderId);
+        } catch (utmErr) {
+            console.warn('[UTM] Tracking columns not available yet:', utmErr);
+        }
 
         // Save transaction
         await supabase.from('transactions').insert({
@@ -283,13 +341,99 @@ export async function POST(req: NextRequest) {
         // If paid immediately, create fee transaction and update sales count
         let buyerUser: any = null;
         if (charge?.status === 'paid') {
-            const feeAmount = Math.min(200, totalCents); // R$2,00 fixo
+            try {
+                const { data: seller } = await supabase
+                    .from('users')
+                    .select('utmify_enabled, utmify_api_token')
+                    .eq('id', product.user_id)
+                    .single();
+                const utmifyToken = decryptUtmifyToken(seller?.utmify_api_token);
+                if (seller?.utmify_enabled && utmifyToken) {
+                    const utmifyResult = await sendUtmifyOrderWithLog({
+                        token: utmifyToken,
+                        sellerId: product.user_id,
+                        product,
+                        status: 'paid',
+                        order: {
+                            id: orderId,
+                            seller_id: product.user_id,
+                            product_id: product.id,
+                            buyer_name: buyer.name,
+                            buyer_email: buyer.email,
+                            buyer_phone: buyer.phone?.replace(/\D/g, ''),
+                            buyer_cpf: buyer.cpf,
+                            amount: totalCents,
+                            payment_method: normalizedPaymentMethod,
+                            status: 'paid',
+                            created_at: new Date().toISOString(),
+                            client_ip: clientIp,
+                            utm_source: trackingParams.utm_source || null,
+                            utm_campaign: trackingParams.utm_campaign || null,
+                            utm_medium: trackingParams.utm_medium || null,
+                            utm_content: trackingParams.utm_content || null,
+                            utm_term: trackingParams.utm_term || null,
+                            utm_src: trackingParams.src || null,
+                            utm_sck: trackingParams.sck || null,
+                            tracking_params: trackingParams,
+                            landing_url: trackingParams.landing_url || null,
+                            referrer: trackingParams.referrer || null,
+                        }
+                    });
+                    if ((utmifyResult as any).ok) {
+                        await supabase.from('orders').update({ utmify_sent_at: new Date().toISOString(), utmify_last_error: null }).eq('id', orderId);
+                    } else if (!(utmifyResult as any).skipped) {
+                        await supabase.from('orders').update({ utmify_last_error: (utmifyResult as any).error || 'Erro UTMify' }).eq('id', orderId);
+                    }
+                }
+            } catch (utmifyErr) {
+                console.error('[UTMIFY] Immediate purchase error:', utmifyErr);
+            }
+
+            try {
+                const capiResult = await sendFacebookEvent({
+                    eventName: 'Purchase',
+                    product,
+                    order: {
+                        id: orderId,
+                        amount: totalCents,
+                        facebook_event_id: orderId,
+                        facebook_fbp: facebook.fbp,
+                        facebook_fbc: facebook.fbc,
+                        client_ip: clientIp,
+                        client_user_agent: clientUserAgent
+                    },
+                    buyer,
+                    eventId: orderId,
+                    eventSourceUrl: facebook.event_source_url,
+                    ip: clientIp,
+                    userAgent: clientUserAgent,
+                    fbp: facebook.fbp,
+                    fbc: facebook.fbc
+                });
+
+                if ((capiResult as any).ok) {
+                    await supabase.from('orders')
+                        .update({ facebook_capi_sent_at: new Date().toISOString() })
+                        .eq('id', orderId);
+                } else if (!(capiResult as any).skipped) {
+                    console.warn('[FACEBOOK CAPI] Purchase not sent:', capiResult);
+                }
+            } catch (fbErr) {
+                console.error('[FACEBOOK CAPI] Purchase error:', fbErr);
+            }
+
+            const feeAmount = feePercentage > 0
+                ? (normalizedPaymentMethod === 'credit_card'
+                    ? Math.min(totalCents, Math.round(totalCents * (feePercentage / 100)))
+                    : Math.min(200, totalCents))
+                : 0;
             if (feeAmount > 0) {
+                const feeLabel = normalizedPaymentMethod === 'credit_card' ? `${feePercentage}% (cartão)` : 'R$ 2,00 (PIX)';
                 await supabase.from('transactions').insert({
                     id: uuidv4(), user_id: product.user_id, order_id: orderId,
                     type: 'fee', amount: feeAmount,
                     status: 'confirmed',
-                    description: `Taxa de plataforma (R$2,00 fixo) - Pedido ${orderId}`
+                    description: `Taxa de plataforma (${feeLabel}) - Pedido ${orderId}`
                 });
             }
 
@@ -348,6 +492,27 @@ export async function POST(req: NextRequest) {
                     order_id: orderId,
                     status: 'active'
                 }, { onConflict: 'user_id, product_id' });
+            }
+
+            // Envia email de compra aprovada
+            try {
+                const buyerEmail = buyer.email.toLowerCase().trim();
+                const rlEmailSend = await checkRateLimit({ key: `email:purchase:buyer:${buyerEmail}`, limit: 3, windowSecs: 3600, failOpen: true });
+                if (rlEmailSend.allowed) {
+                    await sendPurchaseApprovedEmail({
+                        buyerName: buyer.name,
+                        buyerEmail: buyer.email,
+                        productName: product.name,
+                        amount: amountDisplay,
+                        paymentMethod: normalizedPaymentMethod,
+                        orderId,
+                    });
+                    console.log(`[EMAIL] Email de compra enviado para ${buyer.email}`);
+                } else {
+                    console.warn(`[EMAIL] Rate limit atingido para envio de email de compra: ${buyerEmail}`);
+                }
+            } catch (emailErr: any) {
+                console.error('[EMAIL] Erro ao enviar email de compra:', emailErr?.message);
             }
         }
 

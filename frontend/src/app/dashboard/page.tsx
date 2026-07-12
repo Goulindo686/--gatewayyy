@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState, useRef } from 'react';
 import { dashboardAPI } from '@/lib/api';
@@ -11,45 +11,6 @@ import {
 } from 'chart.js';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Filler, Legend);
-
-const BANNERS = [
-    'https://i.imgur.com/y3syROj.png',
-    'https://i.imgur.com/boiJZFx.png',
-    'https://i.imgur.com/hw5b42M.png',
-];
-
-function BannerCarousel() {
-    const [current, setCurrent] = useState(0);
-    useEffect(() => {
-        const t = setInterval(() => setCurrent(p => (p + 1) % BANNERS.length), 4000);
-        return () => clearInterval(t);
-    }, []);
-    return (
-        <div style={{ position: 'relative', width: '100%', borderRadius: 14, overflow: 'hidden', marginBottom: 28 }}>
-            {BANNERS.map((src, i) => (
-                <img key={i} src={src} alt={`Banner ${i + 1}`} style={{
-                    display: 'block',
-                    width: '100%',
-                    height: 'auto',
-                    position: i === current ? 'relative' : 'absolute',
-                    top: 0, left: 0,
-                    opacity: current === i ? 1 : 0,
-                    transition: 'opacity 0.7s ease-in-out',
-                    pointerEvents: current === i ? 'auto' : 'none',
-                }} />
-            ))}
-            <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, zIndex: 2 }}>
-                {BANNERS.map((_, i) => (
-                    <button key={i} onClick={() => setCurrent(i)} style={{
-                        width: current === i ? 20 : 8, height: 8, borderRadius: 4,
-                        background: current === i ? '#fff' : 'rgba(255,255,255,0.4)',
-                        border: 'none', cursor: 'pointer', padding: 0, transition: 'all 0.3s',
-                    }} />
-                ))}
-            </div>
-        </div>
-    );
-}
 
 interface MonthlySale {
     month: string;
@@ -77,8 +38,6 @@ export default function DashboardPage() {
     const [activeTab, setActiveTab] = useState<'vendas' | 'receita'>('vendas');
     const chartRef = useRef<any>(null);
     const searchParams = useSearchParams();
-
-    useEffect(() => { loadStats(); }, []);
 
     useEffect(() => {
         const start = searchParams.get('start') || undefined;
@@ -249,14 +208,7 @@ export default function DashboardPage() {
             <style>{`
             `}</style>
 
-            {/* Banners — desktop only */}
-            <div className="banner-wrap">
-                <BannerCarousel />
-            </div>
-
             <style>{`
-                .banner-wrap { display: block; }
-                @media (max-width: 768px) { .banner-wrap { display: none; } }
                 .db-card {
                     background: var(--bg-card);
                     border: 1px solid var(--border-color);

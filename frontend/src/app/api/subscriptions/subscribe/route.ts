@@ -1,17 +1,30 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { jsonError, jsonSuccess, hashPassword, generateToken } from '@/lib/auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { PagarmeService } from '@/lib/pagarme';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
     try {
+        const ip =
+            req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+            req.headers.get('x-real-ip') ||
+            'unknown';
+
+        const rlIp = await checkRateLimit({ key: `subscriptions:subscribe:ip:${ip}`, limit: 10, windowSecs: 3600, failOpen: false });
+        if (!rlIp.allowed) return rateLimitResponse(rlIp.resetAt);
+
         const { plan_id, customer, card, address } = await req.json();
 
         if (!plan_id || !customer?.name || !customer?.email || !customer?.cpf)
             return jsonError('Dados incompletos');
         if (!card?.number || !card?.holder_name || !card?.exp_month || !card?.exp_year || !card?.cvv)
             return jsonError('Dados do cartão incompletos');
+
+        const normalizedEmail = String(customer.email).toLowerCase().trim();
+        const rlEmail = await checkRateLimit({ key: `subscriptions:subscribe:email:${normalizedEmail}`, limit: 3, windowSecs: 3600, failOpen: false });
+        if (!rlEmail.allowed) return rateLimitResponse(rlEmail.resetAt);
 
         // Busca o plano
         const { data: plan } = await supabase
@@ -88,7 +101,6 @@ export async function POST(req: NextRequest) {
 
         // Criar ou encontrar conta do cliente e gerar token de login automático
         let buyerUser: any = null;
-        const normalizedEmail = customer.email.toLowerCase().trim();
 
         const { data: existingUser } = await supabase
             .from('users')

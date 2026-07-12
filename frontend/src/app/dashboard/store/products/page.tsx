@@ -137,6 +137,7 @@ export default function StoreProductsPage() {
 
             const productData: any = {
                 ...form,
+                type: 'digital',
                 image_url: finalImageUrl,
                 plans: normalizedPlans,
                 show_in_store: editing ? undefined : true
@@ -341,10 +342,9 @@ export default function StoreProductsPage() {
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Tipo</label>
-                                    <select className="input-field" value={form.type} onChange={e => updateForm('type', e.target.value)}>
+                                    <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Entrega</label>
+                                    <select className="input-field" value="digital" disabled>
                                         <option value="digital">Digital</option>
-                                        <option value="physical">Físico</option>
                                     </select>
                                 </div>
                                 <div>

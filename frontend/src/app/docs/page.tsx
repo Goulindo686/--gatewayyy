@@ -446,7 +446,7 @@ def webhook():
                     <h2 className="text-2xl font-bold mb-4">1. Autenticação</h2>
                     <p className="mb-4 text-gray-700 dark:text-gray-300">
                         Todas as requisições precisam de uma <strong>Chave de API</strong> no header.
-                        Para gerar a sua, acesse o painel em <strong>Configurações → API & Integração</strong> e clique em <em>Gerar nova chave</em>.
+                        Para gerar a sua, acesse o painel em <strong>Integrações → API Pix</strong> e clique em <em>Gerar nova chave</em>.
                     </p>
                     <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 p-4 mb-4 rounded-r-lg">
                         <p className="text-sm text-blue-800 dark:text-blue-200">
@@ -594,7 +594,7 @@ Authorization: Bearer SUA_CHAVE_AQUI`} id="auth" lang="http" />
                 <section id="webhooks">
                     <h2 className="text-2xl font-bold mb-4">8. Webhooks</h2>
                     <p className="mb-4 text-gray-700 dark:text-gray-300">
-                        Configure uma URL no painel em <strong>Configurações → API & Integração → URL de Webhook</strong>.
+                        Configure uma URL no painel em <strong>Integrações → API Pix → Webhook da API Pix</strong>.
                         Quando o status de uma cobrança mudar, faremos um <code>POST</code> automático para essa URL com o payload abaixo.
                     </p>
 
@@ -677,7 +677,7 @@ Authorization: Bearer SUA_CHAVE_AQUI`} id="auth" lang="http" />
                     <h2 className="text-2xl font-bold mb-4">10. Fluxo Completo de Integração</h2>
                     <div className="space-y-4">
                         {[
-                            { n: '1', title: 'Gerar API Key', desc: 'No painel, vá em Configurações → API & Integração e gere sua chave.' },
+                            { n: '1', title: 'Gerar API Key', desc: 'No painel, vá em Integrações → API Pix e gere sua chave.' },
                             { n: '2', title: 'Criar cobrança', desc: 'Faça um POST para /api/v1/pix com o valor e dados do cliente. Guarde o transaction_id retornado.' },
                             { n: '3', title: 'Exibir QR Code', desc: 'Mostre o qr_code_url como imagem e o qr_code como texto copiável para o usuário.' },
                             { n: '4', title: 'Aguardar pagamento', desc: 'Use polling (GET /api/v1/pix/{id} a cada 5s) ou configure um webhook para ser notificado automaticamente.' },

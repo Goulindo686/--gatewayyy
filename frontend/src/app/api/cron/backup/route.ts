@@ -41,7 +41,9 @@ async function getAllTables(supabase: ReturnType<typeof getSupabaseAdmin>) {
                 'platform_settings',
                 'enrollments',
                 'product_plans',
-                'subscriptions'
+                'subscriptions',
+                'sales_recovery_settings',
+                'sales_recovery_emails'
             ];
         }
         
@@ -61,7 +63,9 @@ async function getAllTables(supabase: ReturnType<typeof getSupabaseAdmin>) {
             'platform_settings',
             'enrollments',
             'product_plans',
-            'subscriptions'
+            'subscriptions',
+            'sales_recovery_settings',
+            'sales_recovery_emails'
         ];
     }
 }

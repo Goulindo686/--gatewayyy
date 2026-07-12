@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiArrowRight } from 'react-icons/fi';
+import { FiArrowRight, FiCreditCard, FiDollarSign, FiFileText, FiHeadphones, FiLock, FiMail, FiPhone, FiShield, FiShoppingBag, FiUser, FiZap } from 'react-icons/fi';
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -14,14 +14,15 @@ export default function RegisterPage() {
     const [form, setForm] = useState({
         name: '', email: '', password: '', confirmPassword: '', cpf_cnpj: '', phone: ''
     });
+    const brandLogo = 'https://i.imgur.com/vXgH6Mn.png';
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (form.password !== form.confirmPassword) {
-            return toast.error('As senhas não coincidem');
+            return toast.error('As senhas nao coincidem');
         }
         if (!termsAccepted) {
-            return toast.error('Você deve aceitar os termos de uso para criar uma conta.');
+            return toast.error('Voce deve aceitar os termos de uso para criar uma conta.');
         }
         setLoading(true);
         try {
@@ -45,33 +46,44 @@ export default function RegisterPage() {
     };
 
     const update = (field: string, value: string) => setForm({ ...form, [field]: value });
-    const brandLogo = 'https://i.imgur.com/vXgH6Mn.png';
 
     return (
         <div className="authShell">
-            <div className="authBackdrop" />
             <div className="authLayout">
-                <div className="authSide">
-                    <div className="authSideInner">
-                        <div className="authSideBadge">GouPay</div>
-                        <div className="authSideTitle">
-                            Crie sua conta e comece a vender com checkout profissional.
-                        </div>
-                        <div className="authSideSub">
-                            Configure seus produtos, gere links de pagamento e acompanhe tudo no dashboard.
-                        </div>
+                <aside className="authShowcase">
+                    <div className="authLogoMark">
+                        <img src="/favicon.png" alt="GouPay" />
+                        <strong>GouPay</strong>
                     </div>
-                    {/* Vídeo de fundo do painel esquerdo */}
-                    <video
-                        autoPlay muted loop playsInline
-                        style={{ position: 'absolute', inset: 24, width: 'calc(100% - 48px)', height: 'calc(100% - 48px)', objectFit: 'cover', borderRadius: 28, zIndex: 0 }}
-                    >
-                        <source src="https://i.imgur.com/x6H12bq.mp4" type="video/mp4" />
-                    </video>
-                </div>
 
-                <div className="authMain">
-                    <div className="authCard glass-card animate-fade-in">
+                    <div className="authOrbit authOrbitTop" aria-hidden="true">
+                        <div className="authOrbitRing" />
+                        <div className="authOrbitCore">G</div>
+                        <span className="authFloatIcon authFloatIconOne"><FiShield size={22} /></span>
+                        <span className="authFloatIcon authFloatIconTwo"><FiCreditCard size={22} /></span>
+                        <span className="authFloatIcon authFloatIconThree"><FiDollarSign size={22} /></span>
+                    </div>
+
+                    <div className="authCopy">
+                        <div className="authBadge"><FiZap size={13} /> Gateway de pagamentos completo</div>
+                        <h1>Crie sua conta e comece a vender com <span>checkout profissional.</span></h1>
+                        <p>Configure seus produtos, gere links de pagamento e acompanhe tudo no dashboard completo.</p>
+                    </div>
+
+                    <div className="authBenefits">
+                        <div><FiShield size={26} /><span><strong>100% Seguro</strong><small>Protecao avancada dos dados.</small></span></div>
+                        <div><FiZap size={26} /><span><strong>Aprovacao rapida</strong><small>Pagamentos aprovados em segundos.</small></span></div>
+                        <div><FiHeadphones size={26} /><span><strong>Suporte 24/7</strong><small>Equipe especializada para ajudar.</small></span></div>
+                    </div>
+
+                    <div className="authBottomNote">
+                        <FiShoppingBag size={26} />
+                        <span>Tudo que voce precisa para vender mais: checkout, loja, recuperacao de vendas e gestao de produtos.</span>
+                    </div>
+                </aside>
+
+                <main className="authMain">
+                    <section className="authCard authCardRegister">
                         <div className="authBrand">
                             <img
                                 src={brandLogo}
@@ -79,312 +91,425 @@ export default function RegisterPage() {
                                 onError={(e) => {
                                     (e.currentTarget as HTMLImageElement).src = '/logo.png';
                                 }}
-                                className="authBrandLogo"
                             />
                         </div>
 
-                        <div className="authHeader">
-                            <h1 className="authTitle">Criar conta</h1>
-                            <p className="authSubtitle">Leva poucos minutos para começar</p>
-                        </div>
+                        <header className="authHeader">
+                            <h2>Criar conta</h2>
+                            <p>Leva poucos minutos para comecar</p>
+                        </header>
 
                         <form onSubmit={handleSubmit}>
                             <div className="authGrid2">
-                                <div>
-                                    <label className="authLabel">Nome completo</label>
-                                    <input
-                                        type="text"
-                                        className="input-field"
-                                        placeholder="Seu nome"
-                                        required
-                                        value={form.name}
-                                        onChange={e => update('name', e.target.value)}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="authLabel">Telefone</label>
-                                    <input
-                                        type="tel"
-                                        className="input-field"
-                                        placeholder="(11) 99999-9999"
-                                        value={form.phone}
-                                        onChange={e => update('phone', e.target.value)}
-                                    />
-                                </div>
-                            </div>
-
-                            <div style={{ marginBottom: 14 }}>
-                                <label className="authLabel">Email</label>
-                                <input
-                                    type="email"
-                                    className="input-field"
-                                    placeholder="seu@email.com"
-                                    required
-                                    value={form.email}
-                                    onChange={e => update('email', e.target.value)}
-                                />
-                            </div>
-
-                            <div style={{ marginBottom: 14 }}>
-                                <label className="authLabel">CPF ou CNPJ</label>
-                                <input
-                                    type="text"
-                                    className="input-field"
-                                    placeholder="000.000.000-00"
-                                    required
-                                    value={form.cpf_cnpj}
-                                    onChange={e => update('cpf_cnpj', e.target.value)}
-                                />
-                            </div>
-
-                            <div className="authGrid2" style={{ marginBottom: 18 }}>
-                                <div>
-                                    <label className="authLabel">Senha</label>
-                                    <input
-                                        type="password"
-                                        className="input-field"
-                                        placeholder="••••••••"
-                                        required
-                                        minLength={6}
-                                        value={form.password}
-                                        onChange={e => update('password', e.target.value)}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="authLabel">Confirmar</label>
-                                    <input
-                                        type="password"
-                                        className="input-field"
-                                        placeholder="••••••••"
-                                        required
-                                        minLength={6}
-                                        value={form.confirmPassword}
-                                        onChange={e => update('confirmPassword', e.target.value)}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="authTerms">
-                                <input
-                                    type="checkbox"
-                                    id="terms"
-                                    checked={termsAccepted}
-                                    onChange={e => setTermsAccepted(e.target.checked)}
-                                    className="authCheckbox"
-                                />
-                                <label htmlFor="terms" className="authTermsLabel">
-                                    Li e aceito os <Link href="/terms/use" target="_blank" className="authTermsLink">Termos de Uso</Link>
+                                <label className="authField">
+                                    <span>Nome completo</span>
+                                    <div><FiUser size={17} /><input type="text" placeholder="Seu nome" required value={form.name} onChange={e => update('name', e.target.value)} /></div>
+                                </label>
+                                <label className="authField">
+                                    <span>Telefone</span>
+                                    <div><FiPhone size={17} /><input type="tel" placeholder="(11) 99999-9999" value={form.phone} onChange={e => update('phone', e.target.value)} /></div>
                                 </label>
                             </div>
 
-                            <button
-                                type="submit"
-                                className="btn-primary"
-                                disabled={loading}
-                                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 28px' }}
-                            >
-                                {loading ? 'Criando conta...' : <>Criar Conta <FiArrowRight size={16} /></>}
+                            <label className="authField">
+                                <span>Email</span>
+                                <div><FiMail size={17} /><input type="email" placeholder="seu@email.com" required value={form.email} onChange={e => update('email', e.target.value)} /></div>
+                            </label>
+
+                            <label className="authField">
+                                <span>CPF ou CNPJ</span>
+                                <div><FiFileText size={17} /><input type="text" placeholder="000.000.000-00" required value={form.cpf_cnpj} onChange={e => update('cpf_cnpj', e.target.value)} /></div>
+                            </label>
+
+                            <div className="authGrid2">
+                                <label className="authField">
+                                    <span>Senha</span>
+                                    <div><FiLock size={17} /><input type="password" placeholder="********" required minLength={6} value={form.password} onChange={e => update('password', e.target.value)} /></div>
+                                </label>
+                                <label className="authField">
+                                    <span>Confirmar senha</span>
+                                    <div><FiLock size={17} /><input type="password" placeholder="********" required minLength={6} value={form.confirmPassword} onChange={e => update('confirmPassword', e.target.value)} /></div>
+                                </label>
+                            </div>
+
+                            <label className="authTerms">
+                                <input type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} />
+                                <span>Li e aceito os <Link href="/terms/use" target="_blank">Termos de Uso</Link></span>
+                            </label>
+
+                            <button type="submit" className="authSubmit" disabled={loading}>
+                                {loading ? 'Criando conta...' : <>Criar Conta <FiArrowRight size={17} /></>}
                             </button>
                         </form>
 
-                        <div className="authFooter">
-                            <span>Já possui conta?</span>
-                            <Link href="/login" className="authLink">Entrar</Link>
-                        </div>
-                    </div>
-                </div>
+                        <footer className="authFooter">
+                            <span>Ja possui conta?</span>
+                            <Link href="/login">Entrar</Link>
+                        </footer>
+                    </section>
+                </main>
             </div>
 
             <style>{`
                 .authShell {
                     min-height: 100vh;
-                    background: var(--bg-primary);
-                    position: relative;
-                    overflow: hidden;
-                    display: flex;
-                    align-items: stretch;
-                }
-                .authBackdrop {
-                    position: absolute;
-                    inset: 0;
                     background:
-                        radial-gradient(900px 500px at 12% 15%, rgba(108,92,231,0.18), transparent 55%),
-                        radial-gradient(700px 420px at 88% 70%, rgba(0,206,201,0.10), transparent 60%),
-                        radial-gradient(600px 420px at 50% 20%, rgba(255,107,107,0.08), transparent 60%);
+                        radial-gradient(900px 560px at 0% 0%, rgba(124,58,237,0.44), transparent 48%),
+                        radial-gradient(760px 520px at 100% 100%, rgba(124,58,237,0.34), transparent 46%),
+                        linear-gradient(135deg, #fbf9ff 0%, #ffffff 46%, #f3eaff 100%);
+                    color: #111827;
+                    overflow: hidden;
+                }
+                .authShell::before {
+                    content: '';
+                    position: fixed;
+                    inset: 0;
                     pointer-events: none;
+                    background:
+                        radial-gradient(circle at 94% 12%, rgba(124,58,237,0.22) 0 1px, transparent 2px) 0 0 / 18px 18px,
+                        repeating-radial-gradient(ellipse at 52% 100%, transparent 0 26px, rgba(124,58,237,0.14) 27px 28px, transparent 29px 48px);
+                    opacity: 0.55;
+                    mask-image: linear-gradient(180deg, black, transparent 88%);
                 }
                 .authLayout {
-                    width: 100%;
-                    display: grid;
-                    grid-template-columns: 1.15fr 1fr;
                     min-height: 100vh;
+                    display: grid;
+                    grid-template-columns: minmax(560px, 1.15fr) minmax(480px, 0.85fr);
+                    gap: 56px;
+                    align-items: center;
+                    padding: 36px 64px;
                     position: relative;
                     z-index: 1;
                 }
-                .authSide {
-                    display: flex;
-                    align-items: center;
-                    padding: 64px;
+                .authShowcase {
+                    min-height: calc(100vh - 72px);
+                    border-radius: 28px;
+                    border: 1px solid rgba(255,255,255,0.84);
+                    background: linear-gradient(135deg, rgba(255,255,255,0.82), rgba(246,240,255,0.72));
+                    box-shadow: 0 30px 100px rgba(91,33,182,0.16);
                     position: relative;
+                    overflow: hidden;
+                    padding: 44px 42px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
                 }
-                .authSide::before {
+                .authShowcase::after {
                     content: '';
                     position: absolute;
-                    inset: 24px;
-                    border-radius: 28px;
-                    background:
-                        linear-gradient(135deg, rgba(108,92,231,0.25), rgba(10,10,15,0.0)),
-                        radial-gradient(800px 400px at 30% 30%, rgba(108,92,231,0.22), transparent 60%),
-                        radial-gradient(700px 360px at 70% 70%, rgba(0,206,201,0.16), transparent 60%);
-                    border: 1px solid rgba(255,255,255,0.08);
-                    box-shadow: 0 28px 80px rgba(0,0,0,0.40);
+                    left: -10%;
+                    right: -10%;
+                    bottom: -90px;
+                    height: 240px;
+                    background: repeating-radial-gradient(ellipse at 50% 0%, transparent 0 22px, rgba(124,58,237,0.18) 23px 24px, transparent 25px 42px);
+                    opacity: 0.8;
                 }
-                .authSideInner {
+                .authLogoMark {
+                    position: absolute;
+                    top: 34px;
+                    left: 36px;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    font-size: 22px;
+                    z-index: 2;
+                }
+                .authLogoMark img { width: 32px; height: 32px; }
+                .authOrbit {
+                    position: absolute;
+                    right: 64px;
+                    top: 98px;
+                    width: 280px;
+                    height: 210px;
+                    z-index: 1;
+                }
+                .authOrbitRing {
+                    position: absolute;
+                    inset: 28px 0;
+                    border: 2px solid rgba(124,58,237,0.18);
+                    border-radius: 50%;
+                    transform: rotate(9deg);
+                }
+                .authOrbitCore {
+                    position: absolute;
+                    left: 76px;
+                    top: 38px;
+                    width: 134px;
+                    height: 134px;
+                    border-radius: 34px;
+                    display: grid;
+                    place-items: center;
+                    color: white;
+                    font-size: 78px;
+                    font-weight: 950;
+                    background: linear-gradient(145deg, #8b5cf6, #5b21b6);
+                    box-shadow: inset 0 -16px 32px rgba(35,16,88,0.24), 0 28px 60px rgba(91,33,182,0.34);
+                    transform: rotate(6deg);
+                }
+                .authFloatIcon {
+                    position: absolute;
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 16px;
+                    display: grid;
+                    place-items: center;
+                    color: #7c3aed;
+                    background: rgba(255,255,255,0.9);
+                    box-shadow: 0 18px 38px rgba(91,33,182,0.18);
+                }
+                .authFloatIconOne { left: 22px; top: 34px; }
+                .authFloatIconTwo { right: 8px; top: 24px; transform: rotate(8deg); }
+                .authFloatIconThree { right: 18px; bottom: 4px; border-radius: 50%; }
+                .authCopy {
+                    max-width: 560px;
                     position: relative;
                     z-index: 2;
-                    max-width: 520px;
-                    padding: 28px;
+                    margin-top: 126px;
                 }
-                .authSideBadge {
+                .authBadge {
                     display: inline-flex;
                     align-items: center;
-                    padding: 8px 14px;
+                    gap: 8px;
+                    padding: 9px 14px;
                     border-radius: 999px;
-                    border: 1px solid rgba(255,255,255,0.10);
-                    background: rgba(0,0,0,0.18);
-                    color: rgba(255,255,255,0.86);
+                    background: rgba(124,58,237,0.09);
+                    border: 1px solid rgba(124,58,237,0.15);
+                    color: #6d28d9;
                     font-size: 12px;
-                    font-weight: 800;
-                    letter-spacing: 0.8px;
+                    font-weight: 900;
                     text-transform: uppercase;
                     margin-bottom: 18px;
                 }
-                .authSideTitle {
-                    font-size: 44px;
-                    line-height: 1.08;
-                    font-weight: 900;
-                    color: rgba(255,255,255,0.92);
-                    letter-spacing: -1px;
-                    margin-bottom: 14px;
+                .authCopy h1 {
+                    margin: 0 0 18px;
+                    font-size: clamp(38px, 4.4vw, 54px);
+                    line-height: 1.05;
+                    letter-spacing: -1.4px;
+                    font-weight: 950;
                 }
-                .authSideSub {
+                .authCopy h1 span { color: #7c3aed; }
+                .authCopy p {
+                    margin: 0;
+                    max-width: 450px;
+                    color: #64748b;
+                    font-size: 16px;
+                    line-height: 1.75;
+                }
+                .authBenefits {
+                    position: relative;
+                    z-index: 2;
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 18px;
+                    margin-top: 48px;
+                }
+                .authBenefits div {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    min-width: 0;
+                }
+                .authBenefits svg,
+                .authBottomNote svg {
+                    flex: 0 0 auto;
+                    color: #7c3aed;
+                    padding: 12px;
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 15px;
+                    background: rgba(255,255,255,0.9);
+                    box-shadow: 0 14px 32px rgba(91,33,182,0.12);
+                }
+                .authBenefits strong {
+                    display: block;
+                    font-size: 13px;
+                    color: #5b21b6;
+                    margin-bottom: 4px;
+                }
+                .authBenefits small {
+                    display: block;
+                    color: #64748b;
+                    line-height: 1.45;
+                    font-size: 12px;
+                }
+                .authBottomNote {
+                    position: relative;
+                    z-index: 2;
+                    display: flex;
+                    align-items: center;
+                    gap: 18px;
+                    margin-top: 42px;
+                    padding: 20px 22px;
+                    border-radius: 20px;
+                    background: rgba(255,255,255,0.72);
+                    border: 1px solid rgba(255,255,255,0.9);
+                    box-shadow: 0 20px 60px rgba(91,33,182,0.12);
+                    font-weight: 800;
+                    color: #334155;
                     font-size: 14px;
-                    line-height: 1.7;
-                    color: rgba(255,255,255,0.72);
-                    max-width: 460px;
                 }
                 .authMain {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    padding: 40px 24px;
                 }
                 .authCard {
                     width: 100%;
                     max-width: 520px;
-                    padding: 34px;
+                    padding: 38px 34px;
+                    border-radius: 28px;
+                    background: rgba(255,255,255,0.88);
+                    border: 1px solid rgba(255,255,255,0.92);
+                    box-shadow: 0 30px 90px rgba(91,33,182,0.16);
                 }
                 .authBrand {
                     display: flex;
                     justify-content: center;
-                    margin-bottom: 18px;
+                    margin-bottom: 24px;
                 }
-                .authBrandLogo {
-                    height: 46px;
+                .authBrand img {
+                    height: 34px;
                     width: auto;
                     object-fit: contain;
-                    display: block;
                 }
                 .authHeader {
                     text-align: center;
-                    margin-bottom: 18px;
+                    margin-bottom: 24px;
                 }
-                .authTitle {
-                    font-size: 22px;
-                    font-weight: 900;
-                    letter-spacing: -0.3px;
-                    margin: 0 0 8px;
+                .authHeader h2 {
+                    margin: 0 0 10px;
+                    font-size: 30px;
+                    color: #7c3aed;
+                    font-weight: 950;
+                    letter-spacing: -0.7px;
                 }
-                .authSubtitle {
+                .authHeader p {
                     margin: 0;
-                    font-size: 13px;
-                    color: var(--text-secondary);
-                }
-                .authLabel {
-                    display: block;
-                    font-size: 13px;
+                    color: #64748b;
+                    font-size: 14px;
                     font-weight: 600;
-                    color: var(--text-secondary);
-                    margin-bottom: 8px;
                 }
                 .authGrid2 {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
                     gap: 14px;
-                    margin-bottom: 14px;
                 }
-                .authTerms {
-                    margin: 8px 0 18px;
+                .authField {
+                    display: block;
+                    margin-bottom: 16px;
+                }
+                .authField > span {
+                    display: block;
+                    margin-bottom: 8px;
+                    color: #334155;
+                    font-size: 13px;
+                    font-weight: 800;
+                }
+                .authField div {
+                    position: relative;
                     display: flex;
                     align-items: center;
-                    gap: 12px;
                 }
-                .authCheckbox {
+                .authField div svg {
+                    position: absolute;
+                    left: 16px;
+                    color: #7c3aed;
+                }
+                .authField input {
+                    width: 100%;
+                    height: 50px;
+                    border: 1px solid rgba(124,58,237,0.18);
+                    border-radius: 14px;
+                    background: rgba(246,240,255,0.62);
+                    color: #111827;
+                    padding: 0 16px 0 46px;
+                    outline: none;
+                    font-size: 14px;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.82);
+                    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+                }
+                .authField input:focus {
+                    background: #fff;
+                    border-color: rgba(124,58,237,0.5);
+                    box-shadow: 0 0 0 4px rgba(124,58,237,0.10);
+                }
+                .authTerms {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    margin: 2px 0 18px;
+                    color: #64748b;
+                    font-size: 13px;
+                    font-weight: 700;
+                }
+                .authTerms input {
                     width: 18px;
                     height: 18px;
-                    cursor: pointer;
-                    accent-color: var(--accent-primary);
+                    accent-color: #7c3aed;
                 }
-                .authTermsLabel {
-                    font-size: 13px;
-                    color: var(--text-secondary);
-                    cursor: pointer;
-                    user-select: none;
-                    line-height: 1.4;
+                .authTerms a {
+                    color: #7c3aed;
+                    text-decoration: none;
+                    font-weight: 900;
                 }
-                .authTermsLink {
-                    color: var(--accent-secondary);
-                    text-decoration: underline;
-                    font-weight: 800;
+                .authSubmit {
+                    width: 100%;
+                    height: 52px;
+                    border: 0;
+                    border-radius: 13px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                    color: white;
+                    font-weight: 900;
+                    cursor: pointer;
+                    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+                    box-shadow: 0 14px 32px rgba(109,40,217,0.28);
+                }
+                .authSubmit:disabled {
+                    opacity: 0.72;
+                    cursor: not-allowed;
                 }
                 .authFooter {
-                    margin-top: 18px;
                     display: flex;
                     justify-content: center;
-                    gap: 8px;
-                    font-size: 13px;
-                    color: var(--text-secondary);
+                    gap: 7px;
+                    color: #64748b;
+                    font-size: 14px;
+                    margin-top: 24px;
                 }
-                .authLink {
-                    color: var(--accent-secondary);
+                .authFooter a {
+                    color: #7c3aed;
                     text-decoration: none;
-                    font-weight: 800;
+                    font-weight: 900;
                 }
-                @media (max-width: 980px) {
+                @media (max-width: 1080px) {
                     .authLayout {
                         grid-template-columns: 1fr;
+                        padding: 22px;
                     }
-                    .authSide {
+                    .authShowcase {
                         display: none;
                     }
-                    .authMain {
-                        padding: 36px 18px;
-                    }
                     .authCard {
-                        padding: 30px;
+                        max-width: 520px;
                     }
                 }
-                @media (max-width: 520px) {
+                @media (max-width: 560px) {
+                    .authLayout {
+                        padding: 16px;
+                    }
+                    .authCard {
+                        padding: 32px 20px;
+                        border-radius: 24px;
+                    }
                     .authGrid2 {
                         grid-template-columns: 1fr;
+                        gap: 0;
                     }
-                }
-                @media (max-width: 420px) {
-                    .authCard {
-                        padding: 26px 18px;
-                    }
-                    .authBrandLogo {
-                        height: 42px;
+                    .authHeader h2 {
+                        font-size: 26px;
                     }
                 }
             `}</style>

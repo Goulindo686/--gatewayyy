@@ -1,10 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Script from 'next/script';
-import { usePathname, useSearchParams } from 'next/navigation';
-
-export const FB_PIXEL_ID = process.env.NEXT_PUBLIC_FACEBOOK_PIXEL_ID;
 
 declare global {
     interface Window {
@@ -13,18 +10,46 @@ declare global {
     }
 }
 
-export const pageview = (pixelId: string) => {
+export const pageview = (eventId?: string) => {
     if (typeof window !== 'undefined' && window.fbq) {
-        window.fbq('track', 'PageView');
+        window.fbq('track', 'PageView', {}, eventId ? { eventID: eventId } : undefined);
     }
 };
 
-// https://developers.facebook.com/docs/facebook-pixel/advanced/
-export const event = (name: string, options = {}) => {
+export const event = (name: string, options = {}, eventId?: string) => {
     if (typeof window !== 'undefined' && window.fbq) {
-        window.fbq('track', name, options);
+        window.fbq('track', name, options, eventId ? { eventID: eventId } : undefined);
     }
 };
+
+export function getFacebookCookies() {
+    if (typeof document === 'undefined') return {};
+
+    const read = (name: string) => document.cookie
+        .split('; ')
+        .find(row => row.startsWith(`${name}=`))
+        ?.split('=')
+        .slice(1)
+        .join('=');
+
+    return {
+        fbp: read('_fbp'),
+        fbc: read('_fbc')
+    };
+}
+
+export function trackFacebookPurchase(product: any, amount: number, orderId: string) {
+    if (!product?.facebook_pixel_id || typeof window === 'undefined' || !window.fbq) return;
+
+    event('Purchase', {
+        content_name: product.name,
+        content_ids: [product.id],
+        content_type: 'product',
+        value: Number(Number(amount || 0).toFixed(2)),
+        currency: 'BRL',
+        num_items: 1
+    }, orderId);
+}
 
 interface FacebookPixelProps {
     pixelId?: string;
@@ -32,66 +57,63 @@ interface FacebookPixelProps {
 }
 
 export default function FacebookPixel({ pixelId, product }: FacebookPixelProps) {
-    const pathname = usePathname();
-    const searchParams = useSearchParams();
     const [loaded, setLoaded] = useState(false);
     const safePixelId = String(pixelId || '').replace(/\D/g, '');
+    const price = Number(product?.price || product?.price_display || 0);
+    const pageEventId = useRef(`page_${Date.now()}_${Math.random().toString(36).slice(2)}`);
 
     useEffect(() => {
-        // Verifica se o pixel já foi carregado anteriormente
         if (typeof window !== 'undefined' && window.fbq) {
             setLoaded(true);
         }
     }, []);
 
     useEffect(() => {
-        if (!loaded || !pixelId) return;
-        pageview(pixelId);
-    }, [pathname, searchParams, loaded, pixelId]);
+        if (!loaded || !product || !safePixelId) return;
 
-    useEffect(() => {
-        // Só dispara se tiver pixelId, estiver carregado e tiver produto
-        if (!loaded || !product || !pixelId) return;
-        
-        // Pequeno delay para garantir que o script processou tudo
         const timer = setTimeout(() => {
-            // Dispara InitiateCheckout assim que o pixel carrega e o produto existe
+            event('ViewContent', {
+                content_name: product.name,
+                content_ids: [product.id],
+                content_type: 'product',
+                value: Number(price.toFixed(2)),
+                currency: 'BRL'
+            }, `view_${product.id}_${pageEventId.current}`);
+
             event('InitiateCheckout', {
                 content_name: product.name,
                 content_ids: [product.id],
                 content_type: 'product',
-                value: (product.price / 100).toFixed(2),
+                value: Number(price.toFixed(2)),
                 currency: 'BRL',
                 num_items: 1
-            });
+            }, `checkout_${product.id}_${pageEventId.current}`);
         }, 500);
 
         return () => clearTimeout(timer);
-    }, [loaded, product, pixelId]);
+    }, [loaded, product, safePixelId, price]);
 
     if (!safePixelId) return null;
 
     return (
-        <div>
-            <Script
-                id="fb-pixel"
-                strategy="afterInteractive"
-                onLoad={() => setLoaded(true)}
-                dangerouslySetInnerHTML={{
-                    __html: `
-                    !function(f,b,e,v,n,t,s)
-                    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-                    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-                    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-                    n.queue=[];t=b.createElement(e);t.async=!0;
-                    t.src=v;s=b.getElementsByTagName(e)[0];
-                    s.parentNode.insertBefore(t,s)}(window, document,'script',
-                    'https://connect.facebook.net/en_US/fbevents.js');
-                    fbq('init', '${safePixelId}');
-                    fbq('track', 'PageView');
-                    `,
-                }}
-            />
-        </div>
+        <Script
+            id={`fb-pixel-${safePixelId}`}
+            strategy="afterInteractive"
+            onLoad={() => setLoaded(true)}
+            dangerouslySetInnerHTML={{
+                __html: `
+                !function(f,b,e,v,n,t,s)
+                {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+                n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+                if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+                n.queue=[];t=b.createElement(e);t.async=!0;
+                t.src=v;s=b.getElementsByTagName(e)[0];
+                s.parentNode.insertBefore(t,s)}(window, document,'script',
+                'https://connect.facebook.net/en_US/fbevents.js');
+                fbq('init', '${safePixelId}');
+                fbq('track', 'PageView');
+                `,
+            }}
+        />
     );
 }

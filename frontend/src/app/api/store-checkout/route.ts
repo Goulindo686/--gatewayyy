@@ -24,7 +24,9 @@ export async function POST(req: NextRequest) {
             const rlEmail = await checkRateLimit({ key: `store_checkout:email:${buyer.email.toLowerCase().trim()}`, limit: 5, windowSecs: 3600, failOpen: false });
             if (!rlEmail.allowed) return rateLimitResponse(rlEmail.resetAt);
         }
-        const enableCreditCard = process.env.ENABLE_CREDIT_CARD ? (process.env.ENABLE_CREDIT_CARD === 'true') : false;
+        const enableCreditCard = process.env.ENABLE_CREDIT_CARD
+            ? (process.env.ENABLE_CREDIT_CARD === 'true')
+            : true;
         const normalizedPaymentMethod = (body.payment_method === 'card' ? 'credit_card' : body.payment_method) || 'pix';
 
         const extractPix = (pagarmeOrder: any) => {
@@ -161,7 +163,7 @@ export async function POST(req: NextRequest) {
         let pagarmeOrder;
         try {
             // we use the same "createOrder" used by the standalone system that works
-            const ipHeader = (typeof (req as any)?.headers?.get === 'function' ? (req as any).headers.get('x-forwarded-for') : '') || '';
+            const ipHeader = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '';
             const ip = (ipHeader || '').split(',')[0].trim() || undefined;
             const sessionId = uuidv4();
             pagarmeOrder = await PagarmeService.createOrder({
@@ -171,7 +173,12 @@ export async function POST(req: NextRequest) {
                 seller_recipient_id: recipient.pagarme_recipient_id,
                 platform_fee_percentage: feePercentage,
                 card_data: method === 'credit_card' ? body.card_data : undefined,
-                items: validatedCart, // pass validated items
+                items: validatedCart.map((item: any) => ({
+                    amount: item.priceCents,
+                    description: item.name,
+                    quantity: item.quantity,
+                    code: item.id
+                })),
                 ip,
                 session_id: sessionId
             } as any);

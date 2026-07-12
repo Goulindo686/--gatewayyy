@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import type { JwtPayload } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { NextRequest } from 'next/server';
 import { supabase } from './db';
@@ -8,6 +9,8 @@ if (!JWT_SECRET) {
     throw new Error('JWT_SECRET environment variable is not defined. Set it in your .env file.');
 }
 const SECRET = JWT_SECRET as string;
+
+export type AuthTokenPayload = JwtPayload & { impersonated_by?: string; userId?: string; id?: string; role?: string };
 
 export function generateToken(payload: any): string {
     return jwt.sign(payload, SECRET, { expiresIn: '7d' });
@@ -25,7 +28,7 @@ export async function comparePassword(password: string, hash: string): Promise<b
     return bcrypt.compare(password, hash);
 }
 
-export async function getAuthUser(req: NextRequest): Promise<{ user: any; error?: string } | null> {
+export async function getAuthUser(req: NextRequest): Promise<{ user: any; tokenPayload?: AuthTokenPayload; error?: string } | null> {
     const authHeader = req.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return null;
@@ -33,7 +36,7 @@ export async function getAuthUser(req: NextRequest): Promise<{ user: any; error?
 
     try {
         const token = authHeader.split(' ')[1];
-        const decoded: any = verifyToken(token);
+        const decoded = verifyToken(token) as AuthTokenPayload;
 
         const { data: users } = await supabase
             .from('users')
@@ -43,7 +46,7 @@ export async function getAuthUser(req: NextRequest): Promise<{ user: any; error?
         const user = users?.[0];
 
         if (!user || user.status === 'blocked') return null;
-        return { user };
+        return { user, tokenPayload: decoded };
     } catch {
         return null;
     }

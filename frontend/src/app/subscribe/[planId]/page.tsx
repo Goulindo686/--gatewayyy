@@ -106,7 +106,7 @@ export default function SubscribePage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!isValidCPF(form.cpf)) { toast.error('CPF inválido'); return; }
-        if (!settings.hide_phone && !isValidPhone(form.phone)) { toast.error('Telefone inválido'); return; }
+        if (!settings.hide_phone && !isValidPhone(form.phone)) { toast.error('WhatsApp inválido'); return; }
         if (!isValidCEP(form.cep)) { toast.error('CEP inválido'); return; }
         if (!isValidUF(form.state)) { toast.error('UF inválida'); return; }
         if (!form.street || !form.number || !form.city) { toast.error('Endereço incompleto'); return; }
@@ -351,7 +351,7 @@ export default function SubscribePage() {
                                     </div>
                                     {!settings.hide_phone && (
                                         <div>
-                                            <label className="text-xs font-black uppercase tracking-wider mb-2 block opacity-60" style={{ color: textSecondary }}>Seu celular *</label>
+                                            <label className="text-xs font-black uppercase tracking-wider mb-2 block opacity-60" style={{ color: textSecondary }}>WhatsApp *</label>
                                             <div className="flex gap-3">
                                                 <div className="h-14 px-4 rounded-2xl border flex items-center gap-2 shrink-0" style={{ background: isLight ? '#fff' : inputBg, borderColor }}>
                                                     <img src="https://flagcdn.com/w20/br.png" alt="BR" className="w-5 h-3.5 object-cover rounded-sm" />

@@ -10,6 +10,82 @@ const pagarmeApi = axios.create({
 });
 
 export class PagarmeService {
+    private static normalizeAddress(address: any) {
+        const zipCode = String(address?.zip_code || '').replace(/\D/g, '');
+        const street = String(address?.street || '').trim();
+        const number = String(address?.number || '').trim();
+        const neighborhood = String(address?.neighborhood || '').trim();
+        const city = String(address?.city || '').trim();
+        const state = String(address?.state || '').trim().toUpperCase();
+
+        return {
+            line_1: [number, street, neighborhood].filter(Boolean).join(', '),
+            zip_code: zipCode,
+            city,
+            state,
+            country: 'BR'
+        };
+    }
+
+    private static buildCustomer(customer: any, requireAntifraudData: boolean) {
+        const document = String(customer?.cpf || '').replace(/\D/g, '');
+        const phone = String(customer?.phone || '').replace(/\D/g, '');
+        const address = PagarmeService.normalizeAddress(customer?.address);
+        const hasValidAddress = address.zip_code.length === 8
+            && !!address.city
+            && address.state.length === 2
+            && !!address.line_1;
+
+        if (requireAntifraudData) {
+            if (document.length !== 11) throw new Error('CPF invalido para pagamento com cartao.');
+            if (phone.length < 10 || phone.length > 11) throw new Error('Telefone invalido para pagamento com cartao.');
+            if (!hasValidAddress) throw new Error('Endereco de cobranca incompleto para pagamento com cartao.');
+        }
+
+        const normalizedCustomer: any = {
+            name: customer?.name || 'Cliente',
+            email: customer?.email,
+            document: document || '00000000000',
+            type: 'individual',
+            phones: {
+                mobile_phone: {
+                    country_code: '55',
+                    area_code: phone.substring(0, 2) || '11',
+                    number: phone.substring(2) || '999999999'
+                }
+            }
+        };
+
+        if (hasValidAddress) normalizedCustomer.address = address;
+        return { customer: normalizedCustomer, address };
+    }
+
+    static calculatePlatformFeeCents(input: { amountCents: number; paymentMethod: string; feePercentage: number }) {
+        const amountCents = Math.max(0, Math.round(input.amountCents || 0));
+        const feePercentage = Number.isFinite(input.feePercentage) ? Math.max(0, Math.min(100, input.feePercentage)) : 0;
+        const paymentMethod = (input.paymentMethod || '').toLowerCase();
+
+        if (feePercentage <= 0 || amountCents <= 0) return 0;
+
+        if (paymentMethod === 'credit_card' || paymentMethod === 'card') {
+            return Math.min(amountCents, Math.round(amountCents * (feePercentage / 100)));
+        }
+
+        const PLATFORM_FLAT_FEE = 200;
+        return Math.min(PLATFORM_FLAT_FEE, amountCents);
+    }
+
+    static getStatementDescriptor() {
+        const raw = (process.env.PAGARME_STATEMENT_DESCRIPTOR || process.env.PLATFORM_NAME || 'GOUPAYPAGTO').toString();
+        const cleaned = raw
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9]/g, '')
+            .toUpperCase()
+            .slice(0, 13);
+        return cleaned.length >= 3 ? cleaned : 'GOUPAYPAGTO';
+    }
+
     static async createRecipient(data: {
         name: string; email: string; cpf_cnpj: string; type: string;
         bank_code?: string; agency?: string; agency_digit?: string; account?: string; account_digit?: string; account_type?: string;
@@ -46,44 +122,14 @@ export class PagarmeService {
         amount: number; payment_method: string; customer: any;
         card_data?: any; seller_recipient_id: string; platform_fee_percentage: number;
         ip?: string; session_id?: string; antifraud_disable?: boolean;
+        items?: Array<{ amount: number; description: string; quantity: number; code: string }>;
     }) {
-        const sellerPercentage = 100 - (data.platform_fee_percentage || 0);
+        const isCreditCard = data.payment_method === 'credit_card' || data.payment_method === 'card';
 
-        // Robust Address Object with fallback to dummy only if absolutely missing or incomplete
-        const isAddressComplete = (addr: any) => {
-            return addr && 
-                   addr.zip_code && addr.zip_code.length >= 8 &&
-                   addr.city && addr.city.trim() !== '' &&
-                   addr.state && addr.state.trim() !== '';
-        };
-
-        const address = isAddressComplete(data.customer.address) ? data.customer.address : {
-            line_1: 'Rua Teste, 123, Centro',
-            zip_code: '01001000',
-            city: 'São Paulo',
-            state: 'SP',
-            country: 'BR',
-            street: 'Rua Teste',
-            number: '123',
-            neighborhood: 'Centro'
-        };
-
+        const normalized = PagarmeService.buildCustomer(data.customer, isCreditCard);
         const orderData: any = {
-            customer: {
-                name: data.customer.name || 'Cliente',
-                email: data.customer.email,
-                document: data.customer.cpf?.replace(/\D/g, '') || '00000000000',
-                type: 'individual',
-                phones: {
-                    mobile_phone: {
-                        country_code: '55',
-                        area_code: data.customer.phone?.replace(/\D/g, '').substring(0, 2) || '11',
-                        number: data.customer.phone?.replace(/\D/g, '').substring(2) || '999999999'
-                    }
-                },
-                address
-            },
-            items: [{
+            customer: normalized.customer,
+            items: data.items?.length ? data.items : [{
                 amount: data.amount,
                 description: 'Pagamento de Pedido',
                 quantity: 1,
@@ -99,11 +145,14 @@ export class PagarmeService {
 
         const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
         const sellId = (data.seller_recipient_id || '').trim();
-        const PLATFORM_FLAT_FEE = 200; // R$2,00 em centavos
-
-        // Se feePercentage === 0 (admin), não cobra taxa da plataforma
         const applyFee = (data.platform_fee_percentage || 0) > 0;
-        const platformFeeAmount = applyFee ? Math.min(PLATFORM_FLAT_FEE, data.amount) : 0;
+        const platformFeeAmount = applyFee
+            ? PagarmeService.calculatePlatformFeeCents({
+                amountCents: data.amount,
+                paymentMethod: data.payment_method,
+                feePercentage: data.platform_fee_percentage || 0
+            })
+            : 0;
         const sellerAmount = data.amount - platformFeeAmount;
 
         console.log('[PAGARME SERVICE] Split Config:', {
@@ -135,7 +184,7 @@ export class PagarmeService {
                 split: splitRules,
                 pix: {
                     expires_in: 3600,
-                    additional_information: [{ name: 'Plataforma', value: process.env.PLATFORM_NAME || 'PayGateway' }]
+                    additional_information: [{ name: 'Plataforma', value: process.env.PLATFORM_NAME || 'GOUPAY PAGAMENTOS' }]
                 }
             });
         } else if (data.payment_method === 'credit_card' || data.payment_method === 'card') {
@@ -153,18 +202,18 @@ export class PagarmeService {
                 credit_card: {
                     operation_type: 'auth_and_capture',
                     installments: finalInstallments,
-                    statement_descriptor: 'PEDIDO',
+                    statement_descriptor: PagarmeService.getStatementDescriptor(),
                     card: {
                         number: cleanNumber,
                         holder_name: card.holder_name || data.customer.name,
                         exp_month: expMonth,
                         exp_year: expYear,
                         cvv: card.cvv,
-                        billing_address: address
+                        billing_address: normalized.address
                     },
                     billing: {
                         name: data.customer.name || 'Cliente',
-                        address: address
+                        address: normalized.address
                     }
                 }
             });
@@ -182,42 +231,11 @@ export class PagarmeService {
         card_data?: any; seller_recipient_id: string; platform_fee_percentage: number;
         ip?: string; session_id?: string; antifraud_disable?: boolean;
     }) {
-        const sellerPercentage = 100 - (data.platform_fee_percentage || 0);
+        const isCreditCard = data.payment_method === 'credit_card' || data.payment_method === 'card';
 
-        // Robust Address Object with fallback to dummy only if absolutely missing or incomplete
-        const isAddressComplete = (addr: any) => {
-            return addr && 
-                   addr.zip_code && addr.zip_code.length >= 8 &&
-                   addr.city && addr.city.trim() !== '' &&
-                   addr.state && addr.state.trim() !== '';
-        };
-
-        const address = isAddressComplete(data.customer.address) ? data.customer.address : {
-            line_1: 'Rua Teste, 123, Centro',
-            zip_code: '01001000',
-            city: 'São Paulo',
-            state: 'SP',
-            country: 'BR',
-            street: 'Rua Teste',
-            number: '123',
-            neighborhood: 'Centro'
-        };
-
+        const normalized = PagarmeService.buildCustomer(data.customer, isCreditCard);
         const orderData: any = {
-            customer: {
-                name: data.customer.name || 'Cliente',
-                email: data.customer.email,
-                document: data.customer.cpf?.replace(/\D/g, '') || '00000000000',
-                type: 'individual',
-                phones: {
-                    mobile_phone: {
-                        country_code: '55',
-                        area_code: data.customer.phone?.replace(/\D/g, '').substring(0, 2) || '11',
-                        number: data.customer.phone?.replace(/\D/g, '').substring(2) || '999999999'
-                    }
-                },
-                address
-            },
+            customer: normalized.customer,
             items: data.items.map(item => ({
                 amount: Math.round(item.price * 100),
                 description: item.name,
@@ -234,13 +252,17 @@ export class PagarmeService {
 
         const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
         const sellId = (data.seller_recipient_id || '').trim();
-        const PLATFORM_FLAT_FEE = 200; // R$2,00 em centavos
 
         const totalAmountCents = data.items.reduce((sum: number, item: any) => sum + Math.round(item.price * 100) * item.quantity, 0);
 
-        // Se feePercentage === 0 (admin), não cobra taxa da plataforma
         const applyFee2 = (data.platform_fee_percentage || 0) > 0;
-        const platformFeeAmount = applyFee2 ? Math.min(PLATFORM_FLAT_FEE, totalAmountCents) : 0;
+        const platformFeeAmount = applyFee2
+            ? PagarmeService.calculatePlatformFeeCents({
+                amountCents: totalAmountCents,
+                paymentMethod: data.payment_method,
+                feePercentage: data.platform_fee_percentage || 0
+            })
+            : 0;
         const sellerAmount = totalAmountCents - platformFeeAmount;
 
         console.log('[PAGARME SERVICE] MultiItem Split Config:', {
@@ -269,7 +291,10 @@ export class PagarmeService {
             orderData.payments.push({
                 payment_method: 'pix',
                 split: splitRules,
-                pix: { expires_in: 3600 }
+                pix: {
+                    expires_in: 3600,
+                    additional_information: [{ name: 'Plataforma', value: process.env.PLATFORM_NAME || 'GOUPAY PAGAMENTOS' }]
+                }
             });
         } else if (data.payment_method === 'credit_card' || data.payment_method === 'card') {
             const card = data.card_data || {};
@@ -286,18 +311,18 @@ export class PagarmeService {
                 credit_card: {
                     operation_type: 'auth_and_capture',
                     installments: finalInstallments,
-                    statement_descriptor: 'LOJA',
+                    statement_descriptor: PagarmeService.getStatementDescriptor(),
                     card: {
                         number: cleanNumber,
                         holder_name: card.holder_name || data.customer.name,
                         exp_month: expMonth,
                         exp_year: expYear,
                         cvv: card.cvv,
-                        billing_address: address
+                        billing_address: normalized.address
                     },
                     billing: {
                         name: data.customer.name || 'Cliente',
-                        address: address
+                        address: normalized.address
                     }
                 }
             });
@@ -309,6 +334,11 @@ export class PagarmeService {
 
     static async getRecipientBalance(recipientId: string) {
         const response = await pagarmeApi.get(`/recipients/${recipientId}/balance`);
+        return response.data;
+    }
+
+    static async getRecipientTransfers(recipientId: string) {
+        const response = await pagarmeApi.get(`/recipients/${recipientId}/transfers?page=1&size=50`);
         return response.data;
     }
 

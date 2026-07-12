@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { dashboardAPI } from '@/lib/api';
-import { FiShoppingCart, FiRefreshCw } from 'react-icons/fi';
+import { useEffect, useState, useMemo } from 'react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import { FiShoppingCart, FiRefreshCw, FiSearch, FiCheckCircle, FiClock, FiX } from 'react-icons/fi';
 
 export default function SalesPage() {
     const [sales, setSales] = useState<any[]>([]);
@@ -14,17 +15,27 @@ export default function SalesPage() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [summary, setSummary] = useState<{ count: number; total_amount_display: string } | null>(null);
+    const [search, setSearch] = useState('');
+    const [delivering, setDelivering] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadSales();
-    }, []);
+    useEffect(() => { loadSales(); }, []);
 
     const loadSales = async (filters?: any) => {
         setLoading(true);
         try {
-            const { data } = await dashboardAPI.getSales(filters || {});
-            setSales(data?.sales || []);
-            setSummary(data?.summary ? { count: data.summary.count, total_amount_display: data.summary.total_amount_display } : null);
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+            const params = new URLSearchParams();
+            if (filters?.status) params.set('status', filters.status);
+            if (filters?.method) params.set('method', filters.method);
+            if (filters?.start) params.set('start', filters.start);
+            if (filters?.end) params.set('end', filters.end);
+
+            const { data } = await axios.get(`/api/sales?${params.toString()}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const result = data.data || data;
+            setSales(result?.sales || []);
+            setSummary(result?.summary || null);
         } catch {
             setSales([]);
         } finally {
@@ -44,45 +55,80 @@ export default function SalesPage() {
             const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
 
             if (rangePreset !== 'custom') {
-                if (rangePreset === 'today') {
-                    params.start = startOfDay(now).toISOString();
-                    params.end = endOfDay(now).toISOString();
-                } else if (rangePreset === 'yesterday') {
-                    const y = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-                    params.start = startOfDay(y).toISOString();
-                    params.end = endOfDay(y).toISOString();
-                } else if (rangePreset === 'last7') {
-                    const s = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                    params.start = startOfDay(s).toISOString();
-                    params.end = endOfDay(now).toISOString();
-                } else if (rangePreset === 'thisMonth') {
-                    const s = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-                    const e = endOfDay(now);
-                    params.start = s.toISOString();
-                    params.end = e.toISOString();
-                } else if (rangePreset === 'lastMonth') {
-                    const s = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
-                    const e = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-                    params.start = s.toISOString();
-                    params.end = e.toISOString();
-                }
+                if (rangePreset === 'today') { params.start = startOfDay(now).toISOString(); params.end = endOfDay(now).toISOString(); }
+                else if (rangePreset === 'yesterday') { const y = new Date(now.getTime() - 86400000); params.start = startOfDay(y).toISOString(); params.end = endOfDay(y).toISOString(); }
+                else if (rangePreset === 'last7') { const s = new Date(now.getTime() - 7 * 86400000); params.start = startOfDay(s).toISOString(); params.end = endOfDay(now).toISOString(); }
+                else if (rangePreset === 'thisMonth') { params.start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString(); params.end = endOfDay(now).toISOString(); }
+                else if (rangePreset === 'lastMonth') { params.start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString(); params.end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).toISOString(); }
             } else {
                 if (startDate) params.start = new Date(startDate + 'T00:00:00').toISOString();
                 if (endDate) params.end = new Date(endDate + 'T23:59:59').toISOString();
             }
-
             await loadSales(params);
         } finally {
             setRefreshing(false);
         }
     };
 
-    const formatDate = (iso: string) => {
+    const formatPhone = (phone?: string | null) => {
+        const digits = String(phone || '').replace(/\D/g, '');
+        if (!digits) return '—';
+        if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+        if (digits.length === 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+        return phone || digits;
+    };
+
+    // Filtragem local por busca (nome, CPF, email e telefone)
+    const filtered = useMemo(() => {
+        if (!search.trim()) return sales;
+        const q = search.trim().toLowerCase().replace(/\D/g, '') || search.trim().toLowerCase();
+        return sales.filter(o => {
+            const name = (o.buyer_name || '').toLowerCase();
+            const email = (o.buyer_email || '').toLowerCase();
+            const cpf = (o.buyer_cpf || '').replace(/\D/g, '');
+            const phone = (o.buyer_phone || '').replace(/\D/g, '');
+            const searchLower = search.trim().toLowerCase();
+            const searchDigits = search.trim().replace(/\D/g, '');
+            return (
+                name.includes(searchLower) ||
+                email.includes(searchLower) ||
+                (searchDigits && cpf.includes(searchDigits)) ||
+                (searchDigits && phone.includes(searchDigits))
+            );
+        });
+    }, [sales, search]);
+
+    const toggleDelivered = async (order: any) => {
+        setDelivering(order.id);
         try {
-            return new Date(iso).toLocaleString('pt-BR');
-        } catch {
-            return iso;
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+            const newValue = !order.delivered;
+            await axios.patch(`/api/orders/${order.id}/deliver`, { delivered: newValue }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setSales(prev => prev.map(o =>
+                o.id === order.id
+                    ? { ...o, delivered: newValue, delivered_at: newValue ? new Date().toISOString() : null }
+                    : o
+            ));
+            toast.success(newValue ? 'Venda marcada como entregue!' : 'Marcação removida');
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Erro ao atualizar venda');
+        } finally {
+            setDelivering(null);
         }
+    };
+
+    const formatDate = (iso: string) => {
+        try { return new Date(iso).toLocaleString('pt-BR'); } catch { return iso; }
+    };
+
+    const statusLabel: Record<string, { label: string; color: string }> = {
+        paid: { label: 'Pago', color: 'var(--success)' },
+        pending: { label: 'Pendente', color: 'var(--warning)' },
+        failed: { label: 'Falhou', color: 'var(--danger)' },
+        refunded: { label: 'Estornado', color: 'var(--text-muted)' },
+        cancelled: { label: 'Cancelado', color: 'var(--text-muted)' },
     };
 
     if (loading) {
@@ -100,10 +146,11 @@ export default function SalesPage() {
                 <FiShoppingCart size={24} /> Vendas
             </h1>
 
-            <div className="glass-card" style={{ padding: 20, marginBottom: 20, display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            {/* Filtros */}
+            <div className="glass-card" style={{ padding: 20, marginBottom: 16, display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <div style={{ minWidth: 160 }}>
                     <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Status</label>
-                    <select className="input-field" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                    <select className="input-field" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                         <option value="">Todos</option>
                         <option value="paid">Pago</option>
                         <option value="pending">Pendente</option>
@@ -114,7 +161,7 @@ export default function SalesPage() {
                 </div>
                 <div style={{ minWidth: 160 }}>
                     <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Método</label>
-                    <select className="input-field" value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)}>
+                    <select className="input-field" value={methodFilter} onChange={e => setMethodFilter(e.target.value)}>
                         <option value="">Todos</option>
                         <option value="pix">Pix</option>
                         <option value="credit_card">Cartão</option>
@@ -122,7 +169,7 @@ export default function SalesPage() {
                 </div>
                 <div style={{ minWidth: 200 }}>
                     <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Período</label>
-                    <select className="input-field" value={rangePreset} onChange={(e) => setRangePreset(e.target.value)}>
+                    <select className="input-field" value={rangePreset} onChange={e => setRangePreset(e.target.value)}>
                         <option value="today">Hoje</option>
                         <option value="yesterday">Ontem</option>
                         <option value="last7">Últimos 7 dias</option>
@@ -135,11 +182,11 @@ export default function SalesPage() {
                     <>
                         <div style={{ minWidth: 170 }}>
                             <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Início</label>
-                            <input type="date" className="input-field" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                            <input type="date" className="input-field" value={startDate} onChange={e => setStartDate(e.target.value)} />
                         </div>
                         <div style={{ minWidth: 170 }}>
                             <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Fim</label>
-                            <input type="date" className="input-field" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                            <input type="date" className="input-field" value={endDate} onChange={e => setEndDate(e.target.value)} />
                         </div>
                     </>
                 )}
@@ -149,8 +196,34 @@ export default function SalesPage() {
                 </button>
             </div>
 
+            {/* Barra de busca */}
+            <div className="glass-card" style={{ padding: '14px 20px', marginBottom: 16 }}>
+                <div style={{ position: 'relative' }}>
+                    <FiSearch size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                    <input
+                        type="text"
+                        className="input-field"
+                        placeholder="Buscar por nome, e-mail, CPF ou telefone..."
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        style={{ paddingLeft: 40, paddingRight: search ? 40 : 16 }}
+                    />
+                    {search && (
+                        <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}>
+                            <FiX size={15} />
+                        </button>
+                    )}
+                </div>
+                {search && (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
+                        {filtered.length} resultado{filtered.length !== 1 ? 's' : ''} para &quot;{search}&quot;
+                    </div>
+                )}
+            </div>
+
+            {/* Tabela */}
             <div className="glass-card" style={{ padding: 24 }}>
-                {summary && (
+                {summary && !search && (
                     <div style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                         <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                             Vendas no período: <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{summary.count}</span>
@@ -160,7 +233,8 @@ export default function SalesPage() {
                         </div>
                     </div>
                 )}
-                {sales.length > 0 ? (
+
+                {filtered.length > 0 ? (
                     <div style={{ overflowX: 'auto' }}>
                         <table className="data-table">
                             <thead>
@@ -174,29 +248,62 @@ export default function SalesPage() {
                                     <th>Método</th>
                                     <th>Status</th>
                                     <th>Data</th>
+                                    <th>Entregue</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {sales.map((o) => (
-                                    <tr key={o.id}>
-                                        <td style={{ fontWeight: 600 }}>{o.product_name}</td>
-                                        <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{o.buyer_name || '—'}</td>
-                                        <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{o.buyer_email || '—'}</td>
-                                        <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{o.buyer_cpf || '—'}</td>
-                                        <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{o.buyer_phone || '—'}</td>
-                                        <td style={{ fontWeight: 600 }}>R$ {o.amount_display}</td>
-                                        <td style={{ textTransform: 'uppercase', fontSize: 12, color: 'var(--text-muted)' }}>{o.payment_method}</td>
-                                        <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{o.status}</td>
-                                        <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{formatDate(o.created_at)}</td>
-                                    </tr>
-                                ))}
+                                {filtered.map(o => {
+                                    const st = statusLabel[o.status] || { label: o.status, color: 'var(--text-muted)' };
+                                    const isDelivering = delivering === o.id;
+                                    return (
+                                        <tr key={o.id} style={{ opacity: isDelivering ? 0.6 : 1 }}>
+                                            <td style={{ fontWeight: 600 }}>{o.product_name}</td>
+                                            <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{o.buyer_name || '—'}</td>
+                                            <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{o.buyer_email || '—'}</td>
+                                            <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{o.buyer_cpf || '—'}</td>
+                                            <td style={{ color: 'var(--text-secondary)', fontSize: 13, whiteSpace: 'nowrap' }}>{formatPhone(o.buyer_phone)}</td>
+                                            <td style={{ fontWeight: 600 }}>R$ {o.amount_display}</td>
+                                            <td style={{ textTransform: 'uppercase', fontSize: 12, color: 'var(--text-muted)' }}>
+                                                {o.payment_method === 'credit_card' ? 'Cartão' : 'Pix'}
+                                            </td>
+                                            <td>
+                                                <span style={{ fontSize: 12, fontWeight: 600, color: st.color }}>{st.label}</span>
+                                            </td>
+                                            <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{formatDate(o.created_at)}</td>
+                                            <td>
+                                                <button
+                                                    onClick={() => toggleDelivered(o)}
+                                                    disabled={isDelivering}
+                                                    title={o.delivered ? `Entregue em ${formatDate(o.delivered_at)}. Clique para desmarcar.` : 'Marcar como entregue'}
+                                                    style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                                                        padding: '5px 12px', borderRadius: 8, border: 'none',
+                                                        cursor: isDelivering ? 'not-allowed' : 'pointer',
+                                                        fontSize: 12, fontWeight: 600,
+                                                        background: o.delivered ? 'rgba(85,239,196,0.15)' : 'rgba(255,255,255,0.06)',
+                                                        color: o.delivered ? '#55efc4' : 'var(--text-muted)',
+                                                        transition: 'all 0.2s',
+                                                        whiteSpace: 'nowrap',
+                                                    }}
+                                                >
+                                                    {isDelivering
+                                                        ? <FiClock size={13} />
+                                                        : o.delivered
+                                                            ? <><FiCheckCircle size={13} /> Entregue</>
+                                                            : <><FiClock size={13} /> Pendente</>
+                                                    }
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
                 ) : (
                     <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
                         <FiShoppingCart size={32} style={{ marginBottom: 12, opacity: 0.4 }} />
-                        <p>Nenhuma venda encontrada</p>
+                        <p>{search ? `Nenhuma venda encontrada para "${search}"` : 'Nenhuma venda encontrada'}</p>
                     </div>
                 )}
             </div>

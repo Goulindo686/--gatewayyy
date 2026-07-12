@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { jsonError, jsonSuccess, generateToken, hashPassword } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
+import { sendPaidOrderToUtmify } from '@/lib/utmify';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -28,6 +29,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // If payment just confirmed (PIX), handle auto-enrollment and return auth token
     if (order.status === 'paid' && order.buyer_email) {
+        try {
+            const { data: fullOrder } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('id', order.id)
+                .single();
+            await sendPaidOrderToUtmify(fullOrder || order);
+        } catch (utmifyErr) {
+            console.error('[UTMIFY] Checkout status sync error:', utmifyErr);
+        }
+
         // Find or create buyer user
         let buyerUser: any = null;
         const { data: existingUser } = await supabase
