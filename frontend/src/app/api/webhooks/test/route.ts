@@ -1,14 +1,16 @@
 import { NextRequest } from 'next/server';
 import { getAuthUser, jsonSuccess, jsonError } from '@/lib/auth';
 import { supabase } from '@/lib/db';
+import { normalizeWebhookUrls, sendWebhookPayload } from '@/lib/webhooks';
 
 export async function POST(req: NextRequest) {
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Unauthorized', 401);
 
-    const { data: user } = await supabase.from('users').select('webhook_url').eq('id', auth.user.id).single();
+    const { data: user } = await supabase.from('users').select('webhook_url, webhook_urls').eq('id', auth.user.id).single();
+    const webhookUrls = normalizeWebhookUrls(user?.webhook_urls, user?.webhook_url);
 
-    if (!user?.webhook_url) {
+    if (webhookUrls.length === 0) {
         return jsonError('Nenhuma URL de Webhook configurada.', 400);
     }
 
@@ -33,24 +35,17 @@ export async function POST(req: NextRequest) {
     };
 
     try {
-        const startTime = Date.now();
-        const response = await fetch(user.webhook_url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const duration = Date.now() - startTime;
+        const results = await Promise.all(webhookUrls.map((url) => sendWebhookPayload(url, payload)));
+        const failures = results.filter((result) => !result.ok);
 
-        if (response.ok) {
+        if (failures.length === 0) {
             return jsonSuccess({ 
                 success: true, 
-                status: response.status, 
-                duration: `${duration}ms`,
-                message: 'Webhook enviado com sucesso!' 
+                results,
+                message: webhookUrls.length === 1 ? 'Webhook enviado com sucesso!' : `${webhookUrls.length} webhooks enviados com sucesso!`
             });
         } else {
-            const text = await response.text().catch(() => '');
-            return jsonError(`O servidor retornou erro ${response.status}: ${text.slice(0, 100)}`, 400);
+            return jsonError(`${failures.length} webhook(s) retornaram erro. Primeiro erro: ${failures[0].status} ${failures[0].error || ''}`, 400);
         }
     } catch (error: any) {
         return jsonError(`Erro de conexão: ${error.message}`, 500);

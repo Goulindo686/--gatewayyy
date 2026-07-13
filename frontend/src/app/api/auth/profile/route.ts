@@ -5,6 +5,7 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { PagarmeService } from '@/lib/pagarme';
+import { normalizeWebhookUrls } from '@/lib/webhooks';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(req: NextRequest) {
@@ -48,7 +49,7 @@ export async function PUT(req: NextRequest) {
             'store_name', 'store_slug', 'store_description', 'store_active',
             'store_theme', 'store_banner_url', 'store_template', 'store_accent_color',
             'store_headline', 'store_cta_text', 'store_badge_text',
-            'webhook_url'
+            'webhook_url', 'webhook_urls'
         ];
 
         const updateData: any = {};
@@ -60,6 +61,13 @@ export async function PUT(req: NextRequest) {
                     updateData[field] = value === '' ? null : value;
                 } else if (field === 'store_badge_text') {
                     updateData[field] = typeof body[field] === 'string' ? body[field].trim().slice(0, 60) : body[field];
+                } else if (field === 'webhook_urls') {
+                    updateData[field] = normalizeWebhookUrls(body[field]);
+                    updateData.webhook_url = updateData[field][0] || null;
+                } else if (field === 'webhook_url') {
+                    const urls = normalizeWebhookUrls(body[field]);
+                    updateData[field] = urls[0] || null;
+                    if (body.webhook_urls === undefined) updateData.webhook_urls = urls;
                 } else {
                     updateData[field] = body[field];
                 }

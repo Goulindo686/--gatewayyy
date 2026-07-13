@@ -39,7 +39,7 @@ export default function IntegrationsPage() {
     const [apiKeys, setApiKeys] = useState<any[]>([]);
     const [visibleApiKeys, setVisibleApiKeys] = useState<Record<string, boolean>>({});
     const [loadingKeys, setLoadingKeys] = useState(false);
-    const [webhookUrl, setWebhookUrl] = useState('');
+    const [webhookUrls, setWebhookUrls] = useState<string[]>(['']);
     const [savingWebhook, setSavingWebhook] = useState(false);
     const [testingWebhook, setTestingWebhook] = useState(false);
 
@@ -75,7 +75,10 @@ export default function IntegrationsPage() {
     const loadProfile = async () => {
         try {
             const { data } = await axios.get('/api/auth/profile', { headers: headers() });
-            setWebhookUrl(data.user?.webhook_url || '');
+            const urls = Array.isArray(data.user?.webhook_urls) && data.user.webhook_urls.length > 0
+                ? data.user.webhook_urls
+                : (data.user?.webhook_url ? [data.user.webhook_url] : ['']);
+            setWebhookUrls(urls);
         } catch {}
     };
 
@@ -187,8 +190,10 @@ export default function IntegrationsPage() {
     const saveWebhook = async () => {
         setSavingWebhook(true);
         try {
-            await axios.put('/api/auth/profile', { webhook_url: webhookUrl }, { headers: headers() });
-            toast.success('Webhook salvo!');
+            const urls = webhookUrls.map(url => url.trim()).filter(Boolean);
+            await axios.put('/api/auth/profile', { webhook_urls: urls }, { headers: headers() });
+            setWebhookUrls(urls.length > 0 ? urls : ['']);
+            toast.success(urls.length > 1 ? 'Webhooks salvos!' : 'Webhook salvo!');
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Erro ao salvar webhook');
         } finally {
@@ -197,7 +202,7 @@ export default function IntegrationsPage() {
     };
 
     const testWebhook = async () => {
-        if (!webhookUrl) return toast.error('Configure uma URL primeiro');
+        if (!webhookUrls.some(url => url.trim())) return toast.error('Configure uma URL primeiro');
         setTestingWebhook(true);
         try {
             const { data } = await axios.post('/api/webhooks/test', {}, { headers: headers() });
@@ -207,6 +212,21 @@ export default function IntegrationsPage() {
         } finally {
             setTestingWebhook(false);
         }
+    };
+
+    const updateWebhookUrl = (index: number, value: string) => {
+        setWebhookUrls(prev => prev.map((url, i) => i === index ? value : url));
+    };
+
+    const addWebhookUrl = () => {
+        setWebhookUrls(prev => [...prev, '']);
+    };
+
+    const removeWebhookUrl = (index: number) => {
+        setWebhookUrls(prev => {
+            const next = prev.filter((_, i) => i !== index);
+            return next.length > 0 ? next : [''];
+        });
     };
 
     if (loading) {
@@ -438,14 +458,37 @@ export default function IntegrationsPage() {
                         <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14 }}>
                             Receba POSTs no seu sistema quando uma venda mudar de status.
                         </p>
-                        <div className="webhook-row" style={{ display: 'flex', gap: 8 }}>
-                            <input className="input-field" placeholder="https://seu-sistema.com/webhook" value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} />
-                            <button onClick={saveWebhook} disabled={savingWebhook} className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                                <FiSave /> {savingWebhook ? 'Salvando...' : 'Salvar'}
-                            </button>
-                            <button onClick={testWebhook} disabled={testingWebhook || !webhookUrl} className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                                <FiZap /> {testingWebhook ? 'Enviando...' : 'Testar'}
-                            </button>
+                        <div style={{ display: 'grid', gap: 10 }}>
+                            {webhookUrls.map((url, index) => (
+                                <div key={index} className="webhook-row" style={{ display: 'flex', gap: 8 }}>
+                                    <input
+                                        className="input-field"
+                                        placeholder="https://seu-sistema.com/webhook"
+                                        value={url}
+                                        onChange={e => updateWebhookUrl(index, e.target.value)}
+                                    />
+                                    <button
+                                        onClick={() => removeWebhookUrl(index)}
+                                        disabled={webhookUrls.length === 1 && !url}
+                                        className="btn-secondary"
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                                        title="Remover webhook"
+                                    >
+                                        <FiTrash2 /> Remover
+                                    </button>
+                                </div>
+                            ))}
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <button onClick={addWebhookUrl} className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                    <FiPlus /> Adicionar Webhook
+                                </button>
+                                <button onClick={saveWebhook} disabled={savingWebhook} className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                    <FiSave /> {savingWebhook ? 'Salvando...' : 'Salvar'}
+                                </button>
+                                <button onClick={testWebhook} disabled={testingWebhook || !webhookUrls.some(url => url.trim())} className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                    <FiZap /> {testingWebhook ? 'Enviando...' : 'Testar Todos'}
+                                </button>
+                            </div>
                         </div>
                     </div>
 

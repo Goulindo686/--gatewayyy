@@ -12,6 +12,7 @@ import { sendPushNotification } from '@/lib/webpush';
 import { sendPurchaseApprovedEmail } from '@/lib/email';
 import { sendFacebookEvent } from '@/lib/facebook-capi';
 import { sendPaidOrderToUtmify } from '@/lib/utmify';
+import { normalizeWebhookUrls, sendWebhookPayload } from '@/lib/webhooks';
 
 function safeEqual(a: string, b: string) {
     const aBuf = Buffer.from(a);
@@ -713,35 +714,41 @@ export async function POST(req: NextRequest) {
         try {
             const { data: seller } = await supabase
                 .from('users')
-                .select('webhook_url')
+                .select('webhook_url, webhook_urls')
                 .eq('id', order.seller_id)
                 .single();
+            const webhookUrls = normalizeWebhookUrls(seller?.webhook_urls, seller?.webhook_url);
 
-            if (seller?.webhook_url) {
-                console.log(`Sending webhook to user ${order.seller_id}: ${seller.webhook_url}`);
-                await fetch(seller.webhook_url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        event: `order.${newStatus}`,
-                        data: {
-                            id: order.id,
-                            transaction_id: order.id, // Adicionado para compatibilidade
-                            status: newStatus,
-                            amount: order.amount,
-                            amount_display: (order.amount / 100).toFixed(2),
-                            description: order.description,
-                            payment_method: order.payment_method,
-                            customer: {
-                                name: order.buyer_name,
-                                email: order.buyer_email,
-                                cpf: order.buyer_cpf,
-                                phone: order.buyer_phone
-                            },
-                            created_at: order.created_at,
-                            updated_at: new Date().toISOString()
-                        }
-                    })
+            if (webhookUrls.length > 0) {
+                const payload = {
+                    event: `order.${newStatus}`,
+                    data: {
+                        id: order.id,
+                        transaction_id: order.id, // Adicionado para compatibilidade
+                        status: newStatus,
+                        amount: order.amount,
+                        amount_display: (order.amount / 100).toFixed(2),
+                        description: order.description,
+                        payment_method: order.payment_method,
+                        customer: {
+                            name: order.buyer_name,
+                            email: order.buyer_email,
+                            cpf: order.buyer_cpf,
+                            phone: order.buyer_phone
+                        },
+                        created_at: order.created_at,
+                        updated_at: new Date().toISOString()
+                    }
+                };
+
+                console.log(`Sending ${webhookUrls.length} webhook(s) to user ${order.seller_id}`);
+                const results = await Promise.allSettled(webhookUrls.map((url) => sendWebhookPayload(url, payload)));
+                results.forEach((result, index) => {
+                    if (result.status === 'rejected') {
+                        console.error(`Error sending user webhook ${webhookUrls[index]}:`, result.reason);
+                    } else if (!result.value.ok) {
+                        console.error(`User webhook returned ${result.value.status} for ${result.value.url}: ${result.value.error || ''}`);
+                    }
                 });
             }
         } catch (webhookError) {

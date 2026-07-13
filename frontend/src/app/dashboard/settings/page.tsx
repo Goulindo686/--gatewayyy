@@ -29,7 +29,7 @@ export default function SettingsPage() {
     const [testingPush, setTestingPush] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [form, setForm] = useState({
-        id: '', telegram_chat_id: '', webhook_url: '',
+        id: '', telegram_chat_id: '', webhook_url: '', webhook_urls: [''],
         name: '', phone: '', cpf_cnpj: '',
         address_street: '', address_number: '', address_complement: '',
         address_neighborhood: '', address_city: '', address_state: '', address_zipcode: '',
@@ -243,7 +243,7 @@ export default function SettingsPage() {
     };
 
     const testWebhook = async () => {
-        if (!form.webhook_url) return toast.error('Configure uma URL primeiro');
+        if (!form.webhook_urls.some(url => url.trim())) return toast.error('Configure uma URL primeiro');
         setTestingWebhook(true);
         try {
             const token = localStorage.getItem('token');
@@ -267,6 +267,9 @@ export default function SettingsPage() {
                 id: u.id,
                 telegram_chat_id: u.telegram_chat_id || '',
                 webhook_url: u.webhook_url || '',
+                webhook_urls: Array.isArray(u.webhook_urls) && u.webhook_urls.length > 0
+                    ? u.webhook_urls
+                    : (u.webhook_url ? [u.webhook_url] : ['']),
                 name: u.name || '', phone: u.phone || '', cpf_cnpj: u.cpf_cnpj || '',
                 address_street: u.address_street || '', address_number: u.address_number || '',
                 address_complement: u.address_complement || '', address_neighborhood: u.address_neighborhood || '',
@@ -299,6 +302,24 @@ export default function SettingsPage() {
     };
 
     const update = (field: string, value: string) => setForm({ ...form, [field]: value });
+
+    const updateWebhookUrl = (index: number, value: string) => {
+        setForm(prev => ({
+            ...prev,
+            webhook_urls: prev.webhook_urls.map((url, i) => i === index ? value : url),
+        }));
+    };
+
+    const addWebhookUrl = () => {
+        setForm(prev => ({ ...prev, webhook_urls: [...prev.webhook_urls, ''] }));
+    };
+
+    const removeWebhookUrl = (index: number) => {
+        setForm(prev => {
+            const next = prev.webhook_urls.filter((_, i) => i !== index);
+            return { ...prev, webhook_urls: next.length > 0 ? next : [''] };
+        });
+    };
 
     const tabs = [
         { key: 'profile', label: 'Perfil', icon: <FiUser size={16} /> },
@@ -545,40 +566,68 @@ export default function SettingsPage() {
                             </p>
                             
                             <div>
-                                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>URL do Webhook</label>
-                                <div className="webhook-row" style={{ display: 'flex', gap: 8 }}>
-                                    <input 
-                                        className="input-field" 
-                                        placeholder="https://seu-sistema.com/webhook" 
-                                        value={form.webhook_url || ''} 
-                                        onChange={e => setForm(prev => ({ ...prev, webhook_url: e.target.value }))} 
-                                    />
-                                    <button 
-                                        onClick={handleSave}
-                                        disabled={saving}
-                                        style={{ 
-                                            background: '#2563eb', color: 'white', border: 'none', 
-                                            borderRadius: 8, padding: '0 20px', cursor: 'pointer', fontWeight: 500,
-                                            display: 'flex', alignItems: 'center', gap: 8
-                                        }}
-                                    >
-                                        <FiSave /> {saving ? 'Salvando...' : 'Salvar'}
-                                    </button>
-                                    <button 
-                                        onClick={testWebhook}
-                                        disabled={testingWebhook || !form.webhook_url}
-                                        style={{ 
-                                            background: form.webhook_url ? '#f59e0b' : '#d1d5db', color: 'white', border: 'none', 
-                                            borderRadius: 8, padding: '0 20px', cursor: form.webhook_url ? 'pointer' : 'not-allowed', fontWeight: 500,
-                                            display: 'flex', alignItems: 'center', gap: 8
-                                        }}
-                                        title="Enviar teste para o Webhook"
-                                    >
-                                        <FiZap /> {testingWebhook ? 'Enviando...' : 'Testar'}
-                                    </button>
+                                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>URLs de Webhook</label>
+                                <div style={{ display: 'grid', gap: 10 }}>
+                                    {form.webhook_urls.map((url, index) => (
+                                        <div key={index} className="webhook-row" style={{ display: 'flex', gap: 8 }}>
+                                            <input
+                                                className="input-field"
+                                                placeholder="https://seu-sistema.com/webhook"
+                                                value={url}
+                                                onChange={e => updateWebhookUrl(index, e.target.value)}
+                                            />
+                                            <button
+                                                onClick={() => removeWebhookUrl(index)}
+                                                disabled={form.webhook_urls.length === 1 && !url}
+                                                style={{
+                                                    background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)',
+                                                    borderRadius: 8, padding: '0 16px', cursor: 'pointer', fontWeight: 500,
+                                                    display: 'flex', alignItems: 'center', gap: 8
+                                                }}
+                                                title="Remover webhook"
+                                            >
+                                                <FiTrash2 /> Remover
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                        <button
+                                            onClick={addWebhookUrl}
+                                            style={{
+                                                background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-color)',
+                                                borderRadius: 8, padding: '10px 16px', cursor: 'pointer', fontWeight: 500,
+                                                display: 'flex', alignItems: 'center', gap: 8
+                                            }}
+                                        >
+                                            <FiPlus /> Adicionar Webhook
+                                        </button>
+                                        <button
+                                            onClick={handleSave}
+                                            disabled={saving}
+                                            style={{
+                                                background: '#2563eb', color: 'white', border: 'none',
+                                                borderRadius: 8, padding: '10px 20px', cursor: 'pointer', fontWeight: 500,
+                                                display: 'flex', alignItems: 'center', gap: 8
+                                            }}
+                                        >
+                                            <FiSave /> {saving ? 'Salvando...' : 'Salvar'}
+                                        </button>
+                                        <button
+                                            onClick={testWebhook}
+                                            disabled={testingWebhook || !form.webhook_urls.some(url => url.trim())}
+                                            style={{
+                                                background: form.webhook_urls.some(url => url.trim()) ? '#f59e0b' : '#d1d5db', color: 'white', border: 'none',
+                                                borderRadius: 8, padding: '10px 20px', cursor: form.webhook_urls.some(url => url.trim()) ? 'pointer' : 'not-allowed', fontWeight: 500,
+                                                display: 'flex', alignItems: 'center', gap: 8
+                                            }}
+                                            title="Enviar teste para todos os Webhooks"
+                                        >
+                                            <FiZap /> {testingWebhook ? 'Enviando...' : 'Testar Todos'}
+                                        </button>
+                                    </div>
                                 </div>
                                 <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
-                                    Enviaremos um POST JSON com os dados da venda para esta URL.
+                                    Enviaremos um POST JSON com os dados da venda para todas as URLs cadastradas.
                                 </p>
                             </div>
                         </div>
