@@ -4,20 +4,22 @@ import bcrypt from 'bcryptjs';
 import { NextRequest } from 'next/server';
 import { supabase } from './db';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-    throw new Error('JWT_SECRET environment variable is not defined. Set it in your .env file.');
+function getJwtSecret() {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        throw new Error('JWT_SECRET environment variable is not defined. Set it in your environment variables.');
+    }
+    return secret;
 }
-const SECRET = JWT_SECRET as string;
 
 export type AuthTokenPayload = JwtPayload & { impersonated_by?: string; userId?: string; id?: string; role?: string };
 
 export function generateToken(payload: any): string {
-    return jwt.sign(payload, SECRET, { expiresIn: '7d' });
+    return jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
 }
 
 export function verifyToken(token: string): any {
-    return jwt.verify(token, SECRET);
+    return jwt.verify(token, getJwtSecret());
 }
 
 export async function hashPassword(password: string): Promise<string> {
