@@ -8,12 +8,9 @@ import toast from 'react-hot-toast';
 import {
     FiCamera,
     FiCheck,
-    FiGlobe,
-    FiHome,
     FiMapPin,
     FiSave,
     FiShield,
-    FiSmartphone,
     FiUser,
 } from 'react-icons/fi';
 import { authAPI } from '@/lib/api';
@@ -31,12 +28,6 @@ const emptyForm = {
     address_city: '',
     address_state: '',
     address_zipcode: '',
-    store_name: '',
-    store_slug: '',
-    store_headline: '',
-    store_cta_text: '',
-    store_badge_text: '',
-    store_accent_color: '#8b5cf6',
 };
 
 export default function ProfilePage() {
@@ -68,12 +59,6 @@ export default function ProfilePage() {
                 address_city: user.address_city || '',
                 address_state: user.address_state || '',
                 address_zipcode: user.address_zipcode || '',
-                store_name: user.store_name || '',
-                store_slug: user.store_slug || '',
-                store_headline: user.store_headline || '',
-                store_cta_text: user.store_cta_text || '',
-                store_badge_text: user.store_badge_text || '',
-                store_accent_color: user.store_accent_color || '#8b5cf6',
             });
             syncLocalUser(user);
         } catch (err: any) {
@@ -111,12 +96,6 @@ export default function ProfilePage() {
                 address_city: payload.address_city,
                 address_state: payload.address_state,
                 address_zipcode: payload.address_zipcode,
-                store_name: payload.store_name,
-                store_slug: payload.store_slug,
-                store_headline: payload.store_headline,
-                store_cta_text: payload.store_cta_text,
-                store_badge_text: payload.store_badge_text,
-                store_accent_color: payload.store_accent_color,
             });
             const user = data.user || {};
             setForm((prev) => ({ ...prev, ...payload }));
@@ -378,16 +357,6 @@ export default function ProfilePage() {
                     opacity: .7;
                     cursor: not-allowed;
                 }
-                .color-row {
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                }
-                .color-row input[type="color"] {
-                    width: 54px;
-                    padding: 4px;
-                    cursor: pointer;
-                }
                 @media (max-width: 1120px) {
                     .profile-grid { grid-template-columns: 1fr; }
                     .identity-card { position: static; }
@@ -502,52 +471,6 @@ export default function ProfilePage() {
                         </div>
                     </section>
 
-                    <section className="profile-card">
-                        <h2 className="section-title"><FiHome size={16} /> Personalizacao da conta</h2>
-                        <div className="form-grid">
-                            <div className="field">
-                                <label>Nome publico / loja</label>
-                                <input value={form.store_name} onChange={(event) => update('store_name', event.target.value)} placeholder="GouPay Store" />
-                            </div>
-                            <div className="field">
-                                <label>Slug da loja</label>
-                                <input value={form.store_slug} onChange={(event) => update('store_slug', event.target.value.toLowerCase().replace(/\s+/g, '-'))} placeholder="minha-loja" />
-                            </div>
-                            <div className="field full">
-                                <label>Frase principal</label>
-                                <input value={form.store_headline} onChange={(event) => update('store_headline', event.target.value)} placeholder="Produtos digitais para transformar sua rotina" />
-                            </div>
-                            <div className="field">
-                                <label>Texto do botao</label>
-                                <input value={form.store_cta_text} onChange={(event) => update('store_cta_text', event.target.value)} placeholder="Ver produtos" />
-                            </div>
-                            <div className="field">
-                                <label>Selo da loja</label>
-                                <input value={form.store_badge_text} onChange={(event) => update('store_badge_text', event.target.value)} placeholder="Produtos digitais com acesso online" />
-                            </div>
-                            <div className="field full">
-                                <label>Cor de destaque</label>
-                                <div className="color-row">
-                                    <input type="color" value={form.store_accent_color} onChange={(event) => update('store_accent_color', event.target.value)} />
-                                    <input value={form.store_accent_color} onChange={(event) => update('store_accent_color', event.target.value)} />
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section className="profile-card">
-                        <h2 className="section-title"><FiGlobe size={16} /> Preferencias</h2>
-                        <div className="form-grid">
-                            <div className="status-box">
-                                <strong><FiSmartphone size={14} /> Notificacoes</strong>
-                                <span>Configure alertas de vendas em Configuracoes.</span>
-                            </div>
-                            <div className="status-box">
-                                <strong><FiShield size={14} /> Seguranca</strong>
-                                <span>Seu email e usado para acesso e recuperacao.</span>
-                            </div>
-                        </div>
-                    </section>
                 </main>
             </div>
         </div>
