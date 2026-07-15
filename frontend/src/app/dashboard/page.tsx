@@ -341,6 +341,7 @@ export default function DashboardPage() {
                     border: 1px solid var(--dash-border);
                     border-radius: 18px;
                     box-shadow: 0 12px 28px rgba(15, 23, 42, 0.04);
+                    min-width: 0;
                 }
                 .metric-grid {
                     display: grid;
@@ -406,17 +407,22 @@ export default function DashboardPage() {
                 }
                 .main-grid {
                     display: grid;
-                    grid-template-columns: minmax(0, 1fr) 330px;
+                    grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
                     gap: 18px;
                     align-items: start;
                 }
                 .left-stack, .right-stack {
                     display: grid;
                     gap: 18px;
+                    min-width: 0;
+                }
+                .right-stack {
+                    width: 100%;
                 }
                 .chart-card {
                     padding: 22px;
                     min-height: 324px;
+                    overflow: hidden;
                 }
                 .card-head {
                     display: flex;
@@ -440,6 +446,7 @@ export default function DashboardPage() {
                     align-items: baseline;
                     gap: 10px;
                     margin-bottom: 6px;
+                    flex-wrap: wrap;
                 }
                 .profit-value {
                     font-size: 34px;
@@ -448,6 +455,8 @@ export default function DashboardPage() {
                 }
                 .chart-area {
                     height: 210px;
+                    min-width: 0;
+                    overflow: hidden;
                 }
                 .mix-panel {
                     margin-top: 16px;
@@ -488,6 +497,7 @@ export default function DashboardPage() {
                 .activity-card {
                     padding: 20px;
                     min-height: 160px;
+                    overflow: hidden;
                 }
                 .bars {
                     height: 102px;
@@ -518,6 +528,7 @@ export default function DashboardPage() {
                 .rate-card {
                     padding: 20px;
                     text-align: center;
+                    overflow: hidden;
                 }
                 .gauge {
                     --value: 68;
@@ -609,10 +620,13 @@ export default function DashboardPage() {
                     display: block;
                     margin-bottom: 5px;
                 }
-                @media (max-width: 1180px) {
+                @media (max-width: 1320px) {
                     .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
                     .main-grid { grid-template-columns: 1fr; }
                     .right-stack { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+                }
+                @media (max-width: 980px) {
+                    .right-stack { grid-template-columns: 1fr; }
                 }
                 @media (max-width: 760px) {
                     .dash-header { align-items: flex-start; flex-direction: column; }
