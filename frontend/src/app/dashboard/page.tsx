@@ -113,8 +113,7 @@ export default function DashboardPage() {
     const products = Number(stats?.stats?.total_products ?? 0);
 
     const totalNetRevenue = monthlySalesData.reduce((sum, item) => sum + Number(item.net_revenue ?? 0), 0);
-    const totalFees = monthlySalesData.reduce((sum, item) => sum + Number(item.fees ?? 0), 0);
-    const lineColor = '#2f6bff';
+    const lineColor = '#8b5cf6';
     const lineData = {
         labels: monthlySalesData.map((item) => item.month),
         datasets: [
@@ -125,11 +124,11 @@ export default function DashboardPage() {
                 backgroundColor: (ctx: any) => {
                     const chart = ctx.chart;
                     const area = chart.chartArea;
-                    if (!area) return 'rgba(47,107,255,0.14)';
+                    if (!area) return 'rgba(139,92,246,0.14)';
                     const gradient = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
-                    gradient.addColorStop(0, 'rgba(47,107,255,0.22)');
-                    gradient.addColorStop(0.75, 'rgba(47,107,255,0.04)');
-                    gradient.addColorStop(1, 'rgba(47,107,255,0)');
+                    gradient.addColorStop(0, 'rgba(139,92,246,0.24)');
+                    gradient.addColorStop(0.75, 'rgba(139,92,246,0.05)');
+                    gradient.addColorStop(1, 'rgba(139,92,246,0)');
                     return gradient;
                 },
                 borderWidth: 2.5,
@@ -203,11 +202,10 @@ export default function DashboardPage() {
     const customerMix = useMemo(() => {
         const gross = Math.max(totalSold, 1);
         return [
-            { label: 'Disponivel', value: available, pct: Math.min(100, (available / gross) * 100), color: '#2f6bff' },
+            { label: 'Disponivel', value: available, pct: Math.min(100, (available / gross) * 100), color: '#8b5cf6' },
             { label: 'A receber', value: pending, pct: Math.min(100, (pending / gross) * 100), color: '#21c978' },
-            { label: 'Taxas', value: totalFees, pct: Math.min(100, (totalFees / gross) * 100), color: '#ff8a3d' },
         ];
-    }, [available, pending, totalFees, totalSold]);
+    }, [available, pending, totalSold]);
 
     const statCards = [
         {
@@ -265,7 +263,7 @@ export default function DashboardPage() {
                     --dash-secondary: #64748b;
                     --dash-muted: #94a3b8;
                     --dash-row: #f0f3f8;
-                    --dash-icon-bg: #eff5ff;
+                    --dash-icon-bg: rgba(139,92,246,0.12);
                     --dash-table-thumb: #f3f6fb;
                     color: var(--dash-text);
                 }
@@ -278,7 +276,7 @@ export default function DashboardPage() {
                     --dash-secondary: #a8a8ba;
                     --dash-muted: #8888a0;
                     --dash-row: rgba(255,255,255,0.06);
-                    --dash-icon-bg: rgba(47,107,255,0.16);
+                    --dash-icon-bg: rgba(139,92,246,0.18);
                     --dash-table-thumb: #1c1c28;
                 }
                 .dashboard-shell-loading {
@@ -295,7 +293,7 @@ export default function DashboardPage() {
                     height: 38px;
                     border-radius: 50%;
                     border: 3px solid #dbe7ff;
-                    border-top-color: #2f6bff;
+                    border-top-color: #8b5cf6;
                     animation: spin 0.8s linear infinite;
                 }
                 @keyframes spin { to { transform: rotate(360deg); } }
@@ -366,7 +364,7 @@ export default function DashboardPage() {
                     margin-bottom: 18px;
                 }
                 .metric-icon {
-                    color: #2f6bff;
+                    color: #8b5cf6;
                     width: 28px;
                     height: 28px;
                     border-radius: 9px;
@@ -460,7 +458,7 @@ export default function DashboardPage() {
                 }
                 .mix-grid {
                     display: grid;
-                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
                     gap: 12px;
                 }
                 .mix-item {
@@ -514,8 +512,8 @@ export default function DashboardPage() {
                     background: var(--dash-row);
                 }
                 .bar.active {
-                    background: linear-gradient(180deg, #2f6bff 0%, #6494ff 100%);
-                    box-shadow: 0 10px 18px rgba(47, 107, 255, 0.2);
+                    background: linear-gradient(180deg, #8b5cf6 0%, #a78bfa 100%);
+                    box-shadow: 0 10px 18px rgba(139, 92, 246, 0.24);
                 }
                 .rate-card {
                     padding: 20px;
@@ -576,7 +574,7 @@ export default function DashboardPage() {
                     align-items: center;
                     justify-content: center;
                     background: var(--dash-table-thumb);
-                    color: #2f6bff;
+                    color: #8b5cf6;
                     flex: 0 0 auto;
                 }
                 .status-badge {
@@ -783,7 +781,7 @@ export default function DashboardPage() {
                             {dayActivity.map((day) => (
                                 <div className="bar-wrap" key={day.day}>
                                     <div className={`bar ${day.day === 'Ter' ? 'active' : ''}`} style={{ '--h': `${day.value}px` } as React.CSSProperties} />
-                                    <span style={{ color: day.day === 'Ter' ? '#2f6bff' : undefined }}>{day.day}</span>
+                                    <span style={{ color: day.day === 'Ter' ? '#8b5cf6' : undefined }}>{day.day}</span>
                                 </div>
                             ))}
                         </div>
@@ -811,7 +809,7 @@ export default function DashboardPage() {
                                     datasets: [{
                                         data: monthlySalesData.slice(-6).map((item) => item.amount),
                                         backgroundColor: monthlySalesData.slice(-6).map((_, index, arr) =>
-                                            index === arr.length - 1 ? '#2f6bff' : '#e3e9f3'
+                                            index === arr.length - 1 ? '#8b5cf6' : '#e3e9f3'
                                         ),
                                         borderRadius: 8,
                                         borderSkipped: false,

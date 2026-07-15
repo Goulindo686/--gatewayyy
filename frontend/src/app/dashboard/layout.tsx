@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FiHome, FiPackage, FiDollarSign, FiSettings, FiLogOut, FiMenu, FiX, FiPercent, FiBookOpen, FiMessageCircle, FiShoppingBag, FiShoppingCart, FiCalendar, FiChevronLeft, FiChevronRight, FiShield, FiRepeat, FiCreditCard, FiMail, FiCode, FiSearch, FiBell } from 'react-icons/fi';
+import { FiHome, FiPackage, FiDollarSign, FiSettings, FiLogOut, FiMenu, FiX, FiPercent, FiBookOpen, FiMessageCircle, FiShoppingBag, FiShoppingCart, FiCalendar, FiChevronLeft, FiChevronRight, FiShield, FiRepeat, FiCreditCard, FiMail, FiCode, FiBell } from 'react-icons/fi';
 import { ThemeToggle } from '@/components/theme-toggle';
 import OnboardingBar from '@/components/OnboardingBar';
 import { dashboardAPI } from '@/lib/api';
@@ -363,7 +363,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 width: 56,
                                 height: 56,
                                 borderRadius: 14,
-                                border: '1px solid rgba(47,107,255,0.16)',
+                                border: '1px solid rgba(139,92,246,0.18)',
                                 background: 'rgba(124,58,237,0.14)',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -503,21 +503,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             }} className="mobile-menu-btn">
                                 {sidebarOpen ? <FiX size={22} /> : <FiMenu size={22} />}
                             </button>
-                            <div className="dashboard-search" style={{
-                                height: 38,
-                                width: 'min(320px, 100%)',
-                                borderRadius: 999,
-                                border: '1px solid var(--border-color)',
-                                background: 'var(--bg-secondary)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 9,
-                                padding: '0 14px',
-                                color: 'var(--text-muted)'
-                            }}>
-                                <FiSearch size={15} />
-                                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Buscar no painel...</span>
-                            </div>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, position: 'relative' }} className="dashboard-topbar-right">
@@ -536,7 +521,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 fontSize: 15, fontWeight: 700, color: 'white', border: '2px solid transparent',
                                 cursor: 'pointer', transition: 'background 0.2s',
-                                outline: profileOpen ? '2px solid #2f6bff' : 'none',
+                                outline: profileOpen ? '2px solid #8b5cf6' : 'none',
                                 outlineOffset: 2
                             }} className="dashboard-avatar-btn">
                                 {user?.name?.charAt(0)?.toUpperCase() || 'U'}
@@ -578,7 +563,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 className="btn-primary"
                                 onClick={applyDashboardFilters}
                                 disabled={applying}
-                                style={{ height: 38, padding: '0 18px', borderRadius: 12, fontWeight: 800, background: '#2f6bff' }}
+                                style={{ height: 38, padding: '0 18px', borderRadius: 12, fontWeight: 800, background: '#8b5cf6' }}
                             >
                                 {applying ? 'Filtrando...' : 'Aplicar Filtros'}
                             </button>
