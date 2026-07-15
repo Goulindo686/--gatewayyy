@@ -327,7 +327,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const asideWidth = effectiveCollapsed ? 76 : 230;
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: '#f3f6fb', color: '#111827' }}>
+        <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
             {/* Mobile overlay */}
             {sidebarOpen && (
                 <div onClick={() => setSidebarOpen(false)} style={{
@@ -338,14 +338,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Sidebar */}
             <aside style={{
-                width: isMobile ? 260 : asideWidth, background: '#ffffff', borderRight: '1px solid #edf1f7',
+                width: isMobile ? 260 : asideWidth, background: 'var(--bg-card)', borderRight: '1px solid var(--border-color)',
                 display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, bottom: 0, left: 0, zIndex: 50,
                 transition: 'transform 0.3s ease', boxShadow: '12px 0 30px rgba(15,23,42,0.03)',
             }} className={`dashboard-aside${sidebarOpen ? ' open' : ''}`}>
                 {/* Logo */}
                 <div style={{
                     padding: '16px',
-                    borderBottom: '1px solid #f1f4f8',
+                    borderBottom: '1px solid var(--border-color)',
                     display: 'grid',
                     gridTemplateColumns: '32px 1fr 32px',
                     alignItems: 'center',
@@ -364,7 +364,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 height: 56,
                                 borderRadius: 14,
                                 border: '1px solid rgba(47,107,255,0.16)',
-                                background: '#eff5ff',
+                                background: 'rgba(124,58,237,0.14)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -389,14 +389,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     alt="GouPay Logo"
                                     style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0, display: 'block' }}
                                 />
-                                <span style={{ fontWeight: 900, fontSize: 18, color: '#111827', letterSpacing: 0, lineHeight: 1 }}>GouPay</span>
+                                <span style={{ fontWeight: 900, fontSize: 18, color: 'var(--text-primary)', letterSpacing: 0, lineHeight: 1 }}>GouPay</span>
                             </div>
                         )}
                     </div>
                     {!isMobile && (
                         <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} style={{
-                            width: 28, height: 28, borderRadius: 8, border: '1px solid #edf1f7',
-                            background: '#ffffff', color: '#64748b', display: 'flex',
+                            width: 28, height: 28, borderRadius: 8, border: '1px solid var(--border-color)',
+                            background: 'var(--bg-card)', color: 'var(--text-secondary)', display: 'flex',
                             alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
                         }}>
                             {sidebarCollapsed ? <FiChevronRight size={16} /> : <FiChevronLeft size={16} />}
@@ -407,7 +407,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                 {/* Sidebar Progress Card */}
                 {!effectiveCollapsed && (
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f4f8' }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)' }}>
                     <div style={{
                         background: 'linear-gradient(155deg, #8b5cf6 0%, #5b21b6 100%)',
                         border: '1px solid rgba(255,255,255,0.12)',
@@ -471,7 +471,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </aside>
 
                 {/* Main content */}
-            <main style={{ flex: 1, paddingLeft: isMobile ? 0 : asideWidth, minHeight: '100vh', overflowX: 'hidden', background: '#f3f6fb' }}>
+            <main style={{ flex: 1, paddingLeft: isMobile ? 0 : asideWidth, minHeight: '100vh', overflowX: 'hidden', background: 'var(--bg-secondary)' }}>
                 {/* Impersonation banner */}
                 {isImpersonating && (
                     <div style={{
@@ -492,14 +492,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
                 {/* Top bar */}
                 <header style={{
-                    borderBottom: '1px solid #edf1f7',
-                    background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(16px)',
+                    borderBottom: '1px solid var(--border-color)',
+                    background: 'var(--header-bg)', backdropFilter: 'blur(16px)',
                     position: 'sticky', top: 0, zIndex: 30
                 }} className="dashboard-topbar">
                     <div style={{ padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 18 }} className="dashboard-topbar-row">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }} className="dashboard-topbar-left">
                             <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{
-                                display: 'none', background: 'none', border: 'none', color: '#111827', cursor: 'pointer'
+                                display: 'none', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer'
                             }} className="mobile-menu-btn">
                                 {sidebarOpen ? <FiX size={22} /> : <FiMenu size={22} />}
                             </button>
@@ -507,16 +507,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 height: 38,
                                 width: 'min(320px, 100%)',
                                 borderRadius: 999,
-                                border: '1px solid #e8edf5',
-                                background: '#f9fbfe',
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--bg-secondary)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 9,
                                 padding: '0 14px',
-                                color: '#94a3b8'
+                                color: 'var(--text-muted)'
                             }}>
                                 <FiSearch size={15} />
-                                <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>Buscar no painel...</span>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Buscar no painel...</span>
                             </div>
                         </div>
 
@@ -525,14 +525,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 <ThemeToggle />
                             </div>
                             <button aria-label="Notificacoes" style={{
-                                width: 38, height: 38, borderRadius: '50%', border: '1px solid #e8edf5',
-                                background: '#fff', color: '#111827', display: 'flex', alignItems: 'center',
+                                width: 38, height: 38, borderRadius: '50%', border: '1px solid var(--border-color)',
+                                background: 'var(--bg-card)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center',
                                 justifyContent: 'center', cursor: 'pointer'
                             }}>
                                 <FiBell size={16} />
                             </button>
                             <button ref={avatarRef} onClick={() => setProfileOpen(!profileOpen)} style={{
-                                width: 38, height: 38, borderRadius: '50%', background: '#111827',
+                                width: 38, height: 38, borderRadius: '50%', background: 'var(--accent-primary)',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 fontSize: 15, fontWeight: 700, color: 'white', border: '2px solid transparent',
                                 cursor: 'pointer', transition: 'background 0.2s',
@@ -564,14 +564,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     height: 38,
                                     padding: '0 14px',
                                     borderRadius: 12,
-                                    border: '1px solid #e8edf5',
-                                    background: '#ffffff',
-                                    color: '#111827',
+                                    border: '1px solid var(--border-color)',
+                                    background: 'var(--bg-card)',
+                                    color: 'var(--text-primary)',
                                     cursor: 'pointer',
                                     boxShadow: '0 1px 2px rgba(15,23,42,0.03)'
                                 }}
                             >
-                                <FiCalendar size={15} style={{ color: '#64748b' }} />
+                                <FiCalendar size={15} style={{ color: 'var(--text-secondary)' }} />
                                 <span style={{ fontSize: 12, fontWeight: 800 }}>{getDisplayRange()}</span>
                             </button>
                             <button

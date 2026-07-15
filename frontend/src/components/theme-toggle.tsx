@@ -5,11 +5,11 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
 export function ThemeToggle() {
-    const { theme, setTheme } = useTheme();
+    const { resolvedTheme, setTheme } = useTheme();
 
     return (
         <button
-            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
             className="btn-secondary flex items-center justify-center p-2 rounded-xl transition-all"
             aria-label="Toggle theme"
         >

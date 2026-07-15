@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { dashboardAPI } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import {
     FiArrowDownRight,
     FiArrowUpRight,
@@ -65,6 +66,8 @@ export default function DashboardPage() {
     const [period, setPeriod] = useState<{ monthly_sales: any[]; recent_orders: any[] } | null>(null);
     const chartRef = useRef<any>(null);
     const searchParams = useSearchParams();
+    const { resolvedTheme } = useTheme();
+    const isDark = resolvedTheme === 'dark';
 
     useEffect(() => {
         const start = searchParams.get('start') || undefined;
@@ -158,9 +161,11 @@ export default function DashboardPage() {
         plugins: {
             legend: { display: false },
             tooltip: {
-                backgroundColor: '#111827',
+                backgroundColor: isDark ? '#f8fafc' : '#111827',
                 padding: 12,
                 cornerRadius: 10,
+                titleColor: isDark ? '#111827' : '#ffffff',
+                bodyColor: isDark ? '#334155' : '#f8fafc',
                 callbacks: {
                     label: (ctx: any) => ` ${ctx.dataset.label}: R$ ${money(ctx.parsed.y)}`,
                 },
@@ -170,13 +175,13 @@ export default function DashboardPage() {
             x: {
                 grid: { display: false },
                 border: { display: false },
-                ticks: { color: '#94a3b8', font: { size: 11 }, maxRotation: 0 },
+                ticks: { color: isDark ? '#64748b' : '#94a3b8', font: { size: 11 }, maxRotation: 0 },
             },
             y: {
-                grid: { color: '#eef2f7', drawTicks: false },
+                grid: { color: isDark ? 'rgba(148,163,184,0.14)' : '#eef2f7', drawTicks: false },
                 border: { display: false, dash: [4, 4] },
                 ticks: {
-                    color: '#94a3b8',
+                    color: isDark ? '#64748b' : '#94a3b8',
                     font: { size: 11 },
                     padding: 10,
                     callback: (value: any) => `R$ ${Number(value).toLocaleString('pt-BR')}`,
@@ -252,7 +257,29 @@ export default function DashboardPage() {
         <div className="shop-dashboard">
             <style jsx>{`
                 .shop-dashboard {
-                    color: #111827;
+                    --dash-card: #ffffff;
+                    --dash-card-soft: #f9fbfe;
+                    --dash-border: #edf1f7;
+                    --dash-border-strong: #e8edf5;
+                    --dash-text: #111827;
+                    --dash-secondary: #64748b;
+                    --dash-muted: #94a3b8;
+                    --dash-row: #f0f3f8;
+                    --dash-icon-bg: #eff5ff;
+                    --dash-table-thumb: #f3f6fb;
+                    color: var(--dash-text);
+                }
+                :global(.dark) .shop-dashboard {
+                    --dash-card: #16161f;
+                    --dash-card-soft: #111827;
+                    --dash-border: #2a2a3a;
+                    --dash-border-strong: #343448;
+                    --dash-text: #f0f0f5;
+                    --dash-secondary: #a8a8ba;
+                    --dash-muted: #8888a0;
+                    --dash-row: rgba(255,255,255,0.06);
+                    --dash-icon-bg: rgba(47,107,255,0.16);
+                    --dash-table-thumb: #1c1c28;
                 }
                 .dashboard-shell-loading {
                     min-height: 420px;
@@ -261,7 +288,7 @@ export default function DashboardPage() {
                     align-items: center;
                     justify-content: center;
                     gap: 14px;
-                    color: #64748b;
+                    color: var(--dash-secondary);
                 }
                 .dashboard-loader {
                     width: 38px;
@@ -287,7 +314,7 @@ export default function DashboardPage() {
                     margin: 0;
                 }
                 .dash-subtitle {
-                    color: #64748b;
+                    color: var(--dash-secondary);
                     font-size: 13px;
                     margin-top: 7px;
                 }
@@ -304,16 +331,16 @@ export default function DashboardPage() {
                     gap: 8px;
                     padding: 0 13px;
                     border-radius: 12px;
-                    border: 1px solid #e8edf5;
-                    background: #fff;
-                    color: #475569;
+                    border: 1px solid var(--dash-border-strong);
+                    background: var(--dash-card);
+                    color: var(--dash-secondary);
                     font-size: 12px;
                     font-weight: 700;
                     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
                 }
                 .dash-card {
-                    background: #fff;
-                    border: 1px solid #edf1f7;
+                    background: var(--dash-card);
+                    border: 1px solid var(--dash-border);
                     border-radius: 18px;
                     box-shadow: 0 12px 28px rgba(15, 23, 42, 0.04);
                 }
@@ -333,7 +360,7 @@ export default function DashboardPage() {
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    color: #111827;
+                    color: var(--dash-text);
                     font-size: 14px;
                     font-weight: 800;
                     margin-bottom: 18px;
@@ -346,7 +373,7 @@ export default function DashboardPage() {
                     display: inline-flex;
                     align-items: center;
                     justify-content: center;
-                    background: #eff5ff;
+                    background: var(--dash-icon-bg);
                 }
                 .metric-value {
                     font-size: 25px;
@@ -358,7 +385,7 @@ export default function DashboardPage() {
                     display: flex;
                     align-items: center;
                     gap: 9px;
-                    color: #94a3b8;
+                    color: var(--dash-muted);
                     font-size: 11px;
                     white-space: nowrap;
                 }
@@ -406,7 +433,7 @@ export default function DashboardPage() {
                     font-weight: 900;
                 }
                 .card-muted {
-                    color: #94a3b8;
+                    color: var(--dash-muted);
                     font-size: 11px;
                     font-weight: 700;
                 }
@@ -426,10 +453,10 @@ export default function DashboardPage() {
                 }
                 .mix-panel {
                     margin-top: 16px;
-                    border: 1px solid #edf1f7;
+                    border: 1px solid var(--dash-border);
                     border-radius: 14px;
                     padding: 15px;
-                    background: #fff;
+                    background: var(--dash-card);
                 }
                 .mix-grid {
                     display: grid;
@@ -450,7 +477,7 @@ export default function DashboardPage() {
                 .mix-bar {
                     height: 5px;
                     border-radius: 999px;
-                    background: #eef2f7;
+                    background: var(--dash-row);
                     overflow: hidden;
                     margin-top: 10px;
                 }
@@ -476,7 +503,7 @@ export default function DashboardPage() {
                     display: grid;
                     gap: 8px;
                     justify-items: center;
-                    color: #94a3b8;
+                    color: var(--dash-muted);
                     font-size: 11px;
                     font-weight: 700;
                 }
@@ -484,7 +511,7 @@ export default function DashboardPage() {
                     width: 25px;
                     height: var(--h);
                     border-radius: 8px 8px 5px 5px;
-                    background: #e9edf3;
+                    background: var(--dash-row);
                 }
                 .bar.active {
                     background: linear-gradient(180deg, #2f6bff 0%, #6494ff 100%);
@@ -501,8 +528,8 @@ export default function DashboardPage() {
                     margin: 10px auto 0;
                     border-radius: 190px 190px 0 0;
                     background:
-                        radial-gradient(circle at 50% 100%, #fff 0 54%, transparent 55%),
-                        conic-gradient(from 270deg at 50% 100%, #39c98e 0 calc(var(--value) * 0.5%), #e6eaf0 0 50%, transparent 0);
+                        radial-gradient(circle at 50% 100%, var(--dash-card) 0 54%, transparent 55%),
+                        conic-gradient(from 270deg at 50% 100%, #39c98e 0 calc(var(--value) * 0.5%), var(--dash-row) 0 50%, transparent 0);
                     position: relative;
                 }
                 .gauge-number {
@@ -520,18 +547,18 @@ export default function DashboardPage() {
                     min-width: 680px;
                 }
                 .orders-table th {
-                    color: #94a3b8;
+                    color: var(--dash-muted);
                     font-size: 10px;
                     text-align: left;
                     text-transform: uppercase;
                     letter-spacing: .08em;
                     padding: 10px 8px;
-                    border-bottom: 1px solid #edf1f7;
+                    border-bottom: 1px solid var(--dash-border);
                 }
                 .orders-table td {
                     padding: 13px 8px;
-                    border-bottom: 1px solid #f0f3f8;
-                    color: #475569;
+                    border-bottom: 1px solid var(--dash-row);
+                    color: var(--dash-secondary);
                     font-size: 12px;
                     font-weight: 700;
                 }
@@ -539,7 +566,7 @@ export default function DashboardPage() {
                     display: flex;
                     align-items: center;
                     gap: 10px;
-                    color: #111827;
+                    color: var(--dash-text);
                 }
                 .product-thumb {
                     width: 28px;
@@ -548,7 +575,7 @@ export default function DashboardPage() {
                     display: inline-flex;
                     align-items: center;
                     justify-content: center;
-                    background: #f3f6fb;
+                    background: var(--dash-table-thumb);
                     color: #2f6bff;
                     flex: 0 0 auto;
                 }
@@ -576,11 +603,11 @@ export default function DashboardPage() {
                     min-height: 190px;
                     display: grid;
                     place-items: center;
-                    color: #94a3b8;
+                    color: var(--dash-muted);
                     text-align: center;
                 }
                 .empty-state strong {
-                    color: #111827;
+                    color: var(--dash-text);
                     display: block;
                     margin-bottom: 5px;
                 }
