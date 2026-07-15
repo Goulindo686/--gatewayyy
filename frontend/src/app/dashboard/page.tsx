@@ -510,22 +510,6 @@ export default function DashboardPage() {
                     font-size: 33px;
                     font-weight: 950;
                 }
-                .ai-card {
-                    min-height: 162px;
-                    padding: 20px;
-                    overflow: hidden;
-                    position: relative;
-                }
-                .orb {
-                    width: 92px;
-                    height: 92px;
-                    border-radius: 50%;
-                    background: radial-gradient(circle at 30% 28%, #7bc2ff, #2f6bff 55%, #1040b8);
-                    box-shadow: 0 18px 36px rgba(47, 107, 255, 0.28);
-                    position: absolute;
-                    right: 34px;
-                    bottom: -18px;
-                }
                 .orders-card {
                     padding: 20px;
                     overflow: hidden;
@@ -609,7 +593,7 @@ export default function DashboardPage() {
                     .dash-header { align-items: flex-start; flex-direction: column; }
                     .metric-grid, .mix-grid, .right-stack { grid-template-columns: 1fr; }
                     .metric-foot { white-space: normal; }
-                    .chart-card, .orders-card, .activity-card, .rate-card, .ai-card { padding: 16px; }
+                    .chart-card, .orders-card, .activity-card, .rate-card { padding: 16px; }
                     .profit-value { font-size: 28px; }
                 }
             `}</style>
@@ -786,17 +770,6 @@ export default function DashboardPage() {
                         <div className="gauge" style={{ '--value': 68 } as React.CSSProperties} />
                         <div className="gauge-number">68%</div>
                         <div className="card-muted">Meta mensal: 80%</div>
-                    </article>
-
-                    <article className="dash-card ai-card">
-                        <div className="card-head">
-                            <h2 className="card-title">Assistente IA</h2>
-                            <FiArrowUpRight color="#94a3b8" />
-                        </div>
-                        <div className="card-muted" style={{ maxWidth: 175, lineHeight: 1.55 }}>
-                            Analise rapida dos seus produtos, vendas e recuperacao de carrinho.
-                        </div>
-                        <div className="orb" />
                     </article>
 
                     <article className="dash-card activity-card">

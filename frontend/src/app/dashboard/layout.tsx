@@ -409,11 +409,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {!effectiveCollapsed && (
                 <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f4f8' }}>
                     <div style={{
-                        background: 'linear-gradient(155deg, #2f6bff 0%, #173a8a 100%)',
+                        background: 'linear-gradient(155deg, #8b5cf6 0%, #5b21b6 100%)',
                         border: '1px solid rgba(255,255,255,0.12)',
                         borderRadius: 14,
                         padding: 12,
-                        boxShadow: '0 16px 34px rgba(47,107,255,0.22)',
+                        boxShadow: '0 16px 34px rgba(124,58,237,0.24)',
                         display: 'grid',
                         gap: 10
                     }}>
