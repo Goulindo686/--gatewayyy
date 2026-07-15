@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FiHome, FiPackage, FiDollarSign, FiSettings, FiLogOut, FiMenu, FiX, FiPercent, FiBookOpen, FiMessageCircle, FiShoppingBag, FiShoppingCart, FiCalendar, FiChevronLeft, FiChevronRight, FiShield, FiRepeat, FiCreditCard, FiMail, FiCode, FiBell } from 'react-icons/fi';
+import { FiHome, FiPackage, FiDollarSign, FiSettings, FiLogOut, FiMenu, FiX, FiPercent, FiBookOpen, FiMessageCircle, FiShoppingBag, FiShoppingCart, FiCalendar, FiChevronLeft, FiChevronRight, FiShield, FiRepeat, FiCreditCard, FiMail, FiCode, FiBell, FiCheckCircle, FiClock, FiXCircle } from 'react-icons/fi';
 import { ThemeToggle } from '@/components/theme-toggle';
 import OnboardingBar from '@/components/OnboardingBar';
 import { dashboardAPI } from '@/lib/api';
@@ -20,9 +20,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
+    const [notificationsOpen, setNotificationsOpen] = useState(false);
+    const [dashboardNotifications, setDashboardNotifications] = useState<any[]>([]);
     const [salesTotal, setSalesTotal] = useState<number | null>(null);
     const profileRef = useRef<HTMLDivElement>(null);
     const avatarRef = useRef<HTMLButtonElement>(null);
+    const notificationsRef = useRef<HTMLDivElement>(null);
+    const bellRef = useRef<HTMLButtonElement>(null);
     const [rangePreset, setRangePreset] = useState('last7');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -78,6 +82,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 if (cancelled) return;
                 const totalSold = parseMoney(data?.stats?.total_sold);
                 setSalesTotal(totalSold);
+                setDashboardNotifications((data?.recent_orders || []).slice(0, 8));
             } catch {
                 if (!cancelled) setSalesTotal(null);
             }
@@ -106,6 +111,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 avatarRef.current && !avatarRef.current.contains(e.target as Node)
             ) {
                 setProfileOpen(false);
+            }
+            if (
+                notificationsRef.current && !notificationsRef.current.contains(e.target as Node) &&
+                bellRef.current && !bellRef.current.contains(e.target as Node)
+            ) {
+                setNotificationsOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -323,8 +334,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const target = targets.find(t => current < t) ?? 1_000_000;
     const pct = target > 0 ? Math.max(0, Math.min(100, (current / target) * 100)) : 0;
     const formatBRL = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const progressValueText = `R$ ${formatBRL(current)} / R$ ${formatBRL(target)}`;
+    const progressFontSize = progressValueText.length > 30 ? 10 : progressValueText.length > 25 ? 11 : 13;
     const effectiveCollapsed = !isMobile && sidebarCollapsed;
     const asideWidth = effectiveCollapsed ? 76 : 230;
+    const unreadNotifications = dashboardNotifications.filter((order) => order.status === 'paid').length;
+    const notificationStatus = (status: string) => {
+        if (status === 'paid') return { label: 'Venda aprovada', color: '#16a34a', bg: 'rgba(22,163,74,0.12)', icon: <FiCheckCircle size={15} /> };
+        if (status === 'pending') return { label: 'Pagamento pendente', color: '#d97706', bg: 'rgba(217,119,6,0.12)', icon: <FiClock size={15} /> };
+        return { label: 'Pagamento falhou', color: '#ef4444', bg: 'rgba(239,68,68,0.12)', icon: <FiXCircle size={15} /> };
+    };
+    const notificationAmount = (order: any) => {
+        const raw = order?.amount_display ?? (order?.amount != null ? Number(order.amount) / 100 : 0);
+        return Number(raw).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
@@ -431,8 +454,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             </div>
                             <div style={{ fontSize: 12, fontWeight: 800, color: 'rgba(255,255,255,0.78)' }}>{pct.toFixed(0)}%</div>
                         </div>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: '#ffffff' }}>
-                            R$ {formatBRL(current)} / R$ {formatBRL(target)}
+                        <div style={{
+                            fontSize: progressFontSize,
+                            fontWeight: 800,
+                            color: '#ffffff',
+                            whiteSpace: 'nowrap',
+                            lineHeight: 1.15,
+                            letterSpacing: '-0.15px',
+                            width: '100%'
+                        }}>
+                            {progressValueText}
                         </div>
                         <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.22)', overflow: 'hidden' }}>
                             <div style={{
@@ -509,13 +540,106 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <div className="dashboard-theme-toggle">
                                 <ThemeToggle />
                             </div>
-                            <button aria-label="Notificacoes" style={{
+                            <button ref={bellRef} aria-label="Notificacoes" onClick={() => setNotificationsOpen(!notificationsOpen)} style={{
                                 width: 38, height: 38, borderRadius: '50%', border: '1px solid var(--border-color)',
                                 background: 'var(--bg-card)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center',
-                                justifyContent: 'center', cursor: 'pointer'
+                                justifyContent: 'center', cursor: 'pointer', position: 'relative'
                             }}>
                                 <FiBell size={16} />
+                                {unreadNotifications > 0 && (
+                                    <span style={{
+                                        position: 'absolute',
+                                        top: -3,
+                                        right: -3,
+                                        minWidth: 17,
+                                        height: 17,
+                                        padding: '0 4px',
+                                        borderRadius: 999,
+                                        background: '#8b5cf6',
+                                        color: '#fff',
+                                        border: '2px solid var(--bg-card)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: 10,
+                                        fontWeight: 900,
+                                        lineHeight: 1
+                                    }}>
+                                        {Math.min(unreadNotifications, 9)}
+                                    </span>
+                                )}
                             </button>
+                            {notificationsOpen && (
+                                <div ref={notificationsRef} className="dashboard-notifications-popover" style={{
+                                    position: 'absolute',
+                                    top: 50,
+                                    right: 50,
+                                    width: 360,
+                                    maxWidth: 'calc(100vw - 28px)',
+                                    background: 'var(--bg-card)',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: 16,
+                                    boxShadow: '0 20px 60px rgba(0,0,0,0.28)',
+                                    zIndex: 9999,
+                                    overflow: 'hidden'
+                                }}>
+                                    <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                                        <div>
+                                            <div style={{ fontSize: 14, fontWeight: 900, color: 'var(--text-primary)' }}>Notificacoes</div>
+                                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>Vendas e pagamentos recentes</div>
+                                        </div>
+                                        <span style={{ minWidth: 24, height: 24, borderRadius: 999, background: 'rgba(139,92,246,0.14)', color: '#8b5cf6', fontSize: 12, fontWeight: 900, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            {dashboardNotifications.length}
+                                        </span>
+                                    </div>
+                                    <div style={{ maxHeight: 390, overflowY: 'auto', padding: 8 }}>
+                                        {dashboardNotifications.length > 0 ? dashboardNotifications.map((order) => {
+                                            const st = notificationStatus(order.status);
+                                            return (
+                                                <div key={order.id} className="dashboard-notification-item" style={{
+                                                    display: 'grid',
+                                                    gridTemplateColumns: '34px 1fr',
+                                                    gap: 10,
+                                                    padding: 10,
+                                                    borderRadius: 12,
+                                                    cursor: 'default'
+                                                }}>
+                                                    <div style={{
+                                                        width: 34,
+                                                        height: 34,
+                                                        borderRadius: 10,
+                                                        background: st.bg,
+                                                        color: st.color,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center'
+                                                    }}>
+                                                        {st.icon}
+                                                    </div>
+                                                    <div style={{ minWidth: 0 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                                            <strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>{st.label}</strong>
+                                                            <span style={{ color: st.color, fontWeight: 900, fontSize: 12, whiteSpace: 'nowrap' }}>R$ {notificationAmount(order)}</span>
+                                                        </div>
+                                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                            {order.product_name || order.products?.name || 'Produto'} {order.buyer_name ? `- ${order.buyer_name}` : ''}
+                                                        </div>
+                                                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 5 }}>
+                                                            {order.created_at ? new Date(order.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Agora'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }) : (
+                                            <div style={{ padding: '30px 18px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                                <FiBell size={24} style={{ marginBottom: 10, opacity: 0.5 }} />
+                                                <div style={{ fontSize: 13, fontWeight: 700 }}>Nenhuma notificacao ainda</div>
+                                                <div style={{ fontSize: 12, marginTop: 4 }}>As vendas aprovadas vao aparecer aqui.</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                             <button ref={avatarRef} onClick={() => setProfileOpen(!profileOpen)} style={{
                                 width: 38, height: 38, borderRadius: '50%', background: 'var(--accent-primary)',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -769,12 +893,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           .dashboard-theme-toggle { transform: scale(0.92); transform-origin: right center; }
           .dashboard-avatar-btn { width: 34px !important; height: 34px !important; font-size: 14px !important; }
           .dashboard-sales-progress { padding: 0 14px 12px !important; }
+          .dashboard-notifications-popover { right: 0 !important; width: min(360px, calc(100vw - 28px)) !important; }
         }
         @media (max-width: 420px) {
           .dashboard-online-badge { display: none !important; }
         }
         .profile-menu-item:hover {
           background: rgba(255,255,255,0.06) !important;
+        }
+        .dashboard-notification-item:hover {
+          background: rgba(139,92,246,0.08);
         }
         @keyframes dropIn {
           from { opacity: 0; transform: translateY(-8px); }
