@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -16,8 +18,6 @@ function ResetPasswordForm() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [token, setToken] = useState('');
-    const brandLogo = 'https://i.imgur.com/vXgH6Mn.png';
-
     useEffect(() => {
         const tokenParam = searchParams.get('token');
 
@@ -73,14 +73,8 @@ function ResetPasswordForm() {
                 <div className="authMain">
                     <div className="authCard animate-fade-in">
                         <div className="authBrand">
-                            <img
-                                src={brandLogo}
-                                alt="GouPay"
-                                onError={(e) => {
-                                    (e.currentTarget as HTMLImageElement).src = '/logo.png';
-                                }}
-                                className="authBrandLogo"
-                            />
+                            <img src="/favicon.png" alt="GouPay" className="authBrandLogo" />
+                            <strong>GouPay</strong>
                         </div>
 
                         <div className="authHeader">
@@ -255,14 +249,22 @@ function ResetPasswordForm() {
                 }
                 .authBrand {
                     display: flex;
+                    align-items: center;
+                    gap: 6px;
                     justify-content: center;
                     margin-bottom: 18px;
                 }
                 .authBrandLogo {
-                    height: 46px;
-                    width: auto;
+                    height: 24px;
+                    width: 24px;
                     object-fit: contain;
                     display: block;
+                }
+                .authBrand strong {
+                    color: #6d28d9;
+                    font-size: 15px;
+                    font-weight: 900;
+                    letter-spacing: -0.2px;
                 }
                 .authHeader {
                     text-align: center;
@@ -342,9 +344,7 @@ function ResetPasswordForm() {
                     .authCard {
                         padding: 26px 18px;
                     }
-                    .authBrandLogo {
-                        height: 42px;
-                    }
+                    .authBrandLogo { height: 23px; width: 23px; }
                 }
             `}</style>
         </div>

@@ -10,8 +10,6 @@ export default function ForgotPasswordPage() {
     const [loading, setLoading] = useState(false);
     const [sent, setSent] = useState(false);
     const [email, setEmail] = useState('');
-    const brandLogo = 'https://i.imgur.com/vXgH6Mn.png';
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -63,13 +61,8 @@ export default function ForgotPasswordPage() {
                 <main className="authMain">
                     <section className="authCard">
                         <div className="authBrand">
-                            <img
-                                src={brandLogo}
-                                alt="GouPay"
-                                onError={(e) => {
-                                    (e.currentTarget as HTMLImageElement).src = '/logo.png';
-                                }}
-                            />
+                            <img src="/favicon.png" alt="GouPay" />
+                            <strong>GouPay</strong>
                         </div>
 
                         <div className="authMailOrb">
@@ -331,13 +324,21 @@ export default function ForgotPasswordPage() {
                 }
                 .authBrand {
                     display: flex;
+                    align-items: center;
+                    gap: 6px;
                     justify-content: center;
                     margin-bottom: 22px;
                 }
                 .authBrand img {
-                    height: 34px;
-                    width: auto;
+                    height: 24px;
+                    width: 24px;
                     object-fit: contain;
+                }
+                .authBrand strong {
+                    color: #6d28d9;
+                    font-size: 15px;
+                    font-weight: 900;
+                    letter-spacing: -0.2px;
                 }
                 .authMailOrb {
                     width: 82px;

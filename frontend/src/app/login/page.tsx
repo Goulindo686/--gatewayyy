@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -11,8 +13,6 @@ export default function LoginPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({ email: '', password: '' });
-    const brandLogo = 'https://i.imgur.com/vXgH6Mn.png';
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -73,13 +73,8 @@ export default function LoginPage() {
                 <main className="authMain">
                     <section className="authCard">
                         <div className="authBrand">
-                            <img
-                                src={brandLogo}
-                                alt="GouPay"
-                                onError={(e) => {
-                                    (e.currentTarget as HTMLImageElement).src = '/logo.png';
-                                }}
-                            />
+                            <img src="/favicon.png" alt="GouPay" />
+                            <strong>GouPay</strong>
                         </div>
 
                         <header className="authHeader">
@@ -348,13 +343,21 @@ export default function LoginPage() {
                 }
                 .authBrand {
                     display: flex;
+                    align-items: center;
+                    gap: 6px;
                     justify-content: center;
                     margin-bottom: 26px;
                 }
                 .authBrand img {
-                    height: 34px;
-                    width: auto;
+                    height: 24px;
+                    width: 24px;
                     object-fit: contain;
+                }
+                .authBrand strong {
+                    color: #6d28d9;
+                    font-size: 15px;
+                    font-weight: 900;
+                    letter-spacing: -0.2px;
                 }
                 .authHeader {
                     text-align: center;
