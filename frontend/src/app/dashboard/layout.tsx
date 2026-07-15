@@ -360,11 +360,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     }}>
                         {effectiveCollapsed ? (
                             <div style={{
-                                width: 56,
-                                height: 56,
-                                borderRadius: 14,
+                                width: 44,
+                                height: 44,
+                                borderRadius: 12,
                                 border: '1px solid rgba(139,92,246,0.18)',
-                                background: 'rgba(124,58,237,0.14)',
+                                background: 'rgba(124,58,237,0.10)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -375,8 +375,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     src="/favicon.png"
                                     alt="GouPay"
                                     style={{
-                                        width: 40,
-                                        height: 40,
+                                        width: 30,
+                                        height: 30,
                                         objectFit: 'contain',
                                         display: 'block'
                                     }}
@@ -387,7 +387,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 <img
                                     src="/favicon.png"
                                     alt="GouPay Logo"
-                                    style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0, display: 'block' }}
+                                    style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0, display: 'block' }}
                                 />
                                 <span style={{ fontWeight: 900, fontSize: 18, color: 'var(--text-primary)', letterSpacing: 0, lineHeight: 1 }}>GouPay</span>
                             </div>

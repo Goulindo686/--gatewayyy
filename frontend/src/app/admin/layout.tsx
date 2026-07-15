@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
+
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -49,16 +51,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, bottom: 0, left: 0, zIndex: 50
             }}>
                 <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                        width: 36, height: 36, borderRadius: 10,
-                        background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}>
-                        <FiShield size={18} color="white" />
-                    </div>
+                    <img src="/favicon.png" alt="GouPay" style={{ width: 34, height: 34, objectFit: 'contain', flexShrink: 0 }} />
                     <div>
-                        <span style={{ fontSize: 16, fontWeight: 700, display: 'block' }}>Admin Panel</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>GouPay</span>
+                        <span style={{ fontSize: 16, fontWeight: 800, display: 'block' }}>GouPay</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Admin Panel</span>
                     </div>
                 </div>
 
