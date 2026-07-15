@@ -45,11 +45,12 @@ interface MonthlySale {
 function calculateDerivedMetrics(monthlySales: MonthlySale[]): MonthlySale[] {
     return monthlySales.map((sale) => {
         const amount = Number(sale.amount ?? 0);
+        const fees = Number(sale.fees ?? 0);
         return {
             ...sale,
             amount,
-            fees: sale.fees != null ? Number(sale.fees) : amount * 0.05,
-            net_revenue: sale.net_revenue != null ? Number(sale.net_revenue) : amount * 0.95,
+            fees,
+            net_revenue: sale.net_revenue != null ? Number(sale.net_revenue) : amount - fees,
         };
     });
 }
@@ -112,7 +113,10 @@ export default function DashboardPage() {
     const withdrawn = Number(stats?.stats?.total_withdrawn ?? 0);
     const products = Number(stats?.stats?.total_products ?? 0);
 
-    const totalNetRevenue = monthlySalesData.reduce((sum, item) => sum + Number(item.net_revenue ?? 0), 0);
+    const totalNetRevenue = Number(
+        stats?.stats?.net_revenue ??
+        monthlySalesData.reduce((sum, item) => sum + Number(item.net_revenue ?? 0), 0)
+    );
     const lineColor = '#8b5cf6';
     const lineData = {
         labels: monthlySalesData.map((item) => item.month),
