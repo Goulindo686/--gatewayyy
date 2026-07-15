@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Last update: 2026-02-25 10:59
 
 import { NextRequest } from 'next/server';
@@ -41,7 +42,7 @@ export async function PUT(req: NextRequest) {
 
         const body = await req.json();
         const allowedFields = [
-            'name', 'phone', 'cpf_cnpj',
+            'name', 'phone', 'cpf_cnpj', 'avatar_url',
             'address_street', 'address_number', 'address_complement',
             'address_neighborhood', 'address_city', 'address_state', 'address_zipcode',
             'pix_key', 'pix_key_type',

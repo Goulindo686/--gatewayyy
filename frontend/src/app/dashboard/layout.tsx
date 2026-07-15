@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FiHome, FiPackage, FiDollarSign, FiSettings, FiLogOut, FiMenu, FiX, FiPercent, FiBookOpen, FiMessageCircle, FiShoppingBag, FiShoppingCart, FiCalendar, FiChevronLeft, FiChevronRight, FiShield, FiRepeat, FiCreditCard, FiMail, FiCode, FiBell, FiCheckCircle, FiClock, FiXCircle } from 'react-icons/fi';
+import { FiHome, FiPackage, FiDollarSign, FiSettings, FiLogOut, FiMenu, FiX, FiPercent, FiBookOpen, FiMessageCircle, FiShoppingBag, FiShoppingCart, FiCalendar, FiChevronLeft, FiChevronRight, FiShield, FiRepeat, FiCreditCard, FiMail, FiCode, FiBell, FiCheckCircle, FiClock, FiXCircle, FiUser } from 'react-icons/fi';
 import { ThemeToggle } from '@/components/theme-toggle';
 import OnboardingBar from '@/components/OnboardingBar';
 import { dashboardAPI } from '@/lib/api';
@@ -49,6 +49,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setIsImpersonating(!!localStorage.getItem('admin_token'));
         if (sc) setSidebarCollapsed(sc === '1' || sc === 'true');
     }, [router]);
+
+    useEffect(() => {
+        const onUserUpdated = (event: Event) => {
+            const customEvent = event as CustomEvent<any>;
+            const nextUser = customEvent.detail || JSON.parse(localStorage.getItem('user') || 'null');
+            if (nextUser) setUser(nextUser);
+        };
+        window.addEventListener('goupay:user-updated', onUserUpdated);
+        return () => window.removeEventListener('goupay:user-updated', onUserUpdated);
+    }, []);
     useEffect(() => {
         try { localStorage.setItem('sidebarCollapsed', sidebarCollapsed ? '1' : '0'); } catch {}
     }, [sidebarCollapsed]);
@@ -646,9 +656,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 fontSize: 15, fontWeight: 700, color: 'white', border: '2px solid transparent',
                                 cursor: 'pointer', transition: 'background 0.2s',
                                 outline: profileOpen ? '2px solid #8b5cf6' : 'none',
-                                outlineOffset: 2
+                                outlineOffset: 2,
+                                overflow: 'hidden'
                             }} className="dashboard-avatar-btn">
-                                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                {user?.avatar_url ? (
+                                    <img src={user.avatar_url} alt={user?.name || 'Perfil'} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                ) : (
+                                    user?.name?.charAt(0)?.toUpperCase() || 'U'
+                                )}
                             </button>
                         </div>
                     </div>
@@ -814,9 +829,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 <div style={{
                                     width: 44, height: 44, borderRadius: 12, background: 'var(--accent-gradient)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: 18, fontWeight: 700, color: 'white', flexShrink: 0
+                                    fontSize: 18, fontWeight: 700, color: 'white', flexShrink: 0,
+                                    overflow: 'hidden'
                                 }}>
-                                    {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                    {user?.avatar_url ? (
+                                        <img src={user.avatar_url} alt={user?.name || 'Perfil'} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                    ) : (
+                                        user?.name?.charAt(0)?.toUpperCase() || 'U'
+                                    )}
                                 </div>
                                 <div style={{ minWidth: 0 }}>
                                     <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name}</div>
@@ -827,6 +847,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                         {/* Menu Items */}
                         <div style={{ padding: '8px' }}>
+                            <Link href="/dashboard/profile" onClick={() => setProfileOpen(false)} style={{
+                                display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px',
+                                borderRadius: 10, color: 'var(--text-primary)', textDecoration: 'none',
+                                fontSize: 14, fontWeight: 500, transition: 'background 0.15s',
+                                background: 'transparent'
+                            }} className="profile-menu-item">
+                                <FiUser size={16} style={{ color: 'var(--accent-secondary)' }} />
+                                Meu perfil
+                            </Link>
                             {user?.role === 'admin' ? (
                                 <>
                                 <Link href="/admin" onClick={() => setProfileOpen(false)} style={{
