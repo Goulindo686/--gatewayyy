@@ -1,13 +1,35 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { dashboardAPI } from '@/lib/api';
-import { FiDollarSign, FiTrendingUp, FiPackage, FiShoppingCart, FiArrowDown, FiArrowUpRight, FiArrowDownRight } from 'react-icons/fi';
-import { Line, Bar } from 'react-chartjs-2';
 import { useSearchParams } from 'next/navigation';
 import {
-    Chart as ChartJS, CategoryScale, LinearScale, PointElement,
-    LineElement, BarElement, Title, Tooltip, Filler, Legend
+    FiArrowDownRight,
+    FiArrowUpRight,
+    FiBox,
+    FiCreditCard,
+    FiDollarSign,
+    FiEye,
+    FiMoreHorizontal,
+    FiShoppingBag,
+    FiTrendingUp,
+    FiUsers,
+    FiZap,
+} from 'react-icons/fi';
+import { Bar, Line } from 'react-chartjs-2';
+import {
+    BarElement,
+    CategoryScale,
+    Chart as ChartJS,
+    Filler,
+    Legend,
+    LinearScale,
+    LineElement,
+    PointElement,
+    Title,
+    Tooltip,
 } from 'chart.js';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Filler, Legend);
@@ -20,7 +42,7 @@ interface MonthlySale {
 }
 
 function calculateDerivedMetrics(monthlySales: MonthlySale[]): MonthlySale[] {
-    return monthlySales.map(sale => {
+    return monthlySales.map((sale) => {
         const amount = Number(sale.amount ?? 0);
         return {
             ...sale,
@@ -31,11 +53,16 @@ function calculateDerivedMetrics(monthlySales: MonthlySale[]): MonthlySale[] {
     });
 }
 
+const money = (value: unknown) =>
+    Number(value ?? 0).toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+
 export default function DashboardPage() {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [period, setPeriod] = useState<{ monthly_sales: any[]; recent_orders: any[] } | null>(null);
-    const [activeTab, setActiveTab] = useState<'vendas' | 'receita'>('vendas');
     const chartRef = useRef<any>(null);
     const searchParams = useSearchParams();
 
@@ -43,8 +70,10 @@ export default function DashboardPage() {
         const start = searchParams.get('start') || undefined;
         const end = searchParams.get('end') || undefined;
         if (start || end) loadPeriod({ start, end });
-        else { setPeriod(null); loadStats(); }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        else {
+            setPeriod(null);
+            loadStats();
+        }
     }, [searchParams]);
 
     const loadStats = async (params?: any) => {
@@ -52,415 +81,754 @@ export default function DashboardPage() {
         try {
             const { data } = await dashboardAPI.getStats(params || {});
             setStats(data);
-        } catch (err) { console.error(err); }
-        finally { setLoading(false); }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const loadPeriod = async (params?: any) => {
+        setLoading(true);
         try {
             const { data } = await dashboardAPI.getStats(params || {});
             setPeriod({ monthly_sales: data?.monthly_sales || [], recent_orders: data?.recent_orders || [] });
-        } catch (err) { console.error(err); }
+            setStats(data);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const monthlySalesData = calculateDerivedMetrics(period?.monthly_sales || stats?.monthly_sales || []);
-    const labels = monthlySalesData.map(m => m.month);
+    const recentOrders = period?.recent_orders || stats?.recent_orders || [];
+    const totalSold = Number(stats?.stats?.total_sold ?? 0);
+    const available = Number(stats?.stats?.available_balance ?? 0);
+    const pending = Number(stats?.stats?.pending_balance ?? 0);
+    const withdrawn = Number(stats?.stats?.total_withdrawn ?? 0);
+    const products = Number(stats?.stats?.total_products ?? 0);
 
-    const datasetMap = {
-        vendas: { key: 'amount', color: '#6c5ce7', label: 'Vendas Brutas' },
-        receita: { key: 'net_revenue', color: '#00cec9', label: 'Receita Líquida' },
-    };
-
-    const active = datasetMap[activeTab];
-
-    const getGradient = (ctx: CanvasRenderingContext2D, color: string) => {
-        const gradient = ctx.createLinearGradient(0, 0, 0, 320);
-        gradient.addColorStop(0, color + '55');
-        gradient.addColorStop(0.6, color + '18');
-        gradient.addColorStop(1, color + '00');
-        return gradient;
-    };
-
-    const chartData = {
-        labels,
-        datasets: [{
-            label: active.label,
-            data: monthlySalesData.map((m) => (m as any)[active.key] ?? 0),
-            borderColor: active.color,
-            backgroundColor: (ctx: any) => {
-                const canvas = ctx.chart.ctx;
-                return getGradient(canvas, active.color);
+    const totalNetRevenue = monthlySalesData.reduce((sum, item) => sum + Number(item.net_revenue ?? 0), 0);
+    const totalFees = monthlySalesData.reduce((sum, item) => sum + Number(item.fees ?? 0), 0);
+    const lineColor = '#2f6bff';
+    const lineData = {
+        labels: monthlySalesData.map((item) => item.month),
+        datasets: [
+            {
+                label: 'Vendas brutas',
+                data: monthlySalesData.map((item) => item.amount),
+                borderColor: lineColor,
+                backgroundColor: (ctx: any) => {
+                    const chart = ctx.chart;
+                    const area = chart.chartArea;
+                    if (!area) return 'rgba(47,107,255,0.14)';
+                    const gradient = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+                    gradient.addColorStop(0, 'rgba(47,107,255,0.22)');
+                    gradient.addColorStop(0.75, 'rgba(47,107,255,0.04)');
+                    gradient.addColorStop(1, 'rgba(47,107,255,0)');
+                    return gradient;
+                },
+                borderWidth: 2.5,
+                fill: true,
+                pointRadius: 0,
+                pointHoverRadius: 5,
+                pointBackgroundColor: lineColor,
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                tension: 0.42,
             },
-            fill: true,
-            tension: 0.45,
-            pointBackgroundColor: active.color,
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2.5,
-            pointRadius: 5,
-            pointHoverRadius: 8,
-            borderWidth: 2.5,
-        }]
+            {
+                label: 'Receita liquida',
+                data: monthlySalesData.map((item) => item.net_revenue ?? 0),
+                borderColor: 'rgba(148,163,184,0.45)',
+                borderDash: [5, 5],
+                borderWidth: 1.4,
+                fill: false,
+                pointRadius: 0,
+                tension: 0.42,
+            },
+        ],
     };
 
-    const chartOptions: any = {
+    const lineOptions: any = {
         responsive: true,
         maintainAspectRatio: false,
-        animation: { duration: 900, easing: 'easeInOutQuart' },
         interaction: { mode: 'index', intersect: false },
         plugins: {
             legend: { display: false },
             tooltip: {
-                backgroundColor: '#1a1a2e',
-                borderColor: active.color + '44',
-                borderWidth: 1,
-                titleColor: '#fff',
-                bodyColor: '#a0a0b8',
-                padding: 14,
-                cornerRadius: 12,
+                backgroundColor: '#111827',
+                padding: 12,
+                cornerRadius: 10,
                 callbacks: {
-                    label: (ctx: any) => ` R$ ${Number(ctx.parsed.y).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                }
-            }
+                    label: (ctx: any) => ` ${ctx.dataset.label}: R$ ${money(ctx.parsed.y)}`,
+                },
+            },
         },
         scales: {
             x: {
                 grid: { display: false },
                 border: { display: false },
-                ticks: { color: '#6b6b8a', font: { size: 12 }, padding: 8 }
+                ticks: { color: '#94a3b8', font: { size: 11 }, maxRotation: 0 },
             },
             y: {
-                grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+                grid: { color: '#eef2f7', drawTicks: false },
                 border: { display: false, dash: [4, 4] },
                 ticks: {
-                    color: '#6b6b8a', font: { size: 11 }, padding: 12,
-                    callback: (v: any) => `R$ ${Number(v).toLocaleString('pt-BR')}`
-                }
-            }
-        }
+                    color: '#94a3b8',
+                    font: { size: 11 },
+                    padding: 10,
+                    callback: (value: any) => `R$ ${Number(value).toLocaleString('pt-BR')}`,
+                },
+            },
+        },
     };
 
-    // Mini sparkline for stat cards
-    const sparkData = (color: string, values: number[]) => ({
-        labels: values.map(() => ''),
-        datasets: [{
-            data: values,
-            borderColor: color,
-            backgroundColor: 'transparent',
-            tension: 0.4,
-            pointRadius: 0,
-            borderWidth: 2,
-        }]
-    });
+    const dayActivity = [
+        { day: 'Dom', value: 58 },
+        { day: 'Seg', value: 50 },
+        { day: 'Ter', value: 94 },
+        { day: 'Qua', value: 46 },
+        { day: 'Qui', value: 32 },
+        { day: 'Sex', value: 58 },
+        { day: 'Sab', value: 66 },
+    ];
 
-    const sparkOptions: any = {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { enabled: false } },
-        scales: { x: { display: false }, y: { display: false } },
-        animation: false,
-    };
-
-    const recentOrders = period?.recent_orders || stats?.recent_orders || [];
+    const customerMix = useMemo(() => {
+        const gross = Math.max(totalSold, 1);
+        return [
+            { label: 'Disponivel', value: available, pct: Math.min(100, (available / gross) * 100), color: '#2f6bff' },
+            { label: 'A receber', value: pending, pct: Math.min(100, (pending / gross) * 100), color: '#21c978' },
+            { label: 'Taxas', value: totalFees, pct: Math.min(100, (totalFees / gross) * 100), color: '#ff8a3d' },
+        ];
+    }, [available, pending, totalFees, totalSold]);
 
     const statCards = [
         {
-            label: 'Saldo Disponível', value: stats?.stats?.available_balance || '0.00',
-            icon: <FiDollarSign size={18} />, color: '#00cec9', trend: '+12%', up: true,
-            spark: [40, 55, 45, 60, 52, 70, 65, 80]
+            label: 'Saldo Disponivel',
+            value: `R$ ${money(available)}`,
+            hint: `vs. R$ ${money(pending)} a receber`,
+            trend: '+15.5%',
+            up: true,
+            icon: <FiEye size={16} />,
         },
         {
-            label: 'Total Vendido', value: stats?.stats?.total_sold || '0.00',
-            icon: <FiTrendingUp size={18} />, color: '#6c5ce7', trend: '+8%', up: true,
-            spark: [30, 42, 38, 55, 48, 62, 58, 75]
+            label: 'Total Vendido',
+            value: `R$ ${money(totalSold)}`,
+            hint: `R$ ${money(totalNetRevenue)} liquido`,
+            trend: '+8.4%',
+            up: true,
+            icon: <FiUsers size={16} />,
         },
         {
-            label: 'A Receber', value: stats?.stats?.pending_balance || '0.00',
-            icon: <FiShoppingCart size={18} />, color: '#fdcb6e', trend: '+3%', up: true,
-            spark: [20, 28, 25, 32, 30, 38, 35, 42]
+            label: 'A Receber',
+            value: `R$ ${money(pending)}`,
+            hint: `R$ ${money(withdrawn)} sacado`,
+            trend: '-10.5%',
+            up: false,
+            icon: <FiTrendingUp size={16} />,
         },
         {
-            label: 'Total Sacado', value: stats?.stats?.total_withdrawn || '0.00',
-            icon: <FiArrowDown size={18} />, color: '#74b9ff', trend: '-2%', up: false,
-            spark: [50, 45, 48, 42, 46, 40, 44, 38]
-        },
-        {
-            label: 'Produtos', value: stats?.stats?.total_products || 0,
-            icon: <FiPackage size={18} />, color: '#a29bfe', trend: '+5%', up: true,
-            isCurrency: false, spark: [2, 3, 3, 4, 4, 5, 5, 6]
+            label: 'Produtos',
+            value: String(products),
+            hint: `${recentOrders.length} vendas recentes`,
+            trend: '+4.4%',
+            up: true,
+            icon: <FiBox size={16} />,
         },
     ];
 
-    if (loading) return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 400 }}>
-            <div style={{ textAlign: 'center' }}>
-                <div style={{
-                    width: 40, height: 40, border: '3px solid rgba(108,92,231,0.2)',
-                    borderTopColor: '#6c5ce7', borderRadius: '50%',
-                    animation: 'spin 0.8s linear infinite', margin: '0 auto 16px'
-                }} />
-                <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Carregando dashboard...</p>
-                <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    if (loading) {
+        return (
+            <div className="dashboard-shell-loading">
+                <div className="dashboard-loader" />
+                <p>Carregando dashboard...</p>
             </div>
-        </div>
-    );
+        );
+    }
 
     return (
-        <div className="animate-fade-in" style={{ paddingBottom: 40 }}>
-            <style>{`
+        <div className="shop-dashboard">
+            <style jsx>{`
+                .shop-dashboard {
+                    color: #111827;
+                }
+                .dashboard-shell-loading {
+                    min-height: 420px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 14px;
+                    color: #64748b;
+                }
+                .dashboard-loader {
+                    width: 38px;
+                    height: 38px;
+                    border-radius: 50%;
+                    border: 3px solid #dbe7ff;
+                    border-top-color: #2f6bff;
+                    animation: spin 0.8s linear infinite;
+                }
+                @keyframes spin { to { transform: rotate(360deg); } }
+                .dash-header {
+                    display: flex;
+                    align-items: flex-end;
+                    justify-content: space-between;
+                    gap: 16px;
+                    margin-bottom: 20px;
+                }
+                .dash-title {
+                    font-size: 26px;
+                    line-height: 1.1;
+                    font-weight: 800;
+                    letter-spacing: 0;
+                    margin: 0;
+                }
+                .dash-subtitle {
+                    color: #64748b;
+                    font-size: 13px;
+                    margin-top: 7px;
+                }
+                .dash-chip-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                }
+                .dash-chip {
+                    height: 38px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 0 13px;
+                    border-radius: 12px;
+                    border: 1px solid #e8edf5;
+                    background: #fff;
+                    color: #475569;
+                    font-size: 12px;
+                    font-weight: 700;
+                    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+                }
+                .dash-card {
+                    background: #fff;
+                    border: 1px solid #edf1f7;
+                    border-radius: 18px;
+                    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.04);
+                }
+                .metric-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 18px;
+                    margin-bottom: 22px;
+                }
+                .metric-card {
+                    min-height: 112px;
+                    padding: 20px;
+                    position: relative;
+                    overflow: hidden;
+                }
+                .metric-top {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    color: #111827;
+                    font-size: 14px;
+                    font-weight: 800;
+                    margin-bottom: 18px;
+                }
+                .metric-icon {
+                    color: #2f6bff;
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 9px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: #eff5ff;
+                }
+                .metric-value {
+                    font-size: 25px;
+                    font-weight: 900;
+                    letter-spacing: 0;
+                    margin-bottom: 7px;
+                }
+                .metric-foot {
+                    display: flex;
+                    align-items: center;
+                    gap: 9px;
+                    color: #94a3b8;
+                    font-size: 11px;
+                    white-space: nowrap;
+                }
+                .trend {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    border-radius: 999px;
+                    padding: 3px 8px;
+                    font-size: 11px;
+                    font-weight: 800;
+                }
+                .trend.up {
+                    color: #18b56f;
+                    background: #e9fbf1;
+                }
+                .trend.down {
+                    color: #f04b72;
+                    background: #fff0f4;
+                }
+                .main-grid {
+                    display: grid;
+                    grid-template-columns: minmax(0, 1fr) 330px;
+                    gap: 18px;
+                    align-items: start;
+                }
+                .left-stack, .right-stack {
+                    display: grid;
+                    gap: 18px;
+                }
+                .chart-card {
+                    padding: 22px;
+                    min-height: 324px;
+                }
+                .card-head {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    margin-bottom: 16px;
+                }
+                .card-title {
+                    margin: 0;
+                    font-size: 15px;
+                    font-weight: 900;
+                }
+                .card-muted {
+                    color: #94a3b8;
+                    font-size: 11px;
+                    font-weight: 700;
+                }
+                .profit-line {
+                    display: flex;
+                    align-items: baseline;
+                    gap: 10px;
+                    margin-bottom: 6px;
+                }
+                .profit-value {
+                    font-size: 34px;
+                    font-weight: 950;
+                    letter-spacing: 0;
+                }
+                .chart-area {
+                    height: 210px;
+                }
+                .mix-panel {
+                    margin-top: 16px;
+                    border: 1px solid #edf1f7;
+                    border-radius: 14px;
+                    padding: 15px;
+                    background: #fff;
+                }
+                .mix-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 12px;
+                }
+                .mix-item {
+                    border-left: 2px solid var(--mix-color);
+                    padding-left: 12px;
+                }
+                .mix-value {
+                    font-size: 15px;
+                    font-weight: 900;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                }
+                .mix-bar {
+                    height: 5px;
+                    border-radius: 999px;
+                    background: #eef2f7;
+                    overflow: hidden;
+                    margin-top: 10px;
+                }
+                .mix-bar span {
+                    display: block;
+                    height: 100%;
+                    width: var(--pct);
+                    background: var(--mix-color);
+                }
+                .activity-card {
+                    padding: 20px;
+                    min-height: 160px;
+                }
+                .bars {
+                    height: 102px;
+                    display: grid;
+                    grid-template-columns: repeat(7, 1fr);
+                    gap: 11px;
+                    align-items: end;
+                    margin-top: 8px;
+                }
+                .bar-wrap {
+                    display: grid;
+                    gap: 8px;
+                    justify-items: center;
+                    color: #94a3b8;
+                    font-size: 11px;
+                    font-weight: 700;
+                }
+                .bar {
+                    width: 25px;
+                    height: var(--h);
+                    border-radius: 8px 8px 5px 5px;
+                    background: #e9edf3;
+                }
+                .bar.active {
+                    background: linear-gradient(180deg, #2f6bff 0%, #6494ff 100%);
+                    box-shadow: 0 10px 18px rgba(47, 107, 255, 0.2);
+                }
+                .rate-card {
+                    padding: 20px;
+                    text-align: center;
+                }
+                .gauge {
+                    --value: 68;
+                    width: min(190px, 100%);
+                    aspect-ratio: 2 / 1;
+                    margin: 10px auto 0;
+                    border-radius: 190px 190px 0 0;
+                    background:
+                        radial-gradient(circle at 50% 100%, #fff 0 54%, transparent 55%),
+                        conic-gradient(from 270deg at 50% 100%, #39c98e 0 calc(var(--value) * 0.5%), #e6eaf0 0 50%, transparent 0);
+                    position: relative;
+                }
+                .gauge-number {
+                    margin-top: -12px;
+                    font-size: 33px;
+                    font-weight: 950;
+                }
+                .ai-card {
+                    min-height: 162px;
+                    padding: 20px;
+                    overflow: hidden;
+                    position: relative;
+                }
+                .orb {
+                    width: 92px;
+                    height: 92px;
+                    border-radius: 50%;
+                    background: radial-gradient(circle at 30% 28%, #7bc2ff, #2f6bff 55%, #1040b8);
+                    box-shadow: 0 18px 36px rgba(47, 107, 255, 0.28);
+                    position: absolute;
+                    right: 34px;
+                    bottom: -18px;
+                }
+                .orders-card {
+                    padding: 20px;
+                    overflow: hidden;
+                }
+                .orders-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    min-width: 680px;
+                }
+                .orders-table th {
+                    color: #94a3b8;
+                    font-size: 10px;
+                    text-align: left;
+                    text-transform: uppercase;
+                    letter-spacing: .08em;
+                    padding: 10px 8px;
+                    border-bottom: 1px solid #edf1f7;
+                }
+                .orders-table td {
+                    padding: 13px 8px;
+                    border-bottom: 1px solid #f0f3f8;
+                    color: #475569;
+                    font-size: 12px;
+                    font-weight: 700;
+                }
+                .product-cell {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    color: #111827;
+                }
+                .product-thumb {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 8px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: #f3f6fb;
+                    color: #2f6bff;
+                    flex: 0 0 auto;
+                }
+                .status-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    border-radius: 999px;
+                    padding: 4px 9px;
+                    font-size: 11px;
+                    font-weight: 900;
+                }
+                .status-paid {
+                    color: #18a866;
+                    background: #e9fbf1;
+                }
+                .status-pending {
+                    color: #b98208;
+                    background: #fff7dd;
+                }
+                .status-failed {
+                    color: #e13f62;
+                    background: #fff0f4;
+                }
+                .empty-state {
+                    min-height: 190px;
+                    display: grid;
+                    place-items: center;
+                    color: #94a3b8;
+                    text-align: center;
+                }
+                .empty-state strong {
+                    color: #111827;
+                    display: block;
+                    margin-bottom: 5px;
+                }
+                @media (max-width: 1180px) {
+                    .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                    .main-grid { grid-template-columns: 1fr; }
+                    .right-stack { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+                }
+                @media (max-width: 760px) {
+                    .dash-header { align-items: flex-start; flex-direction: column; }
+                    .metric-grid, .mix-grid, .right-stack { grid-template-columns: 1fr; }
+                    .metric-foot { white-space: normal; }
+                    .chart-card, .orders-card, .activity-card, .rate-card, .ai-card { padding: 16px; }
+                    .profit-value { font-size: 28px; }
+                }
             `}</style>
 
-            <style>{`
-                .db-card {
-                    background: var(--bg-card);
-                    border: 1px solid var(--border-color);
-                    border-radius: 20px;
-                    transition: box-shadow 0.2s, transform 0.2s;
-                }
-                .db-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.18); transform: translateY(-1px); }
-                .stat-pill {
-                    display: inline-flex; align-items: center; gap: 4px;
-                    padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 600;
-                }
-                .tab-btn {
-                    padding: 6px 16px; border-radius: 10px; font-size: 13px; font-weight: 500;
-                    border: none; cursor: pointer; transition: all 0.18s;
-                }
-                .tab-btn.active { color: #fff; }
-                .tab-btn:not(.active) { background: transparent; color: var(--text-secondary); }
-                .tab-btn:not(.active):hover { background: rgba(255,255,255,0.06); }
-                .order-row { transition: background 0.15s; }
-                .order-row:hover { background: rgba(255,255,255,0.03); }
-                .db-badge {
-                    display: inline-flex; align-items: center; padding: 3px 10px;
-                    border-radius: 20px; font-size: 11px; font-weight: 600;
-                }
-            `}</style>
-
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
+            <div className="dash-header">
                 <div>
-                    <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 4, letterSpacing: '-0.5px' }}>Dashboard</h1>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Acompanhe suas vendas e métricas em tempo real</p>
+                    <h1 className="dash-title">Dashboard</h1>
+                    <div className="dash-subtitle">Resumo visual das vendas, saldo e desempenho do gateway.</div>
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                    <div style={{
-                        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px',
-                        background: 'var(--bg-card)', border: '1px solid var(--border-color)',
-                        borderRadius: 12, fontSize: 13, color: 'var(--text-secondary)'
-                    }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#00cec9', boxShadow: '0 0 6px #00cec9' }} />
-                        Ao vivo
-                    </div>
+                <div className="dash-chip-row">
+                    <div className="dash-chip"><FiZap size={14} /> Ao vivo</div>
+                    <div className="dash-chip"><FiCreditCard size={14} /> PIX e cartao</div>
                 </div>
             </div>
 
-            {/* Stat Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 14, marginBottom: 24 }}>
-                {statCards.map((card, i) => (
-                    <div key={i} className="db-card" style={{ padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
-                        {/* Glow accent */}
-                        <div style={{
-                            position: 'absolute', top: -20, right: -20, width: 80, height: 80,
-                            borderRadius: '50%', background: card.color + '18', filter: 'blur(20px)', pointerEvents: 'none'
-                        }} />
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                            <div style={{
-                                width: 36, height: 36, borderRadius: 10,
-                                background: card.color + '18', display: 'flex', alignItems: 'center',
-                                justifyContent: 'center', color: card.color
-                            }}>{card.icon}</div>
-                            <span className="stat-pill" style={{
-                                background: card.up ? 'rgba(0,206,145,0.12)' : 'rgba(255,107,107,0.12)',
-                                color: card.up ? '#00ce91' : '#ff6b6b'
-                            }}>
-                                {card.up ? <FiArrowUpRight size={11} /> : <FiArrowDownRight size={11} />}
+            <section className="metric-grid">
+                {statCards.map((card) => (
+                    <article className="dash-card metric-card" key={card.label}>
+                        <div className="metric-top">
+                            <span>{card.label}</span>
+                            <span className="metric-icon">{card.icon}</span>
+                        </div>
+                        <div className="metric-value">{card.value}</div>
+                        <div className="metric-foot">
+                            <span className={`trend ${card.up ? 'up' : 'down'}`}>
+                                {card.up ? <FiArrowUpRight size={12} /> : <FiArrowDownRight size={12} />}
                                 {card.trend}
                             </span>
+                            <span>{card.hint}</span>
                         </div>
-                        <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 2, letterSpacing: '-0.5px' }}>
-                            {card.isCurrency !== false 
-                                ? `R$ ${Number(card.value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
-                                : card.value}
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>{card.label}</div>
-                        {/* Sparkline */}
-                        <div style={{ height: 36 }}>
-                            <Line data={sparkData(card.color, card.spark)} options={sparkOptions} />
-                        </div>
-                    </div>
+                    </article>
                 ))}
-            </div>
+            </section>
 
-            {/* Main Chart + Side Panel */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 16, marginBottom: 20 }}>
-
-                {/* Chart Card */}
-                <div className="db-card" style={{ padding: '24px 28px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                        <div>
-                            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 2 }}>Análise de Vendas</h3>
-                            <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Evolução mensal das métricas</p>
+            <section className="main-grid">
+                <div className="left-stack">
+                    <article className="dash-card chart-card">
+                        <div className="card-head">
+                            <div>
+                                <h2 className="card-title">Lucro Total</h2>
+                                <div className="card-muted">Vendas brutas vs. receita liquida</div>
+                            </div>
+                            <FiMoreHorizontal color="#94a3b8" />
                         </div>
-                        <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 4 }}>
-                            {(['vendas', 'receita'] as const).map(tab => (
-                                <button key={tab} className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-                                    style={activeTab === tab ? { background: datasetMap[tab].color } : {}}
-                                    onClick={() => setActiveTab(tab)}>
-                                    {tab === 'vendas' ? 'Vendas' : 'Receita'}
-                                </button>
-                            ))}
+
+                        <div className="profit-line">
+                            <span className="profit-value">R$ {money(totalNetRevenue || totalSold)}</span>
+                            <span className="trend up"><FiArrowUpRight size={12} /> 24.4%</span>
+                            <span className="card-muted">vs. periodo anterior</span>
                         </div>
-                    </div>
 
-                    {/* Big number */}
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 20 }}>
-                        <span style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1px', color: active.color }}>
-                            R$ {monthlySalesData.reduce((s, m: any) => s + Number(m[active.key] ?? 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                        <span style={{ fontSize: 13, color: '#00ce91', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <FiArrowUpRight size={14} /> Total acumulado
-                        </span>
-                    </div>
+                        <div className="chart-area">
+                            {monthlySalesData.length === 0 ? (
+                                <div className="empty-state">
+                                    <div>
+                                        <strong>Nenhum dado no periodo</strong>
+                                        <span>As vendas vao aparecer aqui assim que entrarem.</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <Line ref={chartRef} data={lineData} options={lineOptions} />
+                            )}
+                        </div>
 
-                    <div style={{ height: 260 }}>
-                        {monthlySalesData.length === 0 ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
-                                <FiTrendingUp size={40} style={{ marginBottom: 12, opacity: 0.3 }} />
-                                <p style={{ fontSize: 13 }}>Nenhum dado disponível para o período</p>
+                        <div className="mix-panel">
+                            <div className="card-head" style={{ marginBottom: 12 }}>
+                                <h3 className="card-title">Fluxo financeiro</h3>
+                                <FiMoreHorizontal color="#94a3b8" />
+                            </div>
+                            <div className="mix-grid">
+                                {customerMix.map((item) => (
+                                    <div
+                                        className="mix-item"
+                                        key={item.label}
+                                        style={{ '--mix-color': item.color, '--pct': `${Math.max(8, item.pct)}%` } as React.CSSProperties}
+                                    >
+                                        <div className="mix-value">
+                                            <FiDollarSign size={14} color={item.color} />
+                                            R$ {money(item.value)}
+                                        </div>
+                                        <div className="card-muted">{item.label}</div>
+                                        <div className="mix-bar"><span /></div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </article>
+
+                    <article className="dash-card orders-card">
+                        <div className="card-head">
+                            <div>
+                                <h2 className="card-title">Vendas Recentes</h2>
+                                <div className="card-muted">{recentOrders.length} transacoes</div>
+                            </div>
+                            <FiMoreHorizontal color="#94a3b8" />
+                        </div>
+
+                        {recentOrders.length > 0 ? (
+                            <div style={{ overflowX: 'auto' }}>
+                                <table className="orders-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Produto</th>
+                                            <th>Valor</th>
+                                            <th>Metodo</th>
+                                            <th>Status</th>
+                                            <th>Data</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {recentOrders.slice(0, 5).map((order: any) => {
+                                            const statusClass = order.status === 'paid'
+                                                ? 'status-paid'
+                                                : order.status === 'pending'
+                                                    ? 'status-pending'
+                                                    : 'status-failed';
+
+                                            return (
+                                                <tr key={order.id}>
+                                                    <td>#{String(order.id).slice(0, 6)}</td>
+                                                    <td>
+                                                        <div className="product-cell">
+                                                            <span className="product-thumb"><FiShoppingBag size={14} /></span>
+                                                            <span>{order.product_name || order.products?.name || 'Produto'}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ color: '#18a866' }}>R$ {order.amount_display || money(order.amount)}</td>
+                                                    <td>{order.payment_method === 'pix' ? 'PIX' : 'Cartao'}</td>
+                                                    <td>
+                                                        <span className={`status-badge ${statusClass}`}>
+                                                            {order.status === 'paid' ? 'Pago' : order.status === 'pending' ? 'Pendente' : 'Falhou'}
+                                                        </span>
+                                                    </td>
+                                                    <td>{order.created_at ? new Date(order.created_at).toLocaleDateString('pt-BR') : '-'}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             </div>
                         ) : (
-                            <Line ref={chartRef} data={chartData} options={chartOptions} />
-                        )}
-                    </div>
-                </div>
-
-                {/* Side: Quick Stats */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {/* Top metric */}
-                    <div className="db-card" style={{ padding: '20px', background: `linear-gradient(135deg, ${active.color}22, ${active.color}08)`, borderColor: active.color + '33' }}>
-                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>Melhor mês</p>
-                        <div style={{ fontSize: 22, fontWeight: 800, color: active.color, marginBottom: 4 }}>
-                            {monthlySalesData.length > 0
-                                ? monthlySalesData.reduce((best, m) => ((m as any)[active.key] ?? 0) > ((best as any)[active.key] ?? 0) ? m : best, monthlySalesData[0]).month
-                                : '—'}
-                        </div>
-                        <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Maior volume de {active.label.toLowerCase()}</p>
-                    </div>
-
-                    {/* Breakdown */}
-                    <div className="db-card" style={{ padding: '20px', flex: 1 }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>Distribuição</p>
-                        {[
-                            { label: 'Vendas Brutas', color: '#6c5ce7', pct: 100 },
-                            { label: 'Receita Líquida', color: '#00cec9', pct: 95 },
-                        ].map((item, i) => (
-                            <div key={i} style={{ marginBottom: 14 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{item.label}</span>
-                                    <span style={{ fontSize: 12, fontWeight: 600, color: item.color }}>{item.pct}%</span>
-                                </div>
-                                <div style={{ height: 6, borderRadius: 6, background: 'rgba(255,255,255,0.06)' }}>
-                                    <div style={{ height: '100%', borderRadius: 6, width: `${item.pct}%`, background: `linear-gradient(90deg, ${item.color}, ${item.color}88)` }} />
+                            <div className="empty-state">
+                                <div>
+                                    <strong>Nenhuma venda ainda</strong>
+                                    <span>Crie um produto e compartilhe o link de checkout.</span>
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        )}
+                    </article>
+                </div>
 
-                    {/* Bar mini chart */}
-                    <div className="db-card" style={{ padding: '20px' }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Últimos 6 meses</p>
-                        <div style={{ height: 80 }}>
+                <aside className="right-stack">
+                    <article className="dash-card activity-card">
+                        <div className="card-head">
+                            <h2 className="card-title">Dia Mais Ativo</h2>
+                            <FiMoreHorizontal color="#94a3b8" />
+                        </div>
+                        <div className="bars">
+                            {dayActivity.map((day) => (
+                                <div className="bar-wrap" key={day.day}>
+                                    <div className={`bar ${day.day === 'Ter' ? 'active' : ''}`} style={{ '--h': `${day.value}px` } as React.CSSProperties} />
+                                    <span style={{ color: day.day === 'Ter' ? '#2f6bff' : undefined }}>{day.day}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </article>
+
+                    <article className="dash-card rate-card">
+                        <div className="card-head">
+                            <h2 className="card-title">Taxa de Conversao</h2>
+                            <FiMoreHorizontal color="#94a3b8" />
+                        </div>
+                        <div className="gauge" style={{ '--value': 68 } as React.CSSProperties} />
+                        <div className="gauge-number">68%</div>
+                        <div className="card-muted">Meta mensal: 80%</div>
+                    </article>
+
+                    <article className="dash-card ai-card">
+                        <div className="card-head">
+                            <h2 className="card-title">Assistente IA</h2>
+                            <FiArrowUpRight color="#94a3b8" />
+                        </div>
+                        <div className="card-muted" style={{ maxWidth: 175, lineHeight: 1.55 }}>
+                            Analise rapida dos seus produtos, vendas e recuperacao de carrinho.
+                        </div>
+                        <div className="orb" />
+                    </article>
+
+                    <article className="dash-card activity-card">
+                        <div className="card-head">
+                            <h2 className="card-title">Ultimos Meses</h2>
+                            <FiMoreHorizontal color="#94a3b8" />
+                        </div>
+                        <div style={{ height: 118 }}>
                             <Bar
                                 data={{
-                                    labels: monthlySalesData.slice(-6).map(m => m.month),
+                                    labels: monthlySalesData.slice(-6).map((item) => item.month),
                                     datasets: [{
-                                        data: monthlySalesData.slice(-6).map((m: any) => m.amount ?? 0),
-                                        backgroundColor: monthlySalesData.slice(-6).map((_, i, arr) =>
-                                            i === arr.length - 1 ? '#6c5ce7' : '#6c5ce722'
+                                        data: monthlySalesData.slice(-6).map((item) => item.amount),
+                                        backgroundColor: monthlySalesData.slice(-6).map((_, index, arr) =>
+                                            index === arr.length - 1 ? '#2f6bff' : '#e3e9f3'
                                         ),
-                                        borderRadius: 6,
+                                        borderRadius: 8,
                                         borderSkipped: false,
-                                    }]
+                                    }],
                                 }}
                                 options={{
-                                    responsive: true, maintainAspectRatio: false,
+                                    responsive: true,
+                                    maintainAspectRatio: false,
                                     plugins: { legend: { display: false }, tooltip: { enabled: false } },
                                     scales: { x: { display: false }, y: { display: false } },
                                     animation: false,
                                 } as any}
                             />
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Recent Orders */}
-            <div className="db-card" style={{ padding: '24px 28px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                    <div>
-                        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 2 }}>Vendas Recentes</h3>
-                        <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{recentOrders.length} transações</p>
-                    </div>
-                    {recentOrders.length > 0 && (
-                        <span style={{ fontSize: 12, color: '#6c5ce7', fontWeight: 600, cursor: 'pointer' }}>Ver todas →</span>
-                    )}
-                </div>
-
-                {recentOrders.length > 0 ? (
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead>
-                                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                    {['Produto', 'Comprador', 'Valor', 'Método', 'Status', 'Data'].map(h => (
-                                        <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {recentOrders.map((order: any) => (
-                                    <tr key={order.id} className="order-row" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                                        <td style={{ padding: '13px 12px', fontWeight: 600, fontSize: 13 }}>
-                                            {order.product_name || order.products?.name || '—'}
-                                        </td>
-                                        <td style={{ padding: '13px 12px', color: 'var(--text-secondary)', fontSize: 13 }}>
-                                            {order.buyer_name || '—'}
-                                        </td>
-                                        <td style={{ padding: '13px 12px', fontWeight: 700, fontSize: 14, color: '#00ce91' }}>
-                                            R$ {order.amount_display}
-                                        </td>
-                                        <td style={{ padding: '13px 12px' }}>
-                                            <span className="db-badge" style={{
-                                                background: order.payment_method === 'pix' ? 'rgba(0,206,145,0.12)' : 'rgba(116,185,255,0.12)',
-                                                color: order.payment_method === 'pix' ? '#00ce91' : '#74b9ff'
-                                            }}>
-                                                {order.payment_method === 'pix' ? 'PIX' : 'Cartão'}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '13px 12px' }}>
-                                            <span className="db-badge" style={{
-                                                background: order.status === 'paid' ? 'rgba(0,206,145,0.12)' : order.status === 'pending' ? 'rgba(253,203,110,0.12)' : 'rgba(255,107,107,0.12)',
-                                                color: order.status === 'paid' ? '#00ce91' : order.status === 'pending' ? '#fdcb6e' : '#ff6b6b'
-                                            }}>
-                                                {order.status === 'paid' ? 'Pago' : order.status === 'pending' ? 'Pendente' : order.status === 'failed' ? 'Falhou' : order.status}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '13px 12px', color: 'var(--text-muted)', fontSize: 12 }}>
-                                            {new Date(order.created_at).toLocaleDateString('pt-BR')}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                ) : (
-                    <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-muted)' }}>
-                        <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(108,92,231,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#6c5ce7' }}>
-                            <FiShoppingCart size={24} />
-                        </div>
-                        <p style={{ fontWeight: 600, marginBottom: 6 }}>Nenhuma venda ainda</p>
-                        <p style={{ fontSize: 13 }}>Crie um produto e compartilhe o link de checkout!</p>
-                    </div>
-                )}
-            </div>
+                    </article>
+                </aside>
+            </section>
         </div>
     );
 }
