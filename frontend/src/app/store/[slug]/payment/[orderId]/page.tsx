@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { FiCopy, FiCheck, FiSmartphone, FiClock, FiShield, FiCheckCircle, FiPackage, FiArrowLeft, FiUser } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSmartphone, FiClock, FiShield, FiCheckCircle, FiPackage, FiArrowLeft, FiUser, FiCreditCard } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { checkoutAPI } from '@/lib/api';
@@ -273,19 +273,26 @@ export default function PaymentPage() {
                     </div>
                 ) : (
                     <div className="paymentPixCard" style={{ background: '#141417', borderRadius: 32, padding: 48, textAlign: 'center', border: '1px solid rgba(255,255,255,0.03)' }}>
-                        <FiCheckCircle size={64} style={{ color: '#00cec9', marginBottom: 24 }} />
-                        <h2 style={{ fontSize: 24, fontWeight: 800, color: 'white', marginBottom: 12 }}>Pagamento em processamento</h2>
-                        <p style={{ color: '#94a3b8' }}>Estamos aguardando a confirmação do seu pagamento via Pix.</p>
+                        <FiCreditCard size={64} style={{ color: order.status === 'failed' ? '#ef4444' : '#00cec9', marginBottom: 24 }} />
+                        <h2 style={{ fontSize: 24, fontWeight: 800, color: 'white', marginBottom: 12 }}>
+                            {order.status === 'failed' ? 'Pagamento não aprovado' : 'Pagamento em análise'}
+                        </h2>
+                        <p style={{ color: '#94a3b8' }}>
+                            {order.status === 'failed'
+                                ? 'O banco ou a análise de segurança não aprovou esta tentativa. Tente outro cartão ou utilize o Pix.'
+                                : 'A tentativa no cartão foi recebida e estamos aguardando a confirmação do Pagar.me.'}
+                        </p>
                     </div>
                 )}
 
                 {/* Important Section (Image 2 Footer) */}
                 <div className="paymentHelpCard" style={{ marginTop: 40, background: 'rgba(0, 206, 201, 0.03)', borderRadius: 24, padding: 32, border: '1px solid rgba(0, 206, 201, 0.1)' }}>
                     <h3 style={{ fontSize: 18, fontWeight: 800, color: 'white', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <FiShield style={{ color: '#00cec9' }} /> Importante: Como pagar com o Pix
+                        <FiShield style={{ color: '#00cec9' }} />
+                        {order.payment_method === 'pix' ? 'Importante: Como pagar com o Pix' : 'Pagamento seguro com cartão'}
                     </h3>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 24 }}>
+                    {order.payment_method === 'pix' ? <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 24 }}>
                         <div style={{ display: 'flex', gap: 16 }}>
                             <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                 <FiSmartphone style={{ color: '#00cec9' }} size={20} />
@@ -304,7 +311,9 @@ export default function PaymentPage() {
                             </div>
                             <div style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.5 }}>Após o pagamento ser identificado, você receberá seus produtos instantaneamente.</div>
                         </div>
-                    </div>
+                    </div> : <p style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.6 }}>
+                        Os dados do cartão são enviados diretamente ao ambiente seguro do Pagar.me. A página será atualizada automaticamente quando o pagamento for confirmado.
+                    </p>}
                 </div>
             </div>
             <style jsx>{`

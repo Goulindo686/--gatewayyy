@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS platform_fees (
 -- Platform settings table (singleton for global config)
 CREATE TABLE IF NOT EXISTS platform_settings (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  fee_percentage DECIMAL(5,2) DEFAULT 15.00,
+  fee_percentage DECIMAL(5,2) DEFAULT 2.00,
   platform_name VARCHAR(255) DEFAULT 'PayGateway',
   platform_recipient_id VARCHAR(255),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS platform_settings (
 
 -- Insert default platform settings
 INSERT INTO platform_settings (fee_percentage, platform_name) 
-VALUES (15.00, 'PayGateway')
+VALUES (2.00, 'PayGateway')
 ON CONFLICT DO NOTHING;
 
 -- Indexes for performance

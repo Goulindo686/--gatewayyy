@@ -2,11 +2,25 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Script from 'next/script';
 import { productsAPI, checkoutAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { FiShoppingCart, FiCreditCard, FiSmartphone, FiCheck, FiCopy, FiPackage, FiArrowRight, FiClock, FiLock, FiChevronDown, FiTag, FiPlusCircle } from 'react-icons/fi';
 import FacebookPixel, { getFacebookCookies, trackFacebookPurchase } from '@/components/FacebookPixel';
+import {
+    isValidBrazilianState,
+    isValidCardExpiration,
+    isValidCardNumber,
+    isValidCep,
+    isValidCpf,
+    isValidPhone,
+    onlyDigits,
+} from '@/lib/checkout-validation';
+import {
+    CardTokenizationError,
+    createCheckoutSessionId,
+    getCheckoutDevicePlatform,
+    tokenizePagarmeCard,
+} from '@/lib/pagarme-card';
 
 const DEFAULT_SETTINGS = {
     theme: 'light', // Alterado para light por padrão conforme a imagem
@@ -202,7 +216,8 @@ function OrderSummary({
 export default function CheckoutPage() {
     const params = useParams();
     const router = useRouter();
-    const enableCreditCard = false;
+    const [cardConfig, setCardConfig] = useState({ enabled: false, publicKey: '' });
+    const enableCreditCard = cardConfig.enabled && !!cardConfig.publicKey;
     const [product, setProduct] = useState<any>(null);
     const [plans, setPlans] = useState<any[]>([]);
     const [selectedPlan, setSelectedPlan] = useState<any>(null);
@@ -228,21 +243,17 @@ export default function CheckoutPage() {
         card_number: '', card_holder: '', card_exp_month: '', card_exp_year: '', card_cvv: '', installments: 1
     });
 
-    const isValidCPF = (v: string) => {
-        const s = (v || '').replace(/\D/g, '');
-        if (!s || s.length !== 11 || /^(\d)\1+$/.test(s)) return false;
-        let sum = 0; for (let i = 0; i < 9; i++) sum += parseInt(s[i]) * (10 - i);
-        let d1 = (sum * 10) % 11; if (d1 === 10) d1 = 0; if (d1 !== parseInt(s[9])) return false;
-        sum = 0; for (let i = 0; i < 10; i++) sum += parseInt(s[i]) * (11 - i);
-        let d2 = (sum * 10) % 11; if (d2 === 10) d2 = 0; return d2 === parseInt(s[10]);
+    const formatCpf = (value: string) => onlyDigits(value).slice(0, 11)
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    const formatPhone = (value: string) => {
+        const digits = onlyDigits(value).slice(0, 11);
+        if (digits.length <= 10) return digits.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2');
+        return digits.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
     };
-    const isValidCEP = (v: string) => /^\d{8}$/.test((v || '').replace(/\D/g, ''));
-    const UFs = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
-    const isValidUF = (v: string) => UFs.includes((v || '').toUpperCase());
-    const isValidPhone = (v: string) => {
-        const d = (v || '').replace(/\D/g, '');
-        return d.length >= 10 && d.length <= 11;
-    };
+    const formatCep = (value: string) => onlyDigits(value).slice(0, 8).replace(/(\d{5})(\d)/, '$1-$2');
+    const formatCardNumber = (value: string) => onlyDigits(value).slice(0, 19).replace(/(.{4})/g, '$1 ').trim();
  
     useEffect(() => {
         if (params.id) loadProduct(params.id as string);
@@ -256,7 +267,17 @@ export default function CheckoutPage() {
 
     const loadProduct = async (id: string) => {
         try {
-            const { data } = await productsAPI.getPublic(id);
+            const [{ data }, configResponse] = await Promise.all([
+                productsAPI.getPublic(id),
+                fetch('/api/checkout/config', { cache: 'no-store' })
+                    .then(response => response.ok ? response.json() : null)
+                    .catch(() => null),
+            ]);
+            const creditCard = configResponse?.credit_card;
+            setCardConfig({
+                enabled: creditCard?.enabled === true,
+                publicKey: typeof creditCard?.public_key === 'string' ? creditCard.public_key : '',
+            });
             setProduct(data.product);
             const pl = Array.isArray(data.product?.plans) ? data.product.plans : [];
             setPlans(pl);
@@ -419,7 +440,7 @@ export default function CheckoutPage() {
         return tracking;
     };
 
-    const startPixPolling = (orderId: string) => {
+    const startPaymentPolling = (orderId: string) => {
         // Estratégia de backoff exponencial para reduzir Edge Requests:
         // Começa verificando a cada 5s, vai aumentando progressivamente até 30s.
         // Após 10 minutos sem pagamento, para de verificar automaticamente.
@@ -439,6 +460,14 @@ export default function CheckoutPage() {
                     if (data.auth) autoLoginAndRedirect(data.auth);
                     return; // para o polling
                 }
+                if (data.order?.status === 'failed') {
+                    setResult((current: any) => ({
+                        ...current,
+                        order: { ...current?.order, status: 'failed' },
+                    }));
+                    toast.error('O pagamento nao foi aprovado. Tente outro cartao ou utilize o Pix.');
+                    return;
+                }
             } catch (err) { /* retry na próxima rodada */ }
             pollingRef.current = setTimeout(poll, getDelay(attempt));
         };
@@ -451,12 +480,16 @@ export default function CheckoutPage() {
         setProcessing(true);
         try {
             const methodToSend = enableCreditCard ? paymentMethod : 'pix';
-            if (!isValidCPF(form.cpf)) { toast.error('CPF inválido'); setProcessing(false); return; }
+            if (!isValidCpf(form.cpf)) { toast.error('CPF inválido'); setProcessing(false); return; }
             if ((!settings.hide_phone || methodToSend === 'credit_card') && !isValidPhone(form.phone)) { toast.error('WhatsApp inválido'); setProcessing(false); return; }
             if (methodToSend === 'credit_card') {
-                if (!isValidCEP(form.cep)) { toast.error('CEP inválido'); setProcessing(false); return; }
-                if (!isValidUF(form.state)) { toast.error('UF inválida'); setProcessing(false); return; }
+                if (!isValidCep(form.cep)) { toast.error('CEP inválido'); setProcessing(false); return; }
+                if (!isValidBrazilianState(form.state)) { toast.error('UF inválida'); setProcessing(false); return; }
                 if (!form.street || !form.number || !form.neighborhood || !form.city) { toast.error('Endereço incompleto'); setProcessing(false); return; }
+                if (!isValidCardNumber(form.card_number)) { toast.error('Número do cartão inválido'); setProcessing(false); return; }
+                if (form.card_holder.trim().length < 3) { toast.error('Nome do titular inválido'); setProcessing(false); return; }
+                if (!isValidCardExpiration(form.card_exp_month, form.card_exp_year)) { toast.error('Validade do cartão inválida'); setProcessing(false); return; }
+                if (!/^\d{3,4}$/.test(onlyDigits(form.card_cvv))) { toast.error('CVV inválido'); setProcessing(false); return; }
             }
             const includeAddress = methodToSend === 'credit_card' || !settings.hide_address_pix;
             const buyer: any = {
@@ -489,11 +522,18 @@ export default function CheckoutPage() {
             };
             payload.tracking = getTrackingParameters();
             if (methodToSend === 'credit_card') {
-                payload.card_data = {
-                    number: form.card_number.replace(/\s/g, ''), holder_name: form.card_holder,
-                    exp_month: parseInt(form.card_exp_month), exp_year: parseInt(form.card_exp_year),
-                    cvv: form.card_cvv, installments: form.installments
-                };
+                const rawYear = onlyDigits(form.card_exp_year);
+                const expirationYear = Number(rawYear.length === 2 ? `20${rawYear}` : rawYear);
+                payload.card_token = await tokenizePagarmeCard(cardConfig.publicKey, {
+                    number: form.card_number,
+                    holderName: form.card_holder,
+                    expMonth: Number(form.card_exp_month),
+                    expYear: expirationYear,
+                    cvv: form.card_cvv,
+                });
+                payload.installments = Number(form.installments) || 1;
+                payload.checkout_session_id = createCheckoutSessionId();
+                payload.device_platform = getCheckoutDevicePlatform();
             }
             // Envia os bumps selecionados com o plano escolhido pelo comprador
             if (selectedBumps.size > 0) {
@@ -511,13 +551,19 @@ export default function CheckoutPage() {
             } else if (methodToSend === 'pix') {
                 if (data.pix) {
                     toast.success('QR Code gerado!');
-                    startPixPolling(data.order.id);
+                    startPaymentPolling(data.order.id);
                 } else {
                     toast.error('O pedido foi gerado, mas o Pagar.me não retornou o QR Code.');
                 }
+            } else {
+                toast.success('Pagamento enviado para análise.');
+                startPaymentPolling(data.order.id);
             }
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Erro ao processar pagamento');
+            const message = err instanceof CardTokenizationError
+                ? err.message
+                : err.response?.data?.error || 'Erro ao processar pagamento';
+            toast.error(message);
         } finally {
             setProcessing(false);
         }
@@ -526,7 +572,26 @@ export default function CheckoutPage() {
     const copyPixCode = () => {
         if (result?.pix?.qr_code) { navigator.clipboard.writeText(result.pix.qr_code); toast.success('Código Pix copiado!'); }
     };
-    const update = (field: string, value: string) => setForm({ ...form, [field]: value });
+    const update = (field: string, value: string) => setForm(current => ({ ...current, [field]: value }));
+
+    const lookupCep = async () => {
+        const cep = onlyDigits(form.cep);
+        if (cep.length !== 8) return;
+        try {
+            const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+            const address = await response.json();
+            if (!response.ok || address?.erro) return;
+            setForm(current => ({
+                ...current,
+                street: address.logradouro || current.street,
+                neighborhood: address.bairro || current.neighborhood,
+                city: address.localidade || current.city,
+                state: address.uf || current.state,
+            }));
+        } catch {
+            // O preenchimento manual continua disponivel caso o servico de CEP esteja indisponivel.
+        }
+    };
 
     const formatTimer = (s: number) => {
         const m = Math.floor(s / 60);
@@ -600,6 +665,49 @@ export default function CheckoutPage() {
                         Começar Agora <FiArrowRight size={20} />
                     </button>
                     <p className="mt-4 text-xs opacity-50" style={{ color: textMuted }}>Redirecionando em {countdown}s...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (result?.order?.payment_method === 'credit_card') {
+        const failed = result.order.status === 'failed';
+        return (
+            <div className="min-h-screen flex items-center justify-center p-6" style={{ background: bgPrimary }}>
+                <div className="w-full max-w-lg p-10 text-center rounded-3xl shadow-2xl border" style={{ background: bgCard, borderColor }}>
+                    <div className="w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center" style={{ background: failed ? '#fee2e2' : `${accent}18` }}>
+                        {failed
+                            ? <FiCreditCard size={38} style={{ color: '#dc2626' }} />
+                            : <FiClock size={38} style={{ color: accent }} />}
+                    </div>
+                    <h2 className="text-3xl font-extrabold mb-3" style={{ color: textPrimary }}>
+                        {failed ? 'Pagamento não aprovado' : 'Pagamento em análise'}
+                    </h2>
+                    <p className="text-sm leading-relaxed mb-7" style={{ color: textSecondary }}>
+                        {failed
+                            ? 'O banco ou a análise de segurança não aprovou esta tentativa. Nenhuma nova cobrança será feita automaticamente.'
+                            : 'Recebemos a tentativa e estamos aguardando a confirmação do Pagar.me. Esta página será atualizada automaticamente.'}
+                    </p>
+                    <div className="rounded-2xl border p-5 mb-7" style={{ borderColor, background: isLight ? '#f9fafb' : 'rgba(255,255,255,0.03)' }}>
+                        <div className="text-xs opacity-60 mb-1" style={{ color: textSecondary }}>Pedido</div>
+                        <div className="font-mono text-sm break-all" style={{ color: textPrimary }}>{result.order.id}</div>
+                        <div className="text-2xl font-black mt-3" style={{ color: accent }}>R$ {result.order.amount_display}</div>
+                    </div>
+                    {failed ? (
+                        <button
+                            type="button"
+                            onClick={() => { setResult(null); setPaymentMethod('credit_card'); }}
+                            className="w-full h-14 rounded-2xl text-white font-black"
+                            style={{ background: accent }}
+                        >
+                            Tentar novamente
+                        </button>
+                    ) : (
+                        <div className="flex items-center justify-center gap-3 rounded-2xl p-4" style={{ background: `${accent}10`, color: accent }}>
+                            <div className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ background: accent }} />
+                            <span className="text-sm font-bold">Aguardando confirmação segura</span>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -781,6 +889,8 @@ export default function CheckoutPage() {
                                     <div className="group">
                                         <label className="text-xs font-black uppercase tracking-wider mb-2 block opacity-60" style={{ color: textSecondary }}>Nome completo *</label>
                                         <input
+                                            name="buyer-name"
+                                            autoComplete="name"
                                             placeholder="Ex: Ana Cristina da Silva"
                                             required
                                             value={form.name}
@@ -794,6 +904,8 @@ export default function CheckoutPage() {
                                             <label className="text-xs font-black uppercase tracking-wider mb-2 block opacity-60" style={{ color: textSecondary }}>E-mail *</label>
                                             <input
                                                 type="email"
+                                                name="buyer-email"
+                                                autoComplete="email"
                                                 placeholder="seu@email.com"
                                                 required
                                                 value={form.email}
@@ -805,10 +917,13 @@ export default function CheckoutPage() {
                                         <div className="group">
                                             <label className="text-xs font-black uppercase tracking-wider mb-2 block opacity-60" style={{ color: textSecondary }}>CPF *</label>
                                             <input
+                                                name="buyer-cpf"
+                                                inputMode="numeric"
+                                                autoComplete="off"
                                                 placeholder="000.000.000-00"
                                                 required
                                                 value={form.cpf}
-                                                onChange={e => update('cpf', e.target.value)}
+                                                onChange={e => update('cpf', formatCpf(e.target.value))}
                                                 className="w-full h-14 px-5 rounded-2xl border outline-none transition-colors font-medium"
                                                 style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }}
                                             />
@@ -823,10 +938,13 @@ export default function CheckoutPage() {
                                                     <span className="text-sm font-extrabold" style={{ color: textPrimary }}>+55</span>
                                                 </div>
                                                 <input
+                                                    name="buyer-phone"
+                                                    inputMode="tel"
+                                                    autoComplete="tel"
                                                     placeholder="(11) 99999-9999"
                                                     required
                                                     value={form.phone}
-                                                    onChange={e => update('phone', e.target.value)}
+                                                    onChange={e => update('phone', formatPhone(e.target.value))}
                                                     className="w-full h-14 px-5 rounded-2xl border outline-none transition-colors font-medium"
                                                     style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }}
                                                 />
@@ -884,10 +1002,14 @@ export default function CheckoutPage() {
                                         <div className="group">
                                             <label className="text-xs font-black uppercase tracking-wider mb-2 block opacity-60" style={{ color: textSecondary }}>Número do cartão *</label>
                                             <input
+                                                name="card-number"
+                                                inputMode="numeric"
+                                                autoComplete="cc-number"
+                                                maxLength={23}
                                                 placeholder="0000 0000 0000 0000"
                                                 required
                                                 value={form.card_number}
-                                                onChange={e => update('card_number', e.target.value)}
+                                                onChange={e => update('card_number', formatCardNumber(e.target.value))}
                                                 className="w-full h-14 px-5 rounded-2xl border outline-none transition-colors font-medium"
                                                 style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }}
                                             />
@@ -896,19 +1018,21 @@ export default function CheckoutPage() {
                                             <div className="group col-span-2">
                                                 <label className="text-xs font-black uppercase tracking-wider mb-2 block opacity-60" style={{ color: textSecondary }}>Validade *</label>
                                                 <div className="flex items-center gap-2">
-                                                    <input placeholder="MM" maxLength={2} className="w-full h-14 px-3 text-center rounded-2xl border outline-none" value={form.card_exp_month} onChange={e => update('card_exp_month', e.target.value)} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
+                                                    <input name="card-exp-month" inputMode="numeric" autoComplete="cc-exp-month" placeholder="MM" maxLength={2} className="w-full h-14 px-3 text-center rounded-2xl border outline-none" value={form.card_exp_month} onChange={e => update('card_exp_month', onlyDigits(e.target.value).slice(0, 2))} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
                                                     <span className="opacity-30">/</span>
-                                                    <input placeholder="AA" maxLength={2} className="w-full h-14 px-3 text-center rounded-2xl border outline-none" value={form.card_exp_year} onChange={e => update('card_exp_year', e.target.value)} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
+                                                    <input name="card-exp-year" inputMode="numeric" autoComplete="cc-exp-year" placeholder="AA" maxLength={4} className="w-full h-14 px-3 text-center rounded-2xl border outline-none" value={form.card_exp_year} onChange={e => update('card_exp_year', onlyDigits(e.target.value).slice(0, 4))} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
                                                 </div>
                                             </div>
                                             <div className="group col-span-1">
                                                 <label className="text-xs font-black uppercase tracking-wider mb-2 block opacity-60" style={{ color: textSecondary }}>CVV *</label>
-                                                <input placeholder="000" maxLength={4} className="w-full h-14 px-5 rounded-2xl border outline-none" value={form.card_cvv} onChange={e => update('card_cvv', e.target.value)} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
+                                                <input name="card-cvv" inputMode="numeric" autoComplete="cc-csc" placeholder="000" maxLength={4} className="w-full h-14 px-5 rounded-2xl border outline-none" value={form.card_cvv} onChange={e => update('card_cvv', onlyDigits(e.target.value).slice(0, 4))} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
                                             </div>
                                         </div>
                                         <div className="group">
                                             <label className="text-xs font-black uppercase tracking-wider mb-2 block opacity-60" style={{ color: textSecondary }}>Nome do titular *</label>
                                             <input
+                                                name="card-holder"
+                                                autoComplete="cc-name"
                                                 placeholder="Insira o nome impresso no cartão"
                                                 required
                                                 value={form.card_holder}
@@ -926,7 +1050,7 @@ export default function CheckoutPage() {
                                                 style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }}
                                             >
                                                 {[...Array(12)].map((_, i) => (
-                                                    <option key={i + 1} value={i + 1}>{i + 1}x de R$ {(Number(selectedPlan?.price || product?.price || 0) / (i + 1)).toFixed(2)}</option>
+                                                    <option key={i + 1} value={i + 1}>{i + 1}x de R$ {(grandTotal / (i + 1)).toFixed(2)}</option>
                                                 ))}
                                             </select>
                                         </div>
@@ -934,15 +1058,15 @@ export default function CheckoutPage() {
                                         <div className="pt-2 space-y-4">
                                             <h4 className="font-black opacity-80" style={{ color: textPrimary }}>Endereço de cobrança</h4>
                                             <div className="grid grid-cols-2 gap-4">
-                                                <input placeholder="CEP" className="w-full h-12 px-4 rounded-2xl border outline-none" value={form.cep} onChange={e => update('cep', e.target.value)} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
-                                                <input placeholder="UF" maxLength={2} className="w-full h-12 px-4 rounded-2xl border outline-none" value={form.state} onChange={e => update('state', e.target.value.toUpperCase())} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
+                                                <input name="billing-postal-code" inputMode="numeric" autoComplete="postal-code" placeholder="CEP" className="w-full h-12 px-4 rounded-2xl border outline-none" value={form.cep} onChange={e => update('cep', formatCep(e.target.value))} onBlur={lookupCep} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
+                                                <input name="billing-state" autoComplete="address-level1" placeholder="UF" maxLength={2} className="w-full h-12 px-4 rounded-2xl border outline-none" value={form.state} onChange={e => update('state', e.target.value.toUpperCase())} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
                                             </div>
-                                            <input placeholder="Cidade" className="w-full h-12 px-4 rounded-2xl border outline-none" value={form.city} onChange={e => update('city', e.target.value)} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
+                                            <input name="billing-city" autoComplete="address-level2" placeholder="Cidade" className="w-full h-12 px-4 rounded-2xl border outline-none" value={form.city} onChange={e => update('city', e.target.value)} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
                                             <div className="grid grid-cols-3 gap-4">
-                                                <input placeholder="Rua / Logradouro" className="w-full h-12 px-4 rounded-2xl border outline-none col-span-2" value={form.street} onChange={e => update('street', e.target.value)} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
-                                                <input placeholder="Nº" className="w-full h-12 px-4 rounded-2xl border outline-none col-span-1" value={form.number} onChange={e => update('number', e.target.value)} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
+                                                <input name="billing-street" autoComplete="address-line1" placeholder="Rua / Logradouro" className="w-full h-12 px-4 rounded-2xl border outline-none col-span-2" value={form.street} onChange={e => update('street', e.target.value)} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
+                                                <input name="billing-number" placeholder="Nº" className="w-full h-12 px-4 rounded-2xl border outline-none col-span-1" value={form.number} onChange={e => update('number', e.target.value)} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
                                             </div>
-                                            <input placeholder="Bairro" className="w-full h-12 px-4 rounded-2xl border outline-none" value={form.neighborhood} onChange={e => update('neighborhood', e.target.value)} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
+                                            <input name="billing-neighborhood" autoComplete="address-level3" placeholder="Bairro" className="w-full h-12 px-4 rounded-2xl border outline-none" value={form.neighborhood} onChange={e => update('neighborhood', e.target.value)} style={{ background: isLight ? '#fff' : inputBg, borderColor: borderColor, color: textPrimary }} />
                                         </div>
                                     </div>
                                 </section>

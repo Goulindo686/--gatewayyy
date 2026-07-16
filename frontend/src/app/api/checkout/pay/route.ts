@@ -2,12 +2,13 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
-import { PagarmeService } from '@/lib/pagarme';
+import { CARD_PLATFORM_FEE_PERCENTAGE, PagarmeService } from '@/lib/pagarme';
 import { jsonError, jsonSuccess, generateToken, hashPassword } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { sendPurchaseApprovedEmail } from '@/lib/email';
 import { sendFacebookEvent } from '@/lib/facebook-capi';
 import { decryptUtmifyToken, sendUtmifyOrderWithLog } from '@/lib/utmify';
+import { normalizeInstallments, validateCreditCardBuyer } from '@/lib/checkout-validation';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
         if (!rlIp.allowed) return rateLimitResponse(rlIp.resetAt);
 
         const body = await req.json();
-        const { product_id, buyer, card_data, plan_id, selected_bumps } = body;
+        const { product_id, buyer, card_token, plan_id, selected_bumps } = body;
         const facebook = body.facebook || {};
         const tracking = body.tracking || {};
         const normalizeTracking = (input: any) => {
@@ -92,6 +93,22 @@ export async function POST(req: NextRequest) {
             return jsonError('Dados incompletos');
         }
 
+        let cardInstallments: number | null = null;
+        if (normalizedPaymentMethod === 'credit_card') {
+            if (body.card_data) {
+                return jsonError('Este checkout esta desatualizado. Recarregue a pagina antes de pagar.', 400);
+            }
+
+            const buyerError = validateCreditCardBuyer(buyer);
+            if (buyerError) return jsonError(buyerError, 400);
+            if (!/^token_[a-zA-Z0-9]+$/.test(String(card_token || ''))) {
+                return jsonError('O token seguro do cartao expirou. Confira os dados e tente novamente.', 400);
+            }
+
+            cardInstallments = normalizeInstallments(body.installments);
+            if (!cardInstallments) return jsonError('Quantidade de parcelas invalida.', 400);
+        }
+
         // Get product
         const { data: product } = await supabase
             .from('products').select('*').eq('id', product_id).eq('status', 'active').single();
@@ -144,15 +161,18 @@ export async function POST(req: NextRequest) {
         } catch {}
         if (sellerUser?.role === 'admin') {
             feePercentage = 0;
+        } else if (normalizedPaymentMethod === 'credit_card') {
+            feePercentage = CARD_PLATFORM_FEE_PERCENTAGE;
         }
 
         // Create Pagar.me order
         const platformRecipientId = process.env.PLATFORM_RECIPIENT_ID;
-        console.log('DEBUG PIX GENERATION:', {
+        console.log('CHECKOUT SPLIT CONFIG:', {
             seller_recipient_id: recipient.pagarme_recipient_id,
             platform_recipient_id: platformRecipientId,
-            seller_percentage: 100 - feePercentage,
-            platform_percentage: feePercentage
+            platform_fee: normalizedPaymentMethod === 'credit_card'
+                ? `${feePercentage}%`
+                : (feePercentage > 0 ? 'R$ 2,00' : 'isento'),
         });
 
         let bumpTotalCents = 0;
@@ -215,6 +235,7 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        const orderId = uuidv4();
         let pagarmeOrder;
         let totalCents = 0;
         try {
@@ -226,16 +247,26 @@ export async function POST(req: NextRequest) {
             totalCents = baseCents + bumpTotalCents;
             const ipHeader = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '';
             const ip = ipHeader.split(',')[0].trim() || undefined;
-            const sessionId = uuidv4();
+            const requestedSessionId = String(body.checkout_session_id || '');
+            const sessionId = /^[a-zA-Z0-9-]{8,64}$/.test(requestedSessionId)
+                ? requestedSessionId
+                : uuidv4();
+            const requestedPlatform = String(body.device_platform || '').toUpperCase();
+            const devicePlatform = /^[A-Z0-9_-]{2,64}$/.test(requestedPlatform)
+                ? requestedPlatform
+                : 'WEB';
             pagarmeOrder = await PagarmeService.createOrder({
                 amount: totalCents,
                 payment_method: normalizedPaymentMethod,
                 customer: buyer,
-                card_data: normalizedPaymentMethod === 'credit_card' ? card_data : undefined,
+                card_token: normalizedPaymentMethod === 'credit_card' ? card_token : undefined,
+                installments: normalizedPaymentMethod === 'credit_card' ? cardInstallments || 1 : undefined,
                 seller_recipient_id: recipient.pagarme_recipient_id,
                 platform_fee_percentage: feePercentage,
                 ip,
                 session_id: sessionId,
+                device_platform: devicePlatform,
+                order_code: orderId,
                 items: [{
                     amount: totalCents,
                     description: product.name,
@@ -244,11 +275,22 @@ export async function POST(req: NextRequest) {
                 }]
             });
         } catch (pagarmeErr: any) {
-            console.error('Pagar.me API Error:', pagarmeErr.response?.data || pagarmeErr.message);
             const errorBody = pagarmeErr.response?.data;
-            const errorMsg = errorBody?.message || 
-                           (errorBody?.errors ? JSON.stringify(errorBody.errors) : pagarmeErr.message);
-            return jsonError(`Erro na API de Pagamento: ${errorMsg}`, 400);
+            const providerStatus = pagarmeErr.response?.status;
+            const providerMessage = String(errorBody?.message || pagarmeErr.message || '');
+            console.error('[CHECKOUT] Provider request failed:', {
+                status: providerStatus,
+                message: providerMessage.slice(0, 300),
+                payment_method: normalizedPaymentMethod,
+            });
+
+            if (providerStatus === 412 || /verification failed|verificacao do cartao/i.test(providerMessage)) {
+                return jsonError('Nao foi possivel validar este cartao. Confira os dados ou tente outro cartao.', 400);
+            }
+            if (normalizedPaymentMethod === 'credit_card' && /token/i.test(providerMessage)) {
+                return jsonError('O token seguro do cartao expirou. Confira os dados e tente novamente.', 400);
+            }
+            return jsonError('Nao foi possivel processar o pagamento agora. Confira os dados e tente novamente.', 400);
         }
 
         const charge = pagarmeOrder.charges?.[0];
@@ -258,23 +300,34 @@ export async function POST(req: NextRequest) {
             const lt = charge?.last_transaction;
             const ge = lt?.gateway_response?.errors;
             const af = lt?.antifraud_response;
+            const antifraudStatus = String(af?.status || '').toLowerCase();
+            const antifraudReason = String(af?.reason || '').toLowerCase();
+            const wasRejectedByAntifraud = /^(reprov|recus|denied|declined|failed|rejected|blocked)/.test(antifraudStatus)
+                || /(high[\s_-]*risk|alto[\s_-]*risco|suspect(?:ed)?[\s_-]*fraud|fraudulent|suspeita.*fraude|bloquead)/.test(antifraudReason);
             let msg = '';
-            if (af && typeof af === 'object') {
-                msg = 'Transação reprovada pelo Antifraude.';
-                if (typeof af.status === 'string') msg += ` Status: ${af.status}.`;
-                if (typeof af.reason === 'string') msg += ` Motivo: ${af.reason}.`;
+            if (wasRejectedByAntifraud) {
+                msg = 'A compra nao foi aprovada pela analise de seguranca. Tente outro cartao ou utilize o Pix.';
             } else if (ge && Array.isArray(ge) && ge.length) {
-                msg = ge.map((e: any) => e.message).join('; ');
+                msg = 'O banco emissor nao autorizou a compra. Confira os dados ou tente outro cartao.';
             } else if (typeof lt?.acquirer_message === 'string') {
-                msg = /aprovad/i.test(lt.acquirer_message) ? 'Transação não capturada. Aguarde confirmação ou tente novamente.' : lt.acquirer_message;
+                msg = /aprovad/i.test(lt.acquirer_message)
+                    ? 'A transacao foi autorizada, mas ainda nao foi capturada. Aguarde e tente novamente.'
+                    : 'O banco emissor nao autorizou a compra. Confira os dados ou tente outro cartao.';
             } else {
-                msg = 'Transação recusada.';
+                msg = 'A transacao nao foi autorizada. Confira os dados ou tente outro cartao.';
             }
-            console.error('Pagar.me Order Failed:', JSON.stringify(pagarmeOrder, null, 2));
-            return jsonError(`Pagamento Recusado: ${msg}`, 400);
+            console.error('[CHECKOUT CARD] Payment declined:', {
+                pagarme_order_id: pagarmeOrder?.id,
+                charge_id: charge?.id,
+                charge_status: charge?.status,
+                transaction_status: lt?.status,
+                antifraud_status: af?.status,
+                antifraud_reason: af?.reason,
+                acquirer_code: lt?.acquirer_return_code,
+            });
+            return jsonError(msg, 400);
         }
 
-        const orderId = uuidv4();
         const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('x-real-ip') || undefined;
         const clientUserAgent = req.headers.get('user-agent') || undefined;
 
@@ -304,6 +357,9 @@ export async function POST(req: NextRequest) {
             pix_qr_code: pix?.qr_code,
             pix_qr_code_url: pix?.qr_code_url,
             pix_expires_at: pix?.expires_at,
+            card_last_digits: normalizedPaymentMethod === 'credit_card' ? charge?.last_transaction?.card?.last_four_digits : null,
+            card_brand: normalizedPaymentMethod === 'credit_card' ? charge?.last_transaction?.card?.brand : null,
+            installments: normalizedPaymentMethod === 'credit_card' ? cardInstallments : 1,
             facebook_event_id: orderId,
             facebook_fbp: typeof facebook.fbp === 'string' ? facebook.fbp : null,
             facebook_fbc: typeof facebook.fbc === 'string' ? facebook.fbc : null,
@@ -518,7 +574,12 @@ export async function POST(req: NextRequest) {
 
         // Build response
         const response: any = {
-            order: { id: orderId, status: charge?.status || 'pending', amount_display: amountDisplay }
+            order: {
+                id: orderId,
+                status: charge?.status || 'pending',
+                amount_display: amountDisplay,
+                payment_method: normalizedPaymentMethod,
+            }
         };
 
         // If paid immediately, include auto-login token for buyer
@@ -549,14 +610,21 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        if (normalizedPaymentMethod === 'credit_card') {
+            response.card = {
+                last_digits: charge?.last_transaction?.card?.last_four_digits || null,
+                brand: charge?.last_transaction?.card?.brand || null,
+                installments: cardInstallments,
+            };
+        }
+
         return jsonSuccess(response, 201);
     } catch (err: any) {
         const errorData = err.response?.data || err.message;
-        console.error('Checkout error details:', JSON.stringify({
-            error: errorData,
+        console.error('Checkout error details:', {
+            error: typeof errorData === 'string' ? errorData.slice(0, 500) : 'provider_error',
             stack: err.stack,
-            request: err.config?.data ? JSON.parse(err.config.data) : 'N/A'
-        }, null, 2));
+        });
 
         // Return a more descriptive error if it's a Pagar.me validation error
         let message = 'Erro ao processar pagamento';

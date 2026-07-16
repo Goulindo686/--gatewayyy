@@ -13,6 +13,7 @@ import { sendPurchaseApprovedEmail } from '@/lib/email';
 import { sendFacebookEvent } from '@/lib/facebook-capi';
 import { sendPaidOrderToUtmify } from '@/lib/utmify';
 import { normalizeWebhookUrls, sendWebhookPayload } from '@/lib/webhooks';
+import { CARD_PLATFORM_FEE_PERCENTAGE } from '@/lib/pagarme';
 
 function safeEqual(a: string, b: string) {
     const aBuf = Buffer.from(a);
@@ -480,6 +481,7 @@ export async function POST(req: NextRequest) {
 
             // Get platform fee percentage
             let feePercentage = parseFloat(process.env.PLATFORM_FEE_PERCENTAGE || '2');
+            const isCardPayment = order.payment_method === 'credit_card' || order.payment_method === 'card';
             let sellerDisplayName: string | null = null;
             try {
                 const { data: settingsRow } = await supabase
@@ -491,6 +493,9 @@ export async function POST(req: NextRequest) {
                     feePercentage = settingsRow.fee_percentage;
                 }
             } catch {}
+            if (isCardPayment) {
+                feePercentage = CARD_PLATFORM_FEE_PERCENTAGE;
+            }
             try {
                 const { data: sellerUser } = await supabase
                     .from('users')
@@ -503,7 +508,7 @@ export async function POST(req: NextRequest) {
                 sellerDisplayName = sellerUser?.name || sellerUser?.email || null;
             } catch {}
             const feeAmount = feePercentage > 0
-                ? (order.payment_method === 'credit_card'
+                ? (isCardPayment
                     ? Math.min(order.amount, Math.round(order.amount * (feePercentage / 100)))
                     : Math.min(200, order.amount))
                 : 0;
@@ -515,7 +520,9 @@ export async function POST(req: NextRequest) {
                 .in('type', ['sale', 'api_sale']);
 
             if (feeAmount > 0) {
-                const feeLabel = order.payment_method === 'credit_card' ? `${feePercentage}% (cartão)` : 'R$ 2,00 (PIX)';
+                const feeLabel = isCardPayment
+                    ? `${CARD_PLATFORM_FEE_PERCENTAGE}% (cartão)`
+                    : 'R$ 2,00 (PIX)';
                 await supabase.from('transactions').insert({
                     user_id: order.seller_id,
                     order_id: order.id,

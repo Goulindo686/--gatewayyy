@@ -4,9 +4,8 @@ import { useEffect, useState } from 'react';
 import { adminAPI } from '@/lib/api';
 import { FiDollarSign, FiInfo, FiCreditCard, FiSmartphone, FiPercent } from 'react-icons/fi';
 
-// Taxas do Pagar.me (cartão de crédito) + R$2,00 da plataforma
-const PLATFORM_FEE = 2.00;
-const PLATFORM_PERCENT = 1.09;
+const PIX_PLATFORM_FEE = 2.00;
+const CARD_PLATFORM_PERCENT = 2.00;
 const PIX_RATE = 1.09; // taxa Pagar.me no PIX
 
 const CARD_RATES = [
@@ -18,25 +17,23 @@ const CARD_RATES = [
 
 function calcSeller(value: number, pagarmeRate: number) {
     const pagarmeFee = value * (pagarmeRate / 100);
-    const platformFee = PLATFORM_FEE + value * (PLATFORM_PERCENT / 100);
+    const platformFee = value * (CARD_PLATFORM_PERCENT / 100);
     return Math.max(0, value - pagarmeFee - platformFee);
 }
 
 function calcSellerPix(value: number) {
     const pagarmeFee = value * (PIX_RATE / 100);
-    const platformFee = PLATFORM_FEE + value * (PLATFORM_PERCENT / 100);
+    const platformFee = PIX_PLATFORM_FEE;
     return Math.max(0, value - pagarmeFee - platformFee);
 }
 
 export default function AdminSettingsPage() {
     const [loading, setLoading] = useState(true);
-    const [settings, setSettings] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<'pix' | 'card'>('pix');
     const [simValue, setSimValue] = useState(100);
 
     useEffect(() => {
         adminAPI.getSettings()
-            .then(res => setSettings(res.data.settings))
             .catch(console.error)
             .finally(() => setLoading(false));
     }, []);
@@ -68,18 +65,24 @@ export default function AdminSettingsPage() {
                             <FiDollarSign size={20} />
                         </div>
                         <div>
-                            <h3 style={{ fontSize: 16, fontWeight: 600 }}>Taxa da Plataforma (GouPay)</h3>
-                            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Retida em toda venda, independente do método</p>
+                            <h3 style={{ fontSize: 16, fontWeight: 600 }}>Regras de split da GouPay</h3>
+                            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>A taxa da plataforma depende do método de pagamento</p>
                         </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderRadius: 12, background: 'rgba(108,92,231,0.07)', border: '1px solid rgba(108,92,231,0.15)' }}>
-                        <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Taxa fixa por venda</span>
-                        <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--danger)' }}>R$ 2,00 + 1,09%</span>
+                    <div style={{ display: 'grid', gap: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderRadius: 12, background: 'rgba(108,92,231,0.07)', border: '1px solid rgba(108,92,231,0.15)' }}>
+                            <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>PIX — taxa GouPay</span>
+                            <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--danger)' }}>R$ 2,00</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderRadius: 12, background: 'rgba(108,92,231,0.07)', border: '1px solid rgba(108,92,231,0.15)' }}>
+                            <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Cartão — taxa GouPay</span>
+                            <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--danger)' }}>2%</span>
+                        </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 12 }}>
                         <FiInfo size={13} style={{ color: 'var(--text-muted)', marginTop: 2, flexShrink: 0 }} />
                         <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                            R$2,00 fixo + 1,09% sobre o valor total da transação. Cobrado sobre todas as vendas (PIX e cartão).
+                            As tarifas do Pagar.me são separadas: 1,09% no PIX e a tarifa contratada para cada faixa de parcelamento no cartão.
                         </p>
                     </div>
                 </div>
@@ -182,7 +185,7 @@ export default function AdminSettingsPage() {
                                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                                     <FiInfo size={13} style={{ color: '#FDCB6E', marginTop: 2, flexShrink: 0 }} />
                                     <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                                        Taxa total = Pagar.me (%) + GouPay (R$2,00 + 1,09%). O vendedor recebe o valor líquido após todas as deduções.
+                                        Taxa total = Pagar.me (%) + 2% da GouPay. O vendedor recebe o valor líquido após todas as deduções.
                                     </p>
                                 </div>
                             </div>

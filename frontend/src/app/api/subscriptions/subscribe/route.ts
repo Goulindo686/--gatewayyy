@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { jsonError, jsonSuccess, hashPassword, generateToken } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
-import { PagarmeService } from '@/lib/pagarme';
+import { CARD_PLATFORM_FEE_PERCENTAGE, PagarmeService } from '@/lib/pagarme';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -51,13 +51,8 @@ export async function POST(req: NextRequest) {
             .from('recipients').select('pagarme_recipient_id').eq('user_id', plan.user_id).single();
         if (!recipient) return jsonError('Vendedor não configurado para receber', 400);
 
-        // Taxa da plataforma
-        let feePercentage = parseFloat(process.env.PLATFORM_FEE_PERCENTAGE || '2');
-        try {
-            const { data: settings } = await supabase.from('platform_settings').select('fee_percentage').single();
-            if (settings?.fee_percentage !== undefined) feePercentage = settings.fee_percentage;
-        } catch {}
-        if (sellerUser.role === 'admin') feePercentage = 0;
+        // Cartão sempre usa split de 2% para a GouPay; apenas contas admin são isentas.
+        const feePercentage = sellerUser.role === 'admin' ? 0 : CARD_PLATFORM_FEE_PERCENTAGE;
 
         // Cria assinatura no Pagar.me
         const pagarmeSub = await PagarmeService.createSubscription({

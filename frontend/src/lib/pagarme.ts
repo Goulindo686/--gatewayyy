@@ -1,5 +1,8 @@
 import axios from 'axios';
 
+export const CARD_PLATFORM_FEE_PERCENTAGE = 2;
+export const PIX_PLATFORM_FLAT_FEE_CENTS = 200;
+
 const pagarmeApi = axios.create({
     baseURL: 'https://api.pagar.me/core/v5',
     auth: {
@@ -9,8 +12,33 @@ const pagarmeApi = axios.create({
     headers: { 'Content-Type': 'application/json' }
 });
 
+type CheckoutAddress = {
+    zip_code?: string;
+    street?: string;
+    number?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+};
+
+type CheckoutCustomer = {
+    name?: string;
+    email?: string;
+    cpf?: string;
+    phone?: string;
+    address?: CheckoutAddress;
+};
+
+type CheckoutItem = {
+    amount: number;
+    description: string;
+    quantity: number;
+    code: string;
+};
+
 export class PagarmeService {
-    private static normalizeAddress(address: any) {
+    private static normalizeAddress(address?: CheckoutAddress) {
         const zipCode = String(address?.zip_code || '').replace(/\D/g, '');
         const street = String(address?.street || '').trim();
         const number = String(address?.number || '').trim();
@@ -27,7 +55,7 @@ export class PagarmeService {
         };
     }
 
-    private static buildCustomer(customer: any, requireAntifraudData: boolean) {
+    private static buildCustomer(customer: CheckoutCustomer, requireAntifraudData: boolean) {
         const document = String(customer?.cpf || '').replace(/\D/g, '');
         const phone = String(customer?.phone || '').replace(/\D/g, '');
         const address = PagarmeService.normalizeAddress(customer?.address);
@@ -42,10 +70,11 @@ export class PagarmeService {
             if (!hasValidAddress) throw new Error('Endereco de cobranca incompleto para pagamento com cartao.');
         }
 
-        const normalizedCustomer: any = {
+        const normalizedCustomer: Record<string, unknown> = {
             name: customer?.name || 'Cliente',
             email: customer?.email,
             document: document || '00000000000',
+            document_type: 'CPF',
             type: 'individual',
             phones: {
                 mobile_phone: {
@@ -60,6 +89,30 @@ export class PagarmeService {
         return { customer: normalizedCustomer, address };
     }
 
+    private static async createCustomerAndCard(customer: CheckoutCustomer, cardToken: string) {
+        if (!/^token_[a-zA-Z0-9]+$/.test(cardToken || '')) {
+            throw new Error('Token do cartao invalido ou expirado. Tente novamente.');
+        }
+
+        const normalized = PagarmeService.buildCustomer(customer, true);
+        const customerResponse = await pagarmeApi.post('/customers', normalized.customer);
+        const customerId = String(customerResponse.data?.id || '');
+        if (!customerId.startsWith('cus_')) {
+            throw new Error('O Pagar.me nao retornou um cliente valido para o pedido.');
+        }
+
+        const cardResponse = await pagarmeApi.post(`/customers/${customerId}/cards`, {
+            token: cardToken,
+            billing_address: normalized.address,
+        });
+        const cardId = String(cardResponse.data?.id || '');
+        if (!cardId.startsWith('card_')) {
+            throw new Error('O Pagar.me nao retornou um cartao valido para o pedido.');
+        }
+
+        return { customerId, cardId, normalized };
+    }
+
     static calculatePlatformFeeCents(input: { amountCents: number; paymentMethod: string; feePercentage: number }) {
         const amountCents = Math.max(0, Math.round(input.amountCents || 0));
         const feePercentage = Number.isFinite(input.feePercentage) ? Math.max(0, Math.min(100, input.feePercentage)) : 0;
@@ -71,8 +124,7 @@ export class PagarmeService {
             return Math.min(amountCents, Math.round(amountCents * (feePercentage / 100)));
         }
 
-        const PLATFORM_FLAT_FEE = 200;
-        return Math.min(PLATFORM_FLAT_FEE, amountCents);
+        return Math.min(PIX_PLATFORM_FLAT_FEE_CENTS, amountCents);
     }
 
     static getStatementDescriptor() {
@@ -119,16 +171,16 @@ export class PagarmeService {
     }
 
     static async createOrder(data: {
-        amount: number; payment_method: string; customer: any;
-        card_data?: any; seller_recipient_id: string; platform_fee_percentage: number;
-        ip?: string; session_id?: string; antifraud_disable?: boolean;
-        items?: Array<{ amount: number; description: string; quantity: number; code: string }>;
+        amount: number; payment_method: string; customer: CheckoutCustomer;
+        card_token?: string; installments?: number;
+        seller_recipient_id: string; platform_fee_percentage: number;
+        ip?: string; session_id?: string; device_platform?: string; order_code?: string;
+        items?: CheckoutItem[];
     }) {
         const isCreditCard = data.payment_method === 'credit_card' || data.payment_method === 'card';
 
         const normalized = PagarmeService.buildCustomer(data.customer, isCreditCard);
-        const orderData: any = {
-            customer: normalized.customer,
+        const orderData: Record<string, unknown> & { payments: Array<Record<string, unknown>> } = {
             items: data.items?.length ? data.items : [{
                 amount: data.amount,
                 description: 'Pagamento de Pedido',
@@ -136,27 +188,47 @@ export class PagarmeService {
                 code: 'pay-001'
             }],
             payments: [],
+            closed: true,
+            code: data.order_code?.slice(0, 52),
             ip: data.ip,
             session_id: data.session_id,
-            antifraud: data.antifraud_disable
-                ? { enabled: false }
-                : ((process.env.PAGARME_API_KEY || '').startsWith('sk_test') ? { enabled: false } : undefined)
+            device: data.device_platform ? { platform: data.device_platform.slice(0, 64) } : undefined,
+            channel: isCreditCard ? 'payment_link' : undefined,
         };
+
+        let cardId: string | undefined;
+        if (isCreditCard) {
+            const prepared = await PagarmeService.createCustomerAndCard(data.customer, data.card_token || '');
+            orderData.customer_id = prepared.customerId;
+            cardId = prepared.cardId;
+        } else {
+            orderData.customer = normalized.customer;
+        }
 
         const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
         const sellId = (data.seller_recipient_id || '').trim();
-        const applyFee = (data.platform_fee_percentage || 0) > 0;
+        const requestedFeePercentage = data.platform_fee_percentage || 0;
+        const applyFee = requestedFeePercentage > 0;
+        const effectiveFeePercentage = isCreditCard && applyFee
+            ? CARD_PLATFORM_FEE_PERCENTAGE
+            : requestedFeePercentage;
+
+        if (isCreditCard && applyFee && (!platId || !sellId || platId.toLowerCase() === sellId.toLowerCase())) {
+            throw new Error('Configuracao de split do cartao incompleta. Verifique os recipients da plataforma e do vendedor.');
+        }
+
         const platformFeeAmount = applyFee
             ? PagarmeService.calculatePlatformFeeCents({
                 amountCents: data.amount,
                 paymentMethod: data.payment_method,
-                feePercentage: data.platform_fee_percentage || 0
+                feePercentage: effectiveFeePercentage
             })
             : 0;
         const sellerAmount = data.amount - platformFeeAmount;
 
         console.log('[PAGARME SERVICE] Split Config:', {
-            platId, sellId, platformFeeAmount, sellerAmount, applyFee
+            platId, sellId, platformFeeAmount, sellerAmount, applyFee,
+            effectiveFeePercentage: isCreditCard ? effectiveFeePercentage : undefined,
         });
 
         const hasSellerRecipient = !!sellId;
@@ -188,12 +260,7 @@ export class PagarmeService {
                 }
             });
         } else if (data.payment_method === 'credit_card' || data.payment_method === 'card') {
-            const card = data.card_data || {};
-            const cleanNumber = String(card.number || '').replace(/\D/g, '');
-            const expMonth = parseInt(String(card.exp_month || '0')) || 1;
-            const rawYear = String(card.exp_year || '0');
-            const expYear = parseInt(rawYear.length === 2 ? `20${rawYear}` : rawYear) || 2030;
-            const installments = parseInt(String(card.installments || '1')) || 1;
+            const installments = Math.trunc(Number(data.installments || 1));
             const finalInstallments = Math.max(1, Math.min(12, installments));
 
             orderData.payments.push({
@@ -203,127 +270,7 @@ export class PagarmeService {
                     operation_type: 'auth_and_capture',
                     installments: finalInstallments,
                     statement_descriptor: PagarmeService.getStatementDescriptor(),
-                    card: {
-                        number: cleanNumber,
-                        holder_name: card.holder_name || data.customer.name,
-                        exp_month: expMonth,
-                        exp_year: expYear,
-                        cvv: card.cvv,
-                        billing_address: normalized.address
-                    },
-                    billing: {
-                        name: data.customer.name || 'Cliente',
-                        address: normalized.address
-                    }
-                }
-            });
-        }
-
-        const response = await pagarmeApi.post('/orders', orderData);
-        return response.data;
-    }
-
-    /**
-     * Create an order with multiple items (Cart)
-     */
-    static async createMultiItemOrder(data: {
-        items: any[]; payment_method: string; customer: any;
-        card_data?: any; seller_recipient_id: string; platform_fee_percentage: number;
-        ip?: string; session_id?: string; antifraud_disable?: boolean;
-    }) {
-        const isCreditCard = data.payment_method === 'credit_card' || data.payment_method === 'card';
-
-        const normalized = PagarmeService.buildCustomer(data.customer, isCreditCard);
-        const orderData: any = {
-            customer: normalized.customer,
-            items: data.items.map(item => ({
-                amount: Math.round(item.price * 100),
-                description: item.name,
-                quantity: item.quantity,
-                code: item.id
-            })),
-            payments: [],
-            ip: data.ip,
-            session_id: data.session_id,
-            antifraud: data.antifraud_disable
-                ? { enabled: false }
-                : ((process.env.PAGARME_API_KEY || '').startsWith('sk_test') ? { enabled: false } : undefined)
-        };
-
-        const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
-        const sellId = (data.seller_recipient_id || '').trim();
-
-        const totalAmountCents = data.items.reduce((sum: number, item: any) => sum + Math.round(item.price * 100) * item.quantity, 0);
-
-        const applyFee2 = (data.platform_fee_percentage || 0) > 0;
-        const platformFeeAmount = applyFee2
-            ? PagarmeService.calculatePlatformFeeCents({
-                amountCents: totalAmountCents,
-                paymentMethod: data.payment_method,
-                feePercentage: data.platform_fee_percentage || 0
-            })
-            : 0;
-        const sellerAmount = totalAmountCents - platformFeeAmount;
-
-        console.log('[PAGARME SERVICE] MultiItem Split Config:', {
-            platId, sellId, platformFeeAmount, sellerAmount, applyFee2
-        });
-
-        const hasSellerRecipient2 = !!sellId;
-        const includePlatformFee2 = !!(applyFee2 && platId && platId.toLowerCase() !== sellId.toLowerCase() && platformFeeAmount > 0);
-
-        const splitRules = hasSellerRecipient2 && includePlatformFee2 ? [
-            {
-                amount: sellerAmount,
-                recipient_id: sellId,
-                type: 'flat',
-                options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true }
-            },
-            {
-                amount: platformFeeAmount,
-                recipient_id: platId,
-                type: 'flat',
-                options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false }
-            }
-        ] : undefined;
-
-        if (data.payment_method === 'pix') {
-            orderData.payments.push({
-                payment_method: 'pix',
-                split: splitRules,
-                pix: {
-                    expires_in: 3600,
-                    additional_information: [{ name: 'Plataforma', value: process.env.PLATFORM_NAME || 'GOUPAY PAGAMENTOS' }]
-                }
-            });
-        } else if (data.payment_method === 'credit_card' || data.payment_method === 'card') {
-            const card = data.card_data || {};
-            const cleanNumber = String(card.number || '').replace(/\D/g, '');
-            const expMonth = parseInt(String(card.exp_month || '0')) || 1;
-            const rawYear = String(card.exp_year || '0');
-            const expYear = parseInt(rawYear.length === 2 ? `20${rawYear}` : rawYear) || 2030;
-            const installments = parseInt(String(card.installments || '1')) || 1;
-            const finalInstallments = Math.max(1, Math.min(12, installments));
-
-            orderData.payments.push({
-                payment_method: 'credit_card',
-                split: splitRules,
-                credit_card: {
-                    operation_type: 'auth_and_capture',
-                    installments: finalInstallments,
-                    statement_descriptor: PagarmeService.getStatementDescriptor(),
-                    card: {
-                        number: cleanNumber,
-                        holder_name: card.holder_name || data.customer.name,
-                        exp_month: expMonth,
-                        exp_year: expYear,
-                        cvv: card.cvv,
-                        billing_address: normalized.address
-                    },
-                    billing: {
-                        name: data.customer.name || 'Cliente',
-                        address: normalized.address
-                    }
+                    card_id: cardId,
                 }
             });
         }
@@ -428,9 +375,8 @@ export class PagarmeService {
         const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
         const sellId = data.seller_recipient_id.trim();
 
-        // Taxa fixa de 2% para assinaturas (Pagar.me cobra 3,19% do cartão separadamente)
-        const SUBSCRIPTION_PLATFORM_PCT = 2;
-        const platformPct = applyFee ? SUBSCRIPTION_PLATFORM_PCT : 0;
+        // A mesma taxa de 2% do cartão também vale para assinaturas.
+        const platformPct = applyFee ? CARD_PLATFORM_FEE_PERCENTAGE : 0;
         const sellerPct = 100 - platformPct;
 
         // Split como objeto com rules (formato correto para assinaturas no Pagar.me v5)

@@ -6,6 +6,8 @@ import { useCart } from '@/contexts/CartContext';
 import { FiArrowLeft, FiTrash2, FiMinus, FiPlus, FiZap, FiTag, FiPackage, FiCreditCard } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { storeAPI, productsAPI } from '@/lib/api';
+import { isValidCardExpiration } from '@/lib/checkout-validation';
+import { CardTokenizationError, createCheckoutSessionId, getCheckoutDevicePlatform, tokenizePagarmeCard } from '@/lib/pagarme-card';
 
 export default function CartPage() {
     const params = useParams();
@@ -13,9 +15,8 @@ export default function CartPage() {
     const searchParams = useSearchParams();
     const { items, addItem, updateQuantity, removeItem, totalAmount, clearCart } = useCart();
 
-    const enableCreditCard = process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD
-        ? (process.env.NEXT_PUBLIC_ENABLE_CREDIT_CARD === 'true')
-        : true;
+    const [cardConfig, setCardConfig] = useState({ enabled: false, publicKey: '' });
+    const enableCreditCard = cardConfig.enabled && !!cardConfig.publicKey;
     const [paymentMethod, setPaymentMethod] = useState<'pix' | 'credit_card'>('pix');
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -79,6 +80,18 @@ export default function CartPage() {
     const [details, setDetails] = useState<Record<string, any>>({});
     const isOverlay = searchParams.get('overlay') === '1';
     useEffect(() => {
+        fetch('/api/checkout/config', { cache: 'no-store' })
+            .then(response => response.ok ? response.json() : null)
+            .then(config => {
+                const creditCard = config?.credit_card;
+                setCardConfig({
+                    enabled: creditCard?.enabled === true,
+                    publicKey: typeof creditCard?.public_key === 'string' ? creditCard.public_key : '',
+                });
+            })
+            .catch(() => setCardConfig({ enabled: false, publicKey: '' }));
+    }, []);
+    useEffect(() => {
         const addId = searchParams.get('add');
         const run = async () => {
             if (!addId) return;
@@ -132,10 +145,23 @@ export default function CartPage() {
             if (!city || !isValidUF(state) || !street || !number) return toast.error("Preencha o endereço completo.");
             if (!cardNumber || !cardHolder || !cardExpMonth || !cardExpYear || !cardCvv) return toast.error("Preencha os dados do cartão.");
             if (!isValidCard(cardNumber)) return toast.error("Número de cartão inválido");
+            if (!isValidCardExpiration(cardExpMonth, cardExpYear)) return toast.error("Validade do cartão inválida");
+            if (!/^\d{3,4}$/.test(onlyDigits(cardCvv))) return toast.error("CVV inválido");
         }
 
         try {
             setLoading(true);
+
+            let cardToken: string | undefined;
+            if (methodToSend === 'credit_card') {
+                cardToken = await tokenizePagarmeCard(cardConfig.publicKey, {
+                    number: cardNumber,
+                    holderName: cardHolder,
+                    expMonth: Number(cardExpMonth),
+                    expYear: Number(cardExpYear.length === 2 ? `20${cardExpYear}` : cardExpYear),
+                    cvv: cardCvv,
+                });
+            }
 
             const payload = {
                 store_slug: params.slug,
@@ -159,14 +185,10 @@ export default function CartPage() {
                 },
                 items: items.map(i => ({ id: i.id, quantity: i.quantity, price: i.price, name: i.name })),
                 payment_method: methodToSend,
-                card_data: methodToSend === 'credit_card' ? {
-                    number: sanitizeCard(cardNumber),
-                    holder_name: cardHolder,
-                    exp_month: parseInt(cardExpMonth),
-                    exp_year: parseInt(cardExpYear.length === 2 ? `20${cardExpYear}` : cardExpYear),
-                    cvv: cardCvv,
-                    installments
-                } : undefined,
+                card_token: cardToken,
+                installments: methodToSend === 'credit_card' ? installments : undefined,
+                checkout_session_id: methodToSend === 'credit_card' ? createCheckoutSessionId() : undefined,
+                device_platform: methodToSend === 'credit_card' ? getCheckoutDevicePlatform() : undefined,
                 total: totalAmount
             };
 
@@ -177,7 +199,7 @@ export default function CartPage() {
             router.push(`/store/${params.slug}/payment/${data.order.id}`);
         } catch (err: any) {
             console.error('Checkout error:', err);
-            toast.error(err.response?.data?.error || "Erro ao processar pedido");
+            toast.error(err instanceof CardTokenizationError ? err.message : err.response?.data?.error || "Erro ao processar pedido");
         } finally {
             setLoading(false);
         }

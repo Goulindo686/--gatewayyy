@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
-import { PagarmeService } from '@/lib/pagarme';
+import { CARD_PLATFORM_FEE_PERCENTAGE, PagarmeService } from '@/lib/pagarme';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { normalizeInstallments, validateCreditCardBuyer } from '@/lib/checkout-validation';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -119,6 +120,8 @@ export async function POST(req: NextRequest) {
         const platformRecipientId = process.env.PLATFORM_RECIPIENT_ID;
         if (sellerUser.role === 'admin') {
             feePercentage = 0;
+        } else if (normalizedPaymentMethod === 'credit_card') {
+            feePercentage = CARD_PLATFORM_FEE_PERCENTAGE;
         }
 
         // Diagnostic log for server-side troubleshooting
@@ -126,7 +129,9 @@ export async function POST(req: NextRequest) {
             seller_id: sellerId,
             seller_recipient: recipient.pagarme_recipient_id,
             platform_recipient: platformRecipientId,
-            fee_percentage: feePercentage
+            platform_fee: normalizedPaymentMethod === 'credit_card'
+                ? `${feePercentage}%`
+                : (feePercentage > 0 ? 'R$ 2,00' : 'isento')
         });
 
         // 4. SECURITY: Validate prices from DB — never trust client-side prices
@@ -160,19 +165,40 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Pagamento por cartão está desativado no momento.' }, { status: 400 });
         }
 
+        let cardInstallments: number | null = null;
+        if (method === 'credit_card') {
+            if (body.card_data) {
+                return NextResponse.json({ error: 'Este checkout esta desatualizado. Recarregue a pagina antes de pagar.' }, { status: 400 });
+            }
+            const buyerError = validateCreditCardBuyer(buyer);
+            if (buyerError) return NextResponse.json({ error: buyerError }, { status: 400 });
+            if (!/^token_[a-zA-Z0-9]+$/.test(String(body.card_token || ''))) {
+                return NextResponse.json({ error: 'O token seguro do cartao expirou. Confira os dados e tente novamente.' }, { status: 400 });
+            }
+            cardInstallments = normalizeInstallments(body.installments);
+            if (!cardInstallments) {
+                return NextResponse.json({ error: 'Quantidade de parcelas invalida.' }, { status: 400 });
+            }
+        }
+
+        const checkoutOrderId = uuidv4();
         let pagarmeOrder;
         try {
             // we use the same "createOrder" used by the standalone system that works
             const ipHeader = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '';
             const ip = (ipHeader || '').split(',')[0].trim() || undefined;
-            const sessionId = uuidv4();
+            const requestedSessionId = String(body.checkout_session_id || '');
+            const sessionId = /^[a-zA-Z0-9-]{8,64}$/.test(requestedSessionId) ? requestedSessionId : uuidv4();
+            const requestedPlatform = String(body.device_platform || '').toUpperCase();
+            const devicePlatform = /^[A-Z0-9_-]{2,64}$/.test(requestedPlatform) ? requestedPlatform : 'WEB';
             pagarmeOrder = await PagarmeService.createOrder({
                 amount: totalAmountCents,
                 payment_method: method,
                 customer: buyer,
                 seller_recipient_id: recipient.pagarme_recipient_id,
                 platform_fee_percentage: feePercentage,
-                card_data: method === 'credit_card' ? body.card_data : undefined,
+                card_token: method === 'credit_card' ? body.card_token : undefined,
+                installments: method === 'credit_card' ? cardInstallments || 1 : undefined,
                 items: validatedCart.map((item: any) => ({
                     amount: item.priceCents,
                     description: item.name,
@@ -180,26 +206,22 @@ export async function POST(req: NextRequest) {
                     code: item.id
                 })),
                 ip,
-                session_id: sessionId
-            } as any);
+                session_id: sessionId,
+                device_platform: devicePlatform,
+                order_code: checkoutOrderId,
+            });
         } catch (pagarmeErr: any) {
             const errorBody = pagarmeErr.response?.data;
-            const detailedErrors = errorBody?.errors
-                ? Object.entries(errorBody.errors).map(([field, msgs]: any) => `${field}: ${msgs.join(', ')}`).join('; ')
-                : null;
-
-            const errorMessage = detailedErrors || errorBody?.message || pagarmeErr.message || 'Erro desconhecido';
-            console.error('Checkout Error (Final Sync):', JSON.stringify(errorBody || errorMessage, null, 2));
-
-            return NextResponse.json({
-                error: `Erro no Checkout: ${errorMessage}`,
-                diagnostic: {
-                    type: errorBody ? 'PAGARME_API' : 'INTERNAL_JS',
-                    seller_recipient: recipient.pagarme_recipient_id,
-                    platform_recipient: platformRecipientId || 'MISSING_ENV',
-                    raw_error: errorBody || pagarmeErr.message
-                }
-            }, { status: 400 });
+            const providerMessage = String(errorBody?.message || pagarmeErr.message || '');
+            console.error('[STORE CHECKOUT] Provider request failed:', {
+                status: pagarmeErr.response?.status,
+                message: providerMessage.slice(0, 300),
+                payment_method: method,
+            });
+            const message = pagarmeErr.response?.status === 412
+                ? 'Nao foi possivel validar este cartao. Confira os dados ou tente outro cartao.'
+                : 'Nao foi possivel processar o pagamento agora. Confira os dados e tente novamente.';
+            return NextResponse.json({ error: message }, { status: 400 });
         }
 
         const charge = pagarmeOrder.charges?.[0];
@@ -210,20 +232,24 @@ export async function POST(req: NextRequest) {
             const lt = lastTransaction;
             const ge = lt?.gateway_response?.errors;
             const af = lt?.antifraud_response;
+            const antifraudStatus = String(af?.status || '').toLowerCase();
+            const antifraudReason = String(af?.reason || '').toLowerCase();
+            const wasRejectedByAntifraud = /^(reprov|recus|denied|declined|failed|rejected|blocked)/.test(antifraudStatus)
+                || /(high[\s_-]*risk|alto[\s_-]*risco|suspect(?:ed)?[\s_-]*fraud|fraudulent|suspeita.*fraude|bloquead)/.test(antifraudReason);
             let msg = '';
-            if (af && typeof af === 'object') {
-                msg = 'Transação reprovada pelo Antifraude.';
-                if (typeof af.status === 'string') msg += ` Status: ${af.status}.`;
-                if (typeof af.reason === 'string') msg += ` Motivo: ${af.reason}.`;
+            if (wasRejectedByAntifraud) {
+                msg = 'A compra nao foi aprovada pela analise de seguranca. Tente outro cartao ou utilize o Pix.';
             } else if (ge && Array.isArray(ge) && ge.length) {
-                msg = ge.map((e: any) => e.message).join('; ');
+                msg = 'O banco emissor nao autorizou a compra. Confira os dados ou tente outro cartao.';
             } else if (typeof lt?.acquirer_message === 'string') {
-                msg = /aprovad/i.test(lt.acquirer_message) ? 'Transação não capturada. Aguarde confirmação ou tente novamente.' : lt.acquirer_message;
+                msg = /aprovad/i.test(lt.acquirer_message)
+                    ? 'A transacao foi autorizada, mas ainda nao foi capturada. Aguarde e tente novamente.'
+                    : 'O banco emissor nao autorizou a compra. Confira os dados ou tente outro cartao.';
             } else {
-                msg = 'Transação recusada.';
+                msg = 'A transacao nao foi autorizada. Confira os dados ou tente outro cartao.';
             }
             return NextResponse.json({
-                error: `Pagamento Recusado: ${msg}`,
+                error: msg,
                 status: charge?.status || pagarmeOrder.status,
                 pagarme_id: pagarmeOrder.id
             }, { status: 400 });
@@ -231,6 +257,7 @@ export async function POST(req: NextRequest) {
 
         // 5. Save Order to Supabase with Bulletproof Extraction
         const orderData: any = {
+            id: checkoutOrderId,
             product_id: items_cart[0].id,
             seller_id: sellerId,
             buyer_name: buyer.name || 'Cliente',
@@ -243,7 +270,7 @@ export async function POST(req: NextRequest) {
             status: charge?.status === 'paid' ? 'paid' : 'pending',
             pagarme_order_id: pagarmeOrder.id,
             pagarme_charge_id: charge?.id,
-            installments: body.card_data?.installments || 1
+            installments: method === 'credit_card' ? cardInstallments : 1
         };
 
         // EXTREMTELY ROBUST PIX EXTRACTION
