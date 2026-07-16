@@ -189,6 +189,84 @@ export async function sendEmailVerificationCode({
     });
 }
 
+export async function sendAccountDeletionRequestEmail({
+    name,
+    accountEmail,
+    contactEmail,
+    reason,
+    ip,
+    userAgent,
+    requestedAt,
+}: {
+    name: string;
+    accountEmail: string;
+    contactEmail?: string;
+    reason?: string;
+    ip?: string;
+    userAgent?: string;
+    requestedAt: string;
+}) {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        throw new Error('SMTP nao configurado para solicitacao de exclusao de conta');
+    }
+
+    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+    const to = process.env.ACCOUNT_DELETION_EMAIL || process.env.SUPPORT_EMAIL || 'support@goupay.com.br';
+    const transporter = createTransporter();
+
+    const safeName = escapeHtml(name);
+    const safeAccountEmail = escapeHtml(accountEmail);
+    const safeContactEmail = escapeHtml(contactEmail || accountEmail);
+    const safeReason = escapeHtml(reason || 'Nao informado');
+    const safeIp = escapeHtml(ip || 'Nao identificado');
+    const safeUserAgent = escapeHtml(userAgent || 'Nao informado');
+    const safeRequestedAt = escapeHtml(requestedAt);
+
+    const html = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Solicitacao de exclusao de conta</title></head>
+<body style="margin:0;padding:0;background:#f4f5f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#1d2433;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f8;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="620" cellpadding="0" cellspacing="0" style="width:100%;max-width:620px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 8px 30px rgba(17,24,39,0.08);">
+        <tr>
+          <td style="padding:30px 34px;background:linear-gradient(135deg,#312e81 0%,#7c3aed 100%);">
+            <div style="color:#ddd6fe;font-size:12px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;">GouPay</div>
+            <h1 style="margin:10px 0 0;color:#ffffff;font-size:24px;line-height:1.25;">Solicitacao de exclusao de conta e dados</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:30px 34px;">
+            <p style="margin:0 0 18px;color:#596273;font-size:15px;line-height:1.7;">Uma solicitacao publica de exclusao de conta foi enviada pela pagina de exclusao da GouPay.</p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #edf0f5;border-radius:14px;overflow:hidden;background:#f8f9fc;">
+              <tr><td style="padding:16px 18px;border-bottom:1px solid #edf0f5;"><strong>Nome:</strong><br/>${safeName}</td></tr>
+              <tr><td style="padding:16px 18px;border-bottom:1px solid #edf0f5;"><strong>Email da conta:</strong><br/>${safeAccountEmail}</td></tr>
+              <tr><td style="padding:16px 18px;border-bottom:1px solid #edf0f5;"><strong>Email para contato:</strong><br/>${safeContactEmail}</td></tr>
+              <tr><td style="padding:16px 18px;border-bottom:1px solid #edf0f5;"><strong>Motivo/observacao:</strong><br/>${safeReason}</td></tr>
+              <tr><td style="padding:16px 18px;border-bottom:1px solid #edf0f5;"><strong>Data da solicitacao:</strong><br/>${safeRequestedAt}</td></tr>
+              <tr><td style="padding:16px 18px;border-bottom:1px solid #edf0f5;"><strong>IP:</strong><br/>${safeIp}</td></tr>
+              <tr><td style="padding:16px 18px;"><strong>User agent:</strong><br/>${safeUserAgent}</td></tr>
+            </table>
+            <p style="margin:20px 0 0;color:#596273;font-size:13px;line-height:1.7;">Analise a conta, confirme a titularidade quando necessario e exclua ou anonimize os dados elegiveis. Dados financeiros, fiscais, antifraude, disputas, chargebacks, KYC e registros exigidos por lei podem precisar ser retidos pelo prazo legal aplicavel.</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+    await transporter.sendMail({
+        from: `"GouPay" <${from}>`,
+        to,
+        replyTo: contactEmail || accountEmail,
+        subject: `Solicitacao de exclusao de conta - ${accountEmail}`,
+        html,
+        text: `Solicitacao de exclusao de conta e dados\n\nNome: ${name}\nEmail da conta: ${accountEmail}\nEmail para contato: ${contactEmail || accountEmail}\nMotivo/observacao: ${reason || 'Nao informado'}\nData: ${requestedAt}\nIP: ${ip || 'Nao identificado'}\nUser agent: ${userAgent || 'Nao informado'}\n\nAnalise a conta, confirme a titularidade quando necessario e exclua ou anonimize os dados elegiveis. Dados financeiros, fiscais, antifraude, disputas, chargebacks, KYC e registros exigidos por lei podem precisar ser retidos pelo prazo legal aplicavel.`,
+    });
+}
+
 export async function sendPixSalesRecoveryEmail({
     buyerName,
     buyerEmail,

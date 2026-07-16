@@ -11,6 +11,7 @@ import {
     FiMapPin,
     FiSave,
     FiShield,
+    FiTrash2,
     FiUser,
 } from 'react-icons/fi';
 import { authAPI } from '@/lib/api';
@@ -358,6 +359,26 @@ export default function ProfilePage() {
                     opacity: .7;
                     cursor: not-allowed;
                 }
+                .privacy-copy {
+                    color: var(--profile-muted);
+                    font-size: 13px;
+                    line-height: 1.7;
+                    margin: 0 0 14px;
+                }
+                .deletion-link {
+                    min-height: 40px;
+                    border-radius: 12px;
+                    border: 1px solid rgba(239,68,68,0.26);
+                    background: rgba(239,68,68,0.09);
+                    color: #dc2626;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 0 14px;
+                    text-decoration: none;
+                    font-weight: 900;
+                    font-size: 13px;
+                }
                 @media (max-width: 1120px) {
                     .profile-grid { grid-template-columns: 1fr; }
                     .identity-card { position: static; }
@@ -473,6 +494,17 @@ export default function ProfilePage() {
                     </section>
 
                     <TwoFactorSettings />
+
+                    <section className="profile-card">
+                        <h2 className="section-title"><FiTrash2 size={16} /> Privacidade e exclusao de conta</h2>
+                        <p className="privacy-copy">
+                            Voce pode solicitar a exclusao da sua conta GouPay e dos dados pessoais elegiveis. Alguns registros financeiros, fiscais, antifraude, KYC, disputas e chargebacks podem ser mantidos pelos prazos legais aplicaveis.
+                        </p>
+                        <a className="deletion-link" href="/account-deletion">
+                            <FiTrash2 size={15} />
+                            Solicitar exclusao de conta
+                        </a>
+                    </section>
 
                 </main>
             </div>

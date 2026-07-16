@@ -980,6 +980,8 @@ Body:
                 <a href="mailto:support@goupay.com.br" style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none' }}>
                   support@goupay.com.br
                 </a>
+                <Link href="/terms/privacy" style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none' }}>Privacidade</Link>
+                <Link href="/account-deletion" style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none' }}>Exclusao de conta e dados</Link>
               </div>
             </div>
 
