@@ -19,7 +19,12 @@ export default function RegisterPage() {
         name: '', email: '', password: '', confirmPassword: '', cpf_cnpj: '', phone: ''
     });
 
-    const finishRegistration = (data: { token: string; user: { id: string; name: string; email: string; role: string } }) => {
+    const finishRegistration = (data: any) => {
+        if (!data.token || !data.user) {
+            toast.error('Não foi possível concluir o cadastro. Entre novamente.');
+            router.push('/login');
+            return;
+        }
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         toast.success('Email confirmado. Sua conta esta pronta!');

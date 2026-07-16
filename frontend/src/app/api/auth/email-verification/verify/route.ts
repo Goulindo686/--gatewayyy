@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server';
 import { generateToken, jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { EmailVerificationError, verifyEmailCode } from '@/lib/email-verification';
+import { createTwoFactorChallenge } from '@/lib/two-factor';
 
 export async function POST(req: NextRequest) {
     try {
@@ -22,6 +23,14 @@ export async function POST(req: NextRequest) {
         if (!verificationToken || !code) return jsonError('Codigo e verificacao sao obrigatorios');
 
         const user = await verifyEmailCode(String(verificationToken), String(code));
+
+        if (user.two_factor_enabled === true) {
+            return jsonSuccess({
+                two_factor_required: true,
+                two_factor_token: createTwoFactorChallenge(user.id),
+            });
+        }
+
         const token = generateToken({ userId: user.id, role: user.role });
 
         return jsonSuccess({

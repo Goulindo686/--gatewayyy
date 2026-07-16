@@ -13,13 +13,15 @@ export type EmailVerificationSession = {
 };
 
 type VerificationResult = {
-    token: string;
-    user: {
+    token?: string;
+    user?: {
         id: string;
         name: string;
         email: string;
         role: string;
     };
+    two_factor_required?: boolean;
+    two_factor_token?: string;
 };
 
 export default function EmailVerificationModal({

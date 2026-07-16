@@ -14,6 +14,7 @@ import {
     FiUser,
 } from 'react-icons/fi';
 import { authAPI } from '@/lib/api';
+import TwoFactorSettings from '@/components/TwoFactorSettings';
 
 const emptyForm = {
     avatar_url: '',
@@ -470,6 +471,8 @@ export default function ProfilePage() {
                             </div>
                         </div>
                     </section>
+
+                    <TwoFactorSettings />
 
                 </main>
             </div>

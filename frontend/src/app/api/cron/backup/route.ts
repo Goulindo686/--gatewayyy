@@ -104,6 +104,8 @@ async function backupTable(supabase: ReturnType<typeof getSupabaseAdmin>, tableN
                 delete copy.password_reset_token;
                 delete copy.password_reset_expires;
                 delete copy.email_verification_token;
+                delete copy.two_factor_secret;
+                delete copy.two_factor_recovery_codes;
                 return copy;
             }
 

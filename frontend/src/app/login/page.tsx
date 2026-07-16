@@ -9,17 +9,23 @@ import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { FiArrowRight, FiCreditCard, FiDollarSign, FiHeadphones, FiLock, FiMail, FiShield, FiShoppingBag, FiZap } from 'react-icons/fi';
 import EmailVerificationModal, { EmailVerificationSession } from '@/components/EmailVerificationModal';
+import TwoFactorLoginModal from '@/components/TwoFactorLoginModal';
 
 export default function LoginPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [verification, setVerification] = useState<EmailVerificationSession | null>(null);
+    const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
     const [form, setForm] = useState({ email: '', password: '' });
 
-    const finishLogin = (data: { token: string; user: { id: string; name: string; email: string; role: string } }) => {
+    const completeLogin = (data: { token: string; user: { id: string; name: string; email: string; role: string }; recovery_code_used?: boolean; recovery_codes_remaining?: number }) => {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        toast.success('Email confirmado. Bem-vindo a GouPay!');
+        if (data.recovery_code_used) {
+            toast.success(`Código de recuperação utilizado. Restam ${data.recovery_codes_remaining || 0}.`);
+        } else {
+            toast.success('Login realizado com segurança!');
+        }
         if (data.user.role === 'admin') {
             router.push('/admin');
         } else if (data.user.role === 'customer') {
@@ -27,6 +33,15 @@ export default function LoginPage() {
         } else {
             router.push('/dashboard');
         }
+    };
+
+    const finishLogin = (data: any) => {
+        if (data.two_factor_required && data.two_factor_token) {
+            setVerification(null);
+            setTwoFactorToken(data.two_factor_token);
+            return;
+        }
+        completeLogin(data);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -43,16 +58,11 @@ export default function LoginPage() {
                 toast.success(data.code_sent ? 'Código enviado para seu e-mail.' : 'Use o código que enviamos recentemente.');
                 return;
             }
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('user', JSON.stringify(data.user));
-            toast.success('Login realizado com sucesso!');
-            if (data.user.role === 'admin') {
-                router.push('/admin');
-            } else if (data.user.role === 'customer') {
-                router.push('/area-membros');
-            } else {
-                router.push('/dashboard');
+            if (data.two_factor_required && data.two_factor_token) {
+                setTwoFactorToken(data.two_factor_token);
+                return;
             }
+            completeLogin(data);
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Erro ao fazer login');
         } finally {
@@ -158,6 +168,15 @@ export default function LoginPage() {
                     session={verification}
                     onVerified={finishLogin}
                     onClose={() => setVerification(null)}
+                />
+            )}
+
+            {twoFactorToken && (
+                <TwoFactorLoginModal
+                    key={twoFactorToken}
+                    challengeToken={twoFactorToken}
+                    onVerified={completeLogin}
+                    onClose={() => setTwoFactorToken(null)}
                 />
             )}
 

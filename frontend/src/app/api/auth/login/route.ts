@@ -5,6 +5,7 @@ import { supabase } from '@/lib/db';
 import { comparePassword, generateToken, jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { requestEmailVerification } from '@/lib/email-verification';
+import { createTwoFactorChallenge } from '@/lib/two-factor';
 
 export async function POST(req: NextRequest) {
     try {
@@ -79,6 +80,13 @@ export async function POST(req: NextRequest) {
                 email_masked: verification.emailMasked,
                 code_sent: verification.sent,
                 retry_after: verification.retryAfter,
+            });
+        }
+
+        if (user.two_factor_enabled === true) {
+            return jsonSuccess({
+                two_factor_required: true,
+                two_factor_token: createTwoFactorChallenge(user.id),
             });
         }
 

@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS users (
   status VARCHAR(20) DEFAULT 'active', -- active, blocked, pending
   email_verified BOOLEAN DEFAULT FALSE,
   email_verification_token VARCHAR(255),
+  two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  two_factor_secret TEXT,
+  two_factor_recovery_codes JSONB NOT NULL DEFAULT '[]'::jsonb,
+  two_factor_confirmed_at TIMESTAMPTZ,
   password_reset_token VARCHAR(255),
   password_reset_expires TIMESTAMPTZ,
   avatar_url TEXT,

@@ -9,6 +9,19 @@ import { PagarmeService } from '@/lib/pagarme';
 import { normalizeWebhookUrls } from '@/lib/webhooks';
 import { v4 as uuidv4 } from 'uuid';
 
+function safeUser(user: any) {
+    if (!user || typeof user !== 'object') return user;
+    const copy = { ...user };
+    delete copy.password;
+    delete copy.password_hash;
+    delete copy.password_reset_token;
+    delete copy.password_reset_expires;
+    delete copy.email_verification_token;
+    delete copy.two_factor_secret;
+    delete copy.two_factor_recovery_codes;
+    return copy;
+}
+
 export async function GET(req: NextRequest) {
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Não autorizado', 401);
@@ -18,7 +31,7 @@ export async function GET(req: NextRequest) {
         .select('*')
         .eq('id', auth.user.id);
 
-    return jsonSuccess({ user: users?.[0] });
+    return jsonSuccess({ user: safeUser(users?.[0]) });
 }
 
 const BANK_CODES: Record<string, string> = {
@@ -209,7 +222,7 @@ export async function PUT(req: NextRequest) {
                 console.error('[AUTH API] Pagar.me sync error:', JSON.stringify(errorData || pError.message, null, 2));
 
                 return jsonSuccess({
-                    user,
+                    user: safeUser(user),
                     syncError: {
                         message: errorDetail,
                         details: errorData?.errors || []
@@ -218,7 +231,7 @@ export async function PUT(req: NextRequest) {
             }
         }
 
-        return jsonSuccess({ user, message: 'Perfil e dados bancários atualizados' });
+        return jsonSuccess({ user: safeUser(user), message: 'Perfil e dados bancários atualizados' });
     } catch (err) {
         console.error('Update profile error:', err);
         return jsonError('Erro interno do servidor', 500);

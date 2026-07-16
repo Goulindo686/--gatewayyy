@@ -17,6 +17,7 @@ type VerificationUser = {
     role?: string | null;
     email_verified?: boolean | null;
     email_verification_token?: string | null;
+    two_factor_enabled?: boolean | null;
 };
 
 type StoredVerification = {
@@ -173,11 +174,26 @@ export async function requestEmailVerification(user: VerificationUser) {
 
 export async function getVerificationUser(challengeToken: string): Promise<VerificationUser> {
     const userId = readEmailVerificationChallenge(challengeToken);
-    const { data: user, error } = await supabase
+    const result = await supabase
         .from('users')
-        .select('id, name, email, role, status, email_verified, email_verification_token')
+        .select('id, name, email, role, status, email_verified, email_verification_token, two_factor_enabled')
         .eq('id', userId)
         .single();
+
+    let user = result.data as (VerificationUser & { status?: string | null }) | null;
+    let error = result.error;
+
+    // Mantem o login funcionando durante a janela entre o deploy e a migracao 024.
+    if (error && (error.code === '42703' || error.message.includes('two_factor_enabled'))) {
+        const legacyResult = await supabase
+            .from('users')
+            .select('id, name, email, role, status, email_verified, email_verification_token')
+            .eq('id', userId)
+            .single();
+
+        user = legacyResult.data as (VerificationUser & { status?: string | null }) | null;
+        error = legacyResult.error;
+    }
 
     if (error || !user) throw new EmailVerificationError('Conta nao encontrada', 404);
     if (user.status === 'blocked') throw new EmailVerificationError('Conta bloqueada', 403);
