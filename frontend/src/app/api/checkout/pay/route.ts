@@ -10,6 +10,7 @@ import { sendFacebookEvent } from '@/lib/facebook-capi';
 import { decryptUtmifyToken, sendUtmifyOrderWithLog } from '@/lib/utmify';
 import { normalizeInstallments, validateCreditCardBuyer } from '@/lib/checkout-validation';
 import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
+import { classifyCardPaymentFailure, classifyCardProviderRequestError, isPagarmePaymentFailed } from '@/lib/card-payment-failure';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -176,7 +177,24 @@ export async function POST(req: NextRequest) {
                 : (feePercentage > 0 ? 'R$ 2,00' : 'isento'),
         });
 
-        let bumpTotalCents = 0;
+        const itemCode = (value: unknown, fallback: string) => {
+            const cleaned = String(value || fallback).replace(/[^a-zA-Z0-9_-]/g, '');
+            return (cleaned || fallback).slice(0, 52);
+        };
+
+        const baseCents = selectedPlan
+            ? Number(selectedPlan.price) || 0
+            : (typeof product.price === 'number'
+                ? (product.price >= 100 ? Math.round(product.price) : Math.round(product.price * 100))
+                : Math.round(parseFloat(product.price_display) * 100));
+
+        const pagarmeItems = [{
+            amount: baseCents,
+            description: String(selectedPlan?.name ? `${product.name} - ${selectedPlan.name}` : product.name).slice(0, 256),
+            quantity: 1,
+            code: itemCode(selectedPlan?.id || product.id, product.id),
+        }];
+
         if (Array.isArray(selected_bumps) && selected_bumps.length > 0) {
             const bumpIds = selected_bumps
                 .map((b: any) => (typeof b === 'string' ? b : b?.bump_id))
@@ -194,8 +212,8 @@ export async function POST(req: NextRequest) {
                     .from('order_bumps')
                     .select(`
                         id, custom_price, bump_product_id, bump_plan_id,
-                        bump_product:bump_product_id (id, price),
-                        bump_plan:bump_plan_id (id, price)
+                        bump_product:bump_product_id (id, name, price),
+                        bump_plan:bump_plan_id (id, name, price)
                     `)
                     .eq('product_id', product_id)
                     .eq('is_active', true)
@@ -203,34 +221,48 @@ export async function POST(req: NextRequest) {
 
                 for (const bump of (bumps || [])) {
                     let priceCents = 0;
+                    let itemName = 'Oferta adicional';
+                    let codeSource = bump.id;
                     const bumpPlan = Array.isArray(bump.bump_plan) ? bump.bump_plan[0] : bump.bump_plan;
                     const bumpProduct = Array.isArray(bump.bump_product) ? bump.bump_product[0] : bump.bump_product;
 
                     if (bump.custom_price != null) {
                         priceCents = Number(bump.custom_price) || 0;
+                        itemName = bumpProduct?.name || bumpPlan?.name || itemName;
                     } else if (bump.bump_plan_id && bumpPlan?.price != null) {
                         priceCents = Number(bumpPlan.price) || 0;
+                        itemName = bumpPlan?.name || bumpProduct?.name || itemName;
+                        codeSource = bumpPlan?.id || codeSource;
                     } else {
                         const chosenPlanId = bumpPlanMap[bump.id];
                         if (chosenPlanId) {
                             const { data: chosenPlan } = await supabase
                                 .from('product_plans')
-                                .select('id, price')
+                                .select('id, name, price')
                                 .eq('id', chosenPlanId)
                                 .eq('product_id', bump.bump_product_id)
                                 .single();
                             if (chosenPlan?.price != null) {
                                 priceCents = Number(chosenPlan.price) || 0;
+                                itemName = chosenPlan?.name || bumpProduct?.name || itemName;
+                                codeSource = chosenPlan?.id || codeSource;
                             }
                         }
 
                         if (!priceCents && bumpProduct?.price != null) {
                             priceCents = Number(bumpProduct.price) || 0;
+                            itemName = bumpProduct?.name || itemName;
+                            codeSource = bumpProduct?.id || codeSource;
                         }
                     }
 
                     if (priceCents > 0) {
-                        bumpTotalCents += priceCents;
+                        pagarmeItems.push({
+                            amount: priceCents,
+                            description: String(itemName).slice(0, 256),
+                            quantity: 1,
+                            code: itemCode(codeSource, bump.id),
+                        });
                     }
                 }
             }
@@ -240,12 +272,9 @@ export async function POST(req: NextRequest) {
         let pagarmeOrder;
         let totalCents = 0;
         try {
-            const baseCents = selectedPlan
-                ? selectedPlan.price
-                : (typeof product.price === 'number'
-                    ? (product.price >= 100 ? Math.round(product.price) : Math.round(product.price * 100))
-                    : Math.round(parseFloat(product.price_display) * 100));
-            totalCents = baseCents + bumpTotalCents;
+            totalCents = pagarmeItems.reduce((sum, item) => sum + (item.amount * item.quantity), 0);
+            if (totalCents <= 0) return jsonError('Valor do pedido invalido.', 400);
+
             const ipHeader = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '';
             const ip = ipHeader.split(',')[0].trim() || undefined;
             const requestedSessionId = String(body.checkout_session_id || '');
@@ -268,28 +297,24 @@ export async function POST(req: NextRequest) {
                 session_id: sessionId,
                 device_platform: devicePlatform,
                 order_code: orderId,
-                items: [{
-                    amount: totalCents,
-                    description: product.name,
-                    quantity: 1,
-                    code: product.id
-                }]
+                items: pagarmeItems
             });
         } catch (pagarmeErr: any) {
             const errorBody = pagarmeErr.response?.data;
             const providerStatus = pagarmeErr.response?.status;
             const providerMessage = String(errorBody?.message || pagarmeErr.message || '');
+            const cardFailure = normalizedPaymentMethod === 'credit_card'
+                ? classifyCardProviderRequestError(pagarmeErr)
+                : null;
             console.error('[CHECKOUT] Provider request failed:', {
                 status: providerStatus,
                 message: providerMessage.slice(0, 300),
                 payment_method: normalizedPaymentMethod,
+                card_failure_category: cardFailure?.category,
             });
 
-            if (providerStatus === 412 || /verification failed|verificacao do cartao/i.test(providerMessage)) {
-                return jsonError('Nao foi possivel validar este cartao. Confira os dados ou tente outro cartao.', 400);
-            }
-            if (normalizedPaymentMethod === 'credit_card' && /token/i.test(providerMessage)) {
-                return jsonError('O token seguro do cartao expirou. Confira os dados e tente novamente.', 400);
+            if (cardFailure) {
+                return jsonError(cardFailure.message, 400);
             }
             return jsonError('Nao foi possivel processar o pagamento agora. Confira os dados e tente novamente.', 400);
         }
@@ -297,36 +322,19 @@ export async function POST(req: NextRequest) {
         const charge = pagarmeOrder.charges?.[0];
 
         // --- ERROR DETECTION ---
-        if (charge?.status === 'failed' || pagarmeOrder.status === 'failed') {
-            const lt = charge?.last_transaction;
-            const ge = lt?.gateway_response?.errors;
-            const af = lt?.antifraud_response;
-            const antifraudStatus = String(af?.status || '').toLowerCase();
-            const antifraudReason = String(af?.reason || '').toLowerCase();
-            const wasRejectedByAntifraud = /^(reprov|recus|denied|declined|failed|rejected|blocked)/.test(antifraudStatus)
-                || /(high[\s_-]*risk|alto[\s_-]*risco|suspect(?:ed)?[\s_-]*fraud|fraudulent|suspeita.*fraude|bloquead)/.test(antifraudReason);
-            let msg = '';
-            if (wasRejectedByAntifraud) {
-                msg = 'A compra nao foi aprovada pela analise de seguranca. Tente outro cartao ou utilize o Pix.';
-            } else if (ge && Array.isArray(ge) && ge.length) {
-                msg = 'O banco emissor nao autorizou a compra. Confira os dados ou tente outro cartao.';
-            } else if (typeof lt?.acquirer_message === 'string') {
-                msg = /aprovad/i.test(lt.acquirer_message)
-                    ? 'A transacao foi autorizada, mas ainda nao foi capturada. Aguarde e tente novamente.'
-                    : 'O banco emissor nao autorizou a compra. Confira os dados ou tente outro cartao.';
-            } else {
-                msg = 'A transacao nao foi autorizada. Confira os dados ou tente outro cartao.';
+        if (isPagarmePaymentFailed(pagarmeOrder)) {
+            if (normalizedPaymentMethod !== 'credit_card') {
+                console.error('[CHECKOUT PIX] Payment failed:', {
+                    pagarme_order_id: pagarmeOrder?.id,
+                    charge_id: charge?.id,
+                    charge_status: charge?.status,
+                    order_status: pagarmeOrder?.status,
+                });
+                return jsonError('Nao foi possivel gerar o pagamento agora. Tente novamente.', 400);
             }
-            console.error('[CHECKOUT CARD] Payment declined:', {
-                pagarme_order_id: pagarmeOrder?.id,
-                charge_id: charge?.id,
-                charge_status: charge?.status,
-                transaction_status: lt?.status,
-                antifraud_status: af?.status,
-                antifraud_reason: af?.reason,
-                acquirer_code: lt?.acquirer_return_code,
-            });
-            return jsonError(msg, 400);
+            const failure = classifyCardPaymentFailure(pagarmeOrder);
+            console.error('[CHECKOUT CARD] Payment declined:', failure.diagnostics);
+            return jsonError(failure.message, 400);
         }
 
         const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('x-real-ip') || undefined;

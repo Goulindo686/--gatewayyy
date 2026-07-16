@@ -4,6 +4,7 @@ import { CARD_PLATFORM_FEE_PERCENTAGE, PagarmeService } from '@/lib/pagarme';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { normalizeInstallments, validateCreditCardBuyer } from '@/lib/checkout-validation';
 import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
+import { classifyCardPaymentFailure, classifyCardProviderRequestError, isPagarmePaymentFailed } from '@/lib/card-payment-failure';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -214,14 +215,16 @@ export async function POST(req: NextRequest) {
         } catch (pagarmeErr: any) {
             const errorBody = pagarmeErr.response?.data;
             const providerMessage = String(errorBody?.message || pagarmeErr.message || '');
+            const cardFailure = method === 'credit_card'
+                ? classifyCardProviderRequestError(pagarmeErr)
+                : null;
             console.error('[STORE CHECKOUT] Provider request failed:', {
                 status: pagarmeErr.response?.status,
                 message: providerMessage.slice(0, 300),
                 payment_method: method,
+                card_failure_category: cardFailure?.category,
             });
-            const message = pagarmeErr.response?.status === 412
-                ? 'Nao foi possivel validar este cartao. Confira os dados ou tente outro cartao.'
-                : 'Nao foi possivel processar o pagamento agora. Confira os dados e tente novamente.';
+            const message = cardFailure?.message || 'Nao foi possivel processar o pagamento agora. Confira os dados e tente novamente.';
             return NextResponse.json({ error: message }, { status: 400 });
         }
 
@@ -229,28 +232,24 @@ export async function POST(req: NextRequest) {
         const lastTransaction = charge?.last_transaction;
 
         // --- ERROR DETECTION ---
-        if (charge?.status === 'failed' || pagarmeOrder.status === 'failed') {
-            const lt = lastTransaction;
-            const ge = lt?.gateway_response?.errors;
-            const af = lt?.antifraud_response;
-            const antifraudStatus = String(af?.status || '').toLowerCase();
-            const antifraudReason = String(af?.reason || '').toLowerCase();
-            const wasRejectedByAntifraud = /^(reprov|recus|denied|declined|failed|rejected|blocked)/.test(antifraudStatus)
-                || /(high[\s_-]*risk|alto[\s_-]*risco|suspect(?:ed)?[\s_-]*fraud|fraudulent|suspeita.*fraude|bloquead)/.test(antifraudReason);
-            let msg = '';
-            if (wasRejectedByAntifraud) {
-                msg = 'A compra nao foi aprovada pela analise de seguranca. Tente outro cartao ou utilize o Pix.';
-            } else if (ge && Array.isArray(ge) && ge.length) {
-                msg = 'O banco emissor nao autorizou a compra. Confira os dados ou tente outro cartao.';
-            } else if (typeof lt?.acquirer_message === 'string') {
-                msg = /aprovad/i.test(lt.acquirer_message)
-                    ? 'A transacao foi autorizada, mas ainda nao foi capturada. Aguarde e tente novamente.'
-                    : 'O banco emissor nao autorizou a compra. Confira os dados ou tente outro cartao.';
-            } else {
-                msg = 'A transacao nao foi autorizada. Confira os dados ou tente outro cartao.';
+        if (isPagarmePaymentFailed(pagarmeOrder)) {
+            if (method !== 'credit_card') {
+                console.error('[STORE CHECKOUT PIX] Payment failed:', {
+                    pagarme_order_id: pagarmeOrder?.id,
+                    charge_id: charge?.id,
+                    charge_status: charge?.status,
+                    order_status: pagarmeOrder?.status,
+                });
+                return NextResponse.json({
+                    error: 'Nao foi possivel gerar o pagamento agora. Tente novamente.',
+                    status: charge?.status || pagarmeOrder.status,
+                    pagarme_id: pagarmeOrder.id
+                }, { status: 400 });
             }
+            const failure = classifyCardPaymentFailure(pagarmeOrder);
+            console.error('[STORE CHECKOUT CARD] Payment declined:', failure.diagnostics);
             return NextResponse.json({
-                error: msg,
+                error: failure.message,
                 status: charge?.status || pagarmeOrder.status,
                 pagarme_id: pagarmeOrder.id
             }, { status: 400 });

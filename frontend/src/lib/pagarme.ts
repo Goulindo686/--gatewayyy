@@ -193,7 +193,6 @@ export class PagarmeService {
             ip: data.ip,
             session_id: data.session_id,
             device: data.device_platform ? { platform: data.device_platform.slice(0, 64) } : undefined,
-            channel: isCreditCard ? 'payment_link' : undefined,
         };
 
         let cardId: string | undefined;
