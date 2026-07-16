@@ -8,16 +8,41 @@ import { useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { FiArrowRight, FiCreditCard, FiDollarSign, FiHeadphones, FiLock, FiMail, FiShield, FiShoppingBag, FiZap } from 'react-icons/fi';
+import EmailVerificationModal, { EmailVerificationSession } from '@/components/EmailVerificationModal';
 
 export default function LoginPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [verification, setVerification] = useState<EmailVerificationSession | null>(null);
     const [form, setForm] = useState({ email: '', password: '' });
+
+    const finishLogin = (data: { token: string; user: { id: string; name: string; email: string; role: string } }) => {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        toast.success('Email confirmado. Bem-vindo a GouPay!');
+        if (data.user.role === 'admin') {
+            router.push('/admin');
+        } else if (data.user.role === 'customer') {
+            router.push('/area-membros');
+        } else {
+            router.push('/dashboard');
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
             const { data } = await authAPI.login(form);
+            if (data.verification_required) {
+                setVerification({
+                    verificationToken: data.verification_token,
+                    emailMasked: data.email_masked,
+                    retryAfter: Number(data.retry_after) || 0,
+                });
+                toast.success(data.code_sent ? 'Código enviado para seu e-mail.' : 'Use o código que enviamos recentemente.');
+                return;
+            }
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
             toast.success('Login realizado com sucesso!');
@@ -126,6 +151,15 @@ export default function LoginPage() {
                     </section>
                 </main>
             </div>
+
+            {verification && (
+                <EmailVerificationModal
+                    key={verification.verificationToken}
+                    session={verification}
+                    onVerified={finishLogin}
+                    onClose={() => setVerification(null)}
+                />
+            )}
 
             <style>{`
                 .authShell {

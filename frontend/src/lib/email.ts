@@ -128,6 +128,67 @@ function createTransporter() {
     });
 }
 
+export async function sendEmailVerificationCode({
+    toEmail,
+    userName,
+    code,
+    expiresInMinutes,
+}: {
+    toEmail: string;
+    userName: string;
+    code: string;
+    expiresInMinutes: number;
+}) {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        throw new Error('SMTP nao configurado para verificacao de email');
+    }
+
+    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+    const transporter = createTransporter();
+    const safeName = escapeHtml(userName || 'usuario');
+    const safeCode = escapeHtml(code);
+
+    const html = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Codigo de verificacao GouPay</title></head>
+<body style="margin:0;padding:0;background:#f3f0ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#171327;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:radial-gradient(circle at top,#e9ddff,#f6f4fb 55%);padding:42px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(76,29,149,0.18);">
+        <tr><td style="padding:36px 38px;background:linear-gradient(135deg,#3b168f 0%,#7c3aed 58%,#a855f7 100%);text-align:center;">
+          <div style="width:54px;height:54px;line-height:54px;margin:0 auto 16px;border-radius:17px;background:rgba(255,255,255,.16);color:#fff;font-size:25px;font-weight:900;">G</div>
+          <div style="color:#ddd6fe;font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;">Protecao GouPay</div>
+          <h1 style="margin:10px 0 7px;color:#fff;font-size:27px;">Confirme seu email</h1>
+          <p style="margin:0;color:#ede9fe;font-size:14px;line-height:1.6;">Uma etapa rapida para proteger sua conta e seus pagamentos.</p>
+        </td></tr>
+        <tr><td style="padding:34px 38px 38px;">
+          <p style="margin:0 0 10px;font-size:16px;">Ola, <strong>${safeName}</strong>.</p>
+          <p style="margin:0 0 24px;color:#696278;font-size:14px;line-height:1.7;">Digite o codigo abaixo na tela de verificacao. Ele e pessoal e nunca deve ser compartilhado.</p>
+          <div style="padding:24px 16px;border:1px solid #e9ddff;border-radius:18px;background:linear-gradient(135deg,#faf8ff,#f3edff);text-align:center;">
+            <div style="margin-bottom:9px;color:#8b7aa6;font-size:10px;font-weight:900;letter-spacing:1.8px;text-transform:uppercase;">Seu codigo de seguranca</div>
+            <div style="color:#5b21b6;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:38px;font-weight:900;letter-spacing:11px;">${safeCode}</div>
+          </div>
+          <div style="margin-top:22px;padding:14px 16px;border-radius:12px;background:#fff8e6;color:#755818;font-size:13px;line-height:1.6;">
+            O codigo expira em <strong>${expiresInMinutes} minutos</strong>. Se voce nao solicitou esta verificacao, ignore esta mensagem.
+          </div>
+        </td></tr>
+        <tr><td style="padding:19px 30px;background:#faf9fc;border-top:1px solid #eeeaf4;text-align:center;color:#9a93a6;font-size:11px;">GouPay · Seguranca para vender e receber</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+    await transporter.sendMail({
+        from: `"GouPay" <${from}>`,
+        to: toEmail,
+        subject: 'Confirme seu email na GouPay',
+        html,
+        text: `Ola ${userName}. Seu codigo de verificacao GouPay e ${code}. Ele expira em ${expiresInMinutes} minutos. Nao compartilhe este codigo.`,
+    });
+}
+
 export async function sendPixSalesRecoveryEmail({
     buyerName,
     buyerEmail,

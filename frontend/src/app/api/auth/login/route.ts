@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { comparePassword, generateToken, jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { requestEmailVerification } from '@/lib/email-verification';
 
 export async function POST(req: NextRequest) {
     try {
@@ -40,8 +41,6 @@ export async function POST(req: NextRequest) {
         const validPassword = await comparePassword(password, passwordHash);
         if (!validPassword) return jsonError('Credenciais inválidas', 401);
 
-        const token = generateToken({ userId: user.id, role: user.role });
-
         const userEmailNormalized = (user.email || '').toLowerCase().trim();
         if (userEmailNormalized) {
             const { data: paidOrders } = await supabase
@@ -71,6 +70,19 @@ export async function POST(req: NextRequest) {
                     .upsert(enrollmentsToUpsert, { onConflict: 'user_id, product_id' });
             }
         }
+
+        if (user.email_verified !== true) {
+            const verification = await requestEmailVerification(user);
+            return jsonSuccess({
+                verification_required: true,
+                verification_token: verification.verificationToken,
+                email_masked: verification.emailMasked,
+                code_sent: verification.sent,
+                retry_after: verification.retryAfter,
+            });
+        }
+
+        const token = generateToken({ userId: user.id, role: user.role });
 
         return jsonSuccess({
             token,

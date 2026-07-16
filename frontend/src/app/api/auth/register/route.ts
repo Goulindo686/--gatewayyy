@@ -2,9 +2,9 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
-import { hashPassword, generateToken, jsonError, jsonSuccess } from '@/lib/auth';
+import { hashPassword, jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
-import { PagarmeService } from '@/lib/pagarme';
+import { requestEmailVerification } from '@/lib/email-verification';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
             phone,
             role: 'seller',
             status: 'active',
+            email_verified: false,
             terms_accepted_at: new Date().toISOString()
         };
 
@@ -130,11 +131,21 @@ export async function POST(req: NextRequest) {
                 .upsert(enrollmentsToUpsert, { onConflict: 'user_id, product_id' });
         }
 
-        const token = generateToken({ userId: userId, role: 'seller' });
+        const verification = await requestEmailVerification({
+            id: userId,
+            name,
+            email: normalizedEmail,
+            role: 'seller',
+            email_verified: false,
+            email_verification_token: user?.email_verification_token,
+        });
 
         return jsonSuccess({
-            token,
-            user: { id: userId, name, email: normalizedEmail, role: 'seller' }
+            verification_required: true,
+            verification_token: verification.verificationToken,
+            email_masked: verification.emailMasked,
+            code_sent: verification.sent,
+            retry_after: verification.retryAfter,
         }, 201);
     } catch (err: any) {
         console.error('Register error:', err);

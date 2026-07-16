@@ -8,14 +8,24 @@ import { useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { FiArrowRight, FiCreditCard, FiDollarSign, FiFileText, FiHeadphones, FiLock, FiMail, FiPhone, FiShield, FiShoppingBag, FiUser, FiZap } from 'react-icons/fi';
+import EmailVerificationModal, { EmailVerificationSession } from '@/components/EmailVerificationModal';
 
 export default function RegisterPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [verification, setVerification] = useState<EmailVerificationSession | null>(null);
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [form, setForm] = useState({
         name: '', email: '', password: '', confirmPassword: '', cpf_cnpj: '', phone: ''
     });
+
+    const finishRegistration = (data: { token: string; user: { id: string; name: string; email: string; role: string } }) => {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        toast.success('Email confirmado. Sua conta esta pronta!');
+        router.push('/dashboard');
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (form.password !== form.confirmPassword) {
@@ -34,10 +44,12 @@ export default function RegisterPage() {
                 phone: form.phone,
                 terms_accepted: true
             });
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('user', JSON.stringify(data.user));
-            toast.success('Conta criada com sucesso!');
-            router.push('/dashboard');
+            setVerification({
+                verificationToken: data.verification_token,
+                emailMasked: data.email_masked,
+                retryAfter: Number(data.retry_after) || 0,
+            });
+            toast.success('Conta criada. Enviamos o código de verificação!');
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Erro ao criar conta');
         } finally {
@@ -144,6 +156,15 @@ export default function RegisterPage() {
                     </section>
                 </main>
             </div>
+
+            {verification && (
+                <EmailVerificationModal
+                    key={verification.verificationToken}
+                    session={verification}
+                    onVerified={finishRegistration}
+                    onClose={() => router.push('/login')}
+                />
+            )}
 
             <style>{`
                 .authShell {
