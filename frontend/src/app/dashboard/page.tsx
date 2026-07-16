@@ -42,6 +42,13 @@ interface MonthlySale {
     fees?: number;
 }
 
+interface ConversionMetrics {
+    rate: number;
+    total: number;
+    paid: number;
+    not_converted: number;
+}
+
 function calculateDerivedMetrics(monthlySales: MonthlySale[]): MonthlySale[] {
     return monthlySales.map((sale) => {
         const amount = Number(sale.amount ?? 0);
@@ -63,6 +70,12 @@ const money = (value: unknown) =>
 
 export default function DashboardPage() {
     const [stats, setStats] = useState<any>(null);
+    const [conversion, setConversion] = useState<ConversionMetrics>({
+        rate: 0,
+        total: 0,
+        paid: 0,
+        not_converted: 0,
+    });
     const [loading, setLoading] = useState(true);
     const [period, setPeriod] = useState<{ monthly_sales: any[]; recent_orders: any[] } | null>(null);
     const chartRef = useRef<any>(null);
@@ -80,11 +93,43 @@ export default function DashboardPage() {
         }
     }, [searchParams]);
 
+    useEffect(() => {
+        const refreshConversion = async () => {
+            if (document.visibilityState !== 'visible') return;
+
+            const start = searchParams.get('start') || undefined;
+            const end = searchParams.get('end') || undefined;
+
+            try {
+                const { data } = await dashboardAPI.getConversion({ start, end });
+                setConversion(data);
+            } catch (err) {
+                console.error('Erro ao atualizar taxa de conversao:', err);
+            }
+        };
+
+        const intervalId = window.setInterval(refreshConversion, 15_000);
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') void refreshConversion();
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.clearInterval(intervalId);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [searchParams]);
+
     const loadStats = async (params?: any) => {
         setLoading(true);
         try {
-            const { data } = await dashboardAPI.getStats(params || {});
+            const [{ data }, conversionResponse] = await Promise.all([
+                dashboardAPI.getStats(params || {}),
+                dashboardAPI.getConversion(params || {}).catch(() => null),
+            ]);
             setStats(data);
+            if (conversionResponse?.data) setConversion(conversionResponse.data);
         } catch (err) {
             console.error(err);
         } finally {
@@ -95,9 +140,13 @@ export default function DashboardPage() {
     const loadPeriod = async (params?: any) => {
         setLoading(true);
         try {
-            const { data } = await dashboardAPI.getStats(params || {});
+            const [{ data }, conversionResponse] = await Promise.all([
+                dashboardAPI.getStats(params || {}),
+                dashboardAPI.getConversion(params || {}).catch(() => null),
+            ]);
             setPeriod({ monthly_sales: data?.monthly_sales || [], recent_orders: data?.recent_orders || [] });
             setStats(data);
+            if (conversionResponse?.data) setConversion(conversionResponse.data);
         } catch (err) {
             console.error(err);
         } finally {
@@ -112,6 +161,11 @@ export default function DashboardPage() {
     const pending = Number(stats?.stats?.pending_balance ?? 0);
     const withdrawn = Number(stats?.stats?.total_withdrawn ?? 0);
     const products = Number(stats?.stats?.total_products ?? 0);
+    const conversionRate = Math.min(100, Math.max(0, Number(conversion.rate) || 0));
+    const conversionLabel = conversionRate.toLocaleString('pt-BR', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 1,
+    });
 
     const totalNetRevenue = Number(
         stats?.stats?.net_revenue ??
@@ -550,6 +604,16 @@ export default function DashboardPage() {
                     font-size: 33px;
                     font-weight: 950;
                 }
+                .conversion-detail {
+                    display: grid;
+                    gap: 3px;
+                    margin-top: 5px;
+                }
+                .conversion-live {
+                    color: #21a875;
+                    font-size: 10px;
+                    font-weight: 800;
+                }
                 .orders-card {
                     padding: 20px;
                     overflow: hidden;
@@ -810,9 +874,21 @@ export default function DashboardPage() {
                             <h2 className="card-title">Taxa de Conversao</h2>
                             <FiMoreHorizontal color="#94a3b8" />
                         </div>
-                        <div className="gauge" style={{ '--value': 68 } as React.CSSProperties} />
-                        <div className="gauge-number">68%</div>
-                        <div className="card-muted">Meta mensal: 80%</div>
+                        <div
+                            className="gauge"
+                            role="img"
+                            aria-label={`Taxa de conversao de ${conversionLabel}%`}
+                            style={{ '--value': conversionRate } as React.CSSProperties}
+                        />
+                        <div className="gauge-number">{conversionLabel}%</div>
+                        <div className="conversion-detail">
+                            <div className="card-muted">
+                                {conversion.total > 0
+                                    ? `${conversion.paid} pagas de ${conversion.total} tentativas`
+                                    : 'Nenhuma tentativa no periodo'}
+                            </div>
+                            <div className="conversion-live">Atualizacao automatica</div>
+                        </div>
                     </article>
 
                     <article className="dash-card activity-card">
