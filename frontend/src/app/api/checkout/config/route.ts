@@ -9,7 +9,7 @@ export async function GET() {
         ''
     ).trim();
     const publicKey = configuredPublicKey;
-    const hasPublicKey = /^pk_(test|live)_/i.test(publicKey);
+    const hasPublicKey = /^pk_[a-zA-Z0-9_-]{8,}$/.test(publicKey);
     const enabledByEnvironment = process.env.ENABLE_CREDIT_CARD !== 'false';
 
     const response = NextResponse.json({

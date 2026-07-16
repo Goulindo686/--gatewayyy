@@ -34,7 +34,7 @@ function getTokenizationError(payload: PagarmeTokenResponse | null) {
  * Tokeniza o cartao diretamente no Pagar.me. Numero e CVV nunca passam pela API da GouPay.
  */
 export async function tokenizePagarmeCard(publicKey: string, input: CardTokenInput) {
-    if (!/^pk_(test|live)_/i.test(publicKey || '')) {
+    if (!/^pk_[a-zA-Z0-9_-]{8,}$/.test(publicKey || '')) {
         throw new CardTokenizationError('Pagamento por cartao ainda nao foi configurado pelo estabelecimento.');
     }
 
