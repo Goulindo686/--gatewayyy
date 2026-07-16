@@ -31,6 +31,7 @@ type ThreeDSInput = {
 
 type ThreeDSTokenResponse = {
     enabled?: boolean;
+    required?: boolean;
     token?: string;
     library_url?: string;
     reason?: 'disabled' | 'not_configured' | 'provider_unavailable';
@@ -97,11 +98,12 @@ function ensureContainer(id: string, hidden = false) {
     return element;
 }
 
-async function getThreeDSToken(): Promise<ThreeDSTokenResponse | null> {
+async function requestThreeDSData(body: Record<string, unknown>): Promise<ThreeDSTokenResponse | null> {
     try {
         const response = await fetch('/api/checkout/3ds-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
             cache: 'no-store',
         });
         if (!response.ok) return null;
@@ -111,17 +113,36 @@ async function getThreeDSToken(): Promise<ThreeDSTokenResponse | null> {
     }
 }
 
+function getThreeDSConfig() {
+    return requestThreeDSData({ config_only: true });
+}
+
+function getThreeDSToken() {
+    return requestThreeDSData({});
+}
+
+function reportThreeDSError(details: { code: string; status?: number; message: string }) {
+    void fetch('/api/checkout/3ds-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'report',
+            code: details.code,
+            status: details.status,
+            message: details.message,
+            path: window.location.pathname,
+        }),
+        keepalive: true,
+    }).catch(() => null);
+}
+
 async function loadThreeDSScript(libraryUrl: string) {
     if (typeof window === 'undefined') return false;
     if (window.TDS?.init) return true;
 
     const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
     if (existing) {
-        await new Promise<void>((resolve, reject) => {
-            existing.addEventListener('load', () => resolve(), { once: true });
-            existing.addEventListener('error', () => reject(new Error('3DS script failed')), { once: true });
-        }).catch(() => null);
-        return !!window.TDS?.init;
+        existing.remove();
     }
 
     await new Promise<void>((resolve, reject) => {
@@ -163,6 +184,16 @@ function threeDSErrorDetails(error: unknown) {
 
 function hideContainer(element: HTMLElement) {
     element.style.display = 'none';
+}
+
+function wait(milliseconds: number) {
+    return new Promise(resolve => window.setTimeout(resolve, milliseconds));
+}
+
+function isRetryable3DSError(details: { code: string; status?: number; message: string }) {
+    return details.status != null && details.status >= 500
+        || /(INVALID.*JWT|JWT.*INVALID|TOKEN.*EXPIR|TDS_RESPONSE_ERROR|BAD_GATEWAY|SERVICE_UNAVAILABLE|INTERNAL_SERVER_ERROR)/i
+            .test(`${details.code} ${details.message}`);
 }
 
 function buildOrder(input: ThreeDSInput) {
@@ -216,44 +247,80 @@ export async function authenticatePagarme3DS(input: ThreeDSInput) {
     // pelo antifraude normal do Pagar.me, sem serem bloqueadas por esta camada.
     if (!supportsStone3DS(input.card.number)) return null;
 
-    const tokenData = await getThreeDSToken();
-    if (tokenData?.reason === 'disabled') return null;
-    if (!tokenData?.enabled || !tokenData.token || !tokenData.library_url) {
-        throw new CardTokenizationError('Nao foi possivel iniciar a autenticacao segura do cartao. Tente novamente em alguns minutos ou utilize o Pix.');
+    // A biblioteca e carregada antes da emissao do token, que expira rapidamente.
+    // Assim o token e solicitado somente no instante anterior ao TDS.init.
+    const config = await getThreeDSConfig();
+    const required = config?.required === true;
+    if (config?.reason === 'disabled') return null;
+    if (!config?.enabled || !config.library_url) {
+        if (required) {
+            throw new CardTokenizationError('Nao foi possivel iniciar a autenticacao segura do cartao. Tente novamente em alguns minutos ou utilize o Pix.');
+        }
+        return null;
     }
 
-    const loaded = await loadThreeDSScript(tokenData.library_url);
+    const loaded = await loadThreeDSScript(config.library_url);
     if (!loaded || !window.TDS?.init) {
-        throw new CardTokenizationError('Nao foi possivel carregar a autenticacao segura do cartao. Recarregue a pagina e tente novamente.');
+        if (required) {
+            throw new CardTokenizationError('Nao foi possivel carregar a autenticacao segura do cartao. Recarregue a pagina e tente novamente.');
+        }
+        return null;
     }
 
     const methodContainer = ensureContainer('pagarme-3ds-method-container', true);
     const challengeContainer = ensureContainer('pagarme-3ds-challenge-container');
 
-    let response: ThreeDSResult[] | ThreeDSResult;
+    let response: ThreeDSResult[] | ThreeDSResult | null = null;
     try {
-        response = await window.TDS.init({
-            token: tokenData.token,
-            tds_method_container_element: methodContainer,
-            challenge_container_element: challengeContainer,
-            use_default_challenge_iframe_style: true,
-            challenge_window_size: '03',
-        }, buildOrder(input));
-    } catch (error) {
-        const details = threeDSErrorDetails(error);
-        console.error('[3DS] Authentication failed:', details);
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+            const tokenData = await getThreeDSToken();
+            if (!tokenData?.enabled || !tokenData.token) {
+                if (attempt === 0) {
+                    await wait(250);
+                    continue;
+                }
+                if (required) {
+                    throw new CardTokenizationError('Nao foi possivel iniciar a autenticacao segura do cartao. Tente novamente em alguns minutos.');
+                }
+                return null;
+            }
 
-        if (details.code === 'UNAUTHORIZED' || details.code === 'BIN_FRAUD_SUSPECT') {
-            throw new CardTokenizationError('Este cartao nao passou pela autenticacao de seguranca. Utilize outro cartao ou o Pix.');
+            try {
+                response = await window.TDS.init({
+                    token: tokenData.token,
+                    tds_method_container_element: methodContainer,
+                    challenge_container_element: challengeContainer,
+                    use_default_challenge_iframe_style: true,
+                    challenge_window_size: '03',
+                }, buildOrder(input));
+                break;
+            } catch (error) {
+                const details = threeDSErrorDetails(error);
+                reportThreeDSError(details);
+                console.error('[3DS] Authentication failed:', details);
+
+                if (details.code === 'UNAUTHORIZED' || details.code === 'BIN_FRAUD_SUSPECT') {
+                    throw new CardTokenizationError('Este cartao nao passou pela autenticacao de seguranca. Utilize outro cartao ou o Pix.');
+                }
+
+                if (attempt === 0 && isRetryable3DSError(details)) {
+                    await wait(350);
+                    continue;
+                }
+
+                if (required) {
+                    const reference = details.code ? ` Codigo: ${details.code}.` : '';
+                    throw new CardTokenizationError(`Nao foi possivel concluir a autenticacao segura do cartao.${reference} Tente novamente em alguns minutos.`);
+                }
+                return null;
+            }
         }
-        if (details.code === 'SCHEME_NOT_SUPPORTED' || details.code === 'INVALID_PROTOCOL_VERSION') {
-            throw new CardTokenizationError('Este cartao nao e compativel com a autenticacao de seguranca. Utilize outro cartao ou o Pix.');
-        }
-        throw new CardTokenizationError('Nao foi possivel concluir a autenticacao segura do cartao. Tente novamente em alguns minutos.');
     } finally {
         hideContainer(methodContainer);
         hideContainer(challengeContainer);
     }
+
+    if (!response) return null;
 
     const result = Array.isArray(response) ? response[0] : response;
     const status = String(result?.trans_status || result?.transStatus || '').toUpperCase();
@@ -271,9 +338,13 @@ export async function authenticatePagarme3DS(input: ThreeDSInput) {
         return transactionId;
     }
 
-    if (status === 'U') {
+    if (status === 'U' && required) {
         throw new CardTokenizationError('A autenticacao do banco esta indisponivel no momento. Tente novamente em alguns minutos.');
     }
 
-    throw new CardTokenizationError('O banco nao concluiu a autenticacao deste cartao. Tente outro cartao ou utilize o Pix.');
+    if (required) {
+        throw new CardTokenizationError('O banco nao concluiu a autenticacao deste cartao. Tente outro cartao ou utilize o Pix.');
+    }
+
+    return null;
 }

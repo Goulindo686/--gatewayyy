@@ -211,7 +211,7 @@ export class PagarmeService {
             orderData.customer_id = prepared.customerId;
             cardId = prepared.cardId;
 
-            const requiresStone3DS = process.env.ENABLE_CREDIT_CARD_3DS !== 'false'
+            const requiresStone3DS = process.env.REQUIRE_CREDIT_CARD_3DS === 'true'
                 && (prepared.cardBrand === 'visa' || prepared.cardBrand === 'mastercard');
             if (requiresStone3DS && !data.three_ds_transaction_id) {
                 throw new Error('Autenticacao 3DS obrigatoria para este cartao. Recarregue o checkout e tente novamente.');
