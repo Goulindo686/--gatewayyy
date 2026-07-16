@@ -174,7 +174,7 @@ export class PagarmeService {
         amount: number; payment_method: string; customer: CheckoutCustomer;
         card_token?: string; installments?: number;
         seller_recipient_id: string; platform_fee_percentage: number;
-        ip?: string; session_id?: string; device_platform?: string; order_code?: string;
+        ip?: string; session_id?: string; device_platform?: string; order_code?: string; three_ds_transaction_id?: string;
         items?: CheckoutItem[];
     }) {
         const isCreditCard = data.payment_method === 'credit_card' || data.payment_method === 'card';
@@ -270,6 +270,15 @@ export class PagarmeService {
                     installments: finalInstallments,
                     statement_descriptor: PagarmeService.getStatementDescriptor(),
                     card_id: cardId,
+                    ...(data.three_ds_transaction_id ? {
+                        authentication: {
+                            type: 'threed_secure',
+                            threed_secure: {
+                                mpi: 'pagarme',
+                                transaction_id: data.three_ds_transaction_id,
+                            }
+                        }
+                    } : {}),
                 }
             });
         }

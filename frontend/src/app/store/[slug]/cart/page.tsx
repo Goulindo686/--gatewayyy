@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { storeAPI, productsAPI } from '@/lib/api';
 import { isValidCardExpiration } from '@/lib/checkout-validation';
 import { CardTokenizationError, createCheckoutSessionId, getCheckoutDevicePlatform, tokenizePagarmeCard } from '@/lib/pagarme-card';
+import { authenticatePagarme3DS } from '@/lib/pagarme-3ds';
 
 export default function CartPage() {
     const params = useParams();
@@ -153,12 +154,41 @@ export default function CartPage() {
             setLoading(true);
 
             let cardToken: string | undefined;
+            let threeDsTransactionId: string | null = null;
             if (methodToSend === 'credit_card') {
+                const expirationYear = Number(cardExpYear.length === 2 ? `20${cardExpYear}` : cardExpYear);
+                threeDsTransactionId = await authenticatePagarme3DS({
+                    amountCents: Math.round(totalAmount * 100),
+                    customer: {
+                        name,
+                        email,
+                        cpf,
+                        phone,
+                    },
+                    card: {
+                        number: cardNumber,
+                        holderName: cardHolder,
+                        expMonth: Number(cardExpMonth),
+                        expYear: expirationYear,
+                    },
+                    billingAddress: {
+                        line_1: `${number || ''}, ${street || ''}, ${neighborhood || ''}`.trim(),
+                        zip_code: (cep || '').replace(/\D/g, ''),
+                        city,
+                        state: (state || '').toUpperCase(),
+                        country: 'BR',
+                    },
+                    items: items.map(item => ({
+                        description: item.name || 'Produto',
+                        code: item.plan_id || item.id,
+                    })),
+                });
+
                 cardToken = await tokenizePagarmeCard(cardConfig.publicKey, {
                     number: cardNumber,
                     holderName: cardHolder,
                     expMonth: Number(cardExpMonth),
-                    expYear: Number(cardExpYear.length === 2 ? `20${cardExpYear}` : cardExpYear),
+                    expYear: expirationYear,
                     cvv: cardCvv,
                 });
             }
@@ -189,6 +219,7 @@ export default function CartPage() {
                 installments: methodToSend === 'credit_card' ? installments : undefined,
                 checkout_session_id: methodToSend === 'credit_card' ? createCheckoutSessionId() : undefined,
                 device_platform: methodToSend === 'credit_card' ? getCheckoutDevicePlatform() : undefined,
+                three_ds_transaction_id: methodToSend === 'credit_card' ? threeDsTransactionId || undefined : undefined,
                 total: totalAmount
             };
 

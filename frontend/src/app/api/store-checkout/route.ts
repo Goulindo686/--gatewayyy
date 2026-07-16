@@ -193,6 +193,10 @@ export async function POST(req: NextRequest) {
             const sessionId = /^[a-zA-Z0-9-]{8,64}$/.test(requestedSessionId) ? requestedSessionId : uuidv4();
             const requestedPlatform = String(body.device_platform || '').toUpperCase();
             const devicePlatform = /^[A-Z0-9_-]{2,64}$/.test(requestedPlatform) ? requestedPlatform : 'WEB';
+            const requestedThreeDsTransactionId = String(body.three_ds_transaction_id || '');
+            const threeDsTransactionId = /^[a-zA-Z0-9_-]{8,128}$/.test(requestedThreeDsTransactionId)
+                ? requestedThreeDsTransactionId
+                : undefined;
             pagarmeOrder = await PagarmeService.createOrder({
                 amount: totalAmountCents,
                 payment_method: method,
@@ -211,6 +215,7 @@ export async function POST(req: NextRequest) {
                 session_id: sessionId,
                 device_platform: devicePlatform,
                 order_code: checkoutOrderId,
+                three_ds_transaction_id: method === 'credit_card' ? threeDsTransactionId : undefined,
             });
         } catch (pagarmeErr: any) {
             const errorBody = pagarmeErr.response?.data;

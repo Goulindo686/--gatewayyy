@@ -21,6 +21,7 @@ import {
     getCheckoutDevicePlatform,
     tokenizePagarmeCard,
 } from '@/lib/pagarme-card';
+import { authenticatePagarme3DS } from '@/lib/pagarme-3ds';
 
 const DEFAULT_SETTINGS = {
     theme: 'light', // Alterado para light por padrão conforme a imagem
@@ -524,6 +525,34 @@ export default function CheckoutPage() {
             if (methodToSend === 'credit_card') {
                 const rawYear = onlyDigits(form.card_exp_year);
                 const expirationYear = Number(rawYear.length === 2 ? `20${rawYear}` : rawYear);
+                const billingLine = `${form.number || ''}, ${form.street || ''}, ${form.neighborhood || ''}`.trim();
+                const threeDsTransactionId = await authenticatePagarme3DS({
+                    amountCents: Math.round(grandTotal * 100),
+                    customer: {
+                        name: form.name,
+                        email: form.email,
+                        cpf: form.cpf,
+                        phone: form.phone,
+                    },
+                    card: {
+                        number: form.card_number,
+                        holderName: form.card_holder,
+                        expMonth: Number(form.card_exp_month),
+                        expYear: expirationYear,
+                    },
+                    billingAddress: {
+                        line_1: billingLine,
+                        zip_code: form.cep?.replace(/\D/g, ''),
+                        city: form.city,
+                        state: form.state,
+                        country: 'BR',
+                    },
+                    items: [{
+                        description: product?.name || 'Produto',
+                        code: product?.id || String(params.id || 'produto'),
+                    }],
+                });
+                if (threeDsTransactionId) payload.three_ds_transaction_id = threeDsTransactionId;
                 payload.card_token = await tokenizePagarmeCard(cardConfig.publicKey, {
                     number: form.card_number,
                     holderName: form.card_holder,
