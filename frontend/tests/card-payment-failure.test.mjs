@@ -57,6 +57,7 @@ test('classifies gateway/acquirer declines as issuer declines', () => {
             status: 'failed',
             last_transaction: {
                 status: 'not_authorized',
+                acquirer_name: 'stone',
                 acquirer_return_code: '57',
                 gateway_response: { errors: [{ message: 'not authorized' }] },
             },
@@ -65,6 +66,44 @@ test('classifies gateway/acquirer declines as issuer declines', () => {
 
     assert.equal(failure.category, 'issuer_declined');
     assert.match(failure.message, /banco emissor/i);
+});
+
+test('detects an antifraud block reported only inside gateway errors', () => {
+    const failure = classifyCardPaymentFailure({
+        id: 'or_test',
+        status: 'failed',
+        charges: [{
+            id: 'ch_test',
+            status: 'failed',
+            last_transaction: {
+                status: 'not_authorized',
+                gateway_response: {
+                    errors: [{ code: 'ANTIFRAUD_REJECTED', message: 'Blocked by risk analysis' }],
+                },
+            },
+        }],
+    });
+
+    assert.equal(failure.category, 'antifraud_declined');
+    assert.match(failure.message, /analise de seguranca/i);
+});
+
+test('does not blame the issuer without issuer evidence', () => {
+    const failure = classifyCardPaymentFailure({
+        id: 'or_test',
+        status: 'failed',
+        charges: [{
+            id: 'ch_test',
+            status: 'failed',
+            last_transaction: {
+                status: 'not_authorized',
+                acquirer_return_code: '57',
+            },
+        }],
+    });
+
+    assert.equal(failure.category, 'not_authorized');
+    assert.doesNotMatch(failure.message, /banco emissor/i);
 });
 
 test('classifies provider 412 as card verification failure', () => {

@@ -37,6 +37,22 @@ function hasGatewayErrors(errors: unknown) {
     return Array.isArray(errors) ? errors.length > 0 : !!errors;
 }
 
+function providerSignalText(value: unknown, depth = 0): string {
+    if (depth > 3 || value == null) return '';
+    if (typeof value === 'string' || typeof value === 'number') return String(value);
+    if (Array.isArray(value)) {
+        return value.map(item => providerSignalText(item, depth + 1)).filter(Boolean).join(' ');
+    }
+    if (typeof value === 'object') {
+        return Object.entries(value as Record<string, unknown>)
+            .filter(([key]) => /code|message|reason|status|error|type/i.test(key))
+            .map(([, item]) => providerSignalText(item, depth + 1))
+            .filter(Boolean)
+            .join(' ');
+    }
+    return '';
+}
+
 function acquirerMessageLooksApproved(message: string) {
     return /aprovad|approved|authorized|autorizad/i.test(message);
 }
@@ -50,6 +66,14 @@ function antifraudDeclined(status: string, reason: string) {
 function antifraudTechnicalFailure(status: string, reason: string) {
     return /^(failed|error|timeout|unavailable)$/i.test(status)
         || /(timeout|temporar|indispon|unavailable|internal|erro|error|falha tecnica)/i.test(reason);
+}
+
+function providerSignalsAntifraud(value: string) {
+    return /(antifraud|anti[\s_-]*fraud|fraud|fraude|high[\s_-]*risk|alto[\s_-]*risco|risk[\s_-]*analysis|analise[\s_-]*de[\s_-]*risco)/i.test(value);
+}
+
+function providerSignalsIssuer(value: string) {
+    return /(issuer|emissor|issuing[\s_-]*bank|banco[\s_-]*emissor)/i.test(value);
 }
 
 function providerMessageFrom(error: unknown) {
@@ -67,7 +91,9 @@ export function classifyCardProviderRequestError(error: unknown): CardPaymentFai
     const providerMessageLower = providerMessage.toLowerCase();
 
     let category: CardFailureCategory = 'processing_error';
-    if (providerStatus === 412 || /verification failed|verificacao do cartao|validar este cartao|card verification/i.test(providerMessage)) {
+    if (providerSignalsAntifraud(providerMessageLower)) {
+        category = 'antifraud_declined';
+    } else if (providerStatus === 412 || /verification failed|verificacao do cartao|validar este cartao|card verification/i.test(providerMessage)) {
         category = 'card_verification_failed';
     } else if (/token/i.test(providerMessageLower)) {
         category = 'processing_error';
@@ -110,17 +136,31 @@ export function classifyCardPaymentFailure(order: unknown): CardPaymentFailureCl
     const transactionStatus = lower(transaction.status);
     const acquirerMessage = text(transaction.acquirer_message);
     const acquirerCode = text(transaction.acquirer_return_code);
+    const acquirerName = text(transaction.acquirer_name);
+    const statusReason = text(transaction.status_reason || transaction.refuse_reason);
+    const gatewayErrorText = providerSignalText(gatewayErrors).slice(0, 300);
+    const providerSignals = [
+        antifraudStatus,
+        antifraudReason,
+        gatewayErrorText,
+        acquirerMessage,
+        statusReason,
+        providerSignalText(gatewayResponse),
+    ].filter(Boolean).join(' ');
 
     let category: CardFailureCategory = 'not_authorized';
 
-    if (antifraudDeclined(antifraudStatus, antifraudReason)) {
-        category = 'antifraud_declined';
-    } else if (antifraudTechnicalFailure(antifraudStatus, antifraudReason)) {
+    if (antifraudTechnicalFailure(antifraudStatus, antifraudReason)) {
         category = 'processing_error';
-    } else if (transactionStatus === 'not_authorized' || hasGatewayErrors(gatewayErrors) || acquirerCode) {
+    } else if (antifraudDeclined(antifraudStatus, antifraudReason) || providerSignalsAntifraud(providerSignals)) {
+        category = 'antifraud_declined';
+    } else if (providerSignalsIssuer(providerSignals)
+        || (!!acquirerName && !!acquirerCode && acquirerCode !== '00')) {
         category = 'issuer_declined';
     } else if (acquirerMessage) {
         category = acquirerMessageLooksApproved(acquirerMessage) ? 'capture_failed' : 'issuer_declined';
+    } else if (transactionStatus === 'not_authorized') {
+        category = 'not_authorized';
     }
 
     return {
@@ -135,8 +175,11 @@ export function classifyCardPaymentFailure(order: unknown): CardPaymentFailureCl
             antifraud_status: antifraud.status,
             antifraud_reason: antifraud.reason,
             acquirer_code: transaction.acquirer_return_code,
+            acquirer_name: acquirerName,
             acquirer_message: acquirerMessage.slice(0, 160),
             has_gateway_errors: hasGatewayErrors(gatewayErrors),
+            gateway_errors: gatewayErrorText,
+            status_reason: statusReason.slice(0, 160),
             category,
         },
     };

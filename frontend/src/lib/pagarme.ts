@@ -110,7 +110,12 @@ export class PagarmeService {
             throw new Error('O Pagar.me nao retornou um cartao valido para o pedido.');
         }
 
-        return { customerId, cardId, normalized };
+        return {
+            customerId,
+            cardId,
+            cardBrand: String(cardResponse.data?.brand || '').toLowerCase(),
+            normalized,
+        };
     }
 
     static calculatePlatformFeeCents(input: { amountCents: number; paymentMethod: string; feePercentage: number }) {
@@ -193,6 +198,11 @@ export class PagarmeService {
             ip: data.ip,
             session_id: data.session_id,
             device: data.device_platform ? { platform: data.device_platform.slice(0, 64) } : undefined,
+            metadata: {
+                checkout_origin: 'goupay_transparent',
+                delivery_type: 'digital',
+                three_ds_authenticated: data.three_ds_transaction_id ? 'true' : 'false',
+            },
         };
 
         let cardId: string | undefined;
@@ -200,6 +210,21 @@ export class PagarmeService {
             const prepared = await PagarmeService.createCustomerAndCard(data.customer, data.card_token || '');
             orderData.customer_id = prepared.customerId;
             cardId = prepared.cardId;
+
+            const requiresStone3DS = process.env.ENABLE_CREDIT_CARD_3DS !== 'false'
+                && (prepared.cardBrand === 'visa' || prepared.cardBrand === 'mastercard');
+            if (requiresStone3DS && !data.three_ds_transaction_id) {
+                throw new Error('Autenticacao 3DS obrigatoria para este cartao. Recarregue o checkout e tente novamente.');
+            }
+
+            console.log('[PAGARME SERVICE] Card security:', {
+                brand: prepared.cardBrand || 'unknown',
+                three_ds_required: requiresStone3DS,
+                three_ds_authenticated: !!data.three_ds_transaction_id,
+                has_ip: !!data.ip,
+                has_session_id: !!data.session_id,
+                has_device: !!data.device_platform,
+            });
         } else {
             orderData.customer = normalized.customer;
         }

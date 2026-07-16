@@ -23,8 +23,12 @@ export async function POST() {
         ''
     ).trim();
 
-    if (!enabled || !secretKey) {
-        return NextResponse.json({ enabled: false });
+    if (!enabled) {
+        return NextResponse.json({ enabled: false, reason: 'disabled' });
+    }
+
+    if (!secretKey) {
+        return NextResponse.json({ enabled: false, reason: 'not_configured' });
     }
 
     const environment = getEnvironment(secretKey);
@@ -46,7 +50,7 @@ export async function POST() {
                 status: response.status,
                 message: typeof payload?.message === 'string' ? payload.message.slice(0, 200) : undefined,
             });
-            return NextResponse.json({ enabled: false });
+            return NextResponse.json({ enabled: false, reason: 'provider_unavailable' });
         }
 
         return NextResponse.json({
@@ -59,6 +63,6 @@ export async function POST() {
         });
     } catch (error) {
         console.error('[3DS] Token request error:', error);
-        return NextResponse.json({ enabled: false });
+        return NextResponse.json({ enabled: false, reason: 'provider_unavailable' });
     }
 }
