@@ -75,16 +75,7 @@ const notifySale = async (userId, saleData) => {
 
         const amount = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saleData.amount / 100);
         
-        const message = `
-💰 <b>Venda Aprovada!</b>
-
-📦 <b>Produto:</b> ${saleData.product_name}
-💵 <b>Valor:</b> ${amount}
-💳 <b>Método:</b> ${saleData.payment_method}
-👤 <b>Cliente:</b> ${saleData.customer_name}
-
-<i>GouPay Notificações</i>
-`;
+        const message = `<b>Venda Aprovada!</b>\n<b>Valor:</b> ${amount}`;
 
         await sendMessage(user.telegram_chat_id, message);
     } catch (error) {

@@ -7,13 +7,49 @@ import { supabase } from '@/lib/db';
 import { jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { v4 as uuidv4 } from 'uuid';
-import { notifySale } from '@/lib/telegram';
 import { sendPushNotification } from '@/lib/webpush';
 import { sendPurchaseApprovedEmail } from '@/lib/email';
 import { sendFacebookEvent } from '@/lib/facebook-capi';
 import { sendPaidOrderToUtmify } from '@/lib/utmify';
 import { normalizeWebhookUrls, sendWebhookPayload } from '@/lib/webhooks';
 import { CARD_PLATFORM_FEE_PERCENTAGE } from '@/lib/pagarme';
+import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
+
+type SaleNotificationOrder = {
+    id: string;
+    seller_id: string;
+    amount: number;
+    payment_method?: string | null;
+    buyer_name?: string | null;
+    buyer_email?: string | null;
+    product_id?: string | null;
+};
+
+async function notifyApprovedOrder(
+    order: SaleNotificationOrder,
+    knownProduct?: { name?: string | null; image_url?: string | null }
+) {
+    let product = knownProduct;
+    if (!product && order.product_id) {
+        const { data } = await supabase
+            .from('products')
+            .select('name, image_url')
+            .eq('id', order.product_id)
+            .maybeSingle();
+        product = data || undefined;
+    }
+
+    return sendApprovedSaleNotification({
+        orderId: order.id,
+        sellerId: order.seller_id,
+        amountCents: order.amount,
+        paymentMethod: order.payment_method || 'Pagamento',
+        productName: product?.name || 'Venda',
+        customerName: order.buyer_name || order.buyer_email || 'Cliente',
+        imageUrl: product?.image_url,
+        url: '/dashboard',
+    });
+}
 
 function safeEqual(a: string, b: string) {
     const aBuf = Buffer.from(a);
@@ -184,27 +220,18 @@ export async function POST(req: NextRequest) {
                                 .single();
 
                             if (seller) {
-                                const amountFormatted = new Intl.NumberFormat('pt-BR', {
-                                    style: 'currency',
-                                    currency: 'BRL',
-                                }).format(billing.amount / 100);
-
-                                // 1. Notificar Vendedor (Telegram)
-                                await notifySale(seller.id, {
-                                    product_name: billing.description || 'Cobrança Avulsa',
-                                    amount: billing.amount,
-                                    payment_method: 'PIX',
-                                    customer_name: 'Pagamento de Cobrança'
-                                });
-
-                                // 2. Notificar Vendedor (Web Push)
-                                await sendPushNotification(seller.id, {
-                                    title: '💰 Cobrança Recebida!',
-                                    body: `${billing.description || 'Cobrança'} • ${amountFormatted}`,
+                                // Notificar o vendedor no Telegram e Web Push com o mesmo visual.
+                                await sendApprovedSaleNotification({
+                                    orderId: `billing-${billing.id}`,
+                                    sellerId: seller.id,
+                                    amountCents: billing.amount,
+                                    paymentMethod: 'PIX',
+                                    productName: billing.description || 'Cobrança Avulsa',
+                                    customerName: 'Pagamento de Cobrança',
                                     url: '/dashboard/billings',
                                 });
 
-                                // 3. Notificar Admin sobre a taxa (Web Push)
+                                // Notificar Admin sobre a taxa (Web Push)
                                 if (billing.fee_amount > 0) {
                                     const { data: admins } = await supabase
                                         .from('users')
@@ -453,6 +480,11 @@ export async function POST(req: NextRequest) {
             } catch (utmifyErr) {
                 console.error('[UTMIFY] Paid duplicate sync error:', utmifyErr);
             }
+            try {
+                await notifyApprovedOrder(order);
+            } catch (notificationError) {
+                console.error('[WEBHOOK] Paid order notification error:', notificationError);
+            }
             return jsonSuccess({ received: true }); // Already processed
         }
 
@@ -473,6 +505,11 @@ export async function POST(req: NextRequest) {
                     await sendPaidOrderToUtmify(order);
                 } catch (utmifyErr) {
                     console.error('[UTMIFY] Existing fee sync error:', utmifyErr);
+                }
+                try {
+                    await notifyApprovedOrder(order);
+                } catch (notificationError) {
+                    console.error('[WEBHOOK] Existing order notification error:', notificationError);
                 }
                 // Pagamento já foi processado completamente — ignora reenvio
                 console.log('Webhook duplicado ignorado para pedido:', order.id);
@@ -641,36 +678,14 @@ export async function POST(req: NextRequest) {
                 console.error('Error sending Admin Push notification:', adminPushError);
             }
 
-            // Send Telegram Notification
+            // Notificação única e padronizada para PIX, cartão e demais vendas.
             try {
-                const customerName = order.buyer_name || order.buyer_email || 'Cliente';
-                const paymentMethod = order.payment_method || 'PIX';
-                
-                await notifySale(order.seller_id, {
-                    product_name: productName,
-                    amount: order.amount,
-                    payment_method: paymentMethod,
-                    customer_name: customerName,
-                    image_url: productData?.image_url
+                await notifyApprovedOrder(order, {
+                    name: productName,
+                    image_url: productData?.image_url,
                 });
-            } catch (error) {
-                console.error('Error sending Telegram notification:', error);
-            }
-
-            // Send Web Push Notification
-            try {
-                const amountFormatted = new Intl.NumberFormat('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL',
-                }).format(order.amount / 100);
-
-                await sendPushNotification(order.seller_id, {
-                    title: '💰 Venda Aprovada!',
-                    body: `${productName} • ${amountFormatted}`,
-                    url: '/dashboard',
-                });
-            } catch (pushError) {
-                console.error('Error sending Push notification:', pushError);
+            } catch (notificationError) {
+                console.error('Error sending approved sale notification:', notificationError);
             }
 
             // Envia email de compra aprovada para o comprador

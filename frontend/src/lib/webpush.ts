@@ -19,6 +19,7 @@ export interface PushPayload {
     body: string;
     url?: string;
     icon?: string;
+    tag?: string;
 }
 
 /**
@@ -50,12 +51,13 @@ export async function sendPushNotification(userId: string, payload: PushPayload)
                     },
                     notification
                 );
-            } catch (err: any) {
+            } catch (err: unknown) {
+                const pushError = err as { statusCode?: number; message?: string };
                 // 410 Gone = subscription expirada/cancelada pelo usuario — remover
-                if (err.statusCode === 410 || err.statusCode === 404) {
+                if (pushError.statusCode === 410 || pushError.statusCode === 404) {
                     await supabase.from('push_subscriptions').delete().eq('id', sub.id);
                 } else {
-                    console.error('[WebPush] Erro ao enviar para', sub.endpoint, err.message);
+                    console.error('[WebPush] Erro ao enviar para', sub.endpoint, pushError.message || 'erro desconhecido');
                 }
             }
         })

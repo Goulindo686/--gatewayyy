@@ -19,14 +19,15 @@ export async function POST(req: NextRequest) {
 
     try {
         await sendPushNotification(auth.user.id, {
-            title: '💰 Venda Aprovada!',
-            body: `${formatted}`,
+            title: 'Venda Aprovada!',
+            body: `Valor: ${formatted.replace(/\u00a0/g, ' ')}`,
             url: '/dashboard',
             icon: '/favicon.png',
+            tag: `sale-test-${Date.now()}`,
         });
 
         return jsonSuccess({ sent: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error('[Push Test] Erro:', err);
         return jsonError('Erro ao enviar notificacao de teste', 500);
     }

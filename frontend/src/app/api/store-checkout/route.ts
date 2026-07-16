@@ -3,6 +3,7 @@ import { supabase } from '@/lib/db';
 import { CARD_PLATFORM_FEE_PERCENTAGE, PagarmeService } from '@/lib/pagarme';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { normalizeInstallments, validateCreditCardBuyer } from '@/lib/checkout-validation';
+import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -319,6 +320,22 @@ export async function POST(req: NextRequest) {
         if (orderError) {
             console.error('Supabase Order Save Error:', orderError);
             throw orderError;
+        }
+
+        if (order.status === 'paid') {
+            try {
+                await sendApprovedSaleNotification({
+                    orderId: order.id,
+                    sellerId,
+                    amountCents: totalAmountCents,
+                    paymentMethod: method,
+                    productName: validatedCart.length === 1 ? validatedCart[0].name : `${validatedCart.length} produtos`,
+                    customerName: buyer.name,
+                    url: '/dashboard',
+                });
+            } catch (notificationError) {
+                console.error('[STORE CHECKOUT] Approved sale notification error:', notificationError);
+            }
         }
 
         // 6. Return response to frontend (Match backend response style)

@@ -24,13 +24,13 @@ self.addEventListener('push', function (event) {
 
     const title = data.title || 'Venda Aprovada!';
     const options = {
-        body: data.body || 'Voce recebeu uma nova venda.',
+        body: data.body || 'Valor: R$ 0,00',
         icon: data.icon || '/favicon.png',
         badge: '/favicon.png',
         data: { url: data.url || '/dashboard' },
         vibrate: [200, 100, 200],
         requireInteraction: false,
-        tag: 'sale-notification',
+        tag: data.tag || 'sale-notification',
         renotify: true,
     };
 

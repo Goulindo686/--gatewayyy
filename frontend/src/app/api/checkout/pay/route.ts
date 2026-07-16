@@ -9,6 +9,7 @@ import { sendPurchaseApprovedEmail } from '@/lib/email';
 import { sendFacebookEvent } from '@/lib/facebook-capi';
 import { decryptUtmifyToken, sendUtmifyOrderWithLog } from '@/lib/utmify';
 import { normalizeInstallments, validateCreditCardBuyer } from '@/lib/checkout-validation';
+import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -569,6 +570,21 @@ export async function POST(req: NextRequest) {
                 }
             } catch (emailErr: any) {
                 console.error('[EMAIL] Erro ao enviar email de compra:', emailErr?.message);
+            }
+
+            try {
+                await sendApprovedSaleNotification({
+                    orderId,
+                    sellerId: product.user_id,
+                    amountCents: totalCents,
+                    paymentMethod: normalizedPaymentMethod,
+                    productName: product.name,
+                    customerName: buyer.name,
+                    imageUrl: product.image_url,
+                    url: '/dashboard',
+                });
+            } catch (notificationError) {
+                console.error('[CHECKOUT] Approved sale notification error:', notificationError);
             }
         }
 
