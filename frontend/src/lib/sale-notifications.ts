@@ -54,6 +54,9 @@ export async function sendApprovedSaleNotification(input: ApprovedSaleNotificati
             url: input.url || '/dashboard',
             icon: '/favicon.png',
             tag: `sale-${input.orderId}`,
+            type: 'approved_sale',
+            sound: 'sale_chime',
+            timestamp: Date.now(),
         }),
     ]);
 

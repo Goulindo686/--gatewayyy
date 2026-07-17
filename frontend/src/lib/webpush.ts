@@ -20,6 +20,9 @@ export interface PushPayload {
     url?: string;
     icon?: string;
     tag?: string;
+    type?: string;
+    sound?: string;
+    timestamp?: number;
 }
 
 /**
@@ -49,7 +52,11 @@ export async function sendPushNotification(userId: string, payload: PushPayload)
                         endpoint: sub.endpoint,
                         keys: { p256dh: sub.p256dh, auth: sub.auth },
                     },
-                    notification
+                    notification,
+                    {
+                        TTL: 60 * 60,
+                        urgency: payload.type === 'approved_sale' ? 'high' : 'normal',
+                    }
                 );
             } catch (err: unknown) {
                 const pushError = err as { statusCode?: number; message?: string };

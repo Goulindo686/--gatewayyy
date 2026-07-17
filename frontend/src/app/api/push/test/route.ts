@@ -24,6 +24,9 @@ export async function POST(req: NextRequest) {
             url: '/dashboard',
             icon: '/favicon.png',
             tag: `sale-test-${Date.now()}`,
+            type: 'approved_sale',
+            sound: 'sale_chime',
+            timestamp: Date.now(),
         });
 
         return jsonSuccess({ sent: true });

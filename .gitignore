@@ -43,3 +43,11 @@ NUL
 # Misc
 *.log
 *.tsbuildinfo
+
+# Android / Play Store builds
+.android-build-tools/
+android-goupay/
+*.jks
+*.keystore
+*.aab
+*.apk
