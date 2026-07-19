@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { adminAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -217,7 +218,7 @@ export default function AdminSellersPage() {
                 )}
             </div>
 
-            {feeSeller && (
+            {feeSeller && createPortal(
                 <div
                     role="dialog"
                     aria-modal="true"
@@ -291,7 +292,8 @@ export default function AdminSellersPage() {
                             </button>
                         </div>
                     </form>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
