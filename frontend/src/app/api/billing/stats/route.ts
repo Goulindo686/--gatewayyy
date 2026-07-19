@@ -29,19 +29,43 @@ export async function GET(req: NextRequest) {
             total_net: billings.filter(b => b.status === 'paid').reduce((sum, b) => sum + b.net_amount, 0)
         };
 
+        let defaultFeeCents = auth.user.role === 'admin' ? 0 : 200;
+        const { data: platformSettings } = await supabase
+            .from('platform_settings')
+            .select('fee_percentage')
+            .limit(1)
+            .maybeSingle();
+        if (platformSettings?.fee_percentage !== undefined && Number(platformSettings.fee_percentage) <= 0) {
+            defaultFeeCents = 0;
+        }
+        const { data: pixFeeSetting } = auth.user.role === 'admin'
+            ? { data: null }
+            : await supabase
+                .from('seller_pix_fee_settings')
+                .select('fee_type, fixed_fee_cents, percentage')
+                .eq('seller_id', userId)
+                .maybeSingle();
+
         return jsonSuccess({
             stats: {
                 ...stats,
                 total_amount_display: (stats.total_amount / 100).toFixed(2),
                 total_paid_display: (stats.total_paid / 100).toFixed(2),
                 total_fees_display: (stats.total_fees / 100).toFixed(2),
-                total_net_display: (stats.total_net / 100).toFixed(2)
+                total_net_display: (stats.total_net / 100).toFixed(2),
+                pix_fee: pixFeeSetting || {
+                    fee_type: defaultFeeCents > 0 ? 'default' : 'exempt',
+                    fixed_fee_cents: null,
+                    percentage: null,
+                    default_fee_cents: defaultFeeCents,
+                },
             }
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const details = error as { code?: string; message?: string };
         console.error('[BILLING STATS] Error:', error);
         // If table doesn't exist yet or other Postgres error
-        if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
+        if (details.code === 'PGRST116' || details.message?.includes('does not exist')) {
              return jsonSuccess({
                 stats: {
                     total_billings: 0,
@@ -56,10 +80,11 @@ export async function GET(req: NextRequest) {
                     total_amount_display: "0.00",
                     total_paid_display: "0.00",
                     total_fees_display: "0.00",
-                    total_net_display: "0.00"
+                    total_net_display: "0.00",
+                    pix_fee: { fee_type: 'default', fixed_fee_cents: null, percentage: null, default_fee_cents: 200 }
                 }
             });
         }
-        return jsonError(error.message, 500);
+        return jsonError(details.message || 'Erro ao carregar estatísticas', 500);
     }
 }

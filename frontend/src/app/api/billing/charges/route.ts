@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { PagarmeService } from '@/lib/pagarme';
+import { resolveSellerPixFee } from '@/lib/seller-pix-fee';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(req: NextRequest) {
@@ -118,10 +119,15 @@ export async function POST(req: NextRequest) {
             feePercentage = 0;
         }
 
-        // Calculate flat fee amounts for DB record
-        const PLATFORM_FLAT_FEE = 200; // R$2,00
-        const applyFee = feePercentage > 0;
-        const platformFeeAmount = applyFee ? Math.min(PLATFORM_FLAT_FEE, amountCents) : 0;
+        // A tarifa do Pagar.me continua sendo cobrada pelo proprio split. Este
+        // valor representa somente a taxa configuravel da plataforma.
+        const platformFeeAmount = user.role === 'admin'
+            ? 0
+            : (await resolveSellerPixFee({
+                sellerId: userId,
+                amountCents,
+                defaultFeeCents: feePercentage > 0 ? 200 : 0,
+            })).amountCents;
         const sellerAmount = amountCents - platformFeeAmount;
 
         // Use real customer data if provided, otherwise fallback to seller's data
@@ -145,7 +151,8 @@ export async function POST(req: NextRequest) {
                     phone: user.phone?.replace(/\D/g, '') || '11999999999'
                 },
                 seller_recipient_id: recipient.pagarme_recipient_id,
-                platform_fee_percentage: feePercentage
+                platform_fee_percentage: feePercentage,
+                platform_fee_amount: user.role === 'admin' ? undefined : platformFeeAmount,
             });
         } catch (pagarmeErr: any) {
             console.error('[BILLING] Pagar.me API Error:', pagarmeErr.response?.data || pagarmeErr.message);

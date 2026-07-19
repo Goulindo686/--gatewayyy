@@ -163,6 +163,7 @@ class CheckoutController {
                 buyer_cpf: buyer.cpf,
                 buyer_phone: buyer.phone,
                 amount: totalAmountCents,
+                platform_fee_amount: pagarmeOrder._platformFeeAmount,
                 payment_method,
                 status: charge?.status === 'paid' ? 'paid' : 'pending',
                 pagarme_order_id: pagarmeOrder.id,
@@ -241,16 +242,16 @@ class CheckoutController {
     }
 
     async _createTransactionRecords(order, product, feePercentage) {
-        // Taxa da plataforma:
-        //   PIX    → R$2,00 fixo + 1,09%
-        //   Cartão → 2% sobre o total
-        let feeAmount;
-        if (order.payment_method === 'credit_card') {
-            feeAmount = Math.round(order.amount * 0.02);
-        } else {
-            const percentFee = Math.round(order.amount * 0.0109);
-            feeAmount = Math.min(200 + percentFee, order.amount);
-        }
+        const hasStoredFee = order.platform_fee_amount !== null
+            && order.platform_fee_amount !== undefined
+            && Number.isFinite(Number(order.platform_fee_amount));
+        const feeAmount = hasStoredFee
+            ? Math.min(order.amount, Math.max(0, Math.round(Number(order.platform_fee_amount))))
+            : feePercentage > 0
+                ? (order.payment_method === 'credit_card'
+                    ? Math.round(order.amount * 0.02)
+                    : Math.min(200, order.amount))
+                : 0;
         const sellerAmount = order.amount - feeAmount;
 
         // Seller transaction
@@ -270,7 +271,7 @@ class CheckoutController {
                 type: 'fee',
                 amount: feeAmount,
                 status: 'confirmed',
-                description: `Taxa plataforma: R$1,50 fixo`
+                description: `Taxa plataforma: R$${(feeAmount / 100).toFixed(2)}`
             });
             await supabase.from('platform_fees').insert({
                 order_id: order.id,
@@ -382,6 +383,7 @@ class CheckoutController {
                 buyer_cpf: buyer.cpf || '00000000000',
                 buyer_phone: buyer.phone || '11999999999',
                 amount: totalAmountCents,
+                platform_fee_amount: pagarmeOrder._platformFeeAmount,
                 payment_method,
                 status: charge?.status === 'paid' ? 'paid' : 'pending',
                 pagarme_order_id: pagarmeOrder.id,

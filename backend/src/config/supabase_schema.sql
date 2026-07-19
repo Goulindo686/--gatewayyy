@@ -138,6 +138,25 @@ CREATE TABLE IF NOT EXISTS platform_settings (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Individual PIX platform fee override per seller.
+-- No row means the seller keeps using the global platform fee.
+CREATE TABLE IF NOT EXISTS seller_pix_fee_settings (
+  seller_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  fee_type VARCHAR(20) NOT NULL CHECK (fee_type IN ('exempt', 'fixed', 'percentage')),
+  fixed_fee_cents INTEGER,
+  percentage NUMERIC(7,4),
+  updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT seller_pix_fee_value_check CHECK (
+    (fee_type = 'exempt' AND fixed_fee_cents IS NULL AND percentage IS NULL)
+    OR (fee_type = 'fixed' AND fixed_fee_cents IS NOT NULL AND fixed_fee_cents > 0 AND percentage IS NULL)
+    OR (fee_type = 'percentage' AND percentage IS NOT NULL AND percentage > 0 AND percentage <= 100 AND fixed_fee_cents IS NULL)
+  )
+);
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS platform_fee_amount INTEGER;
+
 -- Insert default platform settings
 INSERT INTO platform_settings (fee_percentage, platform_name) 
 VALUES (2.00, 'PayGateway')
@@ -160,6 +179,7 @@ ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE withdrawals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE platform_fees ENABLE ROW LEVEL SECURITY;
 ALTER TABLE platform_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_pix_fee_settings ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users view own data"
 ON users FOR SELECT
@@ -223,6 +243,17 @@ USING (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin
 
 CREATE POLICY "Platform settings admin manage"
 ON platform_settings FOR ALL
+TO authenticated
+USING (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin'))
+WITH CHECK (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin'));
+
+CREATE POLICY "Seller pix fees admin read"
+ON seller_pix_fee_settings FOR SELECT
+TO authenticated
+USING (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin'));
+
+CREATE POLICY "Seller pix fees admin manage"
+ON seller_pix_fee_settings FOR ALL
 TO authenticated
 USING (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin'))
 WITH CHECK (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin'));

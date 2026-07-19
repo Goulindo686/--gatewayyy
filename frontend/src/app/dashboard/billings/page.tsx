@@ -34,6 +34,19 @@ interface Stats {
     total_paid_display: string;
     total_fees_display: string;
     total_net_display: string;
+    pix_fee: {
+        fee_type: 'default' | 'exempt' | 'fixed' | 'percentage';
+        fixed_fee_cents: number | null;
+        percentage: number | null;
+        default_fee_cents?: number;
+    };
+}
+
+function calculatePixPlatformFee(amountReais: number, fee?: Stats['pix_fee']) {
+    if (!fee || fee.fee_type === 'default') return Math.min(amountReais, Number(fee?.default_fee_cents ?? 200) / 100);
+    if (fee.fee_type === 'exempt') return 0;
+    if (fee.fee_type === 'fixed') return Math.min(amountReais, Number(fee.fixed_fee_cents || 0) / 100);
+    return Math.min(amountReais, amountReais * Number(fee.percentage || 0) / 100);
 }
 
 export default function BillingsPage() {
@@ -366,6 +379,9 @@ export default function BillingsPage() {
         );
     }
 
+    const previewAmount = Math.max(0, Number(amount) || 0);
+    const previewPlatformFee = calculatePixPlatformFee(previewAmount, stats?.pix_fee);
+
     return (
         <div style={{ maxWidth: 1400, margin: '0 auto' }}>
             {/* Header */}
@@ -663,12 +679,12 @@ export default function BillingsPage() {
                                         fontSize: 13,
                                     }}>
                                         <span style={{ color: 'var(--text-secondary)' }}>
-                                            Taxa: <span style={{ color: 'var(--danger)', fontWeight: 600 }}>− R$ 2,00</span>
+                                            Taxa GouPay: <span style={{ color: 'var(--danger)', fontWeight: 600 }}>− R$ {previewPlatformFee.toFixed(2).replace('.', ',')}</span>
                                         </span>
                                         <span style={{ color: 'var(--text-secondary)' }}>
                                             Você recebe:{' '}
                                             <span style={{ color: 'var(--success)', fontWeight: 700 }}>
-                                                R$ {Math.max(0, parseFloat(amount) - 2).toFixed(2).replace('.', ',')}
+                                                R$ {Math.max(0, previewAmount - previewPlatformFee).toFixed(2).replace('.', ',')}
                                             </span>
                                         </span>
                                     </div>

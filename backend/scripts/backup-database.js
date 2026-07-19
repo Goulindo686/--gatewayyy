@@ -35,6 +35,7 @@ const TABLES_TO_BACKUP = [
     'recipients',
     'platform_fees',
     'platform_settings',
+    'seller_pix_fee_settings',
     'enrollments',
     'product_plans',
     'subscriptions'

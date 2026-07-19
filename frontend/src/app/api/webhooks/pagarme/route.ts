@@ -544,11 +544,16 @@ export async function POST(req: NextRequest) {
                 }
                 sellerDisplayName = sellerUser?.name || sellerUser?.email || null;
             } catch {}
-            const feeAmount = feePercentage > 0
-                ? (isCardPayment
-                    ? Math.min(order.amount, Math.round(order.amount * (feePercentage / 100)))
-                    : Math.min(200, order.amount))
-                : 0;
+            const hasStoredFee = order.platform_fee_amount !== null
+                && order.platform_fee_amount !== undefined
+                && Number.isFinite(Number(order.platform_fee_amount));
+            const feeAmount = hasStoredFee
+                ? Math.min(order.amount, Math.max(0, Math.round(Number(order.platform_fee_amount))))
+                : feePercentage > 0
+                    ? (isCardPayment
+                        ? Math.min(order.amount, Math.round(order.amount * (feePercentage / 100)))
+                        : Math.min(200, order.amount))
+                    : 0;
 
             // Update original 'sale' or 'api_sale' transaction to confirmed
             await supabase.from('transactions')
@@ -559,7 +564,7 @@ export async function POST(req: NextRequest) {
             if (feeAmount > 0) {
                 const feeLabel = isCardPayment
                     ? `${CARD_PLATFORM_FEE_PERCENTAGE}% (cartão)`
-                    : 'R$ 2,00 (PIX)';
+                    : `R$ ${(feeAmount / 100).toFixed(2).replace('.', ',')} (PIX)`;
                 await supabase.from('transactions').insert({
                     user_id: order.seller_id,
                     order_id: order.id,

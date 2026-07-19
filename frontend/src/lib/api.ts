@@ -96,6 +96,8 @@ export const adminAPI = {
     listSellers: (params?: any) => api.get('/admin/sellers', { params }),
     listAdmins: (params?: any) => api.get('/admin/admins', { params }),
     toggleBlock: (id: string, blocked: boolean) => api.put(`/admin/sellers/${id}/block`, { blocked }),
+    updateSellerPixFee: (id: string, data: { mode: 'default' | 'exempt' | 'fixed' | 'percentage'; value?: number }) =>
+        api.put(`/admin/sellers/${id}/pix-fee`, data),
     impersonate: (id: string, reason: string) => api.post(`/admin/sellers/${id}/impersonate`, { reason }),
     listTransactions: (params?: any) => api.get('/admin/transactions', { params }),
     getSettings: () => api.get('/admin/settings'),

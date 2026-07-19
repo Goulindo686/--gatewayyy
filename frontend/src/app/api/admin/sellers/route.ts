@@ -5,6 +5,14 @@ import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
+type SellerFeeSetting = {
+    seller_id: string;
+    fee_type: 'exempt' | 'fixed' | 'percentage';
+    fixed_fee_cents: number | null;
+    percentage: number | null;
+    updated_at: string;
+};
+
 export async function GET(req: NextRequest) {
     const auth = await getAuthUser(req);
     if (!auth || auth.user.role !== 'admin') return jsonError('Não autorizado', 403);
@@ -28,7 +36,24 @@ export async function GET(req: NextRequest) {
         query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
     }
 
-    const { data: sellers } = await query;
+    const { data: sellers, error: sellersError } = await query;
+    if (sellersError) return jsonError('Erro ao listar vendedores', 500);
 
-    return jsonSuccess({ sellers: sellers || [] });
+    const sellerIds = (sellers || []).map(seller => seller.id);
+    let feeSettings: SellerFeeSetting[] = [];
+    if (sellerIds.length > 0) {
+        const { data } = await supabase
+            .from('seller_pix_fee_settings')
+            .select('seller_id, fee_type, fixed_fee_cents, percentage, updated_at')
+            .in('seller_id', sellerIds);
+        feeSettings = (data || []) as SellerFeeSetting[];
+    }
+
+    const feeBySeller = new Map(feeSettings.map(setting => [setting.seller_id, setting]));
+    const sellersWithPixFee = (sellers || []).map(seller => ({
+        ...seller,
+        pix_fee: feeBySeller.get(seller.id) || null,
+    }));
+
+    return jsonSuccess({ sellers: sellersWithPixFee });
 }

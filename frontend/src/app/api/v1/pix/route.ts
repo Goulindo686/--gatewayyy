@@ -3,6 +3,7 @@ import { supabase } from '@/lib/db';
 import { PagarmeService } from '@/lib/pagarme';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { v4 as uuidv4 } from 'uuid';
+import { resolveSellerPixFee } from '@/lib/seller-pix-fee';
 
 // CORS restrito às origens configuradas (ou qualquer origem se não configurado)
 const allowedOrigin = process.env.API_ALLOWED_ORIGIN || '*';
@@ -104,6 +105,13 @@ export async function POST(req: NextRequest) {
         if (userRow.role === 'admin') {
             feePercentage = 0;
         }
+        const platformFeeAmount = userRow.role === 'admin'
+            ? 0
+            : (await resolveSellerPixFee({
+                sellerId: userId,
+                amountCents: amount,
+                defaultFeeCents: feePercentage > 0 ? 200 : 0,
+            })).amountCents;
 
         // 6. Create Transaction on Pagar.me
         const orderData = {
@@ -116,7 +124,8 @@ export async function POST(req: NextRequest) {
                 phone: customer.phone // PagarmeService uses .phone string
             },
             seller_recipient_id: recipient.pagarme_recipient_id,
-            platform_fee_percentage: feePercentage
+            platform_fee_percentage: feePercentage,
+            platform_fee_amount: userRow.role === 'admin' ? undefined : platformFeeAmount,
         };
 
         const pagarmeOrder = await PagarmeService.createOrder(orderData);
@@ -197,6 +206,7 @@ export async function POST(req: NextRequest) {
             buyer_cpf: customer.cpf,
             buyer_phone: customer.phone,
             amount: amount,
+            platform_fee_amount: platformFeeAmount,
             payment_method: 'pix',
             status: 'pending',
             pagarme_order_id: pagarmeOrder.id,

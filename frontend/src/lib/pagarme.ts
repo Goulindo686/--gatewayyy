@@ -179,6 +179,7 @@ export class PagarmeService {
         amount: number; payment_method: string; customer: CheckoutCustomer;
         card_token?: string; installments?: number;
         seller_recipient_id: string; platform_fee_percentage: number;
+        platform_fee_amount?: number;
         ip?: string; session_id?: string; device_platform?: string; order_code?: string; three_ds_transaction_id?: string;
         items?: CheckoutItem[];
     }) {
@@ -233,6 +234,7 @@ export class PagarmeService {
         const sellId = (data.seller_recipient_id || '').trim();
         const requestedFeePercentage = data.platform_fee_percentage || 0;
         const applyFee = requestedFeePercentage > 0;
+        const hasExplicitPixFee = !isCreditCard && data.platform_fee_amount !== undefined;
         const effectiveFeePercentage = isCreditCard && applyFee
             ? CARD_PLATFORM_FEE_PERCENTAGE
             : requestedFeePercentage;
@@ -241,13 +243,18 @@ export class PagarmeService {
             throw new Error('Configuracao de split do cartao incompleta. Verifique os recipients da plataforma e do vendedor.');
         }
 
-        const platformFeeAmount = applyFee
-            ? PagarmeService.calculatePlatformFeeCents({
+        const platformFeeAmount = hasExplicitPixFee
+            ? Math.min(data.amount, Math.max(0, Math.round(Number(data.platform_fee_amount) || 0)))
+            : applyFee
+                ? PagarmeService.calculatePlatformFeeCents({
                 amountCents: data.amount,
                 paymentMethod: data.payment_method,
                 feePercentage: effectiveFeePercentage
-            })
-            : 0;
+                })
+                : 0;
+        if (platformFeeAmount > 0 && (!platId || !sellId || platId.toLowerCase() === sellId.toLowerCase())) {
+            throw new Error('Configuracao de split incompleta. Verifique os recipients da plataforma e do vendedor.');
+        }
         const sellerAmount = data.amount - platformFeeAmount;
 
         console.log('[PAGARME SERVICE] Split Config:', {
@@ -256,22 +263,24 @@ export class PagarmeService {
         });
 
         const hasSellerRecipient = !!sellId;
-        const includePlatformFee = !!(applyFee && platId && platId.toLowerCase() !== sellId.toLowerCase() && platformFeeAmount > 0);
+        const includePlatformFee = !!(platId && platId.toLowerCase() !== sellId.toLowerCase() && platformFeeAmount > 0);
 
-        // Se não há split (admin sem taxa), não envia splitRules para o Pagar.me
-        const splitRules = hasSellerRecipient && includePlatformFee ? [
+        // Uma isenção individual ainda envia o vendedor como recebedor. Assim,
+        // charge_processing_fee continua true e a tarifa do Pagar.me permanece
+        // sob responsabilidade dele, mesmo quando a taxa da plataforma é zero.
+        const splitRules = hasSellerRecipient && (includePlatformFee || hasExplicitPixFee) ? [
             {
                 amount: sellerAmount,
                 recipient_id: sellId,
                 type: 'flat',
                 options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true }
             },
-            {
+            ...(includePlatformFee ? [{
                 amount: platformFeeAmount,
                 recipient_id: platId,
                 type: 'flat',
                 options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false }
-            }
+            }] : [])
         ] : undefined;
 
         if (data.payment_method === 'pix') {

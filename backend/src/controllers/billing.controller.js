@@ -2,6 +2,7 @@ const { supabase } = require('../config/database');
 const pagarmeService = require('../services/pagarme.service');
 const { pagarmeApi } = require('../config/pagarme');
 const { v4: uuidv4 } = require('uuid');
+const { resolveSellerPixFee } = require('../services/seller-pix-fee.service');
 
 class BillingController {
     /**
@@ -57,16 +58,15 @@ class BillingController {
 
             const platformRecipientId = settings?.platform_recipient_id || process.env.PLATFORM_RECIPIENT_ID;
             
-            // Taxa da plataforma: R$2,00 fixo + 1,09% sobre o total
-            const PLATFORM_FLAT_FEE = 200; // R$2,00
-            const PLATFORM_PERCENT = 0.0109;
-
             let platformFeeAmount = 0;
             let sellerAmount = amountCents;
 
             if (user.role !== 'admin') {
-                const percentFee = Math.round(amountCents * PLATFORM_PERCENT);
-                platformFeeAmount = Math.min(PLATFORM_FLAT_FEE + percentFee, amountCents);
+                platformFeeAmount = await resolveSellerPixFee({
+                    sellerId: userId,
+                    amountCents,
+                    defaultFeeCents: settings?.fee_percentage === undefined || Number(settings.fee_percentage) > 0 ? 200 : 0
+                });
                 sellerAmount = amountCents - platformFeeAmount;
             }
 

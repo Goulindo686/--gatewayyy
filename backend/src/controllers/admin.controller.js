@@ -1,4 +1,4 @@
-const { supabase } = require('../config/database');
+const { supabase, adminSupabase } = require('../config/database');
 const jwt = require('jsonwebtoken');
 
 class AdminController {
@@ -83,8 +83,21 @@ class AdminController {
             const { data, count, error } = await query;
             if (error) throw error;
 
+            let feeSettings = [];
+            if (data?.length) {
+                const { data: settings } = await adminSupabase
+                    .from('seller_pix_fee_settings')
+                    .select('seller_id, fee_type, fixed_fee_cents, percentage, updated_at')
+                    .in('seller_id', data.map(seller => seller.id));
+                feeSettings = settings || [];
+            }
+            const feeBySeller = new Map(feeSettings.map(setting => [setting.seller_id, setting]));
+
             res.json({
-                sellers: data,
+                sellers: data?.map(seller => ({
+                    ...seller,
+                    pix_fee: feeBySeller.get(seller.id) || null
+                })) || [],
                 total: count,
                 page: parseInt(page),
                 totalPages: Math.ceil(count / limit)
@@ -118,6 +131,73 @@ class AdminController {
                 message: blocked ? 'Vendedor bloqueado.' : 'Vendedor desbloqueado.'
             });
         } catch (error) {
+            next(error);
+        }
+    }
+
+    async updateSellerPixFee(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { mode, value } = req.body;
+            const validModes = ['default', 'exempt', 'fixed', 'percentage'];
+            if (!validModes.includes(mode)) {
+                return res.status(400).json({ error: 'Tipo de taxa Pix inválido.' });
+            }
+
+            const { data: seller, error: sellerError } = await supabase
+                .from('users')
+                .select('id, name')
+                .eq('id', id)
+                .eq('role', 'seller')
+                .single();
+            if (sellerError || !seller) {
+                return res.status(404).json({ error: 'Vendedor não encontrado.' });
+            }
+
+            if (mode === 'default') {
+                const { error } = await adminSupabase
+                    .from('seller_pix_fee_settings')
+                    .delete()
+                    .eq('seller_id', id);
+                if (error) throw error;
+                return res.json({
+                    message: `${seller.name} voltou a usar a taxa Pix padrão do site.`,
+                    pix_fee: null
+                });
+            }
+
+            const numericValue = Number(value);
+            if (mode === 'fixed' && (!Number.isFinite(numericValue) || numericValue <= 0 || numericValue > 1000000)) {
+                return res.status(400).json({ error: 'A taxa fixa deve ser maior que R$ 0,00 e menor ou igual a R$ 1.000.000,00.' });
+            }
+            if (mode === 'percentage' && (!Number.isFinite(numericValue) || numericValue <= 0 || numericValue > 100)) {
+                return res.status(400).json({ error: 'A taxa percentual deve ser maior que 0% e menor ou igual a 100%.' });
+            }
+
+            const { data, error } = await adminSupabase
+                .from('seller_pix_fee_settings')
+                .upsert({
+                    seller_id: id,
+                    fee_type: mode,
+                    fixed_fee_cents: mode === 'fixed' ? Math.round(numericValue * 100) : null,
+                    percentage: mode === 'percentage' ? numericValue : null,
+                    updated_by: req.user.id,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'seller_id' })
+                .select('seller_id, fee_type, fixed_fee_cents, percentage, updated_at')
+                .single();
+            if (error) throw error;
+
+            res.json({
+                message: mode === 'exempt'
+                    ? `${seller.name} ficou isento da taxa da plataforma no Pix.`
+                    : `Taxa Pix individual de ${seller.name} atualizada.`,
+                pix_fee: data
+            });
+        } catch (error) {
+            if (String(error?.message || '').includes('seller_pix_fee_settings')) {
+                return res.status(503).json({ error: 'A migração de taxas Pix individuais ainda não foi aplicada no banco.' });
+            }
             next(error);
         }
     }

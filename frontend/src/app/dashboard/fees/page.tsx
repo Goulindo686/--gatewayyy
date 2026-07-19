@@ -1,8 +1,33 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { FiZap, FiCreditCard } from 'react-icons/fi';
+import { billingAPI } from '@/lib/api';
+
+type PixFeeDisplay = {
+    fee_type: 'default' | 'exempt' | 'fixed' | 'percentage';
+    fixed_fee_cents: number | null;
+    percentage: number | null;
+    default_fee_cents?: number;
+};
 
 export default function FeesPage() {
+    const [pixFee, setPixFee] = useState<PixFeeDisplay | null>(null);
+
+    useEffect(() => {
+        billingAPI.getStats()
+            .then(({ data }) => setPixFee(data?.stats?.pix_fee || null))
+            .catch(() => setPixFee(null));
+    }, []);
+
+    const platformPixLabel = !pixFee || pixFee.fee_type === 'default'
+        ? `R$ ${(Number(pixFee?.default_fee_cents ?? 200) / 100).toFixed(2).replace('.', ',')}`
+        : pixFee.fee_type === 'exempt'
+            ? 'Isento GouPay'
+            : pixFee.fee_type === 'fixed'
+                ? `R$ ${(Number(pixFee.fixed_fee_cents || 0) / 100).toFixed(2).replace('.', ',')}`
+                : `${Number(pixFee.percentage || 0).toLocaleString('pt-BR')}%`;
+
     return (
         <div className="animate-fade-in">
             <div style={{ marginBottom: 32 }}>
@@ -35,7 +60,7 @@ export default function FeesPage() {
                             <tr>
                                 <td style={{ padding: '16px 0', fontWeight: 600 }}>À vista</td>
                                 <td style={{ padding: '16px 0', textAlign: 'right', fontWeight: 800, fontSize: 16, color: '#00cec9' }}>
-                                    R$ 2,00 + 1,09%
+                                    {platformPixLabel} + 1,09%
                                 </td>
                             </tr>
                         </tbody>

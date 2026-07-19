@@ -1,4 +1,5 @@
 const { supabase } = require('../config/database');
+const { resolveSellerPixFee } = require('../services/seller-pix-fee.service');
 const FacebookService = require('../services/facebook.service');
 const TelegramService = require('../services/telegram.service');
 
@@ -129,8 +130,23 @@ class WebhookController {
             .select('fee_percentage')
             .single();
 
-        const feePercentage = settings?.fee_percentage || 15;
-        const feeAmount = Math.min(150, order.amount); // Taxa fixa R$1,50
+        const { data: sellerUser } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', order.seller_id)
+            .single();
+        const hasStoredFee = order.platform_fee_amount !== null
+            && order.platform_fee_amount !== undefined
+            && Number.isFinite(Number(order.platform_fee_amount));
+        const feeAmount = hasStoredFee
+            ? Math.min(order.amount, Math.max(0, Math.round(Number(order.platform_fee_amount))))
+            : sellerUser?.role === 'admin'
+                ? 0
+                : await resolveSellerPixFee({
+                    sellerId: order.seller_id,
+                    amountCents: order.amount,
+                    defaultFeeCents: settings?.fee_percentage === undefined || Number(settings.fee_percentage) > 0 ? 200 : 0
+                });
         const sellerAmount = order.amount - feeAmount;
 
         // Create transaction records
@@ -143,20 +159,22 @@ class WebhookController {
             description: `Venda: ${order.products?.name || 'Produto'}`
         });
 
-        await supabase.from('transactions').insert({
-            order_id: order.id,
-            user_id: order.seller_id,
-            type: 'fee',
-            amount: feeAmount,
-            status: 'confirmed',
-            description: `Taxa plataforma: R$1,50 fixo`
-        });
+        if (feeAmount > 0) {
+            await supabase.from('transactions').insert({
+                order_id: order.id,
+                user_id: order.seller_id,
+                type: 'fee',
+                amount: feeAmount,
+                status: 'confirmed',
+                description: `Taxa plataforma: R$${(feeAmount / 100).toFixed(2)}`
+            });
 
-        await supabase.from('platform_fees').insert({
-            order_id: order.id,
-            amount: feeAmount,
-            percentage: 0
-        });
+            await supabase.from('platform_fees').insert({
+                order_id: order.id,
+                amount: feeAmount,
+                percentage: 0
+            });
+        }
 
         // Update product sales count
         if (order.product_id) {
@@ -348,7 +366,7 @@ class WebhookController {
                 type: 'fee',
                 amount: billing.fee_amount,
                 status: 'confirmed',
-                description: `Taxa plataforma: R$1,50 fixo`
+                description: `Taxa plataforma: R$${(billing.fee_amount / 100).toFixed(2)}`
             });
         }
 

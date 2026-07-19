@@ -1,5 +1,6 @@
 const { pagarmeApi } = require('../config/pagarme');
 const { supabase } = require('../config/database');
+const { resolveSellerPixFee } = require('./seller-pix-fee.service');
 
 class PagarmeService {
     /**
@@ -46,7 +47,7 @@ class PagarmeService {
      * Create an order with multiple items and split rules (Cart)
      * Prices are ALWAYS fetched from DB, never trusted from client
      */
-    async createMultiItemOrder({ items, buyer, paymentMethod, cardData, sellerId, platformRecipientId, sellerRecipientId, feePercentage }) {
+    async createMultiItemOrder({ items, buyer, paymentMethod, cardData, sellerId, platformRecipientId, sellerRecipientId, feePercentage, platformFeeAmount: explicitPlatformFeeAmount }) {
         try {
             // SECURITY: Fetch real prices from DB — never trust client-side prices
             const productIds = items.map(item => item.id);
@@ -62,10 +63,6 @@ class PagarmeService {
 
             const productMap = Object.fromEntries(dbProducts.map(p => [p.id, p]));
 
-            // Taxa da plataforma: R$2,00 fixo + 1,09% sobre o total
-            const PLATFORM_FLAT_FEE = 200;
-            const PLATFORM_PERCENT = 0.0109;
-
             // Use DB prices, not client prices
             const validatedItems = items.map(item => {
                 const dbProduct = productMap[item.id];
@@ -79,15 +76,24 @@ class PagarmeService {
             });
 
             const totalAmountCents = validatedItems.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
-            // Taxa da plataforma:
-            //   PIX    → R$2,00 fixo + 1,09%
-            //   Cartão → 2% sobre o total
+            // Somente a taxa da plataforma entra no valor do split. A tarifa do
+            // Pagar.me continua com o vendedor via charge_processing_fee.
             let platformFeeAmount;
             if (paymentMethod === 'credit_card') {
-                platformFeeAmount = Math.round(totalAmountCents * 0.02);
+                platformFeeAmount = feePercentage > 0 ? Math.round(totalAmountCents * 0.02) : 0;
+            } else if (explicitPlatformFeeAmount !== undefined) {
+                platformFeeAmount = Math.min(totalAmountCents, Math.max(0, Math.round(Number(explicitPlatformFeeAmount) || 0)));
+            } else if (sellerId && feePercentage > 0) {
+                platformFeeAmount = await resolveSellerPixFee({
+                    sellerId,
+                    amountCents: totalAmountCents,
+                    defaultFeeCents: 200
+                });
             } else {
-                const percentFee = Math.round(totalAmountCents * 0.0109);
-                platformFeeAmount = Math.min(200 + percentFee, totalAmountCents);
+                platformFeeAmount = 0;
+            }
+            if (platformFeeAmount > 0 && (!platformRecipientId || !sellerRecipientId || platformRecipientId === sellerRecipientId)) {
+                throw new Error('Configuração de split incompleta. Verifique os recipients da plataforma e do vendedor.');
             }
             const sellerAmount = totalAmountCents - platformFeeAmount;
 
@@ -120,16 +126,14 @@ class PagarmeService {
                 {
                     amount: sellerAmount,
                     recipient_id: sellerRecipientId,
-                    charge_processing_fee: true,
-                    liable: true,
-                    charge_remainder: true
+                    type: 'flat',
+                    options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true }
                 },
                 ...(includePlatformFee ? [{
                     amount: platformFeeAmount,
                     recipient_id: platformRecipientId,
-                    charge_processing_fee: false,
-                    liable: false,
-                    charge_remainder: false
+                    type: 'flat',
+                    options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false }
                 }] : [])
             ] : undefined;
 
@@ -172,6 +176,7 @@ class PagarmeService {
             }
 
             const response = await pagarmeApi.post('/orders', orderData);
+            response.data._platformFeeAmount = platformFeeAmount;
             return response.data;
         } catch (error) {
             console.error('Pagar.me createMultiItemOrder error:', error.response?.data || error.message);
@@ -183,19 +188,25 @@ class PagarmeService {
      * Create a single item order (Original Checkout)
      * Expects product price in CENTS (integer) from DB
      */
-    async createOrder({ product, buyer, paymentMethod, cardData, sellerId, platformRecipientId, sellerRecipientId, feePercentage, totalAmount }) {
+    async createOrder({ product, buyer, paymentMethod, cardData, sellerId, platformRecipientId, sellerRecipientId, feePercentage, totalAmount, platformFeeAmount: explicitPlatformFeeAmount }) {
         try {
-            // Taxa da plataforma:
-            //   PIX         → R$2,00 fixo + 1,09%
-            //   Cartão      → 2% sobre o total (sem taxa fixa)
             const totalAmountCents = totalAmount || product.price;
             let platformFeeAmount;
             if (paymentMethod === 'credit_card') {
-                platformFeeAmount = Math.round(totalAmountCents * 0.02);
+                platformFeeAmount = feePercentage > 0 ? Math.round(totalAmountCents * 0.02) : 0;
+            } else if (explicitPlatformFeeAmount !== undefined) {
+                platformFeeAmount = Math.min(totalAmountCents, Math.max(0, Math.round(Number(explicitPlatformFeeAmount) || 0)));
+            } else if (sellerId && feePercentage > 0) {
+                platformFeeAmount = await resolveSellerPixFee({
+                    sellerId,
+                    amountCents: totalAmountCents,
+                    defaultFeeCents: 200
+                });
             } else {
-                const PLATFORM_FLAT_FEE = 200;
-                const percentFee = Math.round(totalAmountCents * 0.0109);
-                platformFeeAmount = Math.min(PLATFORM_FLAT_FEE + percentFee, totalAmountCents);
+                platformFeeAmount = 0;
+            }
+            if (platformFeeAmount > 0 && (!platformRecipientId || !sellerRecipientId || platformRecipientId === sellerRecipientId)) {
+                throw new Error('Configuração de split incompleta. Verifique os recipients da plataforma e do vendedor.');
             }
             const sellerAmount = totalAmountCents - platformFeeAmount;
 
@@ -228,16 +239,14 @@ class PagarmeService {
                 {
                     amount: sellerAmount,
                     recipient_id: sellerRecipientId,
-                    charge_processing_fee: true,
-                    liable: true,
-                    charge_remainder: true
+                    type: 'flat',
+                    options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true }
                 },
                 ...(includePlatformFee ? [{
                     amount: platformFeeAmount,
                     recipient_id: platformRecipientId,
-                    charge_processing_fee: false,
-                    liable: false,
-                    charge_remainder: false
+                    type: 'flat',
+                    options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false }
                 }] : [])
             ] : undefined;
 
@@ -280,6 +289,7 @@ class PagarmeService {
             }
 
             const response = await pagarmeApi.post('/orders', orderData);
+            response.data._platformFeeAmount = platformFeeAmount;
             return response.data;
         } catch (error) {
             console.error('Pagar.me createOrder error:', error.response?.data || error.message);

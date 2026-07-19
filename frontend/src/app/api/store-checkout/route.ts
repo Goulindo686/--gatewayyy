@@ -5,6 +5,7 @@ import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { normalizeInstallments, validateCreditCardBuyer } from '@/lib/checkout-validation';
 import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import { classifyCardPaymentFailure, classifyCardProviderRequestError, isPagarmePaymentFailed } from '@/lib/card-payment-failure';
+import { formatPixFeeLabel, resolveSellerPixFee } from '@/lib/seller-pix-fee';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -126,16 +127,6 @@ export async function POST(req: NextRequest) {
             feePercentage = CARD_PLATFORM_FEE_PERCENTAGE;
         }
 
-        // Diagnostic log for server-side troubleshooting
-        console.log('DIAGNOSTIC - Checkout Config:', {
-            seller_id: sellerId,
-            seller_recipient: recipient.pagarme_recipient_id,
-            platform_recipient: platformRecipientId,
-            platform_fee: normalizedPaymentMethod === 'credit_card'
-                ? `${feePercentage}%`
-                : (feePercentage > 0 ? 'R$ 2,00' : 'isento')
-        });
-
         // 4. SECURITY: Validate prices from DB — never trust client-side prices
         const productIds = items_cart.map((item: any) => item.id);
         const { data: dbProducts, error: dbProductsErr } = await supabase
@@ -158,10 +149,36 @@ export async function POST(req: NextRequest) {
 
         const totalAmountCents = validatedCart.reduce((sum: number, item: any) => sum + item.priceCents * item.quantity, 0);
         const method = normalizedPaymentMethod;
-
         if (method !== 'pix' && method !== 'credit_card') {
             return NextResponse.json({ error: 'Método de pagamento inválido.' }, { status: 400 });
         }
+        let appliedPlatformFeeAmount = 0;
+        let appliedFeeLabel = 'isento';
+
+        if (method === 'credit_card') {
+            appliedPlatformFeeAmount = PagarmeService.calculatePlatformFeeCents({
+                amountCents: totalAmountCents,
+                paymentMethod: method,
+                feePercentage,
+            });
+            appliedFeeLabel = `${feePercentage}% (cartao)`;
+        } else if (sellerUser.role !== 'admin') {
+            const resolvedPixFee = await resolveSellerPixFee({
+                sellerId,
+                amountCents: totalAmountCents,
+                defaultFeeCents: feePercentage > 0 ? 200 : 0,
+            });
+            appliedPlatformFeeAmount = resolvedPixFee.amountCents;
+            appliedFeeLabel = formatPixFeeLabel(resolvedPixFee);
+        }
+
+        console.log('DIAGNOSTIC - Checkout Config:', {
+            seller_id: sellerId,
+            seller_recipient: recipient.pagarme_recipient_id,
+            platform_recipient: platformRecipientId,
+            platform_fee_amount: appliedPlatformFeeAmount,
+            platform_fee_rule: appliedFeeLabel,
+        });
 
         if (method === 'credit_card' && !enableCreditCard) {
             return NextResponse.json({ error: 'Pagamento por cartão está desativado no momento.' }, { status: 400 });
@@ -203,6 +220,9 @@ export async function POST(req: NextRequest) {
                 customer: buyer,
                 seller_recipient_id: recipient.pagarme_recipient_id,
                 platform_fee_percentage: feePercentage,
+                platform_fee_amount: method === 'pix' && sellerUser.role !== 'admin'
+                    ? appliedPlatformFeeAmount
+                    : undefined,
                 card_token: method === 'credit_card' ? body.card_token : undefined,
                 installments: method === 'credit_card' ? cardInstallments || 1 : undefined,
                 items: validatedCart.map((item: any) => ({
@@ -270,6 +290,7 @@ export async function POST(req: NextRequest) {
             buyer_cpf: buyer.cpf?.replace(/\D/g, '') || '00000000000',
             buyer_phone: buyer.phone?.replace(/\D/g, '') || '11999999999',
             amount: totalAmountCents,
+            platform_fee_amount: appliedPlatformFeeAmount,
             amount_display: (totalAmountCents / 100).toFixed(2),
             payment_method: method,
             status: charge?.status === 'paid' ? 'paid' : 'pending',

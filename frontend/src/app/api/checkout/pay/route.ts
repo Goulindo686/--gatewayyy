@@ -11,6 +11,7 @@ import { decryptUtmifyToken, sendUtmifyOrderWithLog } from '@/lib/utmify';
 import { normalizeInstallments, validateCreditCardBuyer } from '@/lib/checkout-validation';
 import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import { classifyCardPaymentFailure, classifyCardProviderRequestError, isPagarmePaymentFailed } from '@/lib/card-payment-failure';
+import { formatPixFeeLabel, resolveSellerPixFee } from '@/lib/seller-pix-fee';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -167,16 +168,6 @@ export async function POST(req: NextRequest) {
             feePercentage = CARD_PLATFORM_FEE_PERCENTAGE;
         }
 
-        // Create Pagar.me order
-        const platformRecipientId = process.env.PLATFORM_RECIPIENT_ID;
-        console.log('CHECKOUT SPLIT CONFIG:', {
-            seller_recipient_id: recipient.pagarme_recipient_id,
-            platform_recipient_id: platformRecipientId,
-            platform_fee: normalizedPaymentMethod === 'credit_card'
-                ? `${feePercentage}%`
-                : (feePercentage > 0 ? 'R$ 2,00' : 'isento'),
-        });
-
         const itemCode = (value: unknown, fallback: string) => {
             const cleaned = String(value || fallback).replace(/[^a-zA-Z0-9_-]/g, '');
             return (cleaned || fallback).slice(0, 52);
@@ -271,9 +262,35 @@ export async function POST(req: NextRequest) {
         const orderId = uuidv4();
         let pagarmeOrder;
         let totalCents = 0;
+        let appliedPlatformFeeAmount = 0;
+        let appliedFeeLabel = 'isento';
         try {
             totalCents = pagarmeItems.reduce((sum, item) => sum + (item.amount * item.quantity), 0);
             if (totalCents <= 0) return jsonError('Valor do pedido invalido.', 400);
+
+            if (normalizedPaymentMethod === 'credit_card') {
+                appliedPlatformFeeAmount = PagarmeService.calculatePlatformFeeCents({
+                    amountCents: totalCents,
+                    paymentMethod: normalizedPaymentMethod,
+                    feePercentage,
+                });
+                appliedFeeLabel = `${feePercentage}% (cartao)`;
+            } else if (sellerUser.role !== 'admin') {
+                const resolvedPixFee = await resolveSellerPixFee({
+                    sellerId: product.user_id,
+                    amountCents: totalCents,
+                    defaultFeeCents: feePercentage > 0 ? 200 : 0,
+                });
+                appliedPlatformFeeAmount = resolvedPixFee.amountCents;
+                appliedFeeLabel = formatPixFeeLabel(resolvedPixFee);
+            }
+
+            console.log('CHECKOUT SPLIT CONFIG:', {
+                seller_recipient_id: recipient.pagarme_recipient_id,
+                platform_recipient_id: process.env.PLATFORM_RECIPIENT_ID,
+                platform_fee_amount: appliedPlatformFeeAmount,
+                platform_fee_rule: appliedFeeLabel,
+            });
 
             const ipHeader = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '';
             const ip = ipHeader.split(',')[0].trim() || undefined;
@@ -297,6 +314,9 @@ export async function POST(req: NextRequest) {
                 installments: normalizedPaymentMethod === 'credit_card' ? cardInstallments || 1 : undefined,
                 seller_recipient_id: recipient.pagarme_recipient_id,
                 platform_fee_percentage: feePercentage,
+                platform_fee_amount: normalizedPaymentMethod === 'pix' && sellerUser.role !== 'admin'
+                    ? appliedPlatformFeeAmount
+                    : undefined,
                 ip,
                 session_id: sessionId,
                 device_platform: devicePlatform,
@@ -366,6 +386,7 @@ export async function POST(req: NextRequest) {
             buyer_name: buyer.name, buyer_email: buyer.email, buyer_cpf: buyer.cpf,
             buyer_phone: buyer.phone?.replace(/\D/g, ''),
             amount: totalCents,
+            platform_fee_amount: appliedPlatformFeeAmount,
             payment_method: normalizedPaymentMethod, status: charge?.status === 'paid' ? 'paid' : 'pending',
             pagarme_order_id: pagarmeOrder.id, pagarme_charge_id: charge?.id,
             pix_qr_code: pix?.qr_code,
@@ -492,18 +513,13 @@ export async function POST(req: NextRequest) {
                 console.error('[FACEBOOK CAPI] Purchase error:', fbErr);
             }
 
-            const feeAmount = feePercentage > 0
-                ? (normalizedPaymentMethod === 'credit_card'
-                    ? Math.min(totalCents, Math.round(totalCents * (feePercentage / 100)))
-                    : Math.min(200, totalCents))
-                : 0;
+            const feeAmount = appliedPlatformFeeAmount;
             if (feeAmount > 0) {
-                const feeLabel = normalizedPaymentMethod === 'credit_card' ? `${feePercentage}% (cartão)` : 'R$ 2,00 (PIX)';
                 await supabase.from('transactions').insert({
                     id: uuidv4(), user_id: product.user_id, order_id: orderId,
                     type: 'fee', amount: feeAmount,
                     status: 'confirmed',
-                    description: `Taxa de plataforma (${feeLabel}) - Pedido ${orderId}`
+                    description: `Taxa de plataforma (${appliedFeeLabel}) - Pedido ${orderId}`
                 });
             }
 
