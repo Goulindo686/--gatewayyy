@@ -998,21 +998,28 @@ Body:
             <div>
               <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.8, color: 'rgba(255,255,255,0.62)', marginBottom: 12, textTransform: 'uppercase' }}>Baixe nosso app</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
-                <div style={{
+                <a
+                  href="https://play.google.com/store/apps/details?id=br.com.goupay.app"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Baixar o aplicativo GouPay na Google Play"
+                  style={{
                   padding: '12px 14px',
                   borderRadius: 14,
                   border: '1px solid rgba(255,255,255,0.12)',
                   background: 'rgba(255,255,255,0.04)',
                   color: 'rgba(255,255,255,0.86)',
+                  textDecoration: 'none',
                   fontWeight: 800,
                   fontSize: 13,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between'
+                  justifyContent: 'space-between',
+                  cursor: 'pointer'
                 }}>
                   <span>Google Play</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, opacity: 0.7 }}>Em breve</span>
-                </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, opacity: 0.7 }}>Baixar agora</span>
+                </a>
                 <div style={{
                   padding: '12px 14px',
                   borderRadius: 14,
