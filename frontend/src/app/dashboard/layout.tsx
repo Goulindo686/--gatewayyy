@@ -373,7 +373,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <aside style={{
                 width: isMobile ? 260 : asideWidth, background: 'var(--bg-card)', borderRight: '1px solid var(--border-color)',
                 display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, bottom: 0, left: 0, zIndex: 50,
-                transition: 'transform 0.3s ease', boxShadow: '12px 0 30px rgba(15,23,42,0.03)',
+                transition: 'transform 0.3s ease', boxShadow: '12px 0 30px rgba(15,23,42,0.03)', overflow: 'hidden',
             }} className={`dashboard-aside${sidebarOpen ? ' open' : ''}`}>
                 {/* Logo */}
                 <div style={{
@@ -382,8 +382,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     display: 'grid',
                     gridTemplateColumns: '32px 1fr 32px',
                     alignItems: 'center',
-                    gap: 8
-                }}>
+                    gap: 8,
+                    flexShrink: 0
+                }} className="dashboard-sidebar-header">
                     <div />
                     <div style={{
                         display: 'flex',
@@ -440,7 +441,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                 {/* Sidebar Progress Card */}
                 {!effectiveCollapsed && (
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)' }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }} className="dashboard-sidebar-progress">
                     <div style={{
                         background: 'linear-gradient(155deg, #8b5cf6 0%, #5b21b6 100%)',
                         border: '1px solid rgba(255,255,255,0.12)',
@@ -489,7 +490,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
 
                 {/* Navigation */}
-                <nav style={{ flex: 1, padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <nav style={{
+                    flex: 1,
+                    minHeight: 0,
+                    padding: '14px 12px calc(14px + env(safe-area-inset-bottom))',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4,
+                    overflowY: 'auto',
+                    overscrollBehavior: 'contain',
+                    WebkitOverflowScrolling: 'touch',
+                    touchAction: 'pan-y'
+                }} className="dashboard-sidebar-nav">
                     {navItems.map((item) => (
                         <Link key={item.href} href={item.href}
                             className={`sidebar-link ${pathname === item.href ? 'active' : ''}`}
@@ -911,8 +923,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             <style jsx global>{`
       @media (max-width: 768px) {
-          .dashboard-aside { transform: translateX(-100%) !important; }
+          .dashboard-aside {
+            transform: translateX(-100%) !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            max-height: 100dvh !important;
+            overflow: hidden !important;
+          }
           .dashboard-aside.open { transform: translateX(0) !important; }
+          .dashboard-sidebar-header,
+          .dashboard-sidebar-progress { flex-shrink: 0 !important; }
+          .dashboard-sidebar-nav {
+            min-height: 0 !important;
+            overflow-y: auto !important;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+          }
           main { padding-left: 0 !important; }
           .mobile-overlay { display: block !important; }
           .mobile-menu-btn { display: block !important; }
