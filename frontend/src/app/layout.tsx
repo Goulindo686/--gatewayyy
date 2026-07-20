@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "@/components/theme-provider";
-import { SaleNotificationSound } from "@/components/SaleNotificationSound";
 
 export const metadata: Metadata = {
   title: "GouPay",
@@ -77,7 +76,6 @@ export default function RootLayout({
               },
             }}
           />
-          <SaleNotificationSound />
           {children}
         </ThemeProvider>
       </body>

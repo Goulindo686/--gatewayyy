@@ -1,8 +1,8 @@
 // Service Worker — Web Push Notifications
 // Registrado automaticamente pelo painel quando o vendedor ativa as notificacoes
-// v3 — notificacoes de venda com som/vibracao e aviso para abas abertas
+// v4 — o som de venda no Android e controlado pelo canal nativo do app
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 
 self.addEventListener('install', function (event) {
     self.skipWaiting();
@@ -46,24 +46,7 @@ self.addEventListener('push', function (event) {
         timestamp: data.timestamp || Date.now(),
     };
 
-    const showNativeNotification = self.registration.showNotification(title, options);
-
-    const notifyOpenClients = clients
-        .matchAll({ type: 'window', includeUncontrolled: true })
-        .then(function (clientList) {
-            if (!isSaleNotification) return;
-            clientList.forEach(function (client) {
-                client.postMessage({
-                    type: 'GOUPAY_SALE_NOTIFICATION_SOUND',
-                    title,
-                    body: options.body,
-                    url: options.data.url,
-                    at: Date.now(),
-                });
-            });
-        });
-
-    event.waitUntil(Promise.all([showNativeNotification, notifyOpenClients]));
+    event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener('notificationclick', function (event) {

@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "br.com.goupay.app",
+      "sha256_cert_fingerprints": [
+        "08:2D:44:42:46:7D:A5:8C:54:F9:2A:FC:AD:74:4D:CD:CC:CB:B8:91:7F:A8:B7:6A:9B:DD:7A:F2:00:DD:0C:86",
+        "7C:0D:71:04:12:79:F3:36:2D:FD:DB:79:60:C2:85:CD:72:2D:66:A0:63:A2:7B:3A:B4:C6:B6:43:BC:76:E1:30"
+      ]
+    }
+  }
+]

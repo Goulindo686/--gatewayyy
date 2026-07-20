@@ -46,7 +46,14 @@ NUL
 
 # Android / Play Store builds
 .android-build-tools/
-android-goupay/
+android-goupay/.gradle/
+android-goupay/build/
+android-goupay/app/build/
+android-goupay/keystore/
+android-goupay/*.log
+android-goupay/*.aab
+android-goupay/*.apk
+android-goupay/*.idsig
 *.jks
 *.keystore
 *.aab

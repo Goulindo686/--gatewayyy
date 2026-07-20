@@ -676,8 +676,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                 {/* Dashboard Filters below header (right aligned) */}
                 {pathname === '/dashboard' && (
-                    <div style={{ padding: '14px 32px 0', display: 'flex', justifyContent: 'flex-end' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <div className="dashboard-period-filters" style={{ padding: '14px 32px 0', display: 'flex', justifyContent: 'flex-end' }}>
+                        <div className="dashboard-period-actions" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                             <button
                                 ref={periodAnchorRef}
                                 onClick={() => setShowConfig(!showConfig)}
@@ -713,14 +713,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {showConfig && createPortal(
                     <div
                         ref={popoverRef}
+                        className="dashboard-period-popover"
                         style={{
                             position: 'fixed', top: (popoverPos?.top ?? 80), right: (popoverPos?.right ?? 24), zIndex: 99999,
-                            width: 560, background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+                            width: 560, maxWidth: 'calc(100vw - 28px)', background: 'var(--bg-card)', border: '1px solid var(--border-color)',
                             borderRadius: 16, boxShadow: '0 16px 48px rgba(0,0,0,0.45)', padding: 16
                         }}
                     >
-                        <div style={{ display: 'flex', gap: 16 }}>
-                            <div style={{ width: 180, borderRight: '1px solid var(--border-color)', paddingRight: 12 }}>
+                        <div className="dashboard-period-content" style={{ display: 'flex', gap: 16 }}>
+                            <div className="dashboard-period-presets" style={{ width: 180, borderRight: '1px solid var(--border-color)', paddingRight: 12 }}>
                                 {[
                                     {key:'today', label:'Hoje'},
                                     {key:'yesterday', label:'Ontem'},
@@ -744,7 +745,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     </button>
                                 ))}
                             </div>
-                            <div style={{ width: 360 }}>
+                            <div className="dashboard-period-calendar" style={{ width: 360 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                                     <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                                         <FiChevronLeft size={18} />
@@ -754,7 +755,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                         <FiChevronRight size={18} />
                                     </button>
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8, fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>
+                                <div className="dashboard-period-weekdays" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8, fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>
                                     {['dom','seg','ter','qua','qui','sex','sab'].map((w) => (
                                         <div key={w} style={{ textAlign: 'center', fontWeight: 700 }}>{w}</div>
                                     ))}
@@ -776,7 +777,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                             selectedDay.getDate() === d;
                                     };
                                     return (
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+                                        <div className="dashboard-period-days" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
                                             {cells.map((c, idx) => c === null ? (
                                                 <div key={idx} />
                                             ) : (
@@ -923,6 +924,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           .dashboard-avatar-btn { width: 34px !important; height: 34px !important; font-size: 14px !important; }
           .dashboard-sales-progress { padding: 0 14px 12px !important; }
           .dashboard-notifications-popover { right: 0 !important; width: min(360px, calc(100vw - 28px)) !important; }
+          .dashboard-period-filters { padding: 14px 14px 0 !important; justify-content: center !important; }
+          .dashboard-period-actions { width: 100%; justify-content: center !important; }
+          .dashboard-period-popover {
+            top: 50% !important;
+            left: 50% !important;
+            right: auto !important;
+            width: calc(100vw - 28px) !important;
+            max-height: calc(100dvh - 32px) !important;
+            overflow-y: auto !important;
+            transform: translate(-50%, -50%) !important;
+            padding: 14px !important;
+          }
+          .dashboard-period-content { flex-direction: column !important; gap: 14px !important; }
+          .dashboard-period-presets {
+            width: 100% !important;
+            border-right: 0 !important;
+            border-bottom: 1px solid var(--border-color) !important;
+            padding-right: 0 !important;
+            padding-bottom: 12px !important;
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 4px !important;
+          }
+          .dashboard-period-calendar { width: 100% !important; }
+          .dashboard-period-weekdays,
+          .dashboard-period-days { gap: 5px !important; }
         }
         @media (max-width: 420px) {
           .dashboard-online-badge { display: none !important; }

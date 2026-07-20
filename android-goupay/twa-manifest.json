@@ -1,0 +1,50 @@
+{
+  "packageId": "br.com.goupay.app",
+  "host": "goupay.com.br",
+  "name": "GouPay - Gateway de Pagamentos",
+  "launcherName": "GouPay",
+  "display": "standalone",
+  "themeColor": "#6C5CE7",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#0A0A0F",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://goupay.com.br/logo.png",
+  "maskableIconUrl": "https://goupay.com.br/logo.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "keystore\\goupay-upload-key.jks",
+    "alias": "goupay_upload"
+  },
+  "appVersionName": "1.1.0",
+  "appVersionCode": 2,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://goupay.com.br/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://goupay.com.br/",
+  "minSdkVersion": 23,
+  "orientation": "portrait-primary",
+  "fingerprints": [
+    "08:2D:44:42:46:7D:A5:8C:54:F9:2A:FC:AD:74:4D:CD:CC:CB:B8:91:7F:A8:B7:6A:9B:DD:7A:F2:00:DD:0C:86",
+    "7C:0D:71:04:12:79:F3:36:2D:FD:DB:79:60:C2:85:CD:72:2D:66:A0:63:A2:7B:3A:B4:C6:B6:43:BC:76:E1:30"
+  ],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [],
+  "appVersion": "1.1.0"
+}
