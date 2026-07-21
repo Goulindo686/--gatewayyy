@@ -377,15 +377,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             }} className={`dashboard-aside${sidebarOpen ? ' open' : ''}`}>
                 {/* Logo */}
                 <div style={{
-                    padding: '16px',
+                    padding: effectiveCollapsed ? '20px 5px' : '16px',
                     borderBottom: '1px solid var(--border-color)',
                     display: 'grid',
-                    gridTemplateColumns: '32px 1fr 32px',
+                    gridTemplateColumns: effectiveCollapsed ? '36px 24px' : '32px 1fr 32px',
                     alignItems: 'center',
-                    gap: 8,
+                    justifyContent: 'center',
+                    gap: effectiveCollapsed ? 4 : 8,
                     flexShrink: 0
                 }} className="dashboard-sidebar-header">
-                    <div />
+                    <div style={{ display: effectiveCollapsed ? 'none' : 'block' }} />
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -394,9 +395,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     }}>
                         {effectiveCollapsed ? (
                             <div style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 12,
+                                width: 36,
+                                height: 36,
+                                borderRadius: 10,
                                 border: '1px solid rgba(139,92,246,0.18)',
                                 background: 'rgba(124,58,237,0.10)',
                                 display: 'flex',
@@ -409,8 +410,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     src="/favicon.png"
                                     alt="GouPay"
                                     style={{
-                                        width: 30,
-                                        height: 30,
+                                        width: 26,
+                                        height: 26,
                                         objectFit: 'contain',
                                         display: 'block'
                                     }}
@@ -428,11 +429,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         )}
                     </div>
                     {!isMobile && (
-                        <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} style={{
-                            width: 28, height: 28, borderRadius: 8, border: '1px solid var(--border-color)',
-                            background: 'var(--bg-card)', color: 'var(--text-secondary)', display: 'flex',
-                            alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                        }}>
+                        <button
+                            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                            aria-label={effectiveCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+                            title={effectiveCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+                            style={{
+                                width: effectiveCollapsed ? 24 : 28, height: effectiveCollapsed ? 24 : 28, borderRadius: 8, border: '1px solid var(--border-color)',
+                                background: 'var(--bg-card)', color: 'var(--text-secondary)', display: 'flex',
+                                alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                            }}>
                             {sidebarCollapsed ? <FiChevronRight size={16} /> : <FiChevronLeft size={16} />}
                         </button>
                     )}
