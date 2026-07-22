@@ -1,12 +1,38 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { FiShoppingCart, FiRefreshCw, FiSearch, FiCheckCircle, FiClock, FiX } from 'react-icons/fi';
 
+type SalesFilters = {
+    status?: string;
+    method?: string;
+    start?: string;
+    end?: string;
+    search?: string;
+};
+
+type Sale = {
+    id: string;
+    buyer_name?: string | null;
+    buyer_email?: string | null;
+    buyer_cpf?: string | null;
+    buyer_phone?: string | null;
+    product_name?: string | null;
+    products?: { name?: string | null } | null;
+    pagarme_order_id?: string | null;
+    pagarme_charge_id?: string | null;
+    status?: string | null;
+    payment_method?: string | null;
+    amount_display?: string | null;
+    created_at: string;
+    delivered?: boolean | null;
+    delivered_at?: string | null;
+};
+
 export default function SalesPage() {
-    const [sales, setSales] = useState<any[]>([]);
+    const [sales, setSales] = useState<Sale[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [statusFilter, setStatusFilter] = useState('');
@@ -17,11 +43,13 @@ export default function SalesPage() {
     const [summary, setSummary] = useState<{ count: number; total_amount_display: string } | null>(null);
     const [search, setSearch] = useState('');
     const [delivering, setDelivering] = useState<string | null>(null);
+    const appliedFilters = useRef<SalesFilters>({});
+    const firstSearchEffect = useRef(true);
+    const requestId = useRef(0);
 
-    useEffect(() => { loadSales(); }, []);
-
-    const loadSales = async (filters?: any) => {
-        setLoading(true);
+    const loadSales = useCallback(async (filters: SalesFilters = {}, options: { background?: boolean } = {}) => {
+        const currentRequestId = ++requestId.current;
+        if (!options.background) setLoading(true);
         try {
             const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
             const params = new URLSearchParams();
@@ -29,24 +57,47 @@ export default function SalesPage() {
             if (filters?.method) params.set('method', filters.method);
             if (filters?.start) params.set('start', filters.start);
             if (filters?.end) params.set('end', filters.end);
+            if (filters?.search?.trim()) params.set('search', filters.search.trim());
 
             const { data } = await axios.get(`/api/sales?${params.toString()}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            if (currentRequestId !== requestId.current) return;
             const result = data.data || data;
             setSales(result?.sales || []);
             setSummary(result?.summary || null);
         } catch {
+            if (currentRequestId !== requestId.current) return;
             setSales([]);
         } finally {
-            setLoading(false);
+            if (currentRequestId === requestId.current) setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => { loadSales(); }, [loadSales]);
+
+    // Search the complete history on the server. The small delay avoids a
+    // request for every keystroke while keeping the field feeling instant.
+    useEffect(() => {
+        if (firstSearchEffect.current) {
+            firstSearchEffect.current = false;
+            return;
+        }
+
+        const timer = window.setTimeout(() => {
+            void loadSales(
+                { ...appliedFilters.current, search: search.trim() || undefined },
+                { background: true },
+            );
+        }, 350);
+
+        return () => window.clearTimeout(timer);
+    }, [loadSales, search]);
 
     const handleRefresh = async () => {
         setRefreshing(true);
         try {
-            const params: any = {
+            const params: SalesFilters = {
                 status: statusFilter || undefined,
                 method: methodFilter || undefined
             };
@@ -64,7 +115,8 @@ export default function SalesPage() {
                 if (startDate) params.start = new Date(startDate + 'T00:00:00').toISOString();
                 if (endDate) params.end = new Date(endDate + 'T23:59:59').toISOString();
             }
-            await loadSales(params);
+            appliedFilters.current = params;
+            await loadSales({ ...params, search: search.trim() || undefined });
         } finally {
             setRefreshing(false);
         }
@@ -78,27 +130,42 @@ export default function SalesPage() {
         return phone || digits;
     };
 
-    // Filtragem local por busca (nome, CPF, email e telefone)
+    const normalizeSearchText = (value: unknown) => String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+    // Keep a local pass so formatted CPF/phone values and accented names also
+    // match immediately while the server request is being completed.
     const filtered = useMemo(() => {
         if (!search.trim()) return sales;
-        const q = search.trim().toLowerCase().replace(/\D/g, '') || search.trim().toLowerCase();
+        const searchLower = normalizeSearchText(search);
+        const searchDigits = search.replace(/\D/g, '');
         return sales.filter(o => {
-            const name = (o.buyer_name || '').toLowerCase();
-            const email = (o.buyer_email || '').toLowerCase();
+            const searchableText = [
+                o.buyer_name,
+                o.buyer_email,
+                o.buyer_cpf,
+                o.buyer_phone,
+                o.product_name,
+                o.products?.name,
+                o.pagarme_order_id,
+                o.pagarme_charge_id,
+                o.status,
+                o.payment_method,
+            ].map(normalizeSearchText);
             const cpf = (o.buyer_cpf || '').replace(/\D/g, '');
             const phone = (o.buyer_phone || '').replace(/\D/g, '');
-            const searchLower = search.trim().toLowerCase();
-            const searchDigits = search.trim().replace(/\D/g, '');
             return (
-                name.includes(searchLower) ||
-                email.includes(searchLower) ||
+                searchableText.some(value => value.includes(searchLower)) ||
                 (searchDigits && cpf.includes(searchDigits)) ||
                 (searchDigits && phone.includes(searchDigits))
             );
         });
     }, [sales, search]);
 
-    const toggleDelivered = async (order: any) => {
+    const toggleDelivered = async (order: Sale) => {
         setDelivering(order.id);
         try {
             const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -112,14 +179,16 @@ export default function SalesPage() {
                     : o
             ));
             toast.success(newValue ? 'Venda marcada como entregue!' : 'Marcação removida');
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Erro ao atualizar venda');
+        } catch (err: unknown) {
+            const message = axios.isAxiosError(err) ? err.response?.data?.error : undefined;
+            toast.error(message || 'Erro ao atualizar venda');
         } finally {
             setDelivering(null);
         }
     };
 
-    const formatDate = (iso: string) => {
+    const formatDate = (iso: string | null | undefined) => {
+        if (!iso) return '—';
         try { return new Date(iso).toLocaleString('pt-BR'); } catch { return iso; }
     };
 
@@ -253,7 +322,7 @@ export default function SalesPage() {
                             </thead>
                             <tbody>
                                 {filtered.map(o => {
-                                    const st = statusLabel[o.status] || { label: o.status, color: 'var(--text-muted)' };
+                                    const st = (o.status ? statusLabel[o.status] : undefined) || { label: o.status || '—', color: 'var(--text-muted)' };
                                     const isDelivering = delivering === o.id;
                                     return (
                                         <tr key={o.id} style={{ opacity: isDelivering ? 0.6 : 1 }}>
