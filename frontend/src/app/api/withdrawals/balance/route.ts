@@ -5,6 +5,7 @@ import { supabase, fetchAll } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { PagarmeService } from '@/lib/pagarme';
+import { getAffiliateWithdrawalReserve } from '@/lib/affiliates';
 
 async function getReservedWithdrawals(userId: string) {
     const { data } = await supabase
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
         req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
         req.headers.get('x-real-ip') ||
         'unknown';
-    const rl = await checkRateLimit({ key: `withdrawals:balance:ip:${ip}`, limit: 120, windowSecs: 60, failOpen: true });
+    const rl = await checkRateLimit({ key: `withdrawals:balance:ip:${ip}`, limit: 120, windowSecs: 60, failOpen: false });
     if (!rl.allowed) return rateLimitResponse(rl.resetAt);
 
     try {
@@ -47,6 +48,7 @@ export async function GET(req: NextRequest) {
 
                 const available = balance.available_amount !== undefined ? balance.available_amount : getAmount(balance.available);
                 const reservedWithdrawals = await getReservedWithdrawals(auth.user.id);
+                const affiliateReserve = await getAffiliateWithdrawalReserve(auth.user.id);
                 const pending = balance.waiting_funds_amount !== undefined ? balance.waiting_funds_amount : getAmount(balance.waiting_funds);
                 const transferred = balance.transferred_amount !== undefined ? balance.transferred_amount : getAmount(balance.transferred);
 
@@ -59,12 +61,16 @@ export async function GET(req: NextRequest) {
                 const totalSold = (orders || []).reduce((sum, o) => sum + (o.amount || 0), 0);
 
                 return jsonSuccess({
-                    available: (Math.max(0, available - reservedWithdrawals) / 100).toFixed(2),
+                    available: (
+                        Math.max(0, available - reservedWithdrawals - affiliateReserve.total) / 100
+                    ).toFixed(2),
                     pending: (pending / 100).toFixed(2),
                     total_sold: (totalSold / 100).toFixed(2),
                     total_withdrawn: (transferred / 100).toFixed(2),
                     recipient_status: pRecipient.status,
-                    kyc_status: pRecipient.kyc_details?.status || 'none'
+                    kyc_status: pRecipient.kyc_details?.status || 'none',
+                    affiliate_security_hold: (affiliateReserve.heldAmount / 100).toFixed(2),
+                    affiliate_risk_reserve: (affiliateReserve.riskAmount / 100).toFixed(2),
                 });
             } catch (pErr: any) {
                 console.error('Pagar.me balance error in withdrawals API:', pErr.response?.data || pErr.message);
@@ -85,14 +91,17 @@ export async function GET(req: NextRequest) {
         const totalWithdrawn = (withdrawals || []).reduce((sum, t) => sum + (t.amount || 0), 0);
         const pendingAmount = (pendingSales || []).reduce((sum, t) => sum + (t.amount || 0), 0);
         const reservedWithdrawals = await getReservedWithdrawals(auth.user.id);
-        const available = totalSold - totalFees - totalWithdrawn - reservedWithdrawals;
+        const affiliateReserve = await getAffiliateWithdrawalReserve(auth.user.id);
+        const available = totalSold - totalFees - totalWithdrawn - reservedWithdrawals - affiliateReserve.total;
 
         return jsonSuccess({
             available: (available / 100).toFixed(2),
             pending: (pendingAmount / 100).toFixed(2),
             total_sold: (totalSold / 100).toFixed(2),
             total_withdrawn: (totalWithdrawn / 100).toFixed(2),
-            total_fees: (totalFees / 100).toFixed(2)
+            total_fees: (totalFees / 100).toFixed(2),
+            affiliate_security_hold: (affiliateReserve.heldAmount / 100).toFixed(2),
+            affiliate_risk_reserve: (affiliateReserve.riskAmount / 100).toFixed(2),
         });
     } catch (err: any) {
         console.error('Balance API error:', err);

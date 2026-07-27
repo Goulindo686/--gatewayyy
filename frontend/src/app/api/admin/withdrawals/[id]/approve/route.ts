@@ -6,6 +6,9 @@ import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { PagarmeService } from '@/lib/pagarme';
+import { getAffiliateWithdrawalReserve } from '@/lib/affiliates';
+
+const WITHDRAWAL_PROVIDER_FEE_CENTS = 367;
 
 async function updateWithdrawalWithFallback(id: string, payload: Record<string, unknown>) {
     const { data, error } = await supabase
@@ -50,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
             req.headers.get('x-real-ip') ||
             'unknown';
-        const rl = await checkRateLimit({ key: `admin:withdrawals:approve:${auth.user.id}:${ip}`, limit: 30, windowSecs: 60, failOpen: true });
+        const rl = await checkRateLimit({ key: `admin:withdrawals:approve:${auth.user.id}:${ip}`, limit: 30, windowSecs: 60, failOpen: false });
         if (!rl.allowed) return rateLimitResponse(rl.resetAt);
 
         const { data: withdrawal, error: withdrawalError } = await supabase
@@ -70,6 +73,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         if (recipientError || !recipient?.pagarme_recipient_id) {
             return jsonError('Recebedor do vendedor nao encontrado', 404);
+        }
+
+        const [balance, affiliateReserve, { data: otherReserved }] = await Promise.all([
+            PagarmeService.getRecipientBalance(recipient.pagarme_recipient_id),
+            getAffiliateWithdrawalReserve(withdrawal.user_id),
+            supabase
+                .from('withdrawals')
+                .select('amount')
+                .eq('user_id', withdrawal.user_id)
+                .neq('id', withdrawal.id)
+                .in('status', ['pending', 'processing']),
+        ]);
+        const providerAvailable = balance.available_amount
+            ?? (Array.isArray(balance.available)
+                ? balance.available[0]?.amount
+                : balance.available?.amount)
+            ?? 0;
+        const otherReservedAmount = (otherReserved || [])
+            .reduce((sum, row) => sum + Math.max(0, Number(row.amount || 0)), 0);
+        const protectedAvailable = Math.max(
+            0,
+            providerAvailable - affiliateReserve.total - otherReservedAmount,
+        );
+        if (withdrawal.amount + WITHDRAWAL_PROVIDER_FEE_CENTS > protectedAvailable) {
+            return jsonError('O saldo disponivel mudou ou possui comissao em prazo de seguranca. Revise o saque.', 409);
         }
 
         const { data: lockedWithdrawal, error: lockError } = await supabase
@@ -99,7 +127,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         let transfer;
         try {
-            transfer = await PagarmeService.createTransfer(recipient.pagarme_recipient_id, withdrawal.amount);
+            transfer = await PagarmeService.createTransfer(
+                recipient.pagarme_recipient_id,
+                withdrawal.amount,
+                `goupay-withdrawal-${withdrawal.id}`,
+            );
         } catch (transferError: unknown) {
             const error = transferError as { response?: { data?: { message?: string } }; message?: string };
             await updateWithdrawalWithFallback(withdrawal.id, {

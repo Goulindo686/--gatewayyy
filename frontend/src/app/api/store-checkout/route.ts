@@ -7,15 +7,25 @@ import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import { classifyCardPaymentFailure, classifyCardProviderRequestError, isPagarmePaymentFailed } from '@/lib/card-payment-failure';
 import { formatPixFeeLabel, resolveSellerPixFee } from '@/lib/seller-pix-fee';
 import {
+    affiliateCookieName,
     affiliateOrderSnapshot,
     recordOrderAffiliateCommission,
     resolveAffiliateAttribution,
+    syncOrderAffiliateCommission,
     type AffiliateAttribution,
 } from '@/lib/affiliates';
 import { calculateAffiliatePlatformFee, normalizeAffiliateReference } from '@/lib/affiliates-core';
+import {
+    beginPaymentAttempt,
+    completePaymentAttempt,
+    createProviderIdempotencyKey,
+    failPaymentAttempt,
+    hashPaymentRequest,
+} from '@/lib/payment-security';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
+    let activeIdempotencyKey: string | null = null;
     try {
         const contentType = req.headers.get('content-type') || '';
         if (!contentType.toLowerCase().includes('application/json')) {
@@ -73,8 +83,29 @@ export async function POST(req: NextRequest) {
             return null;
         };
 
-        if (!items_cart || items_cart.length === 0) {
+        if (!Array.isArray(items_cart) || items_cart.length === 0) {
             return NextResponse.json({ error: 'Carrinho vazio.' }, { status: 400 });
+        }
+        if (items_cart.length > 50) {
+            return NextResponse.json({ error: 'O carrinho excede o limite de itens.' }, { status: 400 });
+        }
+        if (!items_cart.every((item: any) => (
+            item
+            && typeof item.id === 'string'
+            && /^[0-9a-f-]{36}$/i.test(item.id)
+            && Number.isInteger(Number(item.quantity))
+            && Number(item.quantity) >= 1
+            && Number(item.quantity) <= 99
+        ))) {
+            return NextResponse.json({ error: 'Um ou mais itens do carrinho sao invalidos.' }, { status: 400 });
+        }
+        const uniqueCartIds = new Set(items_cart.map((item: any) => item.id));
+        if (uniqueCartIds.size !== items_cart.length) {
+            return NextResponse.json({ error: 'O carrinho contem produtos duplicados.' }, { status: 400 });
+        }
+        const normalizedStoreSlug = String(store_slug || '').trim().toLowerCase();
+        if (!/^[a-z0-9-]{2,80}$/.test(normalizedStoreSlug)) {
+            return NextResponse.json({ error: 'Loja invalida.' }, { status: 400 });
         }
 
         if (!buyer?.email || !buyer?.name || !buyer?.cpf) {
@@ -97,7 +128,7 @@ export async function POST(req: NextRequest) {
 
         const { data: sellerUser, error: sellerUserErr } = await supabase
             .from('users')
-            .select('role, status')
+            .select('role, status, store_slug, store_active')
             .eq('id', sellerId)
             .single();
 
@@ -110,6 +141,13 @@ export async function POST(req: NextRequest) {
                 ? 'Conta do vendedor está bloqueada. Não é possível gerar o Pix para esta compra.'
                 : 'Conta do vendedor está bloqueada. Não é possível processar esta compra.';
             return NextResponse.json({ error: msg }, { status: 403 });
+        }
+
+        if (
+            sellerUser.store_active === false
+            || String(sellerUser.store_slug || '').trim().toLowerCase() !== normalizedStoreSlug
+        ) {
+            return NextResponse.json({ error: 'Este carrinho nao pertence a loja informada.' }, { status: 409 });
         }
 
         // 2. Get seller's recipient ID (Matching standalone system: remove status filter)
@@ -146,7 +184,7 @@ export async function POST(req: NextRequest) {
         const productIds = items_cart.map((item: any) => item.id);
         const { data: dbProducts, error: dbProductsErr } = await supabase
             .from('products')
-            .select('id, name, price, status')
+            .select('id, user_id, name, price, status')
             .in('id', productIds)
             .eq('status', 'active');
 
@@ -154,12 +192,24 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Um ou mais produtos não foram encontrados ou estão inativos.' }, { status: 400 });
         }
 
+        if (dbProducts.some((product: any) => product.user_id !== sellerId)) {
+            return NextResponse.json({
+                error: 'Todos os produtos do carrinho precisam pertencer ao mesmo vendedor.',
+            }, { status: 409 });
+        }
+
         const productMap = Object.fromEntries(dbProducts.map((p: any) => [p.id, p]));
 
         // Build validated cart with DB prices
         const validatedCart = items_cart.map((item: any) => {
             const dbProduct = productMap[item.id];
-            return { ...item, price: dbProduct.price / 100, priceCents: dbProduct.price, name: dbProduct.name };
+            return {
+                ...item,
+                quantity: Number(item.quantity),
+                price: dbProduct.price / 100,
+                priceCents: dbProduct.price,
+                name: dbProduct.name,
+            };
         });
 
         const totalAmountCents = validatedCart.reduce((sum: number, item: any) => sum + item.priceCents * item.quantity, 0);
@@ -198,13 +248,23 @@ export async function POST(req: NextRequest) {
             eligibleGrossAmount: firstCartItem
                 ? firstCartItem.priceCents * firstCartItem.quantity
                 : totalAmountCents,
+            // Produtos adicionais do carrinho nao sao order bumps do programa
+            // vinculado ao primeiro produto.
+            allowCommissionOnBumps: false,
             buyerEmail: buyer.email,
             buyerDocument: buyer.cpf,
+            buyerPhone: buyer.phone,
             attributionToken: affiliateReference || undefined,
         });
 
+        const hasAffiliateIntent = Boolean(
+            affiliateReference
+            || normalizeAffiliateReference(
+                req.cookies.get(affiliateCookieName(items_cart[0].id))?.value,
+            ),
+        );
         affiliateAttribution = await resolveAttributionForFee(appliedPlatformFeeAmount);
-        if (affiliateReference && !affiliateAttribution) {
+        if (hasAffiliateIntent && !affiliateAttribution) {
             return NextResponse.json({
                 error: 'Nao foi possivel validar este link de afiliado. Abra novamente o link antes de pagar.',
             }, { status: 409 });
@@ -275,20 +335,120 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        const checkoutOrderId = uuidv4();
+        let checkoutOrderId = uuidv4();
         let pagarmeOrder;
         try {
             // we use the same "createOrder" used by the standalone system that works
             const ipHeader = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '';
             const ip = (ipHeader || '').split(',')[0].trim() || undefined;
             const requestedSessionId = String(body.checkout_session_id || '');
-            const sessionId = /^[a-zA-Z0-9-]{8,64}$/.test(requestedSessionId) ? requestedSessionId : uuidv4();
+            if (!/^[a-zA-Z0-9-]{8,64}$/.test(requestedSessionId)) {
+                return NextResponse.json({
+                    error: 'Sessao de checkout invalida. Recarregue a pagina e tente novamente.',
+                }, { status: 400 });
+            }
+            const sessionId = requestedSessionId;
             const requestedPlatform = String(body.device_platform || '').toUpperCase();
             const devicePlatform = /^[A-Z0-9_-]{2,64}$/.test(requestedPlatform) ? requestedPlatform : 'WEB';
             const requestedThreeDsTransactionId = String(body.three_ds_transaction_id || '');
             const threeDsTransactionId = /^[a-zA-Z0-9_-]{8,128}$/.test(requestedThreeDsTransactionId)
                 ? requestedThreeDsTransactionId
                 : undefined;
+            activeIdempotencyKey = createProviderIdempotencyKey('store_checkout', [
+                sellerId,
+                normalizedStoreSlug,
+                sessionId,
+                method,
+            ]);
+            const providerItems = validatedCart.map((item: any) => ({
+                amount: item.priceCents,
+                description: item.name,
+                quantity: item.quantity,
+                code: item.id,
+            }));
+            const requestHash = hashPaymentRequest({
+                seller_id: sellerId,
+                store_slug: normalizedStoreSlug,
+                session_id: sessionId,
+                payment_method: method,
+                amount: totalAmountCents,
+                buyer_name: String(buyer.name || '').trim(),
+                buyer_email: String(buyer.email || '').trim().toLowerCase(),
+                buyer_document: String(buyer.cpf || '').replace(/\D/g, ''),
+                buyer_phone: String(buyer.phone || '').replace(/\D/g, ''),
+                buyer_address: buyer.address || null,
+                installments: cardInstallments,
+                items: providerItems,
+                affiliate_click_id: affiliateAttribution?.clickId || null,
+            });
+            const paymentAttempt = await beginPaymentAttempt({
+                idempotencyKey: activeIdempotencyKey,
+                scope: 'store_checkout',
+                requestHash,
+                localReferenceId: checkoutOrderId,
+            });
+            if (paymentAttempt.state === 'completed') {
+                return NextResponse.json(paymentAttempt.response, { status: 200 });
+            }
+            if (paymentAttempt.state === 'in_progress') {
+                return NextResponse.json(
+                    { error: 'Este pagamento ja esta sendo processado. Aguarde alguns segundos.' },
+                    { status: 409 },
+                );
+            }
+            if (paymentAttempt.state === 'conflict') {
+                return NextResponse.json(
+                    { error: 'Esta sessao de checkout ja foi usada com outros dados. Recarregue a pagina.' },
+                    { status: 409 },
+                );
+            }
+            checkoutOrderId = paymentAttempt.attempt.local_reference_id;
+            const { data: recoveredOrder } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('id', checkoutOrderId)
+                .maybeSingle();
+            if (recoveredOrder?.pagarme_order_id) {
+                await syncOrderAffiliateCommission(recoveredOrder, recoveredOrder.status);
+                const { error: recoveredSaleError } = await supabase
+                    .from('transactions')
+                    .upsert({
+                        user_id: sellerId,
+                        order_id: recoveredOrder.id,
+                        type: 'sale',
+                        amount: recoveredOrder.amount,
+                        status: recoveredOrder.status === 'paid' ? 'confirmed' : 'pending',
+                        description: `Venda pela loja ${normalizedStoreSlug}`,
+                        provider_event_key: `order-sale:${recoveredOrder.id}`,
+                    }, { onConflict: 'provider_event_key' });
+                if (recoveredSaleError) throw recoveredSaleError;
+                const recoveredResponse: Record<string, unknown> = {
+                    order: {
+                        id: recoveredOrder.id,
+                        status: recoveredOrder.status,
+                        amount_display: recoveredOrder.amount_display,
+                        payment_method: recoveredOrder.payment_method,
+                    },
+                };
+                if (recoveredOrder.payment_method === 'pix') {
+                    recoveredResponse.pix = {
+                        qr_code: recoveredOrder.pix_qr_code,
+                        qr_code_url: recoveredOrder.pix_qr_code_url,
+                        expires_at: recoveredOrder.pix_expires_at,
+                    };
+                } else {
+                    recoveredResponse.card = {
+                        last_digits: recoveredOrder.card_last_digits,
+                        brand: recoveredOrder.card_brand,
+                    };
+                }
+                await completePaymentAttempt(
+                    activeIdempotencyKey,
+                    recoveredOrder.pagarme_order_id,
+                    recoveredResponse,
+                );
+                return NextResponse.json(recoveredResponse, { status: 200 });
+            }
             pagarmeOrder = await PagarmeService.createOrder({
                 amount: totalAmountCents,
                 payment_method: method,
@@ -308,19 +468,16 @@ export async function POST(req: NextRequest) {
                 } : undefined,
                 card_token: method === 'credit_card' ? body.card_token : undefined,
                 installments: method === 'credit_card' ? cardInstallments || 1 : undefined,
-                items: validatedCart.map((item: any) => ({
-                    amount: item.priceCents,
-                    description: item.name,
-                    quantity: item.quantity,
-                    code: item.id
-                })),
+                items: providerItems,
                 ip,
                 session_id: sessionId,
                 device_platform: devicePlatform,
                 order_code: checkoutOrderId,
+                idempotency_key: activeIdempotencyKey,
                 three_ds_transaction_id: method === 'credit_card' ? threeDsTransactionId : undefined,
             });
         } catch (pagarmeErr: any) {
+            if (activeIdempotencyKey) await failPaymentAttempt(activeIdempotencyKey, pagarmeErr);
             const errorBody = pagarmeErr.response?.data;
             const providerMessage = String(errorBody?.message || pagarmeErr.message || '');
             const cardFailure = method === 'credit_card'
@@ -341,6 +498,9 @@ export async function POST(req: NextRequest) {
 
         // --- ERROR DETECTION ---
         if (isPagarmePaymentFailed(pagarmeOrder)) {
+            if (activeIdempotencyKey) {
+                await failPaymentAttempt(activeIdempotencyKey, new Error('Pagamento recusado pelo provedor.'));
+            }
             if (method !== 'credit_card') {
                 console.error('[STORE CHECKOUT PIX] Payment failed:', {
                     pagarme_order_id: pagarmeOrder?.id,
@@ -381,6 +541,7 @@ export async function POST(req: NextRequest) {
             pagarme_charge_id: charge?.id,
             installments: method === 'credit_card' ? cardInstallments : 1,
             ...affiliateOrderSnapshot(affiliateAttribution),
+            checkout_idempotency_key: activeIdempotencyKey,
         };
 
         // EXTREMTELY ROBUST PIX EXTRACTION
@@ -432,20 +593,28 @@ export async function POST(req: NextRequest) {
         }
 
         if (affiliateAttribution) {
-            try {
-                await recordOrderAffiliateCommission({
-                    orderId: order.id,
-                    producerId: sellerId,
-                    productId: items_cart[0].id,
-                    grossAmount: totalAmountCents,
-                    platformFeeAmount: appliedPlatformFeeAmount,
-                    orderStatus: order.status,
-                    attribution: affiliateAttribution,
-                });
-            } catch (affiliateError) {
-                console.error('[AFFILIATES] Failed to persist store order commission:', affiliateError);
-            }
+            await recordOrderAffiliateCommission({
+                orderId: order.id,
+                producerId: sellerId,
+                productId: items_cart[0].id,
+                grossAmount: totalAmountCents,
+                platformFeeAmount: appliedPlatformFeeAmount,
+                orderStatus: order.status,
+                attribution: affiliateAttribution,
+            });
         }
+        const { error: saleTransactionError } = await supabase
+            .from('transactions')
+            .upsert({
+                user_id: sellerId,
+                order_id: order.id,
+                type: 'sale',
+                amount: totalAmountCents,
+                status: order.status === 'paid' ? 'confirmed' : 'pending',
+                description: `Venda pela loja ${normalizedStoreSlug}`,
+                provider_event_key: `order-sale:${order.id}`,
+            }, { onConflict: 'provider_event_key' });
+        if (saleTransactionError) throw saleTransactionError;
 
         if (order.status === 'paid') {
             try {
@@ -493,9 +662,13 @@ export async function POST(req: NextRequest) {
             };
         }
 
+        if (activeIdempotencyKey) {
+            await completePaymentAttempt(activeIdempotencyKey, pagarmeOrder.id, response);
+        }
         return NextResponse.json(response, { status: 201 });
 
     } catch (err: any) {
+        if (activeIdempotencyKey) await failPaymentAttempt(activeIdempotencyKey, err);
         console.error('Unfied Checkout Error:', err.response?.data || err.message);
 
         return NextResponse.json(

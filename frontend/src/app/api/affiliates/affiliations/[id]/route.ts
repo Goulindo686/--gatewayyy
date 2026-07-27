@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { supabase } from '@/lib/db';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
-import { ensureAffiliateLink } from '@/lib/affiliates';
+import { ensureAffiliateLink, ensureAffiliatePayoutControl } from '@/lib/affiliates';
 import { normalizeAffiliateRateBps } from '@/lib/affiliates-core';
 
 const producerActions = new Set(['approve', 'reject', 'suspend', 'cancel']);
@@ -37,7 +37,7 @@ export async function PATCH(
 
     const { data: program } = await supabase
         .from('affiliate_programs')
-        .select('id, producer_id, product_id')
+        .select('id, producer_id, product_id, commission_rate_bps, terms_version, terms_text')
         .eq('id', affiliation.program_id)
         .maybeSingle();
     if (!program) return jsonError('Programa nao encontrado.', 404);
@@ -69,6 +69,12 @@ export async function PATCH(
         if (!recipient?.pagarme_recipient_id || ['refused', 'suspended'].includes(recipient.status)) {
             return jsonError('O afiliado ainda nao possui uma conta de recebimento valida.', 400);
         }
+        try {
+            await ensureAffiliatePayoutControl(affiliation.affiliate_id, recipient.pagarme_recipient_id);
+        } catch (error) {
+            console.error('[AFFILIATES] Failed to protect approved affiliate payout settings:', error);
+            return jsonError('Nao foi possivel proteger o saldo do afiliado agora. Tente aprovar novamente.', 503);
+        }
     }
 
     const now = new Date().toISOString();
@@ -82,6 +88,19 @@ export async function PATCH(
     };
     if ((isProducer || isAdmin) && body.custom_commission_rate_bps !== undefined) {
         values.custom_commission_rate_bps = customRate;
+        if (status === 'approved') {
+            values.accepted_commission_rate_bps = customRate ?? program.commission_rate_bps;
+        }
+    }
+    if (status === 'approved') {
+        values.accepted_terms_version = affiliation.accepted_terms_version
+            ?? Math.max(1, Number(program.terms_version || 1));
+        values.accepted_commission_rate_bps = values.accepted_commission_rate_bps
+            ?? affiliation.accepted_commission_rate_bps
+            ?? affiliation.custom_commission_rate_bps
+            ?? program.commission_rate_bps;
+        values.terms_snapshot = affiliation.terms_snapshot ?? program.terms_text ?? null;
+        values.terms_accepted_at = affiliation.terms_accepted_at ?? now;
     }
 
     const { data: updated, error } = await supabase

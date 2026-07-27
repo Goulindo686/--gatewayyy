@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { supabase } from '@/lib/db';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
-import { ensureAffiliateLink } from '@/lib/affiliates';
+import { ensureAffiliateLink, ensureAffiliatePayoutControl } from '@/lib/affiliates';
 
 export async function POST(req: NextRequest) {
     const auth = await getAuthUser(req);
@@ -32,7 +32,11 @@ export async function POST(req: NextRequest) {
     if (program.producer_id === auth.user.id) return jsonError('Nao e permitido afiliar-se ao proprio produto.', 400);
 
     const validInvite = Boolean(body.invite_code)
-        && String(body.invite_code).trim() === program.invite_code;
+        && String(body.invite_code).trim() === program.invite_code
+        && (
+            !program.invite_expires_at
+            || new Date(program.invite_expires_at).getTime() > Date.now()
+        );
     if (program.enrollment_mode === 'invite' && !validInvite) {
         return jsonError('Este programa aceita afiliados somente por convite.', 403);
     }
@@ -55,11 +59,19 @@ export async function POST(req: NextRequest) {
         .eq('program_id', program.id)
         .eq('affiliate_id', auth.user.id)
         .maybeSingle();
-    if (existing?.status === 'suspended') {
-        return jsonError('Esta afiliacao esta suspensa. Entre em contato com o produtor.', 403);
+    if (existing?.status === 'suspended' || existing?.status === 'rejected') {
+        return jsonError('Esta afiliacao precisa ser liberada pelo produtor antes de uma nova solicitacao.', 403);
     }
 
     const status = program.enrollment_mode === 'automatic' || validInvite ? 'approved' : 'pending';
+    if (status === 'approved') {
+        try {
+            await ensureAffiliatePayoutControl(auth.user.id, recipient.pagarme_recipient_id);
+        } catch (error) {
+            console.error('[AFFILIATES] Failed to protect affiliate payout settings:', error);
+            return jsonError('Nao foi possivel proteger o saldo de afiliado agora. Tente novamente em instantes.', 503);
+        }
+    }
     const now = new Date().toISOString();
     const values = {
         program_id: program.id,
@@ -70,6 +82,11 @@ export async function POST(req: NextRequest) {
         ended_at: null,
         terms_accepted_at: now,
         terms_snapshot: program.terms_text || null,
+        accepted_terms_version: Math.max(1, Number(program.terms_version || 1)),
+        accepted_commission_rate_bps: program.commission_rate_bps,
+        accepted_hold_days: program.hold_days,
+        accepted_commission_on_bumps: Boolean(program.commission_on_bumps),
+        accepted_commission_on_renewals: Boolean(program.commission_on_renewals),
     };
     const affiliationQuery = existing
         ? supabase.from('affiliate_affiliations').update(values).eq('id', existing.id)

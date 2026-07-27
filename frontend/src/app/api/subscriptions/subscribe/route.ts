@@ -4,15 +4,25 @@ import { jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { CARD_PLATFORM_FEE_PERCENTAGE, PagarmeService } from '@/lib/pagarme';
 import {
+    affiliateCookieName,
     affiliateOrderSnapshot,
     recordSubscriptionInitialCommission,
     resolveAffiliateAttribution,
+    syncInitialSubscriptionAffiliateCommission,
     type AffiliateAttribution,
 } from '@/lib/affiliates';
 import { calculateAffiliatePlatformFee, normalizeAffiliateReference } from '@/lib/affiliates-core';
+import {
+    beginPaymentAttempt,
+    completePaymentAttempt,
+    createProviderIdempotencyKey,
+    failPaymentAttempt,
+    hashPaymentRequest,
+} from '@/lib/payment-security';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
+    let activeIdempotencyKey: string | null = null;
     try {
         const ip =
             req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
@@ -81,11 +91,21 @@ export async function POST(req: NextRequest) {
                 platformFeeAmount: feeAmount,
                 buyerEmail: customer.email,
                 buyerDocument: customer.cpf,
+                buyerPhone: customer.phone,
                 attributionToken: affiliateReference || undefined,
             })
             : null;
+        const hasAffiliateIntent = Boolean(
+            affiliateReference
+            || (
+                plan.product_id
+                && normalizeAffiliateReference(
+                    req.cookies.get(affiliateCookieName(plan.product_id))?.value,
+                )
+            ),
+        );
         let affiliateAttribution: AffiliateAttribution | null = await resolveAttributionForFee(platformFeeAmount);
-        if (affiliateReference && !affiliateAttribution) {
+        if (hasAffiliateIntent && !affiliateAttribution) {
             return jsonError('Nao foi possivel validar este link de afiliado. Abra novamente o link antes de pagar.', 409);
         }
         if (affiliateAttribution) {
@@ -116,6 +136,79 @@ export async function POST(req: NextRequest) {
             return jsonError('Os recebedores desta venda de afiliado estao em conflito. Corrija as contas antes de pagar.', 409);
         }
 
+        const requestedSessionId = String(body.checkout_session_id || '');
+        if (!/^[a-zA-Z0-9-]{8,64}$/.test(requestedSessionId)) {
+            return jsonError('Sessao de assinatura invalida. Recarregue a pagina e tente novamente.', 400);
+        }
+        const sessionId = requestedSessionId;
+        let localSubscriptionId = uuidv4();
+        activeIdempotencyKey = createProviderIdempotencyKey('subscription', [
+            plan.user_id,
+            plan.id,
+            sessionId,
+        ]);
+        const requestHash = hashPaymentRequest({
+            seller_id: plan.user_id,
+            plan_id: plan.id,
+            session_id: sessionId,
+            amount: plan.amount,
+            buyer_name: String(customer.name || '').trim(),
+            buyer_email: normalizedEmail,
+            buyer_document: String(customer.cpf || '').replace(/\D/g, ''),
+            buyer_phone: String(customer.phone || '').replace(/\D/g, ''),
+            buyer_address: address || null,
+            card: {
+                number: String(card.number || '').replace(/\D/g, ''),
+                holder_name: card.holder_name,
+                exp_month: card.exp_month,
+                exp_year: card.exp_year,
+                cvv: card.cvv,
+            },
+            affiliate_click_id: affiliateAttribution?.clickId || null,
+        });
+        const paymentAttempt = await beginPaymentAttempt({
+            idempotencyKey: activeIdempotencyKey,
+            scope: 'subscription',
+            requestHash,
+            localReferenceId: localSubscriptionId,
+        });
+        if (paymentAttempt.state === 'completed') {
+            return jsonSuccess(paymentAttempt.response, 200);
+        }
+        if (paymentAttempt.state === 'in_progress') {
+            return jsonError('Esta assinatura ja esta sendo processada. Aguarde alguns segundos.', 409);
+        }
+        if (paymentAttempt.state === 'conflict') {
+            return jsonError('Esta sessao de assinatura ja foi usada com outros dados. Recarregue a pagina.', 409);
+        }
+        localSubscriptionId = paymentAttempt.attempt.local_reference_id;
+        const { data: recoveredSubscription } = await supabase
+            .from('subscriptions')
+            .select('*')
+            .eq('id', localSubscriptionId)
+            .maybeSingle();
+        if (recoveredSubscription?.pagarme_subscription_id) {
+            await syncInitialSubscriptionAffiliateCommission(
+                recoveredSubscription.id,
+                recoveredSubscription.status === 'active'
+                    ? 'active'
+                    : ['failed', 'canceled', 'cancelled'].includes(recoveredSubscription.status)
+                        ? 'failed'
+                        : 'pending',
+                recoveredSubscription.affiliate_hold_days || 0,
+            );
+            const recoveredResponse = {
+                subscription: recoveredSubscription,
+                pagarme_status: recoveredSubscription.status,
+            };
+            await completePaymentAttempt(
+                activeIdempotencyKey,
+                recoveredSubscription.pagarme_subscription_id,
+                recoveredResponse,
+            );
+            return jsonSuccess(recoveredResponse, 200);
+        }
+
         // Cria assinatura no Pagar.me
         const pagarmeSub = await PagarmeService.createSubscription({
             plan_id: plan.pagarme_plan_id,
@@ -127,9 +220,11 @@ export async function POST(req: NextRequest) {
             amount: plan.amount,
             affiliate_recipient_id: affiliateAttribution?.recipientId,
             affiliate_commission_amount: affiliateAttribution?.commissionAmount,
+            idempotency_key: activeIdempotencyKey,
         });
 
         if (pagarmeSub.status === 'canceled' || pagarmeSub.status === 'failed') {
+            await failPaymentAttempt(activeIdempotencyKey, new Error('Assinatura recusada pelo gateway.'));
             return jsonError('Assinatura recusada pelo gateway. Verifique os dados do cartão.', 400);
         }
 
@@ -140,9 +235,19 @@ export async function POST(req: NextRequest) {
         else if (plan.interval === 'week') periodEnd.setDate(periodEnd.getDate() + 7 * (plan.interval_count || 1));
         else if (plan.interval === 'year') periodEnd.setFullYear(periodEnd.getFullYear() + (plan.interval_count || 1));
 
+        const initialCycleReference = pagarmeSub?.current_cycle?.id
+            || pagarmeSub?.current_cycle?.start_at
+            || pagarmeSub?.cycle?.id
+            || null;
+        const initialPaymentId = pagarmeSub?.current_cycle?.charge?.id
+            || pagarmeSub?.current_cycle?.invoice?.charge?.id
+            || pagarmeSub?.charge?.id
+            || pagarmeSub?.invoice?.charge?.id
+            || null;
+
         // Salva assinatura no banco
-        const { data: subscription, error } = await supabase.from('subscriptions').insert({
-            id: uuidv4(),
+        const { data: insertedSubscription, error } = await supabase.from('subscriptions').insert({
+            id: localSubscriptionId,
             seller_id: plan.user_id,
             subscription_plan_id: plan.id,
             pagarme_subscription_id: pagarmeSub.id,
@@ -154,36 +259,51 @@ export async function POST(req: NextRequest) {
             status: pagarmeSub.status === 'active' ? 'active' : 'pending',
             current_period_start: now.toISOString(),
             current_period_end: periodEnd.toISOString(),
+            checkout_idempotency_key: activeIdempotencyKey,
+            affiliate_initial_cycle_reference: initialCycleReference,
+            affiliate_initial_payment_id: initialPaymentId,
             ...affiliateOrderSnapshot(affiliateAttribution),
             ...(affiliateAttribution ? {
-                affiliate_commission_on_renewals: affiliateAttribution.commissionOnRenewals,
+                // A Pagar.me reaplica o split da assinatura em todos os ciclos.
+                affiliate_commission_on_renewals: true,
                 affiliate_hold_days: affiliateAttribution.holdDays,
             } : {}),
         }).select().single();
 
-        if (error) return jsonError('Erro ao salvar assinatura: ' + error.message);
+        let subscription = insertedSubscription;
+        if (error?.code === '23505') {
+            const { data: existingSubscription } = await supabase
+                .from('subscriptions')
+                .select('*')
+                .eq('pagarme_subscription_id', pagarmeSub.id)
+                .maybeSingle();
+            subscription = existingSubscription;
+        } else if (error) {
+            throw error;
+        }
+        if (!subscription) throw new Error('Nao foi possivel salvar a assinatura.');
 
         if (affiliateAttribution) {
-            try {
-                await recordSubscriptionInitialCommission({
-                    subscriptionId: subscription.id,
-                    producerId: plan.user_id,
-                    productId: plan.product_id,
-                    grossAmount: plan.amount,
-                    platformFeeAmount,
-                    subscriptionStatus: subscription.status,
-                    attribution: affiliateAttribution,
-                });
-            } catch (affiliateError) {
-                console.error('[AFFILIATES] Failed to persist initial subscription commission:', affiliateError);
-            }
+            await recordSubscriptionInitialCommission({
+                subscriptionId: subscription.id,
+                producerId: plan.user_id,
+                productId: plan.product_id,
+                grossAmount: plan.amount,
+                platformFeeAmount,
+                subscriptionStatus: subscription.status,
+                attribution: affiliateAttribution,
+                providerPaymentId: initialPaymentId,
+            });
         }
 
-        return jsonSuccess({
+        const response = {
             subscription,
             pagarme_status: pagarmeSub.status
-        }, 201);
+        };
+        await completePaymentAttempt(activeIdempotencyKey, pagarmeSub.id, response);
+        return jsonSuccess(response, 201);
     } catch (err: any) {
+        if (activeIdempotencyKey) await failPaymentAttempt(activeIdempotencyKey, err);
         const msg = err.response?.data?.message || err.message;
         console.error('Subscribe error:', err.response?.data || err.message);
         return jsonError('Erro ao criar assinatura: ' + msg, 500);

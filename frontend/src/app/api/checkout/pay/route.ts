@@ -13,15 +13,25 @@ import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import { classifyCardPaymentFailure, classifyCardProviderRequestError, isPagarmePaymentFailed } from '@/lib/card-payment-failure';
 import { formatPixFeeLabel, resolveSellerPixFee } from '@/lib/seller-pix-fee';
 import {
+    affiliateCookieName,
     affiliateOrderSnapshot,
     recordOrderAffiliateCommission,
     resolveAffiliateAttribution,
+    syncOrderAffiliateCommission,
     type AffiliateAttribution,
 } from '@/lib/affiliates';
 import { calculateAffiliatePlatformFee, normalizeAffiliateReference } from '@/lib/affiliates-core';
+import {
+    beginPaymentAttempt,
+    completePaymentAttempt,
+    createProviderIdempotencyKey,
+    failPaymentAttempt,
+    hashPaymentRequest,
+} from '@/lib/payment-security';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
+    let activeIdempotencyKey: string | null = null;
     try {
         const contentType = req.headers.get('content-type') || '';
         if (!contentType.toLowerCase().includes('application/json')) {
@@ -272,12 +282,18 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        const orderId = uuidv4();
+        let orderId = uuidv4();
         let pagarmeOrder;
         let totalCents = 0;
         let appliedPlatformFeeAmount = 0;
         let appliedFeeLabel = 'isento';
         let affiliateAttribution: AffiliateAttribution | null = null;
+        const hasAffiliateIntent = Boolean(
+            affiliateReference
+            || normalizeAffiliateReference(
+                req.cookies.get(affiliateCookieName(product.id))?.value,
+            ),
+        );
         try {
             totalCents = pagarmeItems.reduce((sum, item) => sum + (item.amount * item.quantity), 0);
             if (totalCents <= 0) return jsonError('Valor do pedido invalido.', 400);
@@ -308,11 +324,12 @@ export async function POST(req: NextRequest) {
                 eligibleGrossAmount: baseCents,
                 buyerEmail: buyer.email,
                 buyerDocument: buyer.cpf,
+                buyerPhone: buyer.phone,
                 attributionToken: affiliateReference || undefined,
             });
 
             affiliateAttribution = await resolveAttributionForFee(appliedPlatformFeeAmount);
-            if (affiliateReference && !affiliateAttribution) {
+            if (hasAffiliateIntent && !affiliateAttribution) {
                 return jsonError('Nao foi possivel validar este link de afiliado. Abra novamente o link antes de pagar.', 409);
             }
             if (affiliateAttribution) {
@@ -359,9 +376,10 @@ export async function POST(req: NextRequest) {
             const ipHeader = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '';
             const ip = ipHeader.split(',')[0].trim() || undefined;
             const requestedSessionId = String(body.checkout_session_id || '');
-            const sessionId = /^[a-zA-Z0-9-]{8,64}$/.test(requestedSessionId)
-                ? requestedSessionId
-                : uuidv4();
+            if (!/^[a-zA-Z0-9-]{8,64}$/.test(requestedSessionId)) {
+                return jsonError('Sessao de checkout invalida. Recarregue a pagina e tente novamente.', 400);
+            }
+            const sessionId = requestedSessionId;
             const requestedPlatform = String(body.device_platform || '').toUpperCase();
             const devicePlatform = /^[A-Z0-9_-]{2,64}$/.test(requestedPlatform)
                 ? requestedPlatform
@@ -370,6 +388,90 @@ export async function POST(req: NextRequest) {
             const threeDsTransactionId = /^[a-zA-Z0-9_-]{8,128}$/.test(requestedThreeDsTransactionId)
                 ? requestedThreeDsTransactionId
                 : undefined;
+            activeIdempotencyKey = createProviderIdempotencyKey('checkout', [
+                product.user_id,
+                product.id,
+                sessionId,
+                normalizedPaymentMethod,
+            ]);
+            const requestHash = hashPaymentRequest({
+                seller_id: product.user_id,
+                product_id: product.id,
+                session_id: sessionId,
+                payment_method: normalizedPaymentMethod,
+                amount: totalCents,
+                buyer_name: String(buyer.name || '').trim(),
+                buyer_email: String(buyer.email || '').trim().toLowerCase(),
+                buyer_document: String(buyer.cpf || '').replace(/\D/g, ''),
+                buyer_phone: String(buyer.phone || '').replace(/\D/g, ''),
+                buyer_address: buyer.address || null,
+                installments: cardInstallments,
+                items: pagarmeItems,
+                affiliate_click_id: affiliateAttribution?.clickId || null,
+            });
+            const paymentAttempt = await beginPaymentAttempt({
+                idempotencyKey: activeIdempotencyKey,
+                scope: 'checkout',
+                requestHash,
+                localReferenceId: orderId,
+            });
+            if (paymentAttempt.state === 'completed') {
+                return jsonSuccess(paymentAttempt.response, 200);
+            }
+            if (paymentAttempt.state === 'in_progress') {
+                return jsonError('Este pagamento ja esta sendo processado. Aguarde alguns segundos.', 409);
+            }
+            if (paymentAttempt.state === 'conflict') {
+                return jsonError('Esta sessao de checkout ja foi usada com outros dados. Recarregue a pagina.', 409);
+            }
+            orderId = paymentAttempt.attempt.local_reference_id;
+            const { data: recoveredOrder } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('id', orderId)
+                .maybeSingle();
+            if (recoveredOrder?.pagarme_order_id) {
+                await syncOrderAffiliateCommission(recoveredOrder, recoveredOrder.status);
+                const { error: recoveredSaleError } = await supabase
+                    .from('transactions')
+                    .upsert({
+                        user_id: product.user_id,
+                        order_id: recoveredOrder.id,
+                        type: 'sale',
+                        amount: recoveredOrder.amount,
+                        status: recoveredOrder.status === 'paid' ? 'confirmed' : 'pending',
+                        description: `Venda: ${product.name}${selectedPlan ? ` - ${selectedPlan.name}` : ''}`,
+                        provider_event_key: `order-sale:${recoveredOrder.id}`,
+                    }, { onConflict: 'provider_event_key' });
+                if (recoveredSaleError) throw recoveredSaleError;
+                const recoveredResponse: Record<string, unknown> = {
+                    order: {
+                        id: recoveredOrder.id,
+                        status: recoveredOrder.status,
+                        amount_display: recoveredOrder.amount_display,
+                        payment_method: recoveredOrder.payment_method,
+                    },
+                };
+                if (recoveredOrder.payment_method === 'pix') {
+                    recoveredResponse.pix = {
+                        qr_code: recoveredOrder.pix_qr_code,
+                        qr_code_url: recoveredOrder.pix_qr_code_url,
+                        expires_at: recoveredOrder.pix_expires_at,
+                    };
+                } else {
+                    recoveredResponse.card = {
+                        last_digits: recoveredOrder.card_last_digits,
+                        brand: recoveredOrder.card_brand,
+                        installments: recoveredOrder.installments,
+                    };
+                }
+                await completePaymentAttempt(
+                    activeIdempotencyKey,
+                    recoveredOrder.pagarme_order_id,
+                    recoveredResponse,
+                );
+                return jsonSuccess(recoveredResponse, 200);
+            }
             pagarmeOrder = await PagarmeService.createOrder({
                 amount: totalCents,
                 payment_method: normalizedPaymentMethod,
@@ -393,10 +495,12 @@ export async function POST(req: NextRequest) {
                 session_id: sessionId,
                 device_platform: devicePlatform,
                 order_code: orderId,
+                idempotency_key: activeIdempotencyKey,
                 three_ds_transaction_id: normalizedPaymentMethod === 'credit_card' ? threeDsTransactionId : undefined,
                 items: pagarmeItems
             });
         } catch (pagarmeErr: any) {
+            if (activeIdempotencyKey) await failPaymentAttempt(activeIdempotencyKey, pagarmeErr);
             const errorBody = pagarmeErr.response?.data;
             const providerStatus = pagarmeErr.response?.status;
             const providerMessage = String(errorBody?.message || pagarmeErr.message || '');
@@ -420,6 +524,9 @@ export async function POST(req: NextRequest) {
 
         // --- ERROR DETECTION ---
         if (isPagarmePaymentFailed(pagarmeOrder)) {
+            if (activeIdempotencyKey) {
+                await failPaymentAttempt(activeIdempotencyKey, new Error('Pagamento recusado pelo provedor.'));
+            }
             if (normalizedPaymentMethod !== 'credit_card') {
                 console.error('[CHECKOUT PIX] Payment failed:', {
                     pagarme_order_id: pagarmeOrder?.id,
@@ -453,7 +560,7 @@ export async function POST(req: NextRequest) {
         const amountDisplay = (totalCents / 100).toFixed(2);
 
         // Save order
-        await supabase.from('orders').insert({
+        const { error: orderInsertError } = await supabase.from('orders').insert({
             id: orderId, seller_id: product.user_id, product_id: product.id,
             buyer_name: buyer.name, buyer_email: buyer.email, buyer_cpf: buyer.cpf,
             buyer_phone: buyer.phone?.replace(/\D/g, ''),
@@ -472,23 +579,25 @@ export async function POST(req: NextRequest) {
             facebook_fbc: typeof facebook.fbc === 'string' ? facebook.fbc : null,
             client_ip: clientIp,
             client_user_agent: clientUserAgent,
+            checkout_idempotency_key: activeIdempotencyKey,
+            ...(charge?.status === 'paid' ? {
+                paid_processing_token: activeIdempotencyKey,
+                paid_processing_started_at: new Date().toISOString(),
+            } : {}),
             ...affiliateOrderSnapshot(affiliateAttribution),
         });
+        if (orderInsertError) throw orderInsertError;
 
         if (affiliateAttribution) {
-            try {
-                await recordOrderAffiliateCommission({
-                    orderId,
-                    producerId: product.user_id,
-                    productId: product.id,
-                    grossAmount: totalCents,
-                    platformFeeAmount: appliedPlatformFeeAmount,
-                    orderStatus: charge?.status === 'paid' ? 'paid' : 'pending',
-                    attribution: affiliateAttribution,
-                });
-            } catch (affiliateError) {
-                console.error('[AFFILIATES] Failed to persist order commission:', affiliateError);
-            }
+            await recordOrderAffiliateCommission({
+                orderId,
+                producerId: product.user_id,
+                productId: product.id,
+                grossAmount: totalCents,
+                platformFeeAmount: appliedPlatformFeeAmount,
+                orderStatus: charge?.status === 'paid' ? 'paid' : 'pending',
+                attribution: affiliateAttribution,
+            });
         }
 
         try {
@@ -511,12 +620,14 @@ export async function POST(req: NextRequest) {
         }
 
         // Save transaction
-        await supabase.from('transactions').insert({
+        const { error: saleTransactionError } = await supabase.from('transactions').upsert({
             id: uuidv4(), user_id: product.user_id, order_id: orderId,
             type: 'sale', amount: totalCents,
             status: charge?.status === 'paid' ? 'confirmed' : 'pending',
-            description: `Venda: ${product.name}${selectedPlan ? ` - ${selectedPlan.name}` : ''}`
-        });
+            description: `Venda: ${product.name}${selectedPlan ? ` - ${selectedPlan.name}` : ''}`,
+            provider_event_key: `order-sale:${orderId}`,
+        }, { onConflict: 'provider_event_key' });
+        if (saleTransactionError) throw saleTransactionError;
 
         // If paid immediately, create fee transaction and update sales count
         if (charge?.status === 'paid') {
@@ -603,16 +714,23 @@ export async function POST(req: NextRequest) {
 
             const feeAmount = appliedPlatformFeeAmount;
             if (feeAmount > 0) {
-                await supabase.from('transactions').insert({
+                const { error: feeTransactionError } = await supabase.from('transactions').upsert({
                     id: uuidv4(), user_id: product.user_id, order_id: orderId,
                     type: 'fee', amount: feeAmount,
                     status: 'confirmed',
-                    description: `Taxa de plataforma (${appliedFeeLabel}) - Pedido ${orderId}`
-                });
+                    description: `Taxa de plataforma (${appliedFeeLabel}) - Pedido ${orderId}`,
+                    provider_event_key: `order-fee:${orderId}`,
+                }, { onConflict: 'provider_event_key' });
+                if (feeTransactionError) throw feeTransactionError;
             }
 
+            const { count: paidSalesCount } = await supabase
+                .from('orders')
+                .select('id', { count: 'exact', head: true })
+                .eq('product_id', product.id)
+                .eq('status', 'paid');
             await supabase.from('products')
-                .update({ sales_count: (product.sales_count || 0) + 1 })
+                .update({ sales_count: paidSalesCount || 0 })
                 .eq('id', product.id);
 
             // Envia email de compra aprovada
@@ -655,6 +773,15 @@ export async function POST(req: NextRequest) {
             } catch (notificationError) {
                 console.error('[CHECKOUT] Approved sale notification error:', notificationError);
             }
+            const { error: paidProcessedError } = await supabase
+                .from('orders')
+                .update({
+                    paid_processed_at: new Date().toISOString(),
+                    paid_processing_token: null,
+                })
+                .eq('id', orderId)
+                .eq('paid_processing_token', activeIdempotencyKey);
+            if (paidProcessedError) throw paidProcessedError;
         }
 
         // Build response
@@ -682,6 +809,9 @@ export async function POST(req: NextRequest) {
                     charge_status: pagarmeOrder?.charges?.[0]?.status,
                     has_last_transaction: !!pagarmeOrder?.charges?.[0]?.last_transaction
                 }));
+                if (activeIdempotencyKey) {
+                    await failPaymentAttempt(activeIdempotencyKey, new Error('Pagar.me nao retornou o QR Code.'));
+                }
                 return jsonError('O pedido foi gerado, mas o Pagar.me não retornou o QR Code.', 502);
             }
         }
@@ -694,8 +824,12 @@ export async function POST(req: NextRequest) {
             };
         }
 
+        if (activeIdempotencyKey) {
+            await completePaymentAttempt(activeIdempotencyKey, pagarmeOrder.id, response);
+        }
         return jsonSuccess(response, 201);
     } catch (err: any) {
+        if (activeIdempotencyKey) await failPaymentAttempt(activeIdempotencyKey, err);
         const errorData = err.response?.data || err.message;
         console.error('Checkout error details:', {
             error: typeof errorData === 'string' ? errorData.slice(0, 500) : 'provider_error',

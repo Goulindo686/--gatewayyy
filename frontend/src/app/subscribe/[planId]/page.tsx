@@ -38,6 +38,7 @@ export default function SubscribePage() {
     const [success, setSuccess] = useState(false);
     const [timerSeconds, setTimerSeconds] = useState(0);
     const timerRef = useRef<any>(null);
+    const checkoutSessionRef = useRef<string | null>(null);
 
     const [form, setForm] = useState({
         name: '', email: '', cpf: '', phone: '',
@@ -119,6 +120,11 @@ export default function SubscribePage() {
         if (!form.street || !form.number || !form.city) { toast.error('Endereço incompleto'); return; }
         setProcessing(true);
         try {
+            checkoutSessionRef.current ||= (
+                typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                    ? crypto.randomUUID()
+                    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+            );
             await api.post('/subscriptions/subscribe', {
                 plan_id: planId,
                 customer: {
@@ -144,10 +150,12 @@ export default function SubscribePage() {
                     country: 'BR',
                 },
                 affiliate_ref: getAffiliateReference() || undefined,
+                checkout_session_id: checkoutSessionRef.current,
             });
             toast.success('Assinatura ativada! 🎉');
             setSuccess(true);
         } catch (err: any) {
+            if (err.response?.status === 400) checkoutSessionRef.current = null;
             toast.error(err.response?.data?.error || 'Erro ao processar assinatura');
         } finally {
             setProcessing(false);

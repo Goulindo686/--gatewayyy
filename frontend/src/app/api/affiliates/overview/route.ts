@@ -4,7 +4,10 @@ import { NextRequest } from 'next/server';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { supabase } from '@/lib/db';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
-import { promoteAvailableAffiliateCommissions } from '@/lib/affiliates';
+import {
+    ensureAffiliatePayoutControl,
+    promoteAvailableAffiliateCommissions,
+} from '@/lib/affiliates';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,7 +56,7 @@ export async function GET(req: NextRequest) {
                 .limit(1),
             supabase
                 .from('affiliate_commissions')
-                .select('*')
+                .select('id, order_id, subscription_id, affiliate_id, producer_id, product_id, program_id, affiliation_id, source_type, gross_amount, platform_fee_amount, commission_base_amount, commission_rate_bps, commission_amount, status, available_at, approved_at, reversed_at, reversal_reason, created_at')
                 .or(`affiliate_id.eq.${auth.user.id},producer_id.eq.${auth.user.id}`)
                 .order('created_at', { ascending: false })
                 .limit(500),
@@ -62,6 +65,20 @@ export async function GET(req: NextRequest) {
         if (productsError) throw productsError;
         if (affiliationsError) throw affiliationsError;
         if (commissionsError) throw commissionsError;
+        if (
+            (ownAffiliations || []).some((affiliation: any) => affiliation.status === 'approved')
+            && recipientRows?.[0]?.pagarme_recipient_id
+            && !['refused', 'suspended'].includes(recipientRows[0].status)
+        ) {
+            try {
+                await ensureAffiliatePayoutControl(
+                    auth.user.id,
+                    recipientRows[0].pagarme_recipient_id,
+                );
+            } catch (error) {
+                console.error('[AFFILIATES] Could not reconcile affiliate payout settings:', error);
+            }
+        }
 
         const productIds = (products || []).map((product: any) => product.id);
         const { data: producerPrograms, error: producerProgramsError } = productIds.length

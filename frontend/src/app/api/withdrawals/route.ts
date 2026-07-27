@@ -6,6 +6,7 @@ import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { PagarmeService } from '@/lib/pagarme';
 import { sendPushNotification } from '@/lib/webpush';
+import { getAffiliateWithdrawalReserve } from '@/lib/affiliates';
 import { v4 as uuidv4 } from 'uuid';
 
 const WITHDRAWAL_FEE_CENTS = 367;
@@ -176,10 +177,10 @@ export async function POST(req: NextRequest) {
             req.headers.get('x-real-ip') ||
             'unknown';
 
-        const rlIp = await checkRateLimit({ key: `withdrawals:post:ip:${ip}`, limit: 10, windowSecs: 3600, failOpen: true });
+        const rlIp = await checkRateLimit({ key: `withdrawals:post:ip:${ip}`, limit: 10, windowSecs: 3600, failOpen: false });
         if (!rlIp.allowed) return rateLimitResponse(rlIp.resetAt);
 
-        const rlUser = await checkRateLimit({ key: `withdrawals:post:user:${auth.user.id}`, limit: 5, windowSecs: 3600, failOpen: true });
+        const rlUser = await checkRateLimit({ key: `withdrawals:post:user:${auth.user.id}`, limit: 5, windowSecs: 3600, failOpen: false });
         if (!rlUser.allowed) return rateLimitResponse(rlUser.resetAt);
 
         const { amount } = await req.json();
@@ -221,10 +222,14 @@ export async function POST(req: NextRequest) {
             .in('status', ['pending', 'processing']);
 
         const reservedAmount = (reservedWithdrawals || []).reduce((sum, w) => sum + (w.amount || 0), 0);
-        const availableAfterReserved = Math.max(0, availableAmount - reservedAmount);
+        const affiliateReserve = await getAffiliateWithdrawalReserve(auth.user.id);
+        const availableAfterReserved = Math.max(
+            0,
+            availableAmount - reservedAmount - affiliateReserve.total,
+        );
 
         if (amountInCents + WITHDRAWAL_FEE_CENTS > availableAfterReserved) {
-            return jsonError('Saldo insuficiente considerando saques pendentes e taxa de saque.', 400);
+            return jsonError('Saldo insuficiente considerando comissoes em seguranca, saques pendentes e taxa de saque.', 400);
         }
 
         const { data: withdrawal, error: insertError } = await createPendingWithdrawal({

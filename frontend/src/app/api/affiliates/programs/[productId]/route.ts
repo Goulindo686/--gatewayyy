@@ -40,14 +40,40 @@ export async function PUT(
     const holdDays = Math.max(0, Math.min(180, Math.trunc(Number(body.hold_days) || 0)));
     const commissionRateBps = normalizeAffiliateRateBps(Number(body.commission_rate_bps) || 3000);
     const status = body.status === 'active' ? 'active' : 'inactive';
+    const commissionOnBumps = body.commission_on_bumps !== false;
 
     const { data: existing, error: existingError } = await supabase
         .from('affiliate_programs')
-        .select('id, invite_code')
+        .select('id, invite_code, invite_expires_at, commission_rate_bps, terms_text, terms_version, hold_days, commission_on_bumps, commission_on_renewals')
         .eq('product_id', productId)
         .maybeSingle();
     if (existingError) return jsonError('O modulo de afiliados ainda nao foi ativado no banco de dados.', 500);
 
+    const { data: subscriptionPlanRows } = await supabase
+        .from('subscription_plans')
+        .select('id')
+        .eq('product_id', productId)
+        .eq('status', 'active')
+        .limit(1);
+    const requiresRecurringCommission = Boolean(subscriptionPlanRows?.length);
+    const commissionOnRenewals = requiresRecurringCommission || body.commission_on_renewals !== false;
+    const materialTermsChanged = existing
+        ? Number(existing.commission_rate_bps) !== commissionRateBps
+            || String(existing.terms_text || '') !== String(body.terms_text || '').trim().slice(0, 10_000)
+            || Number(existing.hold_days || 0) !== holdDays
+            || Boolean(existing.commission_on_bumps) !== commissionOnBumps
+            || Boolean(existing.commission_on_renewals) !== commissionOnRenewals
+        : false;
+    const inviteExpired = Boolean(
+        existing?.invite_expires_at
+        && new Date(existing.invite_expires_at).getTime() <= Date.now(),
+    );
+    const rotateInvite = body.rotate_invite === true;
+    const now = new Date();
+    const inviteExpiresAt = new Date(now);
+    inviteExpiresAt.setUTCDate(inviteExpiresAt.getUTCDate() + 30);
+
+    const shouldRotateInvite = !existing?.invite_code || inviteExpired || rotateInvite;
     const values = {
         product_id: productId,
         producer_id: auth.user.id,
@@ -57,11 +83,16 @@ export async function PUT(
         attribution_model: attributionModel,
         cookie_days: cookieDays,
         marketplace_visible: Boolean(body.marketplace_visible),
-        commission_on_bumps: body.commission_on_bumps !== false,
-        commission_on_renewals: body.commission_on_renewals !== false,
+        commission_on_bumps: commissionOnBumps,
+        commission_on_renewals: commissionOnRenewals,
         hold_days: holdDays,
         terms_text: String(body.terms_text || '').trim().slice(0, 10_000) || null,
-        invite_code: existing?.invite_code || createAffiliateCode(),
+        terms_version: Math.max(1, Number(existing?.terms_version || 1)) + (materialTermsChanged ? 1 : 0),
+        invite_code: shouldRotateInvite ? createAffiliateCode() : existing.invite_code,
+        invite_expires_at: shouldRotateInvite
+            ? inviteExpiresAt.toISOString()
+            : existing.invite_expires_at,
+        ...(shouldRotateInvite ? { invite_last_rotated_at: now.toISOString() } : {}),
     };
     const query = existing
         ? supabase.from('affiliate_programs').update(values).eq('id', existing.id)

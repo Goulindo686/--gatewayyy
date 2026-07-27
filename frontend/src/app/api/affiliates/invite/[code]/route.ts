@@ -28,11 +28,19 @@ export async function GET(
 
     const { data: program } = await supabase
         .from('affiliate_programs')
-        .select('id, product_id, producer_id, status, commission_rate_bps, cookie_days, terms_text')
+        .select('id, product_id, producer_id, status, commission_rate_bps, cookie_days, terms_text, invite_expires_at')
         .eq('invite_code', inviteCode)
         .eq('status', 'active')
         .maybeSingle();
-    if (!program) return jsonError('Este convite nao esta mais disponivel.', 404);
+    if (
+        !program
+        || (
+            program.invite_expires_at
+            && new Date(program.invite_expires_at).getTime() <= Date.now()
+        )
+    ) {
+        return jsonError('Este convite expirou ou nao esta mais disponivel.', 404);
+    }
 
     const [{ data: product }, { data: producer }] = await Promise.all([
         supabase

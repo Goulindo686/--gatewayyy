@@ -235,6 +235,7 @@ export default function CheckoutPage() {
     const [pixPaid, setPixPaid] = useState(false);
     const pollingRef = useRef<any>(null);
     const purchaseTrackedRef = useRef(false);
+    const checkoutSessionRef = useRef<string | null>(null);
     const [timerSeconds, setTimerSeconds] = useState(0);
     const timerRef = useRef<any>(null);
     const [form, setForm] = useState({
@@ -525,6 +526,9 @@ export default function CheckoutPage() {
                 }
             };
             const payload: any = buyer;
+            const checkoutSessionId = checkoutSessionRef.current || createCheckoutSessionId();
+            checkoutSessionRef.current = checkoutSessionId;
+            payload.checkout_session_id = checkoutSessionId;
             const affiliateReference = getAffiliateReference();
             if (affiliateReference) payload.affiliate_ref = affiliateReference;
             payload.facebook = {
@@ -571,7 +575,6 @@ export default function CheckoutPage() {
                     cvv: form.card_cvv,
                 });
                 payload.installments = Number(form.installments) || 1;
-                payload.checkout_session_id = createCheckoutSessionId();
                 payload.device_platform = getCheckoutDevicePlatform();
             }
             // Envia os bumps selecionados com o plano escolhido pelo comprador
@@ -598,6 +601,9 @@ export default function CheckoutPage() {
                 startPaymentPolling(data.order.id);
             }
         } catch (err: any) {
+            if (err?.response?.status >= 400 && err?.response?.status < 500 && err?.response?.status !== 409) {
+                checkoutSessionRef.current = null;
+            }
             const message = err instanceof CardTokenizationError
                 ? err.message
                 : err.response?.data?.error || 'Erro ao processar pagamento';

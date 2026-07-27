@@ -95,7 +95,6 @@ export async function GET(
                     .maybeSingle(),
             ]);
             if (currentAffiliation && currentLink) {
-                destination.searchParams.set('aff_ref', currentToken);
                 return NextResponse.redirect(destination);
             }
         }
@@ -132,7 +131,6 @@ export async function GET(
         );
     }
 
-    destination.searchParams.set('aff_ref', token);
     const response = NextResponse.redirect(destination);
     response.cookies.set({
         name: cookieName,

@@ -16,9 +16,16 @@ import { CARD_PLATFORM_FEE_PERCENTAGE } from '@/lib/pagarme';
 import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import {
     recordSubscriptionRenewalCommission,
+    reverseSubscriptionAffiliateCommission,
     syncInitialSubscriptionAffiliateCommission,
     syncOrderAffiliateCommission,
 } from '@/lib/affiliates';
+import {
+    beginWebhookEvent,
+    completeWebhookEvent,
+    createWebhookEventKey,
+    failWebhookEvent,
+} from '@/lib/webhook-security';
 
 type SaleNotificationOrder = {
     id: string;
@@ -94,17 +101,253 @@ function isValidPagarmeSignature({
     const sha1 = createHmac('sha1', secret).update(rawBody).digest('hex');
     const sha256 = createHmac('sha256', secret).update(rawBody).digest('hex');
 
-    const candidates = new Set<string>([
-        sha1,
-        sha256,
-        `sha1=${sha1}`,
-        `sha256=${sha256}`,
-    ]);
+    return [sha1, sha256].some((expected) => (
+        safeEqual(provided, expected)
+        || safeEqual(providedHex, expected)
+        || safeEqual(provided, `sha1=${expected}`)
+        || safeEqual(provided, `sha256=${expected}`)
+    ));
+}
 
-    return candidates.has(provided) || candidates.has(providedHex);
+function canTransitionOrderStatus(currentStatus: string, nextStatus: string) {
+    if (!nextStatus || currentStatus === nextStatus) return true;
+    if (currentStatus === 'chargeback') return false;
+    if (currentStatus === 'refunded') return nextStatus === 'chargeback';
+    if (currentStatus === 'paid' && ['pending', 'failed', 'cancelled', 'canceled'].includes(nextStatus)) {
+        return false;
+    }
+    return true;
+}
+
+async function claimPaidOrderProcessing(order: any, eventKey: string) {
+    if (order.paid_processed_at) return 'completed' as const;
+
+    const startedAt = new Date(order.paid_processing_started_at || 0).getTime();
+    const hasFreshOwner = order.paid_processing_token
+        && Number.isFinite(startedAt)
+        && Date.now() - startedAt < 2 * 60 * 1000;
+    if (hasFreshOwner && order.paid_processing_token !== eventKey) {
+        return 'in_progress' as const;
+    }
+
+    const staleBefore = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+        .from('orders')
+        .update({
+            paid_processing_token: eventKey,
+            paid_processing_started_at: new Date().toISOString(),
+        })
+        .eq('id', order.id)
+        .is('paid_processed_at', null)
+        .or(`paid_processing_token.is.null,paid_processing_token.eq.${eventKey},paid_processing_started_at.lt.${staleBefore}`)
+        .select('id')
+        .maybeSingle();
+    if (error) throw error;
+    return data ? 'claimed' as const : 'in_progress' as const;
+}
+
+function subscriptionIdFromWebhook(type: string, data: any) {
+    if (type.startsWith('subscription.')) return String(data?.id || '');
+    return String(
+        data?.subscription?.id
+        || data?.invoice?.subscription?.id
+        || data?.invoice?.subscription_id
+        || data?.invoice?.subscriptionId
+        || data?.charge?.invoice?.subscription?.id
+        || data?.charge?.invoice?.subscription_id
+        || data?.charge?.invoice?.subscriptionId
+        || data?.subscription_id
+        || '',
+    );
+}
+
+function subscriptionPaymentId(data: any) {
+    return String(
+        data?.charge?.id
+        || data?.charge_id
+        || data?.invoice?.charge?.id
+        || data?.current_cycle?.charge?.id
+        || data?.current_cycle?.invoice?.charge?.id
+        || (String(data?.id || '').startsWith('ch_') ? data.id : '')
+        || '',
+    ) || null;
+}
+
+function chargeIdFromWebhook(type: string, data: any) {
+    if (type === 'chargeback.received') {
+        return String(data?.charge?.id || data?.charge_id || '');
+    }
+    return type.startsWith('charge.') ? String(data?.id || '') : '';
+}
+
+function subscriptionCycleReference(data: any, rawBody: string) {
+    return String(
+        data?.current_cycle?.id
+        || data?.current_cycle?.start_at
+        || data?.cycle?.id
+        || data?.cycle?.start_at
+        || data?.invoice?.id
+        || data?.charge?.id
+        || createHash('sha256').update(rawBody).digest('hex'),
+    );
+}
+
+async function handleSubscriptionWebhook(type: string, data: any, rawBody: string, eventKey: string) {
+    const pagarmeSubscriptionId = subscriptionIdFromWebhook(type, data);
+    if (!pagarmeSubscriptionId) return false;
+
+    if (type === 'subscription.created') {
+        await supabase
+            .from('subscriptions')
+            .update({ status: 'active' })
+            .eq('pagarme_subscription_id', pagarmeSubscriptionId);
+        return true;
+    }
+
+    const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('*, subscription_plans(name, product_id)')
+        .eq('pagarme_subscription_id', pagarmeSubscriptionId)
+        .maybeSingle();
+    if (!subscription) {
+        throw new Error(`Assinatura local ainda nao encontrada para o evento ${type}.`);
+    }
+
+    const paymentId = subscriptionPaymentId(data);
+    const cycleReference = subscriptionCycleReference(data, rawBody);
+    const matchesInitialCycle = Boolean(
+        (subscription.affiliate_initial_cycle_reference
+            && subscription.affiliate_initial_cycle_reference === cycleReference)
+        || (subscription.affiliate_initial_payment_id
+            && subscription.affiliate_initial_payment_id === paymentId),
+    );
+
+    if (
+        type === 'subscription.payment_succeeded'
+        || type === 'subscription.cycle_ended'
+        || type === 'invoice.paid'
+        || type === 'charge.paid'
+    ) {
+        await supabase
+            .from('subscriptions')
+            .update({ status: 'active', current_period_start: new Date().toISOString() })
+            .eq('id', subscription.id);
+
+        await supabase.from('transactions').upsert({
+            id: uuidv4(),
+            user_id: subscription.seller_id,
+            type: 'subscription_payment',
+            amount: subscription.amount,
+            status: 'confirmed',
+            description: `Cobranca recorrente - ${subscription.subscription_plans?.name || 'Assinatura'} - ${subscription.customer_email}`,
+            provider_event_key: `subscription-payment:${eventKey}`,
+        }, { onConflict: 'provider_event_key', ignoreDuplicates: true });
+
+        const { data: initialCommission } = await supabase
+            .from('affiliate_commissions')
+            .select('id, provider_payment_id')
+            .eq('subscription_id', subscription.id)
+            .eq('source_type', 'subscription_initial')
+            .maybeSingle();
+        const isInitialPayment = matchesInitialCycle
+            || Boolean(initialCommission && !initialCommission.provider_payment_id);
+
+        if (isInitialPayment) {
+            if (initialCommission && paymentId && !initialCommission.provider_payment_id) {
+                await supabase
+                    .from('affiliate_commissions')
+                    .update({ provider_payment_id: paymentId })
+                    .eq('id', initialCommission.id);
+            }
+            await syncInitialSubscriptionAffiliateCommission(
+                subscription.id,
+                'active',
+                subscription.affiliate_hold_days || 0,
+            );
+        } else {
+            const providerEventId = createHash('sha256')
+                .update(`affiliate-renewal:${subscription.id}:${cycleReference}`)
+                .digest('hex');
+            await recordSubscriptionRenewalCommission(
+                subscription,
+                providerEventId,
+                paymentId,
+            );
+        }
+        return true;
+    }
+
+    if (
+        type === 'subscription.payment_failed'
+        || type === 'invoice.payment_failed'
+        || type === 'charge.payment_failed'
+    ) {
+        await supabase
+            .from('subscriptions')
+            .update({ status: 'past_due' })
+            .eq('id', subscription.id);
+        if (matchesInitialCycle) {
+            await syncInitialSubscriptionAffiliateCommission(
+                subscription.id,
+                'failed',
+                subscription.affiliate_hold_days || 0,
+            );
+        }
+        return true;
+    }
+
+    if (type === 'subscription.canceled' || type === 'subscription.expired') {
+        await supabase
+            .from('subscriptions')
+            .update({ status: 'canceled', canceled_at: new Date().toISOString() })
+            .eq('id', subscription.id);
+
+        const productId = subscription.subscription_plans?.product_id;
+        if (productId && subscription.customer_email) {
+            const { data: user } = await supabase
+                .from('users')
+                .select('id')
+                .ilike('email', subscription.customer_email)
+                .maybeSingle();
+            if (user) {
+                await supabase
+                    .from('enrollments')
+                    .update({ status: 'inactive' })
+                    .eq('user_id', user.id)
+                    .eq('product_id', productId);
+            }
+        }
+        return true;
+    }
+
+    if (
+        type === 'charge.refunded'
+        || type === 'charge.chargedback'
+        || type === 'chargeback.received'
+    ) {
+        await reverseSubscriptionAffiliateCommission({
+            subscriptionId: subscription.id,
+            providerPaymentId: paymentId,
+            status: type === 'charge.refunded' ? 'refunded' : 'chargeback',
+        });
+        if (type !== 'charge.refunded') {
+            await supabase
+                .from('subscriptions')
+                .update({ status: 'canceled', canceled_at: new Date().toISOString() })
+                .eq('id', subscription.id);
+        }
+        return true;
+    }
+
+    return type.startsWith('subscription.');
 }
 
 export async function POST(req: NextRequest) {
+    let activeWebhookEventKey: string | null = null;
+    const webhookSuccess = async (payload: Record<string, unknown>) => {
+        if (activeWebhookEventKey) await completeWebhookEvent(activeWebhookEventKey);
+        return jsonSuccess(payload);
+    };
     try {
         const ip =
             req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
@@ -148,7 +391,10 @@ export async function POST(req: NextRequest) {
         const body = JSON.parse(rawBody);
         const { type, data } = body;
 
-        const eventId = String(data?.id || '');
+        if (!type || !data) return jsonError('Invalid webhook', 400);
+
+        const providerEventId = String(body?.id || '').trim().slice(0, 200);
+        const eventId = providerEventId || String(data?.id || '');
         if (eventId) {
             const rlEvent = await checkRateLimit({ key: `webhook:pagarme:event:${eventId}`, limit: 20, windowSecs: 3600, failOpen: true });
             if (!rlEvent.allowed) return jsonError('Too many requests', 429);
@@ -156,14 +402,33 @@ export async function POST(req: NextRequest) {
 
         console.log('Webhook received:', type, 'ID:', data.id, 'Order ID:', data.order?.id);
 
-        if (!type || !data) return jsonError('Invalid webhook', 400);
+        const webhookIdentity = createWebhookEventKey(type, rawBody, providerEventId);
+        const eventLock = await beginWebhookEvent({
+            ...webhookIdentity,
+            eventType: type,
+            providerObjectId: String(data?.id || '') || null,
+        });
+        if (!eventLock.acquired) {
+            return jsonSuccess({ received: true, duplicate: true });
+        }
+        activeWebhookEventKey = webhookIdentity.eventKey;
+
+        if (await handleSubscriptionWebhook(
+            type,
+            data,
+            rawBody,
+            activeWebhookEventKey,
+        )) {
+            return webhookSuccess({ received: true });
+        }
 
         let order;
+        const webhookChargeId = chargeIdFromWebhook(type, data);
 
         // ESTRATÉGIA 1: Buscar por ID da Cobrança (Charge ID)
-        if (data.id && type.startsWith('charge.')) {
+        if (webhookChargeId) {
             const { data: o } = await supabase
-                .from('orders').select('*').eq('pagarme_charge_id', data.id).single();
+                .from('orders').select('*').eq('pagarme_charge_id', webhookChargeId).single();
             if (o) order = o;
         }
 
@@ -183,6 +448,7 @@ export async function POST(req: NextRequest) {
 
         const pagarmeOrderId =
             data?.order?.id ||
+            data?.charge?.order?.id ||
             data?.order_id ||
             data?.orderId ||
             (type.startsWith('order.') ? data.id : undefined);
@@ -194,15 +460,33 @@ export async function POST(req: NextRequest) {
             if (o) order = o;
         }
 
+        const providerOrderCode = String(
+            data?.order?.code
+            || data?.charge?.order?.code
+            || (type.startsWith('order.') ? data?.code : '')
+            || '',
+        );
+        const localOrderId = providerOrderCode.match(
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i,
+        )?.[0];
+        if (!order && localOrderId) {
+            const { data: localOrder } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('id', localOrderId)
+                .maybeSingle();
+            if (localOrder) order = localOrder;
+        }
+
         // ─── BILLING CHARGES LOOKUP ─────────────────────────────────────────
         // If order not found in 'orders' table, check 'billings' table
         if (!order && !type.includes('transfer') && !type.includes('subscription')) {
             let billing = null;
 
             // Try by charge ID
-            if (data.id && type.startsWith('charge.')) {
+            if (webhookChargeId) {
                 const { data: b } = await supabase
-                    .from('billings').select('*').eq('pagarme_charge_id', data.id).single();
+                    .from('billings').select('*').eq('pagarme_charge_id', webhookChargeId).single();
                 if (b) billing = b;
             }
 
@@ -282,9 +566,13 @@ export async function POST(req: NextRequest) {
                     await supabase.from('billings')
                         .update({ status: 'refunded', updated_at: new Date().toISOString() })
                         .eq('id', billing.id);
+                } else if (type === 'charge.chargedback' || type === 'chargeback.received') {
+                    await supabase.from('billings')
+                        .update({ status: 'chargeback', updated_at: new Date().toISOString() })
+                        .eq('id', billing.id);
                 }
 
-                return jsonSuccess({ received: true });
+                return webhookSuccess({ received: true });
             }
         }
         // ─── END BILLING CHARGES LOOKUP ─────────────────────────────────────
@@ -295,7 +583,7 @@ export async function POST(req: NextRequest) {
             if (type === 'order.paid' || type === 'charge.paid') txStatus = 'confirmed';
             else if (type === 'order.payment_failed' || type === 'charge.payment_failed') txStatus = 'failed';
             else if (type === 'charge.refunded') txStatus = 'refunded';
-            else if (type === 'charge.chargedback') txStatus = 'chargeback';
+            else if (type === 'charge.chargedback' || type === 'chargeback.received') txStatus = 'chargeback';
 
             if (txStatus) {
                 const { data: apiTx } = await supabase
@@ -311,7 +599,7 @@ export async function POST(req: NextRequest) {
                         .eq('id', apiTx.id);
                 }
                 if (apiTx) {
-                    return jsonSuccess({ received: true });
+                    return webhookSuccess({ received: true });
                 }
             }
         }
@@ -319,8 +607,17 @@ export async function POST(req: NextRequest) {
         if (!order && type.includes('transfer')) {
             // Lógica de transferência (mantida abaixo)
         } else if (!order) {
+            const checkoutOrigin = String(
+                data?.metadata?.checkout_origin
+                || data?.order?.metadata?.checkout_origin
+                || data?.charge?.order?.metadata?.checkout_origin
+                || '',
+            );
+            if (localOrderId || checkoutOrigin.startsWith('goupay_')) {
+                throw new Error(`Pedido local ainda nao encontrado para o evento ${type}.`);
+            }
             console.log('Order not found for webhook:', type, data.id, 'pagarmeOrderId:', pagarmeOrderId);
-            return jsonSuccess({ received: true }); 
+            return webhookSuccess({ received: true });
         }
 
         let newStatus = order?.status;
@@ -340,6 +637,7 @@ export async function POST(req: NextRequest) {
                 transactionType = 'refund';
                 break;
             case 'charge.chargedback':
+            case 'chargeback.received':
                 newStatus = 'chargeback';
                 transactionType = 'refund';
                 break;
@@ -368,7 +666,7 @@ export async function POST(req: NextRequest) {
                             .eq('status', 'processing');
                     }
                 }
-                return jsonSuccess({ received: true });
+                return webhookSuccess({ received: true });
             case 'transfer.failed':
                 // Update withdrawal status to failed
                 const { data: failedWithdrawals } = await supabase.from('withdrawals')
@@ -403,186 +701,37 @@ export async function POST(req: NextRequest) {
                             .eq('status', 'processing');
                     }
                 }
-                return jsonSuccess({ received: true });
-
-            // ─── Subscription Events ────────────────────────────────────────
-            case 'subscription.created':
-                await supabase.from('subscriptions')
-                    .update({ status: 'active' })
-                    .eq('pagarme_subscription_id', data.id);
-                return jsonSuccess({ received: true });
-
-            case 'subscription.payment_succeeded':
-            case 'subscription.cycle_ended': {
-                await supabase.from('subscriptions')
-                    .update({ status: 'active', current_period_start: new Date().toISOString() })
-                    .eq('pagarme_subscription_id', data.id);
-
-                // Registra transação de receita recorrente
-                const { data: sub } = await supabase
-                    .from('subscriptions')
-                    .select('*, subscription_plans(name)')
-                    .eq('pagarme_subscription_id', data.id)
-                    .single();
-
-                if (sub) {
-                    await supabase.from('transactions').insert({
-                        id: uuidv4(),
-                        user_id: sub.seller_id,
-                        type: 'subscription_payment',
-                        amount: sub.amount,
-                        status: 'confirmed',
-                        description: `Cobrança recorrente — ${sub.subscription_plans?.name || 'Assinatura'} — ${sub.customer_email}`
-                    });
-
-                    try {
-                        const createdAt = new Date(sub.created_at || 0).getTime();
-                        const isInitialPaymentWindow = Number.isFinite(createdAt)
-                            && Date.now() - createdAt < 24 * 60 * 60 * 1000;
-                        if (isInitialPaymentWindow) {
-                            await syncInitialSubscriptionAffiliateCommission(
-                                sub.id,
-                                'active',
-                                sub.affiliate_hold_days || 0,
-                            );
-                        } else {
-                            const cycleReference = data?.current_cycle?.id
-                                || data?.current_cycle?.start_at
-                                || data?.cycle?.id
-                                || data?.cycle?.start_at
-                                || data?.charge?.id
-                                || data?.invoice?.id
-                                || createHash('sha256').update(rawBody).digest('hex');
-                            const providerEventId = createHash('sha256')
-                                .update(`affiliate-renewal:${sub.id}:${cycleReference}`)
-                                .digest('hex');
-                            await recordSubscriptionRenewalCommission(sub, providerEventId);
-                        }
-                    } catch (affiliateError) {
-                        console.error('[AFFILIATES] Subscription webhook sync failed:', affiliateError);
-                    }
-                }
-                return jsonSuccess({ received: true });
-            }
-
-            case 'subscription.payment_failed':
-                await supabase.from('subscriptions')
-                    .update({ status: 'past_due' })
-                    .eq('pagarme_subscription_id', data.id);
-                {
-                    const { data: failedSub } = await supabase
-                        .from('subscriptions')
-                        .select('id, created_at, affiliate_hold_days')
-                        .eq('pagarme_subscription_id', data.id)
-                        .maybeSingle();
-                    const createdAt = new Date(failedSub?.created_at || 0).getTime();
-                    if (failedSub && Number.isFinite(createdAt) && Date.now() - createdAt < 24 * 60 * 60 * 1000) {
-                        try {
-                            await syncInitialSubscriptionAffiliateCommission(
-                                failedSub.id,
-                                'failed',
-                                failedSub.affiliate_hold_days || 0,
-                            );
-                        } catch (affiliateError) {
-                            console.error('[AFFILIATES] Initial subscription failure sync failed:', affiliateError);
-                        }
-                    }
-                }
-                return jsonSuccess({ received: true });
-
-            case 'subscription.canceled':
-                await supabase.from('subscriptions')
-                    .update({ status: 'canceled', canceled_at: new Date().toISOString() })
-                    .eq('pagarme_subscription_id', data.id);
-
-                // Revogar enrollment do produto vinculado
-                {
-                    const { data: canceledSub } = await supabase
-                        .from('subscriptions')
-                        .select('subscription_plan_id, customer_email')
-                        .eq('pagarme_subscription_id', data.id)
-                        .single();
-
-                    if (canceledSub?.subscription_plan_id) {
-                        const { data: plan } = await supabase
-                            .from('subscription_plans')
-                            .select('product_id')
-                            .eq('id', canceledSub.subscription_plan_id)
-                            .single();
-
-                        if (plan?.product_id && canceledSub.customer_email) {
-                            const { data: user } = await supabase
-                                .from('users')
-                                .select('id')
-                                .ilike('email', canceledSub.customer_email)
-                                .single();
-
-                            if (user) {
-                                await supabase.from('enrollments')
-                                    .update({ status: 'inactive' })
-                                    .eq('user_id', user.id)
-                                    .eq('product_id', plan.product_id);
-                            }
-                        }
-                    }
-                }
-                return jsonSuccess({ received: true });
+                return webhookSuccess({ received: true });
 
             default:
-                return jsonSuccess({ received: true });
+                return webhookSuccess({ received: true });
         }
 
         // Update order status
-        if (order.status === 'paid' && newStatus === 'paid') {
-            try {
-                await syncOrderAffiliateCommission(order, newStatus);
-            } catch (affiliateError) {
-                console.error('[AFFILIATES] Duplicate paid webhook sync failed:', affiliateError);
-            }
-            try {
-                await sendPaidOrderToUtmify(order);
-            } catch (utmifyErr) {
-                console.error('[UTMIFY] Paid duplicate sync error:', utmifyErr);
-            }
-            try {
-                await notifyApprovedOrder(order);
-            } catch (notificationError) {
-                console.error('[WEBHOOK] Paid order notification error:', notificationError);
-            }
-            return jsonSuccess({ received: true }); // Already processed
+        if (!canTransitionOrderStatus(order.status, newStatus)) {
+            console.warn('[WEBHOOK] Ignoring out-of-order status transition:', {
+                order_id: order.id,
+                current_status: order.status,
+                attempted_status: newStatus,
+                event_type: type,
+            });
+            return webhookSuccess({ received: true, ignored_transition: true });
         }
-
-        await supabase.from('orders').update({ status: newStatus }).eq('id', order.id);
+        const { error: statusUpdateError } = await supabase
+            .from('orders')
+            .update({ status: newStatus })
+            .eq('id', order.id);
+        if (statusUpdateError) throw statusUpdateError;
         order = { ...order, status: newStatus };
-        try {
-            await syncOrderAffiliateCommission(order, newStatus);
-        } catch (affiliateError) {
-            console.error('[AFFILIATES] Order commission webhook sync failed:', affiliateError);
-        }
+        await syncOrderAffiliateCommission(order, newStatus);
 
         if (newStatus === 'paid') {
-            // IDEMPOTÊNCIA: verifica se a taxa já foi inserida para este pedido
-            const { data: existingFee } = await supabase
-                .from('transactions')
-                .select('id')
-                .eq('order_id', order.id)
-                .eq('type', 'fee')
-                .maybeSingle();
-
-            if (existingFee) {
-                try {
-                    await sendPaidOrderToUtmify(order);
-                } catch (utmifyErr) {
-                    console.error('[UTMIFY] Existing fee sync error:', utmifyErr);
-                }
-                try {
-                    await notifyApprovedOrder(order);
-                } catch (notificationError) {
-                    console.error('[WEBHOOK] Existing order notification error:', notificationError);
-                }
-                // Pagamento já foi processado completamente — ignora reenvio
-                console.log('Webhook duplicado ignorado para pedido:', order.id);
-                return jsonSuccess({ received: true });
+            const paidClaim = await claimPaidOrderProcessing(order, activeWebhookEventKey);
+            if (paidClaim === 'completed') {
+                return webhookSuccess({ received: true, already_processed: true });
+            }
+            if (paidClaim === 'in_progress') {
+                throw new Error(`O pedido ${order.id} ja esta sendo finalizado por outro processo.`);
             }
 
             // Get platform fee percentage
@@ -625,23 +774,40 @@ export async function POST(req: NextRequest) {
                     : 0;
 
             // Update original 'sale' or 'api_sale' transaction to confirmed
-            await supabase.from('transactions')
+            const { data: updatedSales, error: saleUpdateError } = await supabase.from('transactions')
                 .update({ status: 'confirmed' })
                 .eq('order_id', order.id)
-                .in('type', ['sale', 'api_sale']);
+                .in('type', ['sale', 'api_sale'])
+                .select('id');
+            if (saleUpdateError) throw saleUpdateError;
+            if (!updatedSales?.length) {
+                const { error: saleInsertError } = await supabase
+                    .from('transactions')
+                    .upsert({
+                        user_id: order.seller_id,
+                        order_id: order.id,
+                        type: 'sale',
+                        amount: order.amount,
+                        status: 'confirmed',
+                        description: `Venda confirmada - Pedido ${order.id}`,
+                        provider_event_key: `order-sale:${order.id}`,
+                    }, { onConflict: 'provider_event_key' });
+                if (saleInsertError) throw saleInsertError;
+            }
 
             if (feeAmount > 0) {
                 const feeLabel = isCardPayment
                     ? `${CARD_PLATFORM_FEE_PERCENTAGE}% (cartão)`
                     : `R$ ${(feeAmount / 100).toFixed(2).replace('.', ',')} (PIX)`;
-                await supabase.from('transactions').insert({
+                await supabase.from('transactions').upsert({
                     user_id: order.seller_id,
                     order_id: order.id,
                     type: 'fee',
                     amount: feeAmount,
                     status: 'confirmed',
-                    description: `Taxa de plataforma (${feeLabel}) - Pedido ${order.id}`
-                });
+                    description: `Taxa de plataforma (${feeLabel}) - Pedido ${order.id}`,
+                    provider_event_key: `order-fee:${order.id}`,
+                }, { onConflict: 'provider_event_key', ignoreDuplicates: true });
             }
 
             // Fetch product data for notification and stats
@@ -668,9 +834,15 @@ export async function POST(req: NextRequest) {
                         console.error('[UTMIFY] Webhook purchase error:', utmifyErr);
                     }
 
-                    // Update sales count
+                    // Recalcula em vez de incrementar para que qualquer replay
+                    // permaneça idempotente.
+                    const { count: paidSalesCount } = await supabase
+                        .from('orders')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('product_id', order.product_id)
+                        .eq('status', 'paid');
                     await supabase.from('products')
-                        .update({ sales_count: (product.sales_count || 0) + 1 })
+                        .update({ sales_count: paidSalesCount || 0 })
                         .eq('id', order.product_id);
 
                     if (!order.facebook_capi_sent_at) {
@@ -790,6 +962,15 @@ export async function POST(req: NextRequest) {
                     console.warn(`[EMAIL] Rate limit atingido para email de compra do pedido ${order.id}`);
                 }
             }
+            const { error: paidProcessedError } = await supabase
+                .from('orders')
+                .update({
+                    paid_processed_at: new Date().toISOString(),
+                    paid_processing_token: null,
+                })
+                .eq('id', order.id)
+                .eq('paid_processing_token', activeWebhookEventKey);
+            if (paidProcessedError) throw paidProcessedError;
         } else {
             // For other statuses (failed, etc.)
             await supabase.from('transactions')
@@ -799,11 +980,12 @@ export async function POST(req: NextRequest) {
 
         // Create refund transaction if needed
         if (transactionType === 'refund') {
-            await supabase.from('transactions').insert({
+            await supabase.from('transactions').upsert({
                 id: uuidv4(), user_id: order.seller_id, order_id: order.id,
                 type: 'refund', amount: order.amount, amount_display: order.amount_display,
-                status: 'confirmed', description: `Estorno do pedido ${order.id}`
-            });
+                status: 'confirmed', description: `Estorno do pedido ${order.id}`,
+                provider_event_key: `order-refund:${activeWebhookEventKey}`,
+            }, { onConflict: 'provider_event_key', ignoreDuplicates: true });
         }
 
         // NOTIFICAR WEBHOOK DO USUÁRIO
@@ -851,9 +1033,9 @@ export async function POST(req: NextRequest) {
             console.error('Error sending user webhook:', webhookError);
         }
 
-        return jsonSuccess({ received: true });
+        return webhookSuccess({ received: true });
     } catch (err) {
-
+        if (activeWebhookEventKey) await failWebhookEvent(activeWebhookEventKey, err);
         console.error('Webhook error:', err);
         return jsonError('Webhook processing error', 500);
     }

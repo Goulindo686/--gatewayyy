@@ -12,7 +12,8 @@
     "test:password-storage": "node --test --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/password-storage.test.mjs",
     "test:card": "node --test --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/card-payment-failure.test.mjs",
     "test:affiliates": "node --test --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/affiliates-core.test.mjs",
-    "test:checkout-security": "node --test tests/checkout-account-security.test.mjs"
+    "test:checkout-security": "node --test tests/checkout-account-security.test.mjs",
+    "test": "node --test --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/*.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.96.0",
@@ -24,7 +25,7 @@
     "gsap": "^3.12.5",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.575.0",
-    "next": "16.1.6",
+    "next": "^16.2.12",
     "next-themes": "^0.4.6",
     "nodemailer": "^9.0.3",
     "qrcode.react": "^4.2.0",
@@ -45,9 +46,13 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.12",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "postcss": "8.5.23",
+    "sharp": "0.35.3"
   }
 }

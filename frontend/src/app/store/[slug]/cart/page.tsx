@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import { FiArrowLeft, FiTrash2, FiMinus, FiPlus, FiZap, FiTag, FiPackage, FiCreditCard } from 'react-icons/fi';
@@ -16,6 +16,7 @@ export default function CartPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { items, addItem, updateQuantity, removeItem, totalAmount, clearCart } = useCart();
+    const checkoutSessionRef = useRef<string | null>(null);
 
     const [cardConfig, setCardConfig] = useState({ enabled: false, publicKey: '' });
     const enableCreditCard = cardConfig.enabled && !!cardConfig.publicKey;
@@ -153,6 +154,8 @@ export default function CartPage() {
 
         try {
             setLoading(true);
+            const checkoutSessionId = checkoutSessionRef.current || createCheckoutSessionId();
+            checkoutSessionRef.current = checkoutSessionId;
 
             let cardToken: string | undefined;
             let threeDsTransactionId: string | null = null;
@@ -219,7 +222,7 @@ export default function CartPage() {
                 payment_method: methodToSend,
                 card_token: cardToken,
                 installments: methodToSend === 'credit_card' ? installments : undefined,
-                checkout_session_id: methodToSend === 'credit_card' ? createCheckoutSessionId() : undefined,
+                checkout_session_id: checkoutSessionId,
                 device_platform: methodToSend === 'credit_card' ? getCheckoutDevicePlatform() : undefined,
                 three_ds_transaction_id: methodToSend === 'credit_card' ? threeDsTransactionId || undefined : undefined,
                 total: totalAmount
@@ -231,6 +234,9 @@ export default function CartPage() {
             toast.success("Pedido gerado com sucesso!");
             router.push(`/store/${params.slug}/payment/${data.order.id}`);
         } catch (err: any) {
+            if (err?.response?.status >= 400 && err?.response?.status < 500 && err?.response?.status !== 409) {
+                checkoutSessionRef.current = null;
+            }
             console.error('Checkout error:', err);
             toast.error(err instanceof CardTokenizationError ? err.message : err.response?.data?.error || "Erro ao processar pedido");
         } finally {

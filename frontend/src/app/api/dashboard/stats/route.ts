@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server';
 import { supabase, fetchAll } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { PagarmeService } from '@/lib/pagarme';
+import { getAffiliateWithdrawalReserve } from '@/lib/affiliates';
 
 type AmountRow = {
     amount?: number | null;
@@ -145,6 +146,8 @@ export async function GET(req: NextRequest) {
     totalWithdrawnDec = lifetimeWithdrawalsAmount / 100;
     pendingDec = lifetimePendingAmount / 100;
 
+    const affiliateWithdrawalReserve = await getAffiliateWithdrawalReserve(userId);
+
     // Fallback local: o saldo atual nunca deve depender do filtro de período.
     availableDec = (
         lifetimeOrdersAmount +
@@ -152,7 +155,8 @@ export async function GET(req: NextRequest) {
         lifetimeFeesAmount -
         lifetimeAffiliateCommissionsPaid +
         lifetimeAffiliateEarningsAmount -
-        lifetimeWithdrawalsAmount
+        lifetimeWithdrawalsAmount -
+        affiliateWithdrawalReserve.total
     ) / 100;
 
     // O saldo financeiro é uma fotografia atual e não uma métrica do período.
@@ -181,7 +185,11 @@ export async function GET(req: NextRequest) {
                 return 0;
             };
 
-            availableDec = (balance.available_amount !== undefined ? balance.available_amount : getAmount(balance.available)) / 100;
+            availableDec = Math.max(
+                0,
+                (balance.available_amount !== undefined ? balance.available_amount : getAmount(balance.available))
+                    - affiliateWithdrawalReserve.total,
+            ) / 100;
             pendingDec = (balance.waiting_funds_amount !== undefined ? balance.waiting_funds_amount : getAmount(balance.waiting_funds)) / 100;
             totalWithdrawnDec = (balance.transferred_amount !== undefined ? balance.transferred_amount : getAmount(balance.transferred)) / 100;
         } catch (pErr: unknown) {

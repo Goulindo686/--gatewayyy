@@ -123,6 +123,27 @@ export default function AffiliatesPage() {
         }
     };
 
+    const rotateInvite = async () => {
+        if (!editingProduct || saving) return;
+        setSaving(true);
+        try {
+            const response = await affiliatesAPI.saveProgram(editingProduct.id, {
+                ...draft,
+                commission_rate_bps: Math.round(Number(draft.commission_rate_bps)),
+                cookie_days: Math.round(Number(draft.cookie_days)),
+                hold_days: Math.round(Number(draft.hold_days)),
+                rotate_invite: true,
+            });
+            setDraft((current: any) => ({ ...current, ...response.data.program }));
+            toast.success('Novo convite gerado; o link anterior foi revogado');
+            await load(true);
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Erro ao renovar convite');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const requestAffiliation = async (programId?: string, invitation?: string) => {
         if (!data?.recipient?.ready) {
             toast.error('Configure sua conta de recebimento nas configuracoes antes de se afiliar.');
@@ -471,12 +492,17 @@ export default function AffiliatesPage() {
                                 <div className="invite-box full">
                                     <div>
                                         <strong>Link de convite</strong>
-                                        <span>Envie este link para a pessoa criar a conta e aceitar sua afiliacao.</span>
+                                        <span>
+                                            Valido por 30 dias. Gere outro link imediatamente se ele for compartilhado indevidamente.
+                                        </span>
                                     </div>
                                     <div className="invite-link-row">
                                         <input readOnly value={invitationUrl(draft.invite_code)} />
                                         <button type="button" onClick={() => copy(invitationUrl(draft.invite_code), 'Link de convite copiado')}>
                                             <FiClipboard /> Copiar
+                                        </button>
+                                        <button type="button" onClick={rotateInvite} disabled={saving}>
+                                            <FiLink /> Renovar
                                         </button>
                                     </div>
                                 </div>
@@ -508,7 +534,7 @@ export default function AffiliatesPage() {
                 .program-list{display:grid;gap:10px}.program-card{display:grid;grid-template-columns:minmax(220px,1fr) auto auto auto;align-items:center;gap:14px;border:1px solid var(--border-color);padding:13px;border-radius:13px}.program-main{display:flex;align-items:center;gap:12px}.program-main>div:last-child{display:grid;gap:4px}.program-main span,.muted{color:var(--text-muted);font-size:12px}.link-button{border:1px solid var(--border-color);background:transparent;color:var(--accent-primary)}.text-danger{border:0;background:transparent;color:#ef4444;cursor:pointer}
                 .marketplace-heading label{display:flex;align-items:center;gap:8px;border:1px solid var(--border-color);border-radius:10px;padding:9px 12px;min-width:280px}.marketplace-heading input{border:0;outline:0;background:transparent;color:var(--text-primary);width:100%}.marketplace-note{padding:11px 13px;border-radius:10px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.16);color:var(--text-muted);font-size:12px;line-height:1.5}.marketplace-note strong{color:var(--text-primary)}.market-card{display:grid;grid-template-rows:170px auto auto;gap:15px;border:1px solid var(--border-color);border-radius:14px;padding:12px}.market-image{position:relative;border-radius:10px;background:var(--bg-secondary);display:grid;place-items:center;overflow:hidden;font-size:30px;color:var(--text-muted)}.market-image span{position:absolute;right:10px;top:10px;padding:6px 9px;border-radius:999px;background:var(--accent-primary);color:#fff;font-weight:900;font-size:13px}.market-card h3{margin:4px 0}.market-card p{margin:0;color:var(--text-muted);font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.market-footer{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}.market-meta{display:grid;gap:3px;color:var(--text-muted);font-size:11px}
                 .empty{padding:28px;text-align:center;color:var(--text-muted);grid-column:1/-1}.affiliate-loading{height:320px;display:grid;place-items:center}.affiliate-loading span{width:38px;height:38px;border:3px solid var(--border-color);border-top-color:var(--accent-primary);border-radius:50%;animation:spin .8s linear infinite}.spin{animation:spin .8s linear infinite}
-                .modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.66);display:grid;place-items:center;padding:20px}.modal-card{width:min(760px,100%);max-height:92vh;overflow:auto;background:var(--bg-card);border:1px solid var(--border-color);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.3)}.modal-card header,.modal-card footer{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border-color)}.modal-card footer{border-top:1px solid var(--border-color);border-bottom:0;justify-content:flex-end}.modal-card header span{font-size:12px;color:var(--text-muted)}.modal-card header h2{margin:3px 0 0}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:20px}.form-grid label{display:grid;gap:7px}.form-grid label>span{font-size:12px;font-weight:700;color:var(--text-muted)}.form-grid input:not([type=checkbox]),.form-grid select,.form-grid textarea{width:100%;box-sizing:border-box;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);border-radius:9px;padding:10px;outline:none}.form-grid .full{grid-column:1/-1}.toggle-row{display:flex!important;align-items:center;justify-content:space-between;gap:14px;border:1px solid var(--border-color);border-radius:10px;padding:12px}.toggle-row>div{display:grid;gap:3px}.toggle-row>div span{font-size:11px;color:var(--text-muted)}.toggle-row input{width:18px;height:18px}.invite-box{display:grid;gap:10px;border:1px solid rgba(124,58,237,.25);background:rgba(124,58,237,.06);border-radius:12px;padding:13px}.invite-box>div:first-child{display:grid;gap:3px}.invite-box span{font-size:11px;color:var(--text-muted)}.invite-link-row{display:grid;grid-template-columns:1fr auto;gap:8px}.invite-link-row input{min-width:0}.invite-link-row button{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:9px;padding:0 14px;background:var(--accent-primary);color:#fff;font-weight:800;cursor:pointer}
+                .modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.66);display:grid;place-items:center;padding:20px}.modal-card{width:min(760px,100%);max-height:92vh;overflow:auto;background:var(--bg-card);border:1px solid var(--border-color);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.3)}.modal-card header,.modal-card footer{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border-color)}.modal-card footer{border-top:1px solid var(--border-color);border-bottom:0;justify-content:flex-end}.modal-card header span{font-size:12px;color:var(--text-muted)}.modal-card header h2{margin:3px 0 0}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:20px}.form-grid label{display:grid;gap:7px}.form-grid label>span{font-size:12px;font-weight:700;color:var(--text-muted)}.form-grid input:not([type=checkbox]),.form-grid select,.form-grid textarea{width:100%;box-sizing:border-box;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);border-radius:9px;padding:10px;outline:none}.form-grid .full{grid-column:1/-1}.toggle-row{display:flex!important;align-items:center;justify-content:space-between;gap:14px;border:1px solid var(--border-color);border-radius:10px;padding:12px}.toggle-row>div{display:grid;gap:3px}.toggle-row>div span{font-size:11px;color:var(--text-muted)}.toggle-row input{width:18px;height:18px}.invite-box{display:grid;gap:10px;border:1px solid rgba(124,58,237,.25);background:rgba(124,58,237,.06);border-radius:12px;padding:13px}.invite-box>div:first-child{display:grid;gap:3px}.invite-box span{font-size:11px;color:var(--text-muted)}.invite-link-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px}.invite-link-row input{min-width:0}.invite-link-row button{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:9px;padding:0 14px;background:var(--accent-primary);color:#fff;font-weight:800;cursor:pointer}
                 @keyframes spin{to{transform:rotate(360deg)}}@media(max-width:900px){.metric-grid,.metric-grid.four{grid-template-columns:1fr 1fr}.program-card{grid-template-columns:1fr auto}.form-grid{grid-template-columns:1fr}.form-grid .full{grid-column:auto}}@media(max-width:620px){.affiliate-header,.panel-title,.marketplace-heading{align-items:flex-start;flex-direction:column}.affiliate-tabs{width:100%;overflow:auto}.affiliate-tabs button{white-space:nowrap}.metric-grid,.metric-grid.four{grid-template-columns:1fr}.marketplace-heading label{min-width:0;width:100%;box-sizing:border-box}.warning-banner,.invite-banner{align-items:flex-start;flex-wrap:wrap}.product-actions{grid-template-columns:1fr}.invite-link-row{grid-template-columns:1fr}.invite-link-row button{min-height:42px}}
             `}</style>
         </div>

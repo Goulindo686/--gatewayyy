@@ -9,7 +9,8 @@ const pagarmeApi = axios.create({
         username: process.env.PAGARME_API_KEY!,
         password: ''
     },
-    headers: { 'Content-Type': 'application/json' }
+    headers: { 'Content-Type': 'application/json' },
+    timeout: 20_000,
 });
 
 type CheckoutAddress = {
@@ -184,6 +185,7 @@ export class PagarmeService {
         affiliate_commission_amount?: number;
         metadata?: Record<string, string>;
         ip?: string; session_id?: string; device_platform?: string; order_code?: string; three_ds_transaction_id?: string;
+        idempotency_key?: string;
         items?: CheckoutItem[];
     }) {
         const isCreditCard = data.payment_method === 'credit_card' || data.payment_method === 'card';
@@ -243,7 +245,7 @@ export class PagarmeService {
             ? CARD_PLATFORM_FEE_PERCENTAGE
             : requestedFeePercentage;
 
-        if (isCreditCard && applyFee && (!platId || !sellId || platId.toLowerCase() === sellId.toLowerCase())) {
+        if (isCreditCard && applyFee && (!platId || !sellId)) {
             throw new Error('Configuracao de split do cartao incompleta. Verifique os recipients da plataforma e do vendedor.');
         }
 
@@ -256,9 +258,14 @@ export class PagarmeService {
                 feePercentage: effectiveFeePercentage
                 })
                 : 0;
-        if (platformFeeAmount > 0 && (!platId || !sellId || platId.toLowerCase() === sellId.toLowerCase())) {
+        if (platformFeeAmount > 0 && (!platId || !sellId)) {
             throw new Error('Configuracao de split incompleta. Verifique os recipients da plataforma e do vendedor.');
         }
+        const platformRecipientIsSeller = Boolean(
+            platId
+            && sellId
+            && platId.toLowerCase() === sellId.toLowerCase(),
+        );
         const affiliateId = (data.affiliate_recipient_id || '').trim();
         const requestedAffiliateAmount = Math.max(0, Math.round(Number(data.affiliate_commission_amount) || 0));
         const affiliateAmount = Math.min(Math.max(0, data.amount - platformFeeAmount), requestedAffiliateAmount);
@@ -269,7 +276,12 @@ export class PagarmeService {
         )) {
             throw new Error('Configuracao de afiliado invalida. O recebedor do afiliado deve ser diferente dos demais recebedores.');
         }
-        const sellerAmount = data.amount - platformFeeAmount - affiliateAmount;
+        // Quando o vendedor tambem e o recebedor da plataforma, a taxa permanece
+        // contabilizada pela GouPay, mas precisa ser agregada na regra do vendedor
+        // para nao enviar dois splits com o mesmo recipient.
+        const sellerAmount = data.amount
+            - affiliateAmount
+            - (platformRecipientIsSeller ? 0 : platformFeeAmount);
 
         console.log('[PAGARME SERVICE] Split Config:', {
             platId, sellId, affiliateId: includeAffiliate ? affiliateId : undefined,
@@ -278,7 +290,7 @@ export class PagarmeService {
         });
 
         const hasSellerRecipient = !!sellId;
-        const includePlatformFee = !!(platId && platId.toLowerCase() !== sellId.toLowerCase() && platformFeeAmount > 0);
+        const includePlatformFee = !!(!platformRecipientIsSeller && platId && platformFeeAmount > 0);
 
         // Uma isenção individual ainda envia o vendedor como recebedor. Assim,
         // charge_processing_fee continua true e a tarifa do Pagar.me permanece
@@ -294,7 +306,7 @@ export class PagarmeService {
                 amount: affiliateAmount,
                 recipient_id: affiliateId,
                 type: 'flat',
-                options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false }
+                options: { charge_processing_fee: false, liable: true, charge_remainder_fee: false }
             }] : []),
             ...(includePlatformFee ? [{
                 amount: platformFeeAmount,
@@ -338,7 +350,11 @@ export class PagarmeService {
             });
         }
 
-        const response = await pagarmeApi.post('/orders', orderData);
+        const response = await pagarmeApi.post('/orders', orderData, {
+            headers: data.idempotency_key
+                ? { 'Idempotency-Key': data.idempotency_key }
+                : undefined,
+        });
         return response.data;
     }
 
@@ -352,8 +368,41 @@ export class PagarmeService {
         return response.data;
     }
 
-    static async createTransfer(recipientId: string, amount: number) {
-        const response = await pagarmeApi.post(`/recipients/${recipientId}/transfers`, { amount });
+    static async createTransfer(recipientId: string, amount: number, idempotencyKey?: string) {
+        const response = await pagarmeApi.post(
+            `/recipients/${recipientId}/transfers`,
+            { amount },
+            {
+                headers: idempotencyKey
+                    ? { 'Idempotency-Key': idempotencyKey }
+                    : undefined,
+            },
+        );
+        return response.data;
+    }
+
+    static async updateRecipientTransferSettings(
+        recipientId: string,
+        settings: {
+            transfer_enabled: boolean;
+            transfer_interval?: 'daily' | 'weekly' | 'monthly';
+            transfer_day?: number;
+        },
+    ) {
+        const payload: {
+            transfer_enabled: boolean;
+            transfer_interval?: 'daily' | 'weekly' | 'monthly';
+            transfer_day?: number;
+        } = {
+            transfer_enabled: settings.transfer_enabled,
+        };
+        if (settings.transfer_interval) payload.transfer_interval = settings.transfer_interval;
+        if (settings.transfer_day !== undefined) payload.transfer_day = settings.transfer_day;
+
+        const response = await pagarmeApi.patch(
+            `/recipients/${recipientId}/transfer-settings`,
+            payload,
+        );
         return response.data;
     }
 
@@ -432,6 +481,7 @@ export class PagarmeService {
         amount: number;
         affiliate_recipient_id?: string;
         affiliate_commission_amount?: number;
+        idempotency_key?: string;
     }) {
         const cpf = data.customer.cpf.replace(/\D/g, '');
         const phone = (data.customer.phone || '').replace(/\D/g, '');
@@ -439,6 +489,11 @@ export class PagarmeService {
         const applyFee = data.platform_fee_percentage > 0;
         const platId = (process.env.PLATFORM_RECIPIENT_ID || '').trim();
         const sellId = data.seller_recipient_id.trim();
+        const platformRecipientIsSeller = Boolean(
+            platId
+            && sellId
+            && platId.toLowerCase() === sellId.toLowerCase(),
+        );
 
         // A mesma taxa de 2% do cartão também vale para assinaturas.
         const platformPct = applyFee ? CARD_PLATFORM_FEE_PERCENTAGE : 0;
@@ -453,14 +508,14 @@ export class PagarmeService {
         // Split como objeto com rules (formato correto para assinaturas no Pagar.me v5)
         let splitRules: { rules: Array<Record<string, unknown>> } | undefined;
         if (includeAffiliate) {
-            if (applyFee && (!platId || platId.toLowerCase() === sellId.toLowerCase())) {
+            if (applyFee && !platId) {
                 throw new Error('Configuracao de split da assinatura incompleta. Verifique os recipients da plataforma e do vendedor.');
             }
             if (affiliateId.toLowerCase() === sellId.toLowerCase()
                 || (platId && affiliateId.toLowerCase() === platId.toLowerCase())) {
                 throw new Error('Configuracao de afiliado invalida. O recebedor do afiliado deve ser diferente dos demais recebedores.');
             }
-            const platformAmount = applyFee && platId && platId !== sellId
+            const platformAmount = applyFee && platId && !platformRecipientIsSeller
                 ? PagarmeService.calculatePlatformFeeCents({
                     amountCents: data.amount,
                     paymentMethod: 'credit_card',
@@ -472,7 +527,7 @@ export class PagarmeService {
             splitRules = {
                 rules: [
                     { amount: sellerAmount, recipient_id: sellId, type: 'flat', options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true } },
-                    { amount: safeAffiliateAmount, recipient_id: affiliateId, type: 'flat', options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false } },
+                    { amount: safeAffiliateAmount, recipient_id: affiliateId, type: 'flat', options: { charge_processing_fee: false, liable: true, charge_remainder_fee: false } },
                     ...(platformAmount > 0 ? [{
                         amount: platformAmount,
                         recipient_id: platId,
@@ -481,7 +536,7 @@ export class PagarmeService {
                     }] : []),
                 ],
             };
-        } else if (applyFee && platId && platId !== sellId && platformPct > 0) {
+        } else if (applyFee && platId && !platformRecipientIsSeller && platformPct > 0) {
             splitRules = {
             rules: [
                 { amount: sellerPct, recipient_id: sellId, type: 'percentage', options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true } },
@@ -528,6 +583,10 @@ export class PagarmeService {
                 cvv: data.card.cvv,
                 billing_address: billingAddress
             }
+        }, {
+            headers: data.idempotency_key
+                ? { 'Idempotency-Key': data.idempotency_key }
+                : undefined,
         });
         return response.data;
     }
