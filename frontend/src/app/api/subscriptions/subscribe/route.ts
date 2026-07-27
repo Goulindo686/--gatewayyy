@@ -9,6 +9,7 @@ import {
     resolveAffiliateAttribution,
     type AffiliateAttribution,
 } from '@/lib/affiliates';
+import { calculateAffiliatePlatformFee } from '@/lib/affiliates-core';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -58,23 +59,48 @@ export async function POST(req: NextRequest) {
         if (!recipient) return jsonError('Vendedor não configurado para receber', 400);
 
         // Cartão sempre usa split de 2% para a GouPay; apenas contas admin são isentas.
-        const feePercentage = sellerUser.role === 'admin' ? 0 : CARD_PLATFORM_FEE_PERCENTAGE;
-        const platformFeeAmount = PagarmeService.calculatePlatformFeeCents({
+        let feePercentage = sellerUser.role === 'admin' ? 0 : CARD_PLATFORM_FEE_PERCENTAGE;
+        let platformFeeAmount = PagarmeService.calculatePlatformFeeCents({
             amountCents: plan.amount,
             paymentMethod: 'credit_card',
             feePercentage,
         });
-        let affiliateAttribution: AffiliateAttribution | null = plan.product_id
-            ? await resolveAffiliateAttribution({
+        const directSaleFeePercentage = feePercentage;
+        const directSalePlatformFeeAmount = platformFeeAmount;
+        const restoreDirectSaleFee = () => {
+            feePercentage = directSaleFeePercentage;
+            platformFeeAmount = directSalePlatformFeeAmount;
+        };
+        const resolveAttributionForFee = (feeAmount: number) => plan.product_id
+            ? resolveAffiliateAttribution({
                 req,
                 productId: plan.product_id,
                 producerId: plan.user_id,
                 grossAmount: plan.amount,
-                platformFeeAmount,
+                platformFeeAmount: feeAmount,
                 buyerEmail: customer.email,
                 buyerDocument: customer.cpf,
             })
             : null;
+        let affiliateAttribution: AffiliateAttribution | null = await resolveAttributionForFee(platformFeeAmount);
+        if (affiliateAttribution) {
+            const affiliatePlatformFeeAmount = calculateAffiliatePlatformFee({
+                grossAmount: plan.amount,
+                currentPlatformFeeAmount: platformFeeAmount,
+                paymentMethod: 'credit_card',
+            });
+            if (affiliatePlatformFeeAmount !== platformFeeAmount) {
+                const repricedAttribution = await resolveAttributionForFee(affiliatePlatformFeeAmount);
+                if (repricedAttribution) {
+                    affiliateAttribution = repricedAttribution;
+                    platformFeeAmount = affiliatePlatformFeeAmount;
+                    feePercentage = CARD_PLATFORM_FEE_PERCENTAGE;
+                } else {
+                    affiliateAttribution = null;
+                    restoreDirectSaleFee();
+                }
+            }
+        }
         const platformRecipientId = String(process.env.PLATFORM_RECIPIENT_ID || '').trim().toLowerCase();
         const sellerRecipientId = String(recipient.pagarme_recipient_id || '').trim().toLowerCase();
         const affiliateRecipientId = String(affiliateAttribution?.recipientId || '').trim().toLowerCase();
@@ -84,6 +110,7 @@ export async function POST(req: NextRequest) {
         )) {
             console.warn('[AFFILIATES] Subscription recipient conflict; continuing without affiliate split.');
             affiliateAttribution = null;
+            restoreDirectSaleFee();
         }
 
         // Cria assinatura no Pagar.me

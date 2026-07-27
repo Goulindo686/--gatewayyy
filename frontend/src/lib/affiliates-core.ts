@@ -1,5 +1,7 @@
 export const MIN_AFFILIATE_RATE_BPS = 1;
 export const MAX_AFFILIATE_RATE_BPS = 9000;
+export const AFFILIATE_PIX_MIN_PLATFORM_FEE_CENTS = 200;
+export const AFFILIATE_CARD_MIN_PLATFORM_FEE_BPS = 200;
 
 export type AffiliateCommissionInput = {
     grossAmount: number;
@@ -19,6 +21,27 @@ export type AffiliateCommissionAmounts = {
 function toNonNegativeCents(value: number) {
     const normalized = Math.round(Number(value) || 0);
     return Math.max(0, normalized);
+}
+
+export function calculateAffiliatePlatformFee(input: {
+    grossAmount: number;
+    currentPlatformFeeAmount: number;
+    paymentMethod: string;
+}) {
+    const grossAmount = toNonNegativeCents(input.grossAmount);
+    const currentPlatformFeeAmount = Math.min(
+        grossAmount,
+        toNonNegativeCents(input.currentPlatformFeeAmount),
+    );
+    const paymentMethod = String(input.paymentMethod || '').toLowerCase();
+    const minimumPlatformFeeAmount = paymentMethod === 'credit_card' || paymentMethod === 'card'
+        ? Math.min(
+            grossAmount,
+            Math.round((grossAmount * AFFILIATE_CARD_MIN_PLATFORM_FEE_BPS) / 10_000),
+        )
+        : Math.min(grossAmount, AFFILIATE_PIX_MIN_PLATFORM_FEE_CENTS);
+
+    return Math.max(currentPlatformFeeAmount, minimumPlatformFeeAmount);
 }
 
 export function normalizeAffiliateRateBps(value: number) {

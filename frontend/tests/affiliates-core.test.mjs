@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
     affiliateCommissionStatusForOrder,
     calculateAffiliateCommission,
+    calculateAffiliatePlatformFee,
     normalizeAffiliateRateBps,
 } from '../src/lib/affiliates-core.ts';
 
@@ -47,6 +48,29 @@ test('distribui uma venda de R$ 29,90 com comissao de 30%', () => {
         commissionAmount: 837,
         sellerAmount: 1_953,
     });
+});
+
+test('garante a taxa minima da plataforma antes da comissao do afiliado', () => {
+    assert.equal(calculateAffiliatePlatformFee({
+        grossAmount: 2_990,
+        currentPlatformFeeAmount: 0,
+        paymentMethod: 'pix',
+    }), 200);
+    assert.equal(calculateAffiliatePlatformFee({
+        grossAmount: 2_990,
+        currentPlatformFeeAmount: 300,
+        paymentMethod: 'pix',
+    }), 300);
+    assert.equal(calculateAffiliatePlatformFee({
+        grossAmount: 2_990,
+        currentPlatformFeeAmount: 0,
+        paymentMethod: 'credit_card',
+    }), 60);
+    assert.equal(calculateAffiliatePlatformFee({
+        grossAmount: 100,
+        currentPlatformFeeAmount: 0,
+        paymentMethod: 'pix',
+    }), 100);
 });
 
 test('arredonda em centavos e nunca distribui acima do valor bruto', () => {

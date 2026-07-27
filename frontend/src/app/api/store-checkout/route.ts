@@ -12,6 +12,7 @@ import {
     resolveAffiliateAttribution,
     type AffiliateAttribution,
 } from '@/lib/affiliates';
+import { calculateAffiliatePlatformFee } from '@/lib/affiliates-core';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -180,18 +181,51 @@ export async function POST(req: NextRequest) {
         }
 
         const firstCartItem = validatedCart.find((item: any) => item.id === items_cart[0].id);
-        affiliateAttribution = await resolveAffiliateAttribution({
+        const directSalePlatformFeeAmount = appliedPlatformFeeAmount;
+        const directSaleFeePercentage = feePercentage;
+        const directSaleFeeLabel = appliedFeeLabel;
+        const restoreDirectSaleFee = () => {
+            appliedPlatformFeeAmount = directSalePlatformFeeAmount;
+            feePercentage = directSaleFeePercentage;
+            appliedFeeLabel = directSaleFeeLabel;
+        };
+        const resolveAttributionForFee = (platformFeeAmount: number) => resolveAffiliateAttribution({
             req,
             productId: items_cart[0].id,
             producerId: sellerId,
             grossAmount: totalAmountCents,
-            platformFeeAmount: appliedPlatformFeeAmount,
+            platformFeeAmount,
             eligibleGrossAmount: firstCartItem
                 ? firstCartItem.priceCents * firstCartItem.quantity
                 : totalAmountCents,
             buyerEmail: buyer.email,
             buyerDocument: buyer.cpf,
         });
+
+        affiliateAttribution = await resolveAttributionForFee(appliedPlatformFeeAmount);
+        if (affiliateAttribution) {
+            const affiliatePlatformFeeAmount = calculateAffiliatePlatformFee({
+                grossAmount: totalAmountCents,
+                currentPlatformFeeAmount: appliedPlatformFeeAmount,
+                paymentMethod: method,
+            });
+            if (affiliatePlatformFeeAmount !== appliedPlatformFeeAmount) {
+                const repricedAttribution = await resolveAttributionForFee(affiliatePlatformFeeAmount);
+                if (repricedAttribution) {
+                    affiliateAttribution = repricedAttribution;
+                    appliedPlatformFeeAmount = affiliatePlatformFeeAmount;
+                    if (method === 'credit_card') {
+                        feePercentage = CARD_PLATFORM_FEE_PERCENTAGE;
+                        appliedFeeLabel = `${CARD_PLATFORM_FEE_PERCENTAGE}% (cartao afiliado)`;
+                    } else {
+                        appliedFeeLabel = `R$ ${(affiliatePlatformFeeAmount / 100).toFixed(2).replace('.', ',')} (PIX afiliado)`;
+                    }
+                } else {
+                    affiliateAttribution = null;
+                    restoreDirectSaleFee();
+                }
+            }
+        }
         const normalizedPlatformRecipient = String(platformRecipientId || '').trim().toLowerCase();
         const normalizedSellerRecipient = String(recipient.pagarme_recipient_id || '').trim().toLowerCase();
         const normalizedAffiliateRecipient = String(affiliateAttribution?.recipientId || '').trim().toLowerCase();
@@ -201,6 +235,7 @@ export async function POST(req: NextRequest) {
         )) {
             console.warn('[AFFILIATES] Recipient conflict; continuing as a direct store sale.');
             affiliateAttribution = null;
+            restoreDirectSaleFee();
         }
 
         console.log('DIAGNOSTIC - Checkout Config:', {
@@ -252,7 +287,9 @@ export async function POST(req: NextRequest) {
                 customer: buyer,
                 seller_recipient_id: recipient.pagarme_recipient_id,
                 platform_fee_percentage: feePercentage,
-                platform_fee_amount: method === 'pix' && sellerUser.role !== 'admin'
+                platform_fee_amount: method === 'pix' && (
+                    sellerUser.role !== 'admin' || affiliateAttribution
+                )
                     ? appliedPlatformFeeAmount
                     : undefined,
                 affiliate_recipient_id: affiliateAttribution?.recipientId,
