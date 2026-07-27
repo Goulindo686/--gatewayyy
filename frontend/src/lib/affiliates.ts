@@ -8,6 +8,7 @@ import { supabase } from '@/lib/db';
 import {
     affiliateCommissionStatusForOrder,
     calculateAffiliateCommission,
+    normalizeAffiliateReference,
     normalizeAffiliateRateBps,
 } from '@/lib/affiliates-core';
 
@@ -36,6 +37,7 @@ type ResolveAffiliateAttributionInput = {
     eligibleGrossAmount?: number;
     buyerEmail?: string;
     buyerDocument?: string;
+    attributionToken?: string;
 };
 
 type CommissionSnapshot = {
@@ -111,7 +113,8 @@ function isMissingAffiliateSchema(error: any) {
 export async function resolveAffiliateAttribution(
     input: ResolveAffiliateAttributionInput,
 ): Promise<AffiliateAttribution | null> {
-    const rawToken = input.req.cookies.get(affiliateCookieName(input.productId))?.value;
+    const rawToken = normalizeAffiliateReference(input.attributionToken)
+        || normalizeAffiliateReference(input.req.cookies.get(affiliateCookieName(input.productId))?.value);
     if (!rawToken) return null;
 
     try {
@@ -222,7 +225,7 @@ export async function resolveAffiliateAttribution(
         };
     } catch (error) {
         if (isMissingAffiliateSchema(error)) return null;
-        console.error('[AFFILIATES] Attribution lookup failed; continuing as a direct sale:', error);
+        console.error('[AFFILIATES] Attribution lookup failed:', error);
         return null;
     }
 }

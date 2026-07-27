@@ -12,7 +12,7 @@ import {
     resolveAffiliateAttribution,
     type AffiliateAttribution,
 } from '@/lib/affiliates';
-import { calculateAffiliatePlatformFee } from '@/lib/affiliates-core';
+import { calculateAffiliatePlatformFee, normalizeAffiliateReference } from '@/lib/affiliates-core';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -29,6 +29,14 @@ export async function POST(req: NextRequest) {
 
         const body = await req.json();
         const { items: items_cart, buyer, store_slug } = body;
+        const affiliateReferenceProvided = typeof body.affiliate_ref === 'string'
+            && body.affiliate_ref.trim().length > 0;
+        const affiliateReference = normalizeAffiliateReference(body.affiliate_ref);
+        if (affiliateReferenceProvided && !affiliateReference) {
+            return NextResponse.json({
+                error: 'Link de afiliado invalido. Abra novamente o link recebido antes de pagar.',
+            }, { status: 400 });
+        }
 
         // Rate limit por email: 5 checkouts por hora
         if (buyer?.email) {
@@ -181,14 +189,6 @@ export async function POST(req: NextRequest) {
         }
 
         const firstCartItem = validatedCart.find((item: any) => item.id === items_cart[0].id);
-        const directSalePlatformFeeAmount = appliedPlatformFeeAmount;
-        const directSaleFeePercentage = feePercentage;
-        const directSaleFeeLabel = appliedFeeLabel;
-        const restoreDirectSaleFee = () => {
-            appliedPlatformFeeAmount = directSalePlatformFeeAmount;
-            feePercentage = directSaleFeePercentage;
-            appliedFeeLabel = directSaleFeeLabel;
-        };
         const resolveAttributionForFee = (platformFeeAmount: number) => resolveAffiliateAttribution({
             req,
             productId: items_cart[0].id,
@@ -200,9 +200,15 @@ export async function POST(req: NextRequest) {
                 : totalAmountCents,
             buyerEmail: buyer.email,
             buyerDocument: buyer.cpf,
+            attributionToken: affiliateReference || undefined,
         });
 
         affiliateAttribution = await resolveAttributionForFee(appliedPlatformFeeAmount);
+        if (affiliateReference && !affiliateAttribution) {
+            return NextResponse.json({
+                error: 'Nao foi possivel validar este link de afiliado. Abra novamente o link antes de pagar.',
+            }, { status: 409 });
+        }
         if (affiliateAttribution) {
             const affiliatePlatformFeeAmount = calculateAffiliatePlatformFee({
                 grossAmount: totalAmountCents,
@@ -221,8 +227,9 @@ export async function POST(req: NextRequest) {
                         appliedFeeLabel = `R$ ${(affiliatePlatformFeeAmount / 100).toFixed(2).replace('.', ',')} (PIX afiliado)`;
                     }
                 } else {
-                    affiliateAttribution = null;
-                    restoreDirectSaleFee();
+                    return NextResponse.json({
+                        error: 'Nao foi possivel calcular a divisao desta venda de afiliado. Tente novamente.',
+                    }, { status: 409 });
                 }
             }
         }
@@ -233,9 +240,10 @@ export async function POST(req: NextRequest) {
             normalizedAffiliateRecipient === normalizedSellerRecipient
             || (normalizedPlatformRecipient && normalizedAffiliateRecipient === normalizedPlatformRecipient)
         )) {
-            console.warn('[AFFILIATES] Recipient conflict; continuing as a direct store sale.');
-            affiliateAttribution = null;
-            restoreDirectSaleFee();
+            console.error('[AFFILIATES] Recipient conflict; affiliate store checkout blocked.');
+            return NextResponse.json({
+                error: 'Os recebedores desta venda de afiliado estao em conflito. Corrija as contas antes de pagar.',
+            }, { status: 409 });
         }
 
         console.log('DIAGNOSTIC - Checkout Config:', {

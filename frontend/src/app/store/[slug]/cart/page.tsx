@@ -9,6 +9,7 @@ import { storeAPI, productsAPI } from '@/lib/api';
 import { isValidCardExpiration } from '@/lib/checkout-validation';
 import { CardTokenizationError, createCheckoutSessionId, getCheckoutDevicePlatform, tokenizePagarmeCard } from '@/lib/pagarme-card';
 import { authenticatePagarme3DS } from '@/lib/pagarme-3ds';
+import { normalizeAffiliateReference } from '@/lib/affiliates-core';
 
 export default function CartPage() {
     const params = useParams();
@@ -195,6 +196,7 @@ export default function CartPage() {
 
             const payload = {
                 store_slug: params.slug,
+                affiliate_ref: normalizeAffiliateReference(searchParams.get('aff_ref')) || undefined,
                 buyer: {
                     name,
                     email,

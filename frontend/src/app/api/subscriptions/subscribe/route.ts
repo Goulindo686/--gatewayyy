@@ -9,7 +9,7 @@ import {
     resolveAffiliateAttribution,
     type AffiliateAttribution,
 } from '@/lib/affiliates';
-import { calculateAffiliatePlatformFee } from '@/lib/affiliates-core';
+import { calculateAffiliatePlatformFee, normalizeAffiliateReference } from '@/lib/affiliates-core';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -22,7 +22,14 @@ export async function POST(req: NextRequest) {
         const rlIp = await checkRateLimit({ key: `subscriptions:subscribe:ip:${ip}`, limit: 10, windowSecs: 3600, failOpen: false });
         if (!rlIp.allowed) return rateLimitResponse(rlIp.resetAt);
 
-        const { plan_id, customer, card, address } = await req.json();
+        const body = await req.json();
+        const { plan_id, customer, card, address } = body;
+        const affiliateReferenceProvided = typeof body.affiliate_ref === 'string'
+            && body.affiliate_ref.trim().length > 0;
+        const affiliateReference = normalizeAffiliateReference(body.affiliate_ref);
+        if (affiliateReferenceProvided && !affiliateReference) {
+            return jsonError('Link de afiliado invalido. Abra novamente o link recebido antes de pagar.', 400);
+        }
 
         if (!plan_id || !customer?.name || !customer?.email || !customer?.cpf)
             return jsonError('Dados incompletos');
@@ -65,12 +72,6 @@ export async function POST(req: NextRequest) {
             paymentMethod: 'credit_card',
             feePercentage,
         });
-        const directSaleFeePercentage = feePercentage;
-        const directSalePlatformFeeAmount = platformFeeAmount;
-        const restoreDirectSaleFee = () => {
-            feePercentage = directSaleFeePercentage;
-            platformFeeAmount = directSalePlatformFeeAmount;
-        };
         const resolveAttributionForFee = (feeAmount: number) => plan.product_id
             ? resolveAffiliateAttribution({
                 req,
@@ -80,9 +81,13 @@ export async function POST(req: NextRequest) {
                 platformFeeAmount: feeAmount,
                 buyerEmail: customer.email,
                 buyerDocument: customer.cpf,
+                attributionToken: affiliateReference || undefined,
             })
             : null;
         let affiliateAttribution: AffiliateAttribution | null = await resolveAttributionForFee(platformFeeAmount);
+        if (affiliateReference && !affiliateAttribution) {
+            return jsonError('Nao foi possivel validar este link de afiliado. Abra novamente o link antes de pagar.', 409);
+        }
         if (affiliateAttribution) {
             const affiliatePlatformFeeAmount = calculateAffiliatePlatformFee({
                 grossAmount: plan.amount,
@@ -96,8 +101,7 @@ export async function POST(req: NextRequest) {
                     platformFeeAmount = affiliatePlatformFeeAmount;
                     feePercentage = CARD_PLATFORM_FEE_PERCENTAGE;
                 } else {
-                    affiliateAttribution = null;
-                    restoreDirectSaleFee();
+                    return jsonError('Nao foi possivel calcular a divisao desta venda de afiliado. Tente novamente.', 409);
                 }
             }
         }
@@ -108,9 +112,8 @@ export async function POST(req: NextRequest) {
             affiliateRecipientId === sellerRecipientId
             || (platformRecipientId && affiliateRecipientId === platformRecipientId)
         )) {
-            console.warn('[AFFILIATES] Subscription recipient conflict; continuing without affiliate split.');
-            affiliateAttribution = null;
-            restoreDirectSaleFee();
+            console.error('[AFFILIATES] Subscription recipient conflict; checkout blocked.');
+            return jsonError('Os recebedores desta venda de afiliado estao em conflito. Corrija as contas antes de pagar.', 409);
         }
 
         // Cria assinatura no Pagar.me

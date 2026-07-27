@@ -94,7 +94,10 @@ export async function GET(
                     .eq('is_active', true)
                     .maybeSingle(),
             ]);
-            if (currentAffiliation && currentLink) return NextResponse.redirect(destination);
+            if (currentAffiliation && currentLink) {
+                destination.searchParams.set('aff_ref', currentToken);
+                return NextResponse.redirect(destination);
+            }
         }
     }
 
@@ -123,9 +126,13 @@ export async function GET(
     });
     if (error) {
         console.error('[AFFILIATES] Failed to record click:', error);
-        return NextResponse.redirect(destination);
+        return new NextResponse(
+            'Nao foi possivel registrar o link de afiliado agora. Tente novamente em alguns instantes.',
+            { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } },
+        );
     }
 
+    destination.searchParams.set('aff_ref', token);
     const response = NextResponse.redirect(destination);
     response.cookies.set({
         name: cookieName,

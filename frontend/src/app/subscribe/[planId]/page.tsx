@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { FiLock, FiCreditCard, FiCheck, FiPackage, FiClock, FiChevronDown, FiArrowRight } from 'react-icons/fi';
 import FacebookPixel from '@/components/FacebookPixel';
+import { normalizeAffiliateReference } from '@/lib/affiliates-core';
 
 const DEFAULT_SETTINGS = {
     theme: 'light',
@@ -45,6 +46,31 @@ export default function SubscribePage() {
     });
 
     const update = (field: string, value: string) => setForm(f => ({ ...f, [field]: value }));
+    const affiliateStorageKey = `goupay_subscription_affiliate_${planId}`;
+
+    const persistAffiliateReference = () => {
+        if (typeof window === 'undefined') return;
+        const reference = normalizeAffiliateReference(
+            new URLSearchParams(window.location.search).get('aff_ref'),
+        );
+        if (!reference) return;
+        try {
+            window.sessionStorage.setItem(affiliateStorageKey, reference);
+        } catch {}
+    };
+
+    const getAffiliateReference = () => {
+        if (typeof window === 'undefined') return null;
+        const fromUrl = normalizeAffiliateReference(
+            new URLSearchParams(window.location.search).get('aff_ref'),
+        );
+        if (fromUrl) return fromUrl;
+        try {
+            return normalizeAffiliateReference(window.sessionStorage.getItem(affiliateStorageKey));
+        } catch {
+            return null;
+        }
+    };
 
     const isValidCPF = (v: string) => {
         const s = (v || '').replace(/\D/g, '');
@@ -60,6 +86,7 @@ export default function SubscribePage() {
     const isValidPhone = (v: string) => { const d = (v || '').replace(/\D/g, ''); return d.length >= 10 && d.length <= 11; };
 
     useEffect(() => {
+        persistAffiliateReference();
         api.get(`/subscriptions/plans/${planId}`)
             .then(r => {
                 setPlan(r.data.plan);
@@ -116,6 +143,7 @@ export default function SubscribePage() {
                     state: form.state,
                     country: 'BR',
                 },
+                affiliate_ref: getAffiliateReference() || undefined,
             });
             toast.success('Assinatura ativada! 🎉');
             setSuccess(true);

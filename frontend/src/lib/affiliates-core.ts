@@ -3,6 +3,12 @@ export const MAX_AFFILIATE_RATE_BPS = 9000;
 export const AFFILIATE_PIX_MIN_PLATFORM_FEE_CENTS = 200;
 export const AFFILIATE_CARD_MIN_PLATFORM_FEE_BPS = 200;
 
+export function normalizeAffiliateReference(value: unknown) {
+    if (typeof value !== 'string') return null;
+    const normalized = value.trim();
+    return /^[a-zA-Z0-9_-]{32,128}$/.test(normalized) ? normalized : null;
+}
+
 export type AffiliateCommissionInput = {
     grossAmount: number;
     platformFeeAmount: number;

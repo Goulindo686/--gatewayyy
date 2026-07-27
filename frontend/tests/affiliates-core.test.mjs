@@ -4,8 +4,18 @@ import {
     affiliateCommissionStatusForOrder,
     calculateAffiliateCommission,
     calculateAffiliatePlatformFee,
+    normalizeAffiliateReference,
     normalizeAffiliateRateBps,
 } from '../src/lib/affiliates-core.ts';
+
+test('aceita somente referencias de afiliado opacas e bem formadas', () => {
+    const validReference = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcdef';
+    assert.equal(normalizeAffiliateReference(validReference), validReference);
+    assert.equal(normalizeAffiliateReference(`  ${validReference}  `), validReference);
+    assert.equal(normalizeAffiliateReference('curta'), null);
+    assert.equal(normalizeAffiliateReference('a'.repeat(43) + '?redirect=https://evil.test'), null);
+    assert.equal(normalizeAffiliateReference(null), null);
+});
 
 test('calcula comissao sobre o valor apos a taxa da plataforma', () => {
     assert.deepEqual(calculateAffiliateCommission({

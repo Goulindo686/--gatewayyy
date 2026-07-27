@@ -22,6 +22,7 @@ import {
     tokenizePagarmeCard,
 } from '@/lib/pagarme-card';
 import { authenticatePagarme3DS } from '@/lib/pagarme-3ds';
+import { normalizeAffiliateReference } from '@/lib/affiliates-core';
 
 const DEFAULT_SETTINGS = {
     theme: 'light', // Alterado para light por padrão conforme a imagem
@@ -362,6 +363,33 @@ export default function CheckoutPage() {
     ];
 
     const getTrackingStorageKey = (productId?: string) => `goupay_tracking_${productId || 'global'}`;
+    const getAffiliateStorageKey = (productId?: string) => `goupay_affiliate_${productId || 'unknown'}`;
+
+    const persistAffiliateReference = (productId?: string) => {
+        if (typeof window === 'undefined' || !productId) return;
+        const reference = normalizeAffiliateReference(
+            new URLSearchParams(window.location.search).get('aff_ref'),
+        );
+        if (!reference) return;
+        try {
+            window.sessionStorage.setItem(getAffiliateStorageKey(productId), reference);
+        } catch {}
+    };
+
+    const getAffiliateReference = () => {
+        if (typeof window === 'undefined') return null;
+        const fromUrl = normalizeAffiliateReference(
+            new URLSearchParams(window.location.search).get('aff_ref'),
+        );
+        if (fromUrl) return fromUrl;
+        try {
+            return normalizeAffiliateReference(
+                window.sessionStorage.getItem(getAffiliateStorageKey(params.id as string)),
+            );
+        } catch {
+            return null;
+        }
+    };
 
     const readStoredTracking = (productId?: string) => {
         if (typeof window === 'undefined') return {};
@@ -382,6 +410,7 @@ export default function CheckoutPage() {
 
     const persistTrackingParameters = (productId?: string) => {
         if (typeof window === 'undefined') return;
+        persistAffiliateReference(productId);
         const search = new URLSearchParams(window.location.search);
         const collected: Record<string, string> = {};
         TRACKING_KEYS.forEach((key) => {
@@ -496,6 +525,8 @@ export default function CheckoutPage() {
                 }
             };
             const payload: any = buyer;
+            const affiliateReference = getAffiliateReference();
+            if (affiliateReference) payload.affiliate_ref = affiliateReference;
             payload.facebook = {
                 ...getFacebookCookies(),
                 event_source_url: typeof window !== 'undefined' ? window.location.href : undefined
