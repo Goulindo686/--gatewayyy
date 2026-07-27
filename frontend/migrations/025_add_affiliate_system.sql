@@ -230,3 +230,6 @@ CREATE POLICY "affiliate_commissions_participant_read"
 ON affiliate_commissions FOR SELECT
 TO authenticated
 USING (affiliate_id = auth.uid() OR producer_id = auth.uid());
+
+-- Make the new tables and columns immediately visible to Supabase APIs.
+NOTIFY pgrst, 'reload schema';
