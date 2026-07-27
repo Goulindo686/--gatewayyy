@@ -86,7 +86,8 @@ export default function AffiliatesPage() {
 
     useEffect(() => {
         load();
-        const invite = new URLSearchParams(window.location.search).get('invite');
+        const invite = new URLSearchParams(window.location.search).get('invite')
+            || localStorage.getItem('pending_affiliate_invite');
         if (invite) {
             setInviteCode(invite);
             setTab('affiliate');
@@ -136,6 +137,7 @@ export default function AffiliatesPage() {
             });
             toast.success('Solicitacao registrada');
             setInviteCode('');
+            localStorage.removeItem('pending_affiliate_invite');
             window.history.replaceState({}, '', '/dashboard/affiliates');
             await load(true);
         } catch (error: any) {
@@ -178,6 +180,7 @@ export default function AffiliatesPage() {
         await navigator.clipboard.writeText(value);
         toast.success(message);
     };
+    const invitationUrl = (code: string) => `${window.location.origin}/affiliate-invite/${code}`;
 
     const marketplace = useMemo(() => {
         const term = query.trim().toLowerCase();
@@ -254,39 +257,39 @@ export default function AffiliatesPage() {
                         <div className="product-grid">
                             {(data?.producer?.products || []).map((product: any) => (
                                 <article className="product-card" key={product.id}>
-                                    <div className="product-image">
-                                        {product.image_url ? <img src={product.image_url} alt="" /> : <FiShoppingBag />}
-                                    </div>
-                                    <div className="product-copy">
-                                        <div className="title-row">
-                                            <strong>{product.name}</strong>
-                                            <span className={`status ${product.program?.status || 'inactive'}`}>
-                                                {product.program?.status === 'active' ? 'Programa ativo' : 'Programa inativo'}
-                                            </span>
+                                    <div className="product-summary">
+                                        <div className="product-image">
+                                            {product.image_url ? <img src={product.image_url} alt="" /> : <FiShoppingBag />}
                                         </div>
-                                        <span>{formatBRL(product.price)}</span>
-                                        {product.program && (
-                                            <small>
-                                                {(product.program.commission_rate_bps / 100).toFixed(2).replace('.', ',')}% de comissao
-                                                {' · '}{product.program.cookie_days} dias de cookie
-                                            </small>
+                                        <div className="product-copy">
+                                            <div className="title-row">
+                                                <strong>{product.name}</strong>
+                                                <span className={`status ${product.program?.status || 'inactive'}`}>
+                                                    {product.program?.status === 'active' ? 'Programa ativo' : 'Programa inativo'}
+                                                </span>
+                                            </div>
+                                            <span>{formatBRL(product.price)}</span>
+                                            {product.program && (
+                                                <small>
+                                                    {(product.program.commission_rate_bps / 100).toFixed(2).replace('.', ',')}% de comissao
+                                                    {' · '}{product.program.cookie_days} dias de cookie
+                                                </small>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="product-actions">
+                                        <button className="primary-button" onClick={() => openProgram(product)}>
+                                            <FiSettings /> {product.program ? 'Editar programa' : 'Criar programa'}
+                                        </button>
+                                        {product.program?.invite_code && (
+                                            <button
+                                                className="invite-button"
+                                                onClick={() => copy(invitationUrl(product.program.invite_code), 'Link de convite copiado')}
+                                            >
+                                                <FiLink /> Copiar convite
+                                            </button>
                                         )}
                                     </div>
-                                    <button className="primary-button" onClick={() => openProgram(product)}>
-                                        <FiSettings /> {product.program ? 'Editar' : 'Criar programa'}
-                                    </button>
-                                    {product.program?.invite_code && (
-                                        <button
-                                            className="icon-button"
-                                            title="Copiar convite"
-                                            onClick={() => copy(
-                                                `${window.location.origin}/dashboard/affiliates?invite=${product.program.invite_code}`,
-                                                'Convite copiado',
-                                            )}
-                                        >
-                                            <FiClipboard />
-                                        </button>
-                                    )}
                                 </article>
                             ))}
                             {(data?.producer?.products || []).length === 0 && <div className="empty">Crie um produto antes de abrir um programa.</div>}
@@ -395,6 +398,10 @@ export default function AffiliatesPage() {
                         <div><h2>Marketplace de afiliacao</h2><p>Encontre produtos que aceitam divulgadores.</p></div>
                         <label><FiSearch /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar produto ou produtor" /></label>
                     </div>
+                    <div className="marketplace-note">
+                        Seus produtos publicados aparecem com a etiqueta <strong>Seu programa</strong>. Programas configurados como
+                        <strong> Somente por convite</strong> ficam visiveis, mas o afiliado precisa receber seu link para entrar.
+                    </div>
                     <div className="market-grid">
                         {marketplace.map((program: any) => {
                             const rate = program.commission_rate_bps / 100;
@@ -410,9 +417,22 @@ export default function AffiliatesPage() {
                                         <p>{program.product?.description || 'Produto digital disponivel para afiliacao.'}</p>
                                     </div>
                                     <div className="market-footer">
-                                        <span>Cookie de {program.cookie_days} dias</span>
-                                        {program.affiliation ? (
+                                        <div className="market-meta">
+                                            <span>Cookie de {program.cookie_days} dias</span>
+                                            <span>
+                                                {program.enrollment_mode === 'invite'
+                                                    ? 'Somente por convite'
+                                                    : program.enrollment_mode === 'automatic'
+                                                        ? 'Aprovacao automatica'
+                                                        : 'Aprovacao manual'}
+                                            </span>
+                                        </div>
+                                        {program.is_own_program ? (
+                                            <span className="status own">Seu programa</span>
+                                        ) : program.affiliation ? (
                                             <span className={`status ${program.affiliation.status}`}>{statusLabel(program.affiliation.status)}</span>
+                                        ) : program.enrollment_mode === 'invite' ? (
+                                            <span className="status invite-only">Requer convite</span>
                                         ) : (
                                             <button className="primary-button" onClick={() => requestAffiliation(program.id)}>
                                                 Solicitar afiliacao
@@ -444,9 +464,23 @@ export default function AffiliatesPage() {
                             <label><span>Modelo de atribuicao</span><select value={draft.attribution_model} onChange={(event) => setDraft({ ...draft, attribution_model: event.target.value })}><option value="last_click">Ultimo clique</option><option value="first_click">Primeiro clique</option></select></label>
                             <label><span>Duracao do cookie (dias)</span><input type="number" min="1" max="365" value={draft.cookie_days} onChange={(event) => setDraft({ ...draft, cookie_days: Number(event.target.value) })} /></label>
                             <label><span>Prazo de seguranca (dias)</span><input type="number" min="0" max="180" value={draft.hold_days} onChange={(event) => setDraft({ ...draft, hold_days: Number(event.target.value) })} /></label>
-                            <label className="toggle-row"><div><strong>Exibir no marketplace</strong><span>Permite solicitacoes publicas.</span></div><input type="checkbox" checked={draft.marketplace_visible} onChange={(event) => setDraft({ ...draft, marketplace_visible: event.target.checked })} /></label>
+                            <label className="toggle-row"><div><strong>Exibir no marketplace</strong><span>Publica o produto na vitrine. No modo convite, a pessoa ainda precisara do seu link.</span></div><input type="checkbox" checked={draft.marketplace_visible} onChange={(event) => setDraft({ ...draft, marketplace_visible: event.target.checked })} /></label>
                             <label className="toggle-row"><div><strong>Comissao em order bumps</strong><span>Aplica a taxa ao carrinho completo.</span></div><input type="checkbox" checked={draft.commission_on_bumps} onChange={(event) => setDraft({ ...draft, commission_on_bumps: event.target.checked })} /></label>
                             <label className="toggle-row"><div><strong>Comissao nas renovacoes</strong><span>Mantem o split nas recorrencias.</span></div><input type="checkbox" checked={draft.commission_on_renewals} onChange={(event) => setDraft({ ...draft, commission_on_renewals: event.target.checked })} /></label>
+                            {draft.invite_code && (
+                                <div className="invite-box full">
+                                    <div>
+                                        <strong>Link de convite</strong>
+                                        <span>Envie este link para a pessoa criar a conta e aceitar sua afiliacao.</span>
+                                    </div>
+                                    <div className="invite-link-row">
+                                        <input readOnly value={invitationUrl(draft.invite_code)} />
+                                        <button type="button" onClick={() => copy(invitationUrl(draft.invite_code), 'Link de convite copiado')}>
+                                            <FiClipboard /> Copiar
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                             <label className="full"><span>Termos do programa</span><textarea rows={5} value={draft.terms_text} onChange={(event) => setDraft({ ...draft, terms_text: event.target.value })} placeholder="Regras de divulgacao, uso de marca e politicas do produto." /></label>
                         </div>
                         <footer><button className="ghost-button" onClick={() => setEditingProduct(null)}>Cancelar</button><button className="primary-button" onClick={saveProgram} disabled={saving}>{saving ? 'Salvando...' : 'Salvar programa'}</button></footer>
@@ -468,14 +502,14 @@ export default function AffiliatesPage() {
                 .affiliate-tabs button{display:flex;align-items:center;gap:8px;border:0;border-radius:9px;background:transparent;color:var(--text-muted);padding:10px 16px;cursor:pointer;font-weight:700}.affiliate-tabs button.active{background:var(--accent-primary);color:#fff}
                 .metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.metric-grid.four{grid-template-columns:repeat(4,1fr)}.metric-grid article{background:var(--bg-card);border:1px solid var(--border-color);border-radius:15px;padding:20px;display:grid;gap:8px}.metric-grid span{font-size:13px;color:var(--text-muted)}.metric-grid strong{font-size:25px}
                 .panel{background:var(--bg-card);border:1px solid var(--border-color);border-radius:17px;padding:20px;display:grid;gap:18px}.panel h2,.marketplace-heading h2{margin:0 0 4px;font-size:18px}
-                .product-grid,.market-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:13px}.product-card{display:grid;grid-template-columns:56px 1fr auto auto;align-items:center;gap:13px;border:1px solid var(--border-color);border-radius:13px;padding:13px}.product-image{width:56px;height:56px;border-radius:11px;display:grid;place-items:center;background:var(--bg-secondary);overflow:hidden;color:var(--text-muted);font-size:22px}.product-image.small{width:46px;height:46px}.product-image img,.market-image img{width:100%;height:100%;object-fit:cover}.product-copy{display:grid;gap:4px;min-width:0}.product-copy>span,.product-copy small{color:var(--text-muted)}.title-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.icon-button{display:grid;place-items:center;border:1px solid var(--border-color);background:transparent;color:var(--text-primary);border-radius:9px;padding:9px;cursor:pointer}
-                .status{display:inline-flex;width:max-content;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800;background:rgba(148,163,184,.13);color:#94a3b8}.status.active,.status.approved,.status.available{background:rgba(34,197,94,.13);color:#16a34a}.status.pending{background:rgba(245,158,11,.13);color:#d97706}.status.rejected,.status.suspended,.status.cancelled,.status.refunded,.status.chargeback,.status.failed{background:rgba(239,68,68,.12);color:#ef4444}
+                .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,350px),1fr));gap:14px}.market-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:14px}.product-card{display:grid;align-content:space-between;gap:16px;min-width:0;border:1px solid var(--border-color);border-radius:15px;padding:15px;background:var(--bg-card)}.product-summary{display:flex;align-items:flex-start;gap:13px;min-width:0}.product-image{width:60px;height:60px;flex:0 0 60px;border-radius:12px;display:grid;place-items:center;background:var(--bg-secondary);overflow:hidden;color:var(--text-muted);font-size:22px}.product-image.small{width:46px;height:46px;flex-basis:46px}.product-image img,.market-image img{width:100%;height:100%;object-fit:cover}.product-copy{display:grid;gap:5px;min-width:0;flex:1}.product-copy strong{overflow-wrap:anywhere;line-height:1.35}.product-copy>span,.product-copy small{color:var(--text-muted)}.title-row{display:flex;gap:7px;align-items:flex-start;flex-direction:column}.product-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.product-actions button{width:100%;min-width:0;padding:10px 9px;white-space:nowrap}.invite-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid color-mix(in srgb,var(--accent-primary) 35%,var(--border-color));background:color-mix(in srgb,var(--accent-primary) 8%,transparent);color:var(--accent-primary);border-radius:10px;cursor:pointer;font-weight:800}.icon-button{display:grid;place-items:center;border:1px solid var(--border-color);background:transparent;color:var(--text-primary);border-radius:9px;padding:9px;cursor:pointer}
+                .status{display:inline-flex;width:max-content;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800;background:rgba(148,163,184,.13);color:#94a3b8}.status.active,.status.approved,.status.available{background:rgba(34,197,94,.13);color:#16a34a}.status.pending{background:rgba(245,158,11,.13);color:#d97706}.status.rejected,.status.suspended,.status.cancelled,.status.refunded,.status.chargeback,.status.failed{background:rgba(239,68,68,.12);color:#ef4444}.status.own{background:rgba(124,58,237,.12);color:#7c3aed}.status.invite-only{background:rgba(59,130,246,.12);color:#2563eb}
                 .table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;padding:12px;border-bottom:1px solid var(--border-color);font-size:13px}th{color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em}td strong,td small{display:block}td small{color:var(--text-muted);margin-top:3px}.row-actions{display:flex;gap:6px;flex-wrap:wrap}.row-actions button{padding:7px 9px;border:1px solid var(--border-color);background:transparent;color:var(--text-primary);font-size:11px}.row-actions .approve{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.2);color:#16a34a}
                 .program-list{display:grid;gap:10px}.program-card{display:grid;grid-template-columns:minmax(220px,1fr) auto auto auto;align-items:center;gap:14px;border:1px solid var(--border-color);padding:13px;border-radius:13px}.program-main{display:flex;align-items:center;gap:12px}.program-main>div:last-child{display:grid;gap:4px}.program-main span,.muted{color:var(--text-muted);font-size:12px}.link-button{border:1px solid var(--border-color);background:transparent;color:var(--accent-primary)}.text-danger{border:0;background:transparent;color:#ef4444;cursor:pointer}
-                .marketplace-heading label{display:flex;align-items:center;gap:8px;border:1px solid var(--border-color);border-radius:10px;padding:9px 12px;min-width:280px}.marketplace-heading input{border:0;outline:0;background:transparent;color:var(--text-primary);width:100%}.market-card{display:grid;grid-template-rows:170px auto auto;gap:15px;border:1px solid var(--border-color);border-radius:14px;padding:12px}.market-image{position:relative;border-radius:10px;background:var(--bg-secondary);display:grid;place-items:center;overflow:hidden;font-size:30px;color:var(--text-muted)}.market-image span{position:absolute;right:10px;top:10px;padding:6px 9px;border-radius:999px;background:var(--accent-primary);color:#fff;font-weight:900;font-size:13px}.market-card h3{margin:4px 0}.market-card p{margin:0;color:var(--text-muted);font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.market-footer{display:flex;align-items:center;justify-content:space-between;gap:10px}.market-footer>span{color:var(--text-muted);font-size:12px}
+                .marketplace-heading label{display:flex;align-items:center;gap:8px;border:1px solid var(--border-color);border-radius:10px;padding:9px 12px;min-width:280px}.marketplace-heading input{border:0;outline:0;background:transparent;color:var(--text-primary);width:100%}.marketplace-note{padding:11px 13px;border-radius:10px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.16);color:var(--text-muted);font-size:12px;line-height:1.5}.marketplace-note strong{color:var(--text-primary)}.market-card{display:grid;grid-template-rows:170px auto auto;gap:15px;border:1px solid var(--border-color);border-radius:14px;padding:12px}.market-image{position:relative;border-radius:10px;background:var(--bg-secondary);display:grid;place-items:center;overflow:hidden;font-size:30px;color:var(--text-muted)}.market-image span{position:absolute;right:10px;top:10px;padding:6px 9px;border-radius:999px;background:var(--accent-primary);color:#fff;font-weight:900;font-size:13px}.market-card h3{margin:4px 0}.market-card p{margin:0;color:var(--text-muted);font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.market-footer{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}.market-meta{display:grid;gap:3px;color:var(--text-muted);font-size:11px}
                 .empty{padding:28px;text-align:center;color:var(--text-muted);grid-column:1/-1}.affiliate-loading{height:320px;display:grid;place-items:center}.affiliate-loading span{width:38px;height:38px;border:3px solid var(--border-color);border-top-color:var(--accent-primary);border-radius:50%;animation:spin .8s linear infinite}.spin{animation:spin .8s linear infinite}
-                .modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.66);display:grid;place-items:center;padding:20px}.modal-card{width:min(760px,100%);max-height:92vh;overflow:auto;background:var(--bg-card);border:1px solid var(--border-color);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.3)}.modal-card header,.modal-card footer{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border-color)}.modal-card footer{border-top:1px solid var(--border-color);border-bottom:0;justify-content:flex-end}.modal-card header span{font-size:12px;color:var(--text-muted)}.modal-card header h2{margin:3px 0 0}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:20px}.form-grid label{display:grid;gap:7px}.form-grid label>span{font-size:12px;font-weight:700;color:var(--text-muted)}.form-grid input:not([type=checkbox]),.form-grid select,.form-grid textarea{width:100%;box-sizing:border-box;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);border-radius:9px;padding:10px;outline:none}.form-grid .full{grid-column:1/-1}.toggle-row{display:flex!important;align-items:center;justify-content:space-between;gap:14px;border:1px solid var(--border-color);border-radius:10px;padding:12px}.toggle-row>div{display:grid;gap:3px}.toggle-row>div span{font-size:11px;color:var(--text-muted)}.toggle-row input{width:18px;height:18px}
-                @keyframes spin{to{transform:rotate(360deg)}}@media(max-width:900px){.metric-grid,.metric-grid.four{grid-template-columns:1fr 1fr}.product-card{grid-template-columns:50px 1fr}.product-card>button{grid-row:2}.program-card{grid-template-columns:1fr auto}.form-grid{grid-template-columns:1fr}.form-grid .full{grid-column:auto}}@media(max-width:620px){.affiliate-header,.panel-title,.marketplace-heading{align-items:flex-start;flex-direction:column}.affiliate-tabs{width:100%;overflow:auto}.affiliate-tabs button{white-space:nowrap}.metric-grid,.metric-grid.four{grid-template-columns:1fr}.marketplace-heading label{min-width:0;width:100%;box-sizing:border-box}.warning-banner,.invite-banner{align-items:flex-start;flex-wrap:wrap}}
+                .modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.66);display:grid;place-items:center;padding:20px}.modal-card{width:min(760px,100%);max-height:92vh;overflow:auto;background:var(--bg-card);border:1px solid var(--border-color);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.3)}.modal-card header,.modal-card footer{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border-color)}.modal-card footer{border-top:1px solid var(--border-color);border-bottom:0;justify-content:flex-end}.modal-card header span{font-size:12px;color:var(--text-muted)}.modal-card header h2{margin:3px 0 0}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:20px}.form-grid label{display:grid;gap:7px}.form-grid label>span{font-size:12px;font-weight:700;color:var(--text-muted)}.form-grid input:not([type=checkbox]),.form-grid select,.form-grid textarea{width:100%;box-sizing:border-box;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);border-radius:9px;padding:10px;outline:none}.form-grid .full{grid-column:1/-1}.toggle-row{display:flex!important;align-items:center;justify-content:space-between;gap:14px;border:1px solid var(--border-color);border-radius:10px;padding:12px}.toggle-row>div{display:grid;gap:3px}.toggle-row>div span{font-size:11px;color:var(--text-muted)}.toggle-row input{width:18px;height:18px}.invite-box{display:grid;gap:10px;border:1px solid rgba(124,58,237,.25);background:rgba(124,58,237,.06);border-radius:12px;padding:13px}.invite-box>div:first-child{display:grid;gap:3px}.invite-box span{font-size:11px;color:var(--text-muted)}.invite-link-row{display:grid;grid-template-columns:1fr auto;gap:8px}.invite-link-row input{min-width:0}.invite-link-row button{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:9px;padding:0 14px;background:var(--accent-primary);color:#fff;font-weight:800;cursor:pointer}
+                @keyframes spin{to{transform:rotate(360deg)}}@media(max-width:900px){.metric-grid,.metric-grid.four{grid-template-columns:1fr 1fr}.program-card{grid-template-columns:1fr auto}.form-grid{grid-template-columns:1fr}.form-grid .full{grid-column:auto}}@media(max-width:620px){.affiliate-header,.panel-title,.marketplace-heading{align-items:flex-start;flex-direction:column}.affiliate-tabs{width:100%;overflow:auto}.affiliate-tabs button{white-space:nowrap}.metric-grid,.metric-grid.four{grid-template-columns:1fr}.marketplace-heading label{min-width:0;width:100%;box-sizing:border-box}.warning-banner,.invite-banner{align-items:flex-start;flex-wrap:wrap}.product-actions{grid-template-columns:1fr}.invite-link-row{grid-template-columns:1fr}.invite-link-row button{min-height:42px}}
             `}</style>
         </div>
     );

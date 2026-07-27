@@ -28,7 +28,10 @@ export default function RegisterPage() {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         toast.success('Email confirmado. Sua conta esta pronta!');
-        router.push('/dashboard');
+        const pendingAffiliateInvite = localStorage.getItem('pending_affiliate_invite');
+        router.push(pendingAffiliateInvite
+            ? `/dashboard/affiliates?invite=${encodeURIComponent(pendingAffiliateInvite)}`
+            : '/dashboard');
     };
 
     const handleSubmit = async (e: React.FormEvent) => {

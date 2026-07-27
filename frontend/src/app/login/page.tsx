@@ -26,6 +26,11 @@ export default function LoginPage() {
         } else {
             toast.success('Login realizado com segurança!');
         }
+        const pendingAffiliateInvite = localStorage.getItem('pending_affiliate_invite');
+        if (pendingAffiliateInvite && data.user.role !== 'customer') {
+            router.push(`/dashboard/affiliates?invite=${encodeURIComponent(pendingAffiliateInvite)}`);
+            return;
+        }
         if (data.user.role === 'admin') {
             router.push('/admin');
         } else if (data.user.role === 'customer') {

@@ -104,7 +104,6 @@ export async function GET(req: NextRequest) {
             .select('id, product_id, producer_id, status, enrollment_mode, commission_rate_bps, attribution_model, cookie_days, marketplace_visible, commission_on_bumps, commission_on_renewals, hold_days, terms_text, created_at, updated_at')
             .eq('status', 'active')
             .eq('marketplace_visible', true)
-            .neq('producer_id', auth.user.id)
             .order('created_at', { ascending: false })
             .limit(100);
         if (marketplaceError) throw marketplaceError;
@@ -214,6 +213,7 @@ export async function GET(req: NextRequest) {
                         ? { id: userById[program.producer_id].id, name: userById[program.producer_id].name }
                         : null,
                     affiliation: (ownAffiliations || []).find((affiliation: any) => affiliation.program_id === program.id) || null,
+                    is_own_program: program.producer_id === auth.user.id,
                 })),
         });
     } catch (error: any) {
