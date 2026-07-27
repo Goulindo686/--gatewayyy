@@ -6,6 +6,7 @@ import {
     calculateAffiliatePlatformFee,
     normalizeAffiliateReference,
     normalizeAffiliateRateBps,
+    summarizeAffiliateBalance,
 } from '../src/lib/affiliates-core.ts';
 
 test('aceita somente referencias de afiliado opacas e bem formadas', () => {
@@ -115,4 +116,44 @@ test('mapeia status financeiros sem liberar pagamento pendente', () => {
     assert.equal(affiliateCommissionStatusForOrder('refunded'), 'refunded');
     assert.equal(affiliateCommissionStatusForOrder('chargeback'), 'chargeback');
     assert.equal(affiliateCommissionStatusForOrder('failed'), 'failed');
+});
+
+test('separa saldo afiliado liberado, em seguranca e estornado sem duplicar valores', () => {
+    assert.deepEqual(summarizeAffiliateBalance([
+        {
+            status: 'available',
+            commission_amount: 837,
+            available_at: '2026-07-20T12:00:00.000Z',
+        },
+        {
+            status: 'approved',
+            commission_amount: 500,
+            available_at: '2026-08-03T12:00:00.000Z',
+        },
+        {
+            status: 'approved',
+            commission_amount: 250,
+            available_at: '2026-08-03T18:00:00.000Z',
+        },
+        {
+            status: 'pending',
+            commission_amount: 300,
+        },
+        {
+            status: 'chargeback',
+            commission_amount: 100,
+            risk_reserve_amount: 100,
+        },
+    ]), {
+        salesCount: 3,
+        totalConfirmedAmount: 1_587,
+        releasedAmount: 837,
+        securityHoldAmount: 750,
+        pendingPaymentAmount: 300,
+        reversedAmount: 100,
+        riskReserveAmount: 100,
+        nextReleaseAmount: 750,
+        nextReleaseAt: '2026-08-03T12:00:00.000Z',
+        hasActivity: true,
+    });
 });

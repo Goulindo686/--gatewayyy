@@ -4,14 +4,16 @@ import 'server-only';
 
 import { createHash, randomBytes } from 'crypto';
 import type { NextRequest } from 'next/server';
-import { supabase } from '@/lib/db';
+import { fetchAll, supabase } from '@/lib/db';
 import { PagarmeService } from '@/lib/pagarme';
 import {
     affiliateCommissionStatusForOrder,
     calculateAffiliateCommission,
     normalizeAffiliateReference,
     normalizeAffiliateRateBps,
+    summarizeAffiliateBalance,
 } from '@/lib/affiliates-core';
+import type { AffiliateBalanceCommission } from '@/lib/affiliates-core';
 
 export type AffiliateAttribution = {
     affiliateId: string;
@@ -157,6 +159,26 @@ export async function getAffiliateWithdrawalReserve(userId: string) {
         .filter((row: any) => !row.risk_reserve_released_at)
         .reduce((sum: number, row: any) => sum + Math.max(0, Number(row.risk_reserve_amount || 0)), 0);
     return { heldAmount, riskAmount, total: heldAmount + riskAmount };
+}
+
+export async function getAffiliateBalanceSummary(userId: string) {
+    await promoteAvailableAffiliateCommissions(userId);
+
+    try {
+        const commissions = await fetchAll<AffiliateBalanceCommission>(
+            supabase
+                .from('affiliate_commissions')
+                .select(
+                    'status, commission_amount, available_at, risk_reserve_amount, risk_reserve_released_at',
+                )
+                .eq('affiliate_id', userId)
+                .order('created_at', { ascending: false }),
+        );
+        return summarizeAffiliateBalance(commissions);
+    } catch (error) {
+        if (isMissingAffiliateSchema(error)) return summarizeAffiliateBalance([]);
+        throw error;
+    }
 }
 
 function availableAtFromHoldDays(holdDays: number) {

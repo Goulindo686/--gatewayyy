@@ -4,7 +4,20 @@ import { useEffect, useRef, useState } from 'react';
 import { authAPI } from '@/lib/api';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FiDollarSign, FiArrowDown, FiClock, FiCheckCircle, FiXCircle, FiInfo, FiLock, FiAlertTriangle } from 'react-icons/fi';
+import {
+    FiAlertTriangle,
+    FiArrowDown,
+    FiCalendar,
+    FiCheckCircle,
+    FiDollarSign,
+    FiExternalLink,
+    FiInfo,
+    FiLock,
+    FiShield,
+    FiTrendingUp,
+    FiXCircle,
+    FiClock,
+} from 'react-icons/fi';
 
 export default function WithdrawalsPage() {
     const [balance, setBalance] = useState<any>(null);
@@ -115,6 +128,18 @@ export default function WithdrawalsPage() {
     const maxConsideringFee = Math.max(0, availableDisplay - WITHDRAWAL_FEE);
     const exampleBalance = 100;
     const exampleMax = Math.max(0, exampleBalance - WITHDRAWAL_FEE);
+    const affiliateBalance = balance?.affiliate_balance || {};
+    const formatMoney = (value: unknown) =>
+        Number(value || 0).toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+    const nextReleaseAt = affiliateBalance.next_release_at
+        ? new Date(affiliateBalance.next_release_at)
+        : null;
+    const hasValidNextRelease = Boolean(
+        nextReleaseAt && Number.isFinite(nextReleaseAt.getTime()),
+    );
 
     return (
         <div className="animate-fade-in">
@@ -186,6 +211,203 @@ export default function WithdrawalsPage() {
                     </div>
                 ))}
             </div>
+
+            {/* Affiliate Balance */}
+            <section
+                className="glass-card"
+                style={{
+                    marginBottom: 32,
+                    overflow: 'hidden',
+                    border: '1px solid rgba(108, 92, 231, 0.2)',
+                }}
+            >
+                <div
+                    style={{
+                        padding: '22px 24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 16,
+                        flexWrap: 'wrap',
+                        background: 'linear-gradient(135deg, rgba(108, 92, 231, 0.14), rgba(0, 206, 201, 0.06))',
+                        borderBottom: '1px solid var(--border-color)',
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                        <div
+                            style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 12,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#8b7cf6',
+                                background: 'rgba(108, 92, 231, 0.14)',
+                            }}
+                        >
+                            <FiTrendingUp size={22} />
+                        </div>
+                        <div>
+                            <h2 style={{ fontSize: 18, fontWeight: 750, margin: 0 }}>Saldo afiliado</h2>
+                            <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                                Acompanhe separadamente as comissões geradas pelas suas vendas como afiliado.
+                            </p>
+                        </div>
+                    </div>
+                    <div
+                        style={{
+                            padding: '7px 11px',
+                            borderRadius: 999,
+                            background: 'rgba(108, 92, 231, 0.12)',
+                            color: '#8b7cf6',
+                            fontSize: 12,
+                            fontWeight: 700,
+                        }}
+                    >
+                        {Number(affiliateBalance.sales_count || 0)} venda{Number(affiliateBalance.sales_count || 0) === 1 ? '' : 's'} com comissão
+                    </div>
+                </div>
+
+                <div style={{ padding: 24 }}>
+                    <div
+                        style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))',
+                            gap: 14,
+                        }}
+                    >
+                        {[
+                            {
+                                label: 'Total confirmado',
+                                value: affiliateBalance.total_confirmed,
+                                detail: 'Comissões válidas acumuladas',
+                                color: '#8b7cf6',
+                                icon: <FiTrendingUp size={18} />,
+                            },
+                            {
+                                label: 'Liberado para o saldo',
+                                value: affiliateBalance.released,
+                                detail: 'Já compõe o saldo disponível geral',
+                                color: '#00cec9',
+                                icon: <FiCheckCircle size={18} />,
+                            },
+                            {
+                                label: 'Em segurança',
+                                value: affiliateBalance.security_hold,
+                                detail: 'Será liberado após o prazo',
+                                color: '#fdcb6e',
+                                icon: <FiShield size={18} />,
+                            },
+                            {
+                                label: 'Aguardando pagamento',
+                                value: affiliateBalance.pending_payment,
+                                detail: 'Compras ainda não confirmadas',
+                                color: '#74b9ff',
+                                icon: <FiClock size={18} />,
+                            },
+                        ].map((card) => (
+                            <article
+                                key={card.label}
+                                style={{
+                                    padding: 17,
+                                    borderRadius: 13,
+                                    border: '1px solid var(--border-color)',
+                                    background: 'var(--bg-secondary)',
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 9, color: card.color, marginBottom: 13 }}>
+                                    {card.icon}
+                                    <span style={{ fontSize: 12, fontWeight: 700 }}>{card.label}</span>
+                                </div>
+                                <strong style={{ display: 'block', fontSize: 21, marginBottom: 5 }}>
+                                    R$ {formatMoney(card.value)}
+                                </strong>
+                                <small style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                                    {card.detail}
+                                </small>
+                            </article>
+                        ))}
+                    </div>
+
+                    <div
+                        style={{
+                            marginTop: 16,
+                            padding: 16,
+                            borderRadius: 13,
+                            border: '1px solid rgba(108, 92, 231, 0.18)',
+                            background: 'rgba(108, 92, 231, 0.06)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 16,
+                            flexWrap: 'wrap',
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <FiCalendar size={20} color="#8b7cf6" />
+                            <div>
+                                <strong style={{ display: 'block', fontSize: 13, marginBottom: 3 }}>Próxima liberação</strong>
+                                {hasValidNextRelease ? (
+                                    <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                                        <strong style={{ color: 'var(--text-primary)' }}>
+                                            R$ {formatMoney(affiliateBalance.next_release_amount)}
+                                        </strong>
+                                        {' em '}
+                                        {nextReleaseAt!.toLocaleDateString('pt-BR', {
+                                            day: '2-digit',
+                                            month: '2-digit',
+                                            year: 'numeric',
+                                        })}
+                                    </span>
+                                ) : (
+                                    <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                                        Nenhuma comissão aguardando prazo de segurança.
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        <a
+                            href="/dashboard/affiliates"
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 7,
+                                color: '#8b7cf6',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                textDecoration: 'none',
+                            }}
+                        >
+                            Ver histórico de comissões <FiExternalLink size={14} />
+                        </a>
+                    </div>
+
+                    {(Number(affiliateBalance.reversed || 0) > 0 || Number(affiliateBalance.risk_reserve || 0) > 0) && (
+                        <div
+                            style={{
+                                marginTop: 12,
+                                padding: '11px 14px',
+                                borderRadius: 10,
+                                background: 'rgba(255, 107, 107, 0.07)',
+                                color: 'var(--text-secondary)',
+                                fontSize: 12,
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            Estornos e chargebacks: <strong>R$ {formatMoney(affiliateBalance.reversed)}</strong>
+                            {Number(affiliateBalance.risk_reserve || 0) > 0 && (
+                                <> · Reserva de risco atual: <strong>R$ {formatMoney(affiliateBalance.risk_reserve)}</strong></>
+                            )}
+                        </div>
+                    )}
+
+                    <p style={{ margin: '14px 2px 0', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                        Os valores liberados não são somados novamente: eles já fazem parte do
+                        <strong> Saldo Disponível</strong> mostrado no início desta página. O saque continua sendo solicitado uma única vez pelo formulário abaixo.
+                    </p>
+                </div>
+            </section>
 
             {/* Withdraw Form */}
             <div className={`glass-card ${needsVerification ? 'disabled-section' : ''}`} style={{

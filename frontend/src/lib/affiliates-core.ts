@@ -24,9 +24,81 @@ export type AffiliateCommissionAmounts = {
     sellerAmount: number;
 };
 
+export type AffiliateBalanceCommission = {
+    status: string;
+    commission_amount?: number | null;
+    available_at?: string | null;
+    risk_reserve_amount?: number | null;
+    risk_reserve_released_at?: string | null;
+};
+
+export type AffiliateBalanceSummary = {
+    salesCount: number;
+    totalConfirmedAmount: number;
+    releasedAmount: number;
+    securityHoldAmount: number;
+    pendingPaymentAmount: number;
+    reversedAmount: number;
+    riskReserveAmount: number;
+    nextReleaseAmount: number;
+    nextReleaseAt: string | null;
+    hasActivity: boolean;
+};
+
 function toNonNegativeCents(value: number) {
     const normalized = Math.round(Number(value) || 0);
     return Math.max(0, normalized);
+}
+
+export function summarizeAffiliateBalance(
+    commissions: AffiliateBalanceCommission[],
+): AffiliateBalanceSummary {
+    const successfulStatuses = new Set(['approved', 'available']);
+    const reversedStatuses = new Set(['refunded', 'chargeback', 'failed', 'cancelled']);
+    const validRows = Array.isArray(commissions) ? commissions : [];
+    const amountOf = (row: AffiliateBalanceCommission) =>
+        toNonNegativeCents(Number(row.commission_amount || 0));
+
+    const securityRows = validRows.filter((row) => row.status === 'approved');
+    const nextReleaseAt = securityRows
+        .map((row) => row.available_at)
+        .filter(
+            (value): value is string =>
+                typeof value === 'string' && Number.isFinite(new Date(value).getTime()),
+        )
+        .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0] || null;
+    const nextReleaseDate = nextReleaseAt?.slice(0, 10) || null;
+
+    return {
+        salesCount: validRows.filter((row) => successfulStatuses.has(row.status)).length,
+        totalConfirmedAmount: validRows
+            .filter((row) => successfulStatuses.has(row.status))
+            .reduce((total, row) => total + amountOf(row), 0),
+        releasedAmount: validRows
+            .filter((row) => row.status === 'available')
+            .reduce((total, row) => total + amountOf(row), 0),
+        securityHoldAmount: securityRows.reduce((total, row) => total + amountOf(row), 0),
+        pendingPaymentAmount: validRows
+            .filter((row) => row.status === 'pending')
+            .reduce((total, row) => total + amountOf(row), 0),
+        reversedAmount: validRows
+            .filter((row) => reversedStatuses.has(row.status))
+            .reduce((total, row) => total + amountOf(row), 0),
+        riskReserveAmount: validRows
+            .filter((row) => !row.risk_reserve_released_at)
+            .reduce(
+                (total, row) =>
+                    total + toNonNegativeCents(Number(row.risk_reserve_amount || 0)),
+                0,
+            ),
+        nextReleaseAmount: nextReleaseDate
+            ? securityRows
+                .filter((row) => row.available_at?.slice(0, 10) === nextReleaseDate)
+                .reduce((total, row) => total + amountOf(row), 0)
+            : 0,
+        nextReleaseAt,
+        hasActivity: validRows.length > 0,
+    };
 }
 
 export function calculateAffiliatePlatformFee(input: {

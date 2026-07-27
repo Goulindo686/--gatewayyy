@@ -5,7 +5,26 @@ import { supabase, fetchAll } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { PagarmeService } from '@/lib/pagarme';
-import { getAffiliateWithdrawalReserve } from '@/lib/affiliates';
+import {
+    getAffiliateBalanceSummary,
+    getAffiliateWithdrawalReserve,
+} from '@/lib/affiliates';
+
+function affiliateBalanceResponse(summary: Awaited<ReturnType<typeof getAffiliateBalanceSummary>>) {
+    const asCurrency = (amount: number) => (Math.max(0, amount) / 100).toFixed(2);
+    return {
+        has_activity: summary.hasActivity,
+        sales_count: summary.salesCount,
+        total_confirmed: asCurrency(summary.totalConfirmedAmount),
+        released: asCurrency(summary.releasedAmount),
+        security_hold: asCurrency(summary.securityHoldAmount),
+        pending_payment: asCurrency(summary.pendingPaymentAmount),
+        reversed: asCurrency(summary.reversedAmount),
+        risk_reserve: asCurrency(summary.riskReserveAmount),
+        next_release_amount: asCurrency(summary.nextReleaseAmount),
+        next_release_at: summary.nextReleaseAt,
+    };
+}
 
 async function getReservedWithdrawals(userId: string) {
     const { data } = await supabase
@@ -29,6 +48,9 @@ export async function GET(req: NextRequest) {
     if (!rl.allowed) return rateLimitResponse(rl.resetAt);
 
     try {
+        const affiliateSummary = await getAffiliateBalanceSummary(auth.user.id);
+        const affiliateBalance = affiliateBalanceResponse(affiliateSummary);
+
         // Get recipient ID
         const { data: recipient } = await supabase
             .from('recipients').select('pagarme_recipient_id').eq('user_id', auth.user.id).single();
@@ -71,6 +93,7 @@ export async function GET(req: NextRequest) {
                     kyc_status: pRecipient.kyc_details?.status || 'none',
                     affiliate_security_hold: (affiliateReserve.heldAmount / 100).toFixed(2),
                     affiliate_risk_reserve: (affiliateReserve.riskAmount / 100).toFixed(2),
+                    affiliate_balance: affiliateBalance,
                 });
             } catch (pErr: any) {
                 console.error('Pagar.me balance error in withdrawals API:', pErr.response?.data || pErr.message);
@@ -102,6 +125,7 @@ export async function GET(req: NextRequest) {
             total_fees: (totalFees / 100).toFixed(2),
             affiliate_security_hold: (affiliateReserve.heldAmount / 100).toFixed(2),
             affiliate_risk_reserve: (affiliateReserve.riskAmount / 100).toFixed(2),
+            affiliate_balance: affiliateBalance,
         });
     } catch (err: any) {
         console.error('Balance API error:', err);
