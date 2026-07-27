@@ -21,6 +21,34 @@ test('calcula comissao sobre o valor apos a taxa da plataforma', () => {
     });
 });
 
+test('distribui uma venda de R$ 29,90 com comissao de 30%', () => {
+    assert.deepEqual(calculateAffiliateCommission({
+        grossAmount: 2_990,
+        platformFeeAmount: 0,
+        commissionRateBps: 3000,
+    }), {
+        grossAmount: 2_990,
+        platformFeeAmount: 0,
+        commissionBaseAmount: 2_990,
+        commissionRateBps: 3000,
+        commissionAmount: 897,
+        sellerAmount: 2_093,
+    });
+
+    assert.deepEqual(calculateAffiliateCommission({
+        grossAmount: 2_990,
+        platformFeeAmount: 200,
+        commissionRateBps: 3000,
+    }), {
+        grossAmount: 2_990,
+        platformFeeAmount: 200,
+        commissionBaseAmount: 2_790,
+        commissionRateBps: 3000,
+        commissionAmount: 837,
+        sellerAmount: 1_953,
+    });
+});
+
 test('arredonda em centavos e nunca distribui acima do valor bruto', () => {
     assert.deepEqual(calculateAffiliateCommission({
         grossAmount: 101,

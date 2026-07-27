@@ -98,7 +98,9 @@ export const notifySale = async (userId: string, saleData: any) => {
 
         const amount = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saleData.amount / 100);
         
-        const message = `<b>Venda Aprovada!</b>\n<b>Valor:</b> ${amount}`;
+        const title = saleData.title || 'Venda Aprovada!';
+        const amountLabel = saleData.amount_label || 'Valor';
+        const message = `<b>${title}</b>\n<b>${amountLabel}:</b> ${amount}`;
 
         if (saleData.image_url) {
             await sendPhoto(user.telegram_chat_id, saleData.image_url, message);

@@ -658,6 +658,11 @@ export async function POST(req: NextRequest) {
                     orderId,
                     sellerId: product.user_id,
                     amountCents: totalCents,
+                    platformFeeAmountCents: appliedPlatformFeeAmount,
+                    affiliate: affiliateAttribution ? {
+                        userId: affiliateAttribution.affiliateId,
+                        commissionAmountCents: affiliateAttribution.commissionAmount,
+                    } : null,
                     paymentMethod: normalizedPaymentMethod,
                     productName: product.name,
                     customerName: buyer.name,

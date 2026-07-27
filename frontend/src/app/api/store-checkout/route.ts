@@ -408,6 +408,11 @@ export async function POST(req: NextRequest) {
                     orderId: order.id,
                     sellerId,
                     amountCents: totalAmountCents,
+                    platformFeeAmountCents: appliedPlatformFeeAmount,
+                    affiliate: affiliateAttribution ? {
+                        userId: affiliateAttribution.affiliateId,
+                        commissionAmountCents: affiliateAttribution.commissionAmount,
+                    } : null,
                     paymentMethod: method,
                     productName: validatedCart.length === 1 ? validatedCart[0].name : `${validatedCart.length} produtos`,
                     customerName: buyer.name,

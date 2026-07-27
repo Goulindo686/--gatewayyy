@@ -24,6 +24,9 @@ type SaleNotificationOrder = {
     id: string;
     seller_id: string;
     amount: number;
+    platform_fee_amount?: number | null;
+    affiliate_id?: string | null;
+    affiliate_commission_amount?: number | null;
     payment_method?: string | null;
     buyer_name?: string | null;
     buyer_email?: string | null;
@@ -48,6 +51,11 @@ async function notifyApprovedOrder(
         orderId: order.id,
         sellerId: order.seller_id,
         amountCents: order.amount,
+        platformFeeAmountCents: order.platform_fee_amount || 0,
+        affiliate: order.affiliate_id && order.affiliate_commission_amount ? {
+            userId: order.affiliate_id,
+            commissionAmountCents: order.affiliate_commission_amount,
+        } : null,
         paymentMethod: order.payment_method || 'Pagamento',
         productName: product?.name || 'Venda',
         customerName: order.buyer_name || order.buyer_email || 'Cliente',

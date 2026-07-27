@@ -11,12 +11,30 @@ type AmountRow = {
 };
 
 type RecentOrderRow = {
+    id?: string | null;
     amount?: number | null;
     amount_display?: string | null;
+    buyer_name?: string | null;
+    created_at?: string | null;
     product_id?: string | null;
     payment_method?: string | null;
+    status?: string | null;
+    affiliate_id?: string | null;
+    affiliate_commission_amount?: number | null;
+    platform_fee_amount?: number | null;
     products?: { name?: string | null } | null;
     [key: string]: unknown;
+};
+
+type RecentAffiliateCommissionRow = {
+    id: string;
+    order_id?: string | null;
+    subscription_id?: string | null;
+    product_id?: string | null;
+    commission_amount?: number | null;
+    created_at?: string | null;
+    source_type?: string | null;
+    products?: { name?: string | null } | null;
 };
 
 export async function GET(req: NextRequest) {
@@ -159,7 +177,7 @@ export async function GET(req: NextRequest) {
 
     // Recent orders (limited to 10)
     let recentQuery = supabase
-        .from('orders').select('id, product_id, buyer_name, amount, amount_display, payment_method, status, created_at, products(name)')
+        .from('orders').select('id, product_id, buyer_name, amount, amount_display, payment_method, status, created_at, affiliate_id, affiliate_commission_amount, platform_fee_amount, products(name)')
         .eq('seller_id', userId)
         .order('created_at', { ascending: false })
         .limit(10);
@@ -168,6 +186,59 @@ export async function GET(req: NextRequest) {
     if (endDate) recentQuery = recentQuery.lte('created_at', endDate.toISOString());
 
     const { data: recent_orders_raw } = await recentQuery;
+    const recentOrders = ((recent_orders_raw || []) as RecentOrderRow[]).map((order) => ({
+        ...order,
+        amount_display: order.amount_display || (order.amount != null ? (order.amount / 100).toFixed(2) : '0.00'),
+        product_name: order.products?.name || (!order.product_id && order.payment_method === 'pix' ? 'API Pix' : '—')
+    }));
+
+    let affiliateNotificationsQuery = supabase
+        .from('affiliate_commissions')
+        .select('id, order_id, subscription_id, product_id, commission_amount, status, created_at, source_type, products(name)')
+        .eq('affiliate_id', userId)
+        .in('status', ['approved', 'available'])
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+    if (startDate) affiliateNotificationsQuery = affiliateNotificationsQuery.gte('created_at', startDate.toISOString());
+    if (endDate) affiliateNotificationsQuery = affiliateNotificationsQuery.lte('created_at', endDate.toISOString());
+
+    const { data: affiliate_notifications_raw } = await affiliateNotificationsQuery;
+    const producerNotifications = recentOrders.map((order) => {
+        const grossAmount = Math.max(0, Math.round(Number(order.amount) || 0));
+        const platformFeeAmount = Math.max(0, Math.round(Number(order.platform_fee_amount) || 0));
+        const commissionAmount = Math.max(0, Math.round(Number(order.affiliate_commission_amount) || 0));
+        const isAffiliateSale = Boolean(order.affiliate_id && commissionAmount > 0);
+
+        return {
+            ...order,
+            notification_kind: isAffiliateSale ? 'affiliate_sale' : 'sale',
+            notification_amount: isAffiliateSale
+                ? Math.max(0, grossAmount - platformFeeAmount - commissionAmount)
+                : grossAmount,
+        };
+    });
+    const affiliateNotifications = ((affiliate_notifications_raw || []) as RecentAffiliateCommissionRow[]).map((commission) => {
+        const amount = Math.max(0, Math.round(Number(commission.commission_amount) || 0));
+        return {
+            id: `affiliate-commission-${commission.id}`,
+            order_id: commission.order_id,
+            subscription_id: commission.subscription_id,
+            product_id: commission.product_id,
+            amount,
+            amount_display: (amount / 100).toFixed(2),
+            payment_method: 'affiliate',
+            status: 'paid',
+            created_at: commission.created_at,
+            source_type: commission.source_type,
+            product_name: commission.products?.name || 'Produto',
+            notification_kind: 'affiliate_commission',
+            notification_amount: amount,
+        };
+    });
+    const notifications = [...producerNotifications, ...affiliateNotifications]
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+        .slice(0, 10);
 
     return jsonSuccess({
         stats: {
@@ -180,10 +251,7 @@ export async function GET(req: NextRequest) {
             net_revenue: (totalSoldDec - totalFeesDec).toFixed(2)
         },
         monthly_sales,
-        recent_orders: ((recent_orders_raw || []) as RecentOrderRow[]).map((o) => ({
-            ...o,
-            amount_display: o.amount_display || (o.amount != null ? (o.amount / 100).toFixed(2) : '0.00'),
-            product_name: o.products?.name || (!o.product_id && o.payment_method === 'pix' ? 'API Pix' : '—')
-        }))
+        recent_orders: recentOrders,
+        notifications,
     });
 }

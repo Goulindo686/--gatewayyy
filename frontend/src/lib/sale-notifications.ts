@@ -6,6 +6,11 @@ type ApprovedSaleNotificationInput = {
     orderId: string;
     sellerId: string;
     amountCents: number;
+    platformFeeAmountCents?: number;
+    affiliate?: {
+        userId: string;
+        commissionAmountCents: number;
+    } | null;
     paymentMethod?: string;
     productName?: string;
     customerName?: string;
@@ -39,26 +44,94 @@ export async function sendApprovedSaleNotification(input: ApprovedSaleNotificati
     });
     if (!deduplication.allowed) return false;
 
-    const value = formatApprovedSaleValue(input.amountCents);
-    await Promise.allSettled([
-        notifySale(input.sellerId, {
-            product_name: input.productName || 'Venda',
-            amount: input.amountCents,
-            payment_method: input.paymentMethod || 'Pagamento',
-            customer_name: input.customerName || 'Cliente',
-            image_url: input.imageUrl || undefined,
-        }),
-        sendPushNotification(input.sellerId, {
-            title: 'Venda Aprovada!',
-            body: `Valor: ${value}`,
-            url: input.url || '/dashboard',
-            icon: '/favicon.png',
-            tag: `sale-${input.orderId}`,
-            type: 'approved_sale',
-            sound: 'sale_chime',
-            timestamp: Date.now(),
-        }),
-    ]);
+    const affiliateId = String(input.affiliate?.userId || '').trim();
+    const commissionAmountCents = Math.max(
+        0,
+        Math.round(Number(input.affiliate?.commissionAmountCents) || 0),
+    );
+    const platformFeeAmountCents = Math.max(
+        0,
+        Math.round(Number(input.platformFeeAmountCents) || 0),
+    );
+    const isAffiliateSale = Boolean(
+        affiliateId
+        && affiliateId !== input.sellerId
+        && commissionAmountCents > 0,
+    );
+
+    if (isAffiliateSale) {
+        const producerAmountCents = Math.max(
+            0,
+            Math.round(Number(input.amountCents) || 0)
+                - platformFeeAmountCents
+                - commissionAmountCents,
+        );
+        const producerValue = formatApprovedSaleValue(producerAmountCents);
+        const commissionValue = formatApprovedSaleValue(commissionAmountCents);
+        const affiliateUrl = '/dashboard/affiliates';
+
+        await Promise.allSettled([
+            notifySale(input.sellerId, {
+                title: 'Venda de afiliado!',
+                amount_label: 'Sua parte',
+                product_name: input.productName || 'Venda',
+                amount: producerAmountCents,
+                payment_method: input.paymentMethod || 'Pagamento',
+                customer_name: input.customerName || 'Cliente',
+                image_url: input.imageUrl || undefined,
+            }),
+            sendPushNotification(input.sellerId, {
+                title: 'Venda de afiliado!',
+                body: `Sua parte: ${producerValue}`,
+                url: affiliateUrl,
+                icon: '/favicon.png',
+                tag: `affiliate-sale-producer-${input.orderId}`,
+                type: 'affiliate_sale',
+                sound: 'sale_chime',
+                timestamp: Date.now(),
+            }),
+            notifySale(affiliateId, {
+                title: 'Comissão de venda!',
+                amount_label: 'Comissão',
+                product_name: input.productName || 'Venda',
+                amount: commissionAmountCents,
+                payment_method: input.paymentMethod || 'Pagamento',
+                customer_name: 'Venda indicada',
+                image_url: input.imageUrl || undefined,
+            }),
+            sendPushNotification(affiliateId, {
+                title: 'Comissão de venda!',
+                body: `Você recebeu ${commissionValue}`,
+                url: affiliateUrl,
+                icon: '/favicon.png',
+                tag: `affiliate-commission-${input.orderId}`,
+                type: 'affiliate_commission',
+                sound: 'sale_chime',
+                timestamp: Date.now(),
+            }),
+        ]);
+    } else {
+        const value = formatApprovedSaleValue(input.amountCents);
+        await Promise.allSettled([
+            notifySale(input.sellerId, {
+                product_name: input.productName || 'Venda',
+                amount: input.amountCents,
+                payment_method: input.paymentMethod || 'Pagamento',
+                customer_name: input.customerName || 'Cliente',
+                image_url: input.imageUrl || undefined,
+            }),
+            sendPushNotification(input.sellerId, {
+                title: 'Venda Aprovada!',
+                body: `Valor: ${value}`,
+                url: input.url || '/dashboard',
+                icon: '/favicon.png',
+                tag: `sale-${input.orderId}`,
+                type: 'approved_sale',
+                sound: 'sale_chime',
+                timestamp: Date.now(),
+            }),
+        ]);
+    }
 
     return true;
 }

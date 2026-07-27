@@ -92,7 +92,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 if (cancelled) return;
                 const totalSold = parseMoney(data?.stats?.total_sold);
                 setSalesTotal(totalSold);
-                setDashboardNotifications((data?.recent_orders || []).slice(0, 8));
+                setDashboardNotifications((data?.notifications || data?.recent_orders || []).slice(0, 8));
             } catch {
                 if (!cancelled) setSalesTotal(null);
             }
@@ -350,13 +350,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const effectiveCollapsed = !isMobile && sidebarCollapsed;
     const asideWidth = effectiveCollapsed ? 76 : 230;
     const unreadNotifications = dashboardNotifications.filter((order) => order.status === 'paid').length;
-    const notificationStatus = (status: string) => {
-        if (status === 'paid') return { label: 'Venda aprovada', color: '#16a34a', bg: 'rgba(22,163,74,0.12)', icon: <FiCheckCircle size={15} /> };
-        if (status === 'pending') return { label: 'Pagamento pendente', color: '#d97706', bg: 'rgba(217,119,6,0.12)', icon: <FiClock size={15} /> };
+    const notificationStatus = (order: any) => {
+        if (order.notification_kind === 'affiliate_commission') return { label: 'Comissão de venda', color: '#7c3aed', bg: 'rgba(124,58,237,0.12)', icon: <FiPercent size={15} /> };
+        if (order.notification_kind === 'affiliate_sale' && order.status === 'paid') return { label: 'Venda de afiliado', color: '#16a34a', bg: 'rgba(22,163,74,0.12)', icon: <FiUsers size={15} /> };
+        if (order.status === 'paid') return { label: 'Venda aprovada', color: '#16a34a', bg: 'rgba(22,163,74,0.12)', icon: <FiCheckCircle size={15} /> };
+        if (order.status === 'pending') return { label: 'Pagamento pendente', color: '#d97706', bg: 'rgba(217,119,6,0.12)', icon: <FiClock size={15} /> };
         return { label: 'Pagamento falhou', color: '#ef4444', bg: 'rgba(239,68,68,0.12)', icon: <FiXCircle size={15} /> };
     };
     const notificationAmount = (order: any) => {
-        const raw = order?.amount_display ?? (order?.amount != null ? Number(order.amount) / 100 : 0);
+        const raw = order?.notification_amount != null
+            ? Number(order.notification_amount) / 100
+            : order?.amount_display ?? (order?.amount != null ? Number(order.amount) / 100 : 0);
         return Number(raw).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
 
@@ -622,7 +626,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     </div>
                                     <div style={{ maxHeight: 390, overflowY: 'auto', padding: 8 }}>
                                         {dashboardNotifications.length > 0 ? dashboardNotifications.map((order) => {
-                                            const st = notificationStatus(order.status);
+                                            const st = notificationStatus(order);
                                             return (
                                                 <div key={order.id} className="dashboard-notification-item" style={{
                                                     display: 'grid',

@@ -55,7 +55,9 @@ export async function sendPushNotification(userId: string, payload: PushPayload)
                     notification,
                     {
                         TTL: 60 * 60,
-                        urgency: payload.type === 'approved_sale' ? 'high' : 'normal',
+                        urgency: ['approved_sale', 'affiliate_sale', 'affiliate_commission'].includes(payload.type || '')
+                            ? 'high'
+                            : 'normal',
                     }
                 );
             } catch (err: unknown) {
