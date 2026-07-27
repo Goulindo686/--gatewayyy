@@ -7,6 +7,11 @@ const api = axios.create({
     headers: { 'Content-Type': 'application/json' },
 });
 
+const internalApi = axios.create({
+    baseURL: '/api',
+    headers: { 'Content-Type': 'application/json' },
+});
+
 api.interceptors.request.use((config) => {
     if (typeof window !== 'undefined') {
         const token = localStorage.getItem('token');
@@ -31,23 +36,33 @@ api.interceptors.response.use(
     }
 );
 
+internalApi.interceptors.request.use((config) => {
+    if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+    }
+    return config;
+});
+
 // Auth
 export const authAPI = {
-    register: (data: any) => api.post('/auth/register', data),
-    login: (data: any) => api.post('/auth/login', data),
-    verifyEmail: (data: { verification_token: string; code: string }) => api.post('/auth/email-verification/verify', data),
-    resendEmailVerification: (verification_token: string) => api.post('/auth/email-verification/resend', { verification_token }),
-    getTwoFactorStatus: () => api.get('/auth/2fa/status'),
-    setupTwoFactor: (password: string) => api.post('/auth/2fa/setup', { password }),
-    confirmTwoFactor: (code: string) => api.post('/auth/2fa/confirm', { code }),
-    disableTwoFactor: (data: { password: string; code: string }) => api.post('/auth/2fa/disable', data),
-    regenerateTwoFactorRecoveryCodes: (code: string) => api.post('/auth/2fa/recovery-codes', { code }),
-    verifyTwoFactorLogin: (data: { two_factor_token: string; code: string }) => api.post('/auth/2fa/verify', data),
-    forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
-    resetPassword: (data: any) => api.post('/auth/reset-password', data),
-    getProfile: () => api.get('/auth/profile'),
+    register: (data: any) => internalApi.post('/auth/register', data),
+    login: (data: any) => internalApi.post('/auth/login', data),
+    verifyEmail: (data: { verification_token: string; code: string }) => internalApi.post('/auth/email-verification/verify', data),
+    resendEmailVerification: (verification_token: string) => internalApi.post('/auth/email-verification/resend', { verification_token }),
+    getTwoFactorStatus: () => internalApi.get('/auth/2fa/status'),
+    setupTwoFactor: (password: string) => internalApi.post('/auth/2fa/setup', { password }),
+    confirmTwoFactor: (code: string) => internalApi.post('/auth/2fa/confirm', { code }),
+    disableTwoFactor: (data: { password: string; code: string }) => internalApi.post('/auth/2fa/disable', data),
+    regenerateTwoFactorRecoveryCodes: (code: string) => internalApi.post('/auth/2fa/recovery-codes', { code }),
+    verifyTwoFactorLogin: (data: { two_factor_token: string; code: string }) => internalApi.post('/auth/2fa/verify', data),
+    forgotPassword: (email: string) => internalApi.post('/auth/forgot-password', { email }),
+    resetPassword: (data: any) => internalApi.post('/auth/reset-password', data),
+    getProfile: () => internalApi.get('/auth/profile'),
     updateProfile: (data: any) => internalApi.put('/auth/profile', data),
-    getKycLink: () => api.post('/auth/recipient/kyc'),
+    getKycLink: () => internalApi.post('/auth/recipient/kyc'),
 };
 
 // Products
@@ -127,23 +142,6 @@ export const memberAPI = {
     getCourseContent: (productId: string) => api.get(`/member/course/${productId}`),
     getLesson: (lessonId: string) => api.get(`/member/lesson/${lessonId}`),
 };
-
-// We create a separate instance for internal Next.js API calls 
-// because main 'api' uses NEXT_PUBLIC_API_URL which points to the external backend.
-const internalApi = axios.create({
-    baseURL: '/api',
-    headers: { 'Content-Type': 'application/json' },
-});
-
-internalApi.interceptors.request.use((config) => {
-    if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-    }
-    return config;
-});
 
 // Store Categories (Internal Next.js API)
 export const storeCategoriesAPI = {

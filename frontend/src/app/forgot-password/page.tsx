@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 import { FiArrowLeft, FiCheckCircle, FiClock, FiLock, FiMail, FiRefreshCw, FiSend, FiShield } from 'react-icons/fi';
+import { authAPI } from '@/lib/api';
 
 export default function ForgotPasswordPage() {
     const [loading, setLoading] = useState(false);
@@ -14,7 +14,7 @@ export default function ForgotPasswordPage() {
         e.preventDefault();
         setLoading(true);
         try {
-            await axios.post('/api/auth/forgot-password', { email });
+            await authAPI.forgotPassword(email);
             setSent(true);
             toast.success('Email de recuperacao enviado!');
         } catch {

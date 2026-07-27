@@ -43,7 +43,7 @@ describe('armazenamento de senha', () => {
         assert.equal(update.updated_at, 'new-date');
     });
 
-    test('login usa password_hash e recorre ao campo legado', () => {
+    test('login usa password_hash como fonte oficial e recorre ao campo legado', () => {
         assert.equal(
             getStoredPasswordHash({ password_hash: 'primary', password: 'legacy' }),
             'primary'
@@ -52,7 +52,7 @@ describe('armazenamento de senha', () => {
         assert.equal(getStoredPasswordHash({ password_hash: null, password: 'legacy' }), 'legacy');
     });
 
-    test('login pode validar e identificar hashes divergentes', () => {
+    test('login ignora password legado quando password_hash existe', () => {
         assert.deepEqual(
             getStoredPasswordCandidates({
                 password_hash: 'old-primary',
@@ -60,7 +60,6 @@ describe('armazenamento de senha', () => {
             }),
             [
                 { column: 'password_hash', hash: 'old-primary' },
-                { column: 'password', hash: 'new-legacy' },
             ]
         );
     });

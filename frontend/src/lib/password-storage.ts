@@ -10,21 +10,15 @@ function hasOwn(row: PasswordUserRow, key: string) {
 }
 
 export function getStoredPasswordCandidates(row: PasswordUserRow) {
-    const candidates: StoredPasswordCandidate[] = [];
-
     if (typeof row.password_hash === 'string' && row.password_hash) {
-        candidates.push({ column: 'password_hash', hash: row.password_hash });
+        return [{ column: 'password_hash', hash: row.password_hash }] satisfies StoredPasswordCandidate[];
     }
 
-    if (
-        typeof row.password === 'string' &&
-        row.password &&
-        !candidates.some((candidate) => candidate.hash === row.password)
-    ) {
-        candidates.push({ column: 'password', hash: row.password });
+    if (typeof row.password === 'string' && row.password) {
+        return [{ column: 'password', hash: row.password }] satisfies StoredPasswordCandidate[];
     }
 
-    return candidates;
+    return [];
 }
 
 export function getStoredPasswordHash(row: PasswordUserRow) {

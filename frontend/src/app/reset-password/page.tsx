@@ -5,9 +5,9 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 import { FiArrowLeft, FiArrowRight, FiEye, FiEyeOff, FiLock } from 'react-icons/fi';
+import { authAPI } from '@/lib/api';
 
 function ResetPasswordForm() {
     const router = useRouter();
@@ -42,7 +42,9 @@ function ResetPasswordForm() {
 
         setLoading(true);
         try {
-            await axios.post('/api/auth/reset-password', { token, password });
+            await authAPI.resetPassword({ token, password });
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
             toast.success('Senha alterada com sucesso!');
             setTimeout(() => router.push('/login'), 2000);
         } catch (err: any) {
