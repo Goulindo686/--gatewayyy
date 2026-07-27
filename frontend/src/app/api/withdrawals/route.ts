@@ -6,7 +6,10 @@ import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { PagarmeService } from '@/lib/pagarme';
 import { sendPushNotification } from '@/lib/webpush';
-import { getAffiliateWithdrawalReserve } from '@/lib/affiliates';
+import {
+    ensureRecipientManualPayoutControl,
+    getAffiliateWithdrawalReserve,
+} from '@/lib/affiliates';
 import { v4 as uuidv4 } from 'uuid';
 
 const WITHDRAWAL_FEE_CENTS = 367;
@@ -87,6 +90,18 @@ export async function GET(req: NextRequest) {
             .single();
 
         if (recipient?.pagarme_recipient_id) {
+            // Regulariza imediatamente contas antigas quando o titular abre
+            // a pagina de saques. Uma falha aqui nao bloqueia o historico; o
+            // cron protegido tentara novamente.
+            try {
+                await ensureRecipientManualPayoutControl(
+                    auth.user.id,
+                    recipient.pagarme_recipient_id,
+                );
+            } catch (error) {
+                console.error('[WITHDRAWAL] Failed to disable automatic transfers:', error);
+            }
+
             const transfersData = await PagarmeService.getRecipientTransfers(recipient.pagarme_recipient_id);
             const completedStatuses = new Set(['transferred', 'paid', 'completed']);
             const failedStatuses = new Set(['failed', 'canceled', 'cancelled', 'refused']);

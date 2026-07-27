@@ -61,12 +61,32 @@ test('sale and fee ledger entries are idempotent and recoverable', () => {
 
 test('provider requests carry idempotency and affiliate liability explicitly', () => {
     const pagarme = read('../src/lib/pagarme.ts');
+    const legacyPagarme = read('../../backend/src/services/pagarme.service.js');
+    const withdrawalApproval = read('../src/app/api/admin/withdrawals/[id]/approve/route.ts');
 
     assert.match(pagarme, /'Idempotency-Key'/);
+    assert.match(pagarme, /transfer_enabled:\s*false/);
+    assert.match(legacyPagarme, /transfer_enabled:\s*false/);
     assert.match(pagarme, /\/recipients\/\$\{recipientId\}\/transfer-settings/);
     assert.match(pagarme, /transfer_interval:\s*settings\.transfer_interval \|\| 'daily'/);
     assert.match(pagarme, /transfer_day:\s*settings\.transfer_day \?\? 0/);
     assert.match(pagarme, /recipient_id:\s*affiliateId,[\s\S]*liable:\s*true/);
+    assert.match(withdrawalApproval, /PagarmeService\.createTransfer/);
+    assert.match(withdrawalApproval, /goupay-withdrawal-\$\{withdrawal\.id\}/);
+});
+
+test('existing recipients are migrated gradually to manual withdrawals', () => {
+    const affiliates = read('../src/lib/affiliates.ts');
+    const recoveryCron = read('../src/app/api/cron/sales-recovery/route.ts');
+    const withdrawals = read('../src/app/api/withdrawals/route.ts');
+
+    assert.match(affiliates, /ensureRecipientManualPayoutControl/);
+    assert.match(affiliates, /transfer_enabled:\s*false/);
+    assert.match(affiliates, /affiliate_payout_controlled_at/);
+    assert.match(recoveryCron, /\.is\('affiliate_payout_controlled_at', null\)/);
+    assert.match(recoveryCron, /\.limit\(25\)/);
+    assert.match(recoveryCron, /ensureRecipientManualPayoutControl/);
+    assert.match(withdrawals, /ensureRecipientManualPayoutControl/);
 });
 
 test('push notifications report real delivery and resync browser subscriptions', () => {

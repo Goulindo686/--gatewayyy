@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/db';
 import { sendPixSalesRecoveryEmail } from '@/lib/email';
 import { reconcileOrderPayment } from '@/lib/order-payment-reconciliation';
+import { ensureRecipientManualPayoutControl } from '@/lib/affiliates';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,47 @@ export async function GET(req: NextRequest) {
     if (!cronSecret) return NextResponse.json({ error: 'CRON_SECRET nao configurado' }, { status: 500 });
     if (req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
         return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 });
+    }
+
+    const payoutControlSummary = {
+        checked: 0,
+        disabled: 0,
+        failed: 0,
+    };
+    const payoutControlErrors: string[] = [];
+    const { data: uncontrolledRecipients, error: payoutControlLoadError } = await supabase
+        .from('recipients')
+        .select('user_id, pagarme_recipient_id')
+        .is('affiliate_payout_controlled_at', null)
+        .not('pagarme_recipient_id', 'is', null)
+        // Os ainda nao tentados passam antes dos erros antigos, evitando que
+        // um recebedor invalido bloqueie a regularizacao dos demais.
+        .order('affiliate_payout_control_error', { ascending: true, nullsFirst: true })
+        .limit(25);
+
+    if (payoutControlLoadError) {
+        console.error('[PAYOUT CONTROL CRON] Failed to load recipients:', payoutControlLoadError);
+        payoutControlErrors.push(payoutControlLoadError.message);
+    } else {
+        const payoutQueue = [...(uncontrolledRecipients || [])];
+        const payoutWorkers = Array.from({ length: Math.min(5, payoutQueue.length) }, async () => {
+            while (payoutQueue.length > 0) {
+                const recipient = payoutQueue.shift();
+                if (!recipient?.user_id || !recipient.pagarme_recipient_id) continue;
+                payoutControlSummary.checked++;
+                try {
+                    await ensureRecipientManualPayoutControl(
+                        recipient.user_id,
+                        recipient.pagarme_recipient_id,
+                    );
+                    payoutControlSummary.disabled++;
+                } catch (error) {
+                    payoutControlSummary.failed++;
+                    payoutControlErrors.push(errorMessage(error));
+                }
+            }
+        });
+        await Promise.all(payoutWorkers);
     }
 
     const reconciliationSummary = {
@@ -177,7 +219,8 @@ export async function GET(req: NextRequest) {
         skipped,
         summary,
         reconciliation: reconciliationSummary,
-        errors: [...reconciliationErrors, ...errors].slice(0, 10),
+        payout_control: payoutControlSummary,
+        errors: [...payoutControlErrors, ...reconciliationErrors, ...errors].slice(0, 10),
     });
 }
 

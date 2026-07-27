@@ -26,7 +26,9 @@ class PagarmeService {
                     type: seller.bank_account_type || 'checking'
                 },
                 transfer_settings: {
-                    transfer_enabled: true,
+                    // Keep the recipient balance available for the platform's
+                    // reviewed/manual withdrawal flow.
+                    transfer_enabled: false,
                     transfer_interval: 'monthly',
                     transfer_day: 5
                 },

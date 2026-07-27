@@ -94,22 +94,32 @@ export function safeAffiliateDestination(path: unknown, productId: string) {
     return `/checkout/${productId}`;
 }
 
-export async function ensureAffiliatePayoutControl(userId: string, recipientId?: string) {
-    const { data: recipientRows, error: recipientError } = await supabase
+/**
+ * Garante que o saldo do recebedor so saia pela transferencia criada no fluxo
+ * de saque aprovado. As colunas mantem o nome historico de afiliado para que a
+ * correcao seja aditiva e nao exija uma nova migracao.
+ */
+export async function ensureRecipientManualPayoutControl(userId: string, recipientId?: string) {
+    const recipientQuery = supabase
         .from('recipients')
         .select('id, pagarme_recipient_id, affiliate_payout_controlled_at')
         .eq('user_id', userId)
-        .not('pagarme_recipient_id', 'is', null)
+        .not('pagarme_recipient_id', 'is', null);
+    const { data: recipientRows, error: recipientError } = await (
+        recipientId
+            ? recipientQuery.eq('pagarme_recipient_id', recipientId)
+            : recipientQuery
+    )
         .order('updated_at', { ascending: false })
         .limit(1);
     if (recipientError) throw recipientError;
 
     const recipient = recipientRows?.[0];
     if (!recipient?.pagarme_recipient_id) {
-        throw new Error('Recebedor do afiliado nao encontrado.');
+        throw new Error('Recebedor nao encontrado.');
     }
     if (recipientId && recipient.pagarme_recipient_id !== recipientId) {
-        throw new Error('Recebedor do afiliado foi alterado. Tente novamente.');
+        throw new Error('Recebedor foi alterado. Tente novamente.');
     }
     if (recipient.affiliate_payout_controlled_at) return recipient;
 
@@ -133,12 +143,15 @@ export async function ensureAffiliatePayoutControl(userId: string, recipientId?:
             .update({
                 affiliate_payout_control_error: error instanceof Error
                     ? error.message.slice(0, 1000)
-                    : 'Falha ao proteger repasses do afiliado',
+                    : 'Falha ao desativar transferencias automaticas',
             })
             .eq('id', recipient.id);
         throw error;
     }
 }
+
+// Compatibilidade com os fluxos de afiliados existentes.
+export const ensureAffiliatePayoutControl = ensureRecipientManualPayoutControl;
 
 export async function getAffiliateWithdrawalReserve(userId: string) {
     await promoteAvailableAffiliateCommissions(userId);

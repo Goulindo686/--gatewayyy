@@ -165,7 +165,9 @@ export class PagarmeService {
                 type: data.account_type || 'checking'
             },
             transfer_settings: {
-                transfer_enabled: true,
+                // O saldo permanece no recebedor ate que um saque aprovado
+                // crie uma transferencia manual.
+                transfer_enabled: false,
                 transfer_interval: 'daily',
                 transfer_day: 0
             },
