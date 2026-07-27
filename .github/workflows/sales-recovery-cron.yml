@@ -1,0 +1,36 @@
+name: Recuperacao de vendas Pix
+
+on:
+  schedule:
+    - cron: "2/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: sales-recovery-cron
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  send-pending-pix-emails:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Acionar recuperacao de vendas
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "Configure o secret CRON_SECRET nas configuracoes do repositorio."
+            exit 1
+          fi
+
+          curl \
+            --fail-with-body \
+            --silent \
+            --show-error \
+            --retry 2 \
+            --max-time 120 \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            "https://www.goupay.com.br/api/cron/sales-recovery"
