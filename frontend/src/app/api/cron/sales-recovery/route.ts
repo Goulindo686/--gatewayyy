@@ -29,6 +29,15 @@ export async function GET(req: NextRequest) {
     let skipped = 0;
     const errors: string[] = [];
     const now = new Date();
+    const nowIso = now.toISOString();
+    const summary = {
+        settings_checked: settings?.length || 0,
+        candidates_checked: 0,
+        already_sent: 0,
+        invalid_order_data: 0,
+        expired: 0,
+        failed: 0,
+    };
 
     for (const setting of settings || []) {
         const createdBefore = new Date(now.getTime() - setting.delay_minutes * 60_000).toISOString();
@@ -40,8 +49,13 @@ export async function GET(req: NextRequest) {
             .eq('payment_method', 'pix')
             .eq('status', 'pending')
             .lte('created_at', createdBefore)
-            .order('created_at', { ascending: true })
-            .limit(100);
+            .not('buyer_email', 'is', null)
+            .neq('buyer_email', '')
+            .not('pix_qr_code', 'is', null)
+            .neq('pix_qr_code', '')
+            .or(`pix_expires_at.is.null,pix_expires_at.gt.${nowIso}`)
+            .order('created_at', { ascending: false })
+            .limit(250);
 
         if (ordersError) {
             errors.push(ordersError.message);
@@ -49,12 +63,16 @@ export async function GET(req: NextRequest) {
         }
 
         for (const order of orders || []) {
+            summary.candidates_checked++;
+
             if (!order.buyer_email || !order.pix_qr_code) {
+                summary.invalid_order_data++;
                 skipped++;
                 continue;
             }
 
             if (order.pix_expires_at && new Date(order.pix_expires_at) <= now) {
+                summary.expired++;
                 skipped++;
                 continue;
             }
@@ -68,6 +86,7 @@ export async function GET(req: NextRequest) {
                 });
 
                 if (reserveError?.code === '23505') {
+                    summary.already_sent++;
                     skipped++;
                     continue;
                 }
@@ -87,13 +106,14 @@ export async function GET(req: NextRequest) {
 
                 sent++;
             } catch (error: unknown) {
+                summary.failed++;
                 await supabase.from('sales_recovery_emails').delete().eq('order_id', order.id);
                 errors.push(`${order.id}: ${errorMessage(error)}`);
             }
         }
     }
 
-    return NextResponse.json({ success: true, sent, skipped, errors: errors.slice(0, 10) });
+    return NextResponse.json({ success: true, sent, skipped, summary, errors: errors.slice(0, 10) });
 }
 
 export async function POST(req: NextRequest) {
