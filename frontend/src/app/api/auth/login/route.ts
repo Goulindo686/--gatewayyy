@@ -6,7 +6,11 @@ import { comparePassword, generateToken, jsonError, jsonSuccess } from '@/lib/au
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { requestEmailVerification } from '@/lib/email-verification';
 import { createTwoFactorChallenge } from '@/lib/two-factor';
-import { getStoredPasswordHash } from '@/lib/password-storage';
+import {
+    buildPasswordSyncUpdate,
+    getStoredPasswordCandidates,
+    type StoredPasswordCandidate,
+} from '@/lib/password-storage';
 
 type PaidOrderRow = {
     id: string;
@@ -43,11 +47,29 @@ export async function POST(req: NextRequest) {
         if (!user) return jsonError('Credenciais inválidas', 401);
         if (user.status === 'blocked') return jsonError('Conta bloqueada', 403);
 
-        const passwordHash = getStoredPasswordHash(user);
-        if (!passwordHash) return jsonError('Credenciais inválidas', 401);
+        const passwordCandidates = getStoredPasswordCandidates(user);
+        let matchedPassword: StoredPasswordCandidate | null = null;
 
-        const validPassword = await comparePassword(password, passwordHash);
-        if (!validPassword) return jsonError('Credenciais inválidas', 401);
+        for (const candidate of passwordCandidates) {
+            if (await comparePassword(password, candidate.hash)) {
+                matchedPassword = candidate;
+                break;
+            }
+        }
+
+        if (!matchedPassword) return jsonError('Credenciais inválidas', 401);
+
+        if (matchedPassword.column === 'password') {
+            const passwordSyncUpdate = buildPasswordSyncUpdate(user, matchedPassword.hash);
+            const { error: syncError } = await supabase
+                .from('users')
+                .update(passwordSyncUpdate)
+                .eq('id', user.id);
+
+            if (syncError) {
+                console.error('[LOGIN] Falha ao sincronizar colunas de senha:', syncError.message);
+            }
+        }
 
         const userEmailNormalized = (user.email || '').toLowerCase().trim();
         if (userEmailNormalized) {

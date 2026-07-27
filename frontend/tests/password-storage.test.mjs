@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import {
     buildPasswordResetUpdate,
+    buildPasswordSyncUpdate,
+    getStoredPasswordCandidates,
     getStoredPasswordHash,
 } from '../src/lib/password-storage.ts';
 
@@ -48,6 +50,34 @@ describe('armazenamento de senha', () => {
         );
         assert.equal(getStoredPasswordHash({ password: 'legacy' }), 'legacy');
         assert.equal(getStoredPasswordHash({ password_hash: null, password: 'legacy' }), 'legacy');
+    });
+
+    test('login pode validar e identificar hashes divergentes', () => {
+        assert.deepEqual(
+            getStoredPasswordCandidates({
+                password_hash: 'old-primary',
+                password: 'new-legacy',
+            }),
+            [
+                { column: 'password_hash', hash: 'old-primary' },
+                { column: 'password', hash: 'new-legacy' },
+            ]
+        );
+    });
+
+    test('sincronizacao nao consome token de recuperacao', () => {
+        assert.deepEqual(
+            buildPasswordSyncUpdate({
+                password_hash: 'old-primary',
+                password: 'new-legacy',
+                updated_at: 'old-date',
+            }, 'new-legacy', 'new-date'),
+            {
+                password_hash: 'new-legacy',
+                password: 'new-legacy',
+                updated_at: 'new-date',
+            }
+        );
     });
 
     test('falha quando o schema nao possui coluna de senha', () => {
