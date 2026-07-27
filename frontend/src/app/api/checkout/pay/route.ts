@@ -12,6 +12,12 @@ import { normalizeInstallments, validateCreditCardBuyer } from '@/lib/checkout-v
 import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import { classifyCardPaymentFailure, classifyCardProviderRequestError, isPagarmePaymentFailed } from '@/lib/card-payment-failure';
 import { formatPixFeeLabel, resolveSellerPixFee } from '@/lib/seller-pix-fee';
+import {
+    affiliateOrderSnapshot,
+    recordOrderAffiliateCommission,
+    resolveAffiliateAttribution,
+    type AffiliateAttribution,
+} from '@/lib/affiliates';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -264,6 +270,7 @@ export async function POST(req: NextRequest) {
         let totalCents = 0;
         let appliedPlatformFeeAmount = 0;
         let appliedFeeLabel = 'isento';
+        let affiliateAttribution: AffiliateAttribution | null = null;
         try {
             totalCents = pagarmeItems.reduce((sum, item) => sum + (item.amount * item.quantity), 0);
             if (totalCents <= 0) return jsonError('Valor do pedido invalido.', 400);
@@ -285,11 +292,33 @@ export async function POST(req: NextRequest) {
                 appliedFeeLabel = formatPixFeeLabel(resolvedPixFee);
             }
 
+            affiliateAttribution = await resolveAffiliateAttribution({
+                req,
+                productId: product.id,
+                producerId: product.user_id,
+                grossAmount: totalCents,
+                platformFeeAmount: appliedPlatformFeeAmount,
+                eligibleGrossAmount: baseCents,
+                buyerEmail: buyer.email,
+                buyerDocument: buyer.cpf,
+            });
+            const platformRecipientId = (process.env.PLATFORM_RECIPIENT_ID || '').trim().toLowerCase();
+            const sellerRecipientId = String(recipient.pagarme_recipient_id || '').trim().toLowerCase();
+            const affiliateRecipientId = String(affiliateAttribution?.recipientId || '').trim().toLowerCase();
+            if (affiliateAttribution && (
+                affiliateRecipientId === sellerRecipientId
+                || (platformRecipientId && affiliateRecipientId === platformRecipientId)
+            )) {
+                console.warn('[AFFILIATES] Recipient conflict; continuing as a direct sale.');
+                affiliateAttribution = null;
+            }
+
             console.log('CHECKOUT SPLIT CONFIG:', {
                 seller_recipient_id: recipient.pagarme_recipient_id,
                 platform_recipient_id: process.env.PLATFORM_RECIPIENT_ID,
                 platform_fee_amount: appliedPlatformFeeAmount,
                 platform_fee_rule: appliedFeeLabel,
+                affiliate_commission_amount: affiliateAttribution?.commissionAmount || 0,
             });
 
             const ipHeader = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '';
@@ -317,6 +346,12 @@ export async function POST(req: NextRequest) {
                 platform_fee_amount: normalizedPaymentMethod === 'pix' && sellerUser.role !== 'admin'
                     ? appliedPlatformFeeAmount
                     : undefined,
+                affiliate_recipient_id: affiliateAttribution?.recipientId,
+                affiliate_commission_amount: affiliateAttribution?.commissionAmount,
+                metadata: affiliateAttribution ? {
+                    affiliate_program_id: affiliateAttribution.programId,
+                    affiliate_id: affiliateAttribution.affiliateId,
+                } : undefined,
                 ip,
                 session_id: sessionId,
                 device_platform: devicePlatform,
@@ -399,8 +434,25 @@ export async function POST(req: NextRequest) {
             facebook_fbp: typeof facebook.fbp === 'string' ? facebook.fbp : null,
             facebook_fbc: typeof facebook.fbc === 'string' ? facebook.fbc : null,
             client_ip: clientIp,
-            client_user_agent: clientUserAgent
+            client_user_agent: clientUserAgent,
+            ...affiliateOrderSnapshot(affiliateAttribution),
         });
+
+        if (affiliateAttribution) {
+            try {
+                await recordOrderAffiliateCommission({
+                    orderId,
+                    producerId: product.user_id,
+                    productId: product.id,
+                    grossAmount: totalCents,
+                    platformFeeAmount: appliedPlatformFeeAmount,
+                    orderStatus: charge?.status === 'paid' ? 'paid' : 'pending',
+                    attribution: affiliateAttribution,
+                });
+            } catch (affiliateError) {
+                console.error('[AFFILIATES] Failed to persist order commission:', affiliateError);
+            }
+        }
 
         try {
             await supabase.from('orders')

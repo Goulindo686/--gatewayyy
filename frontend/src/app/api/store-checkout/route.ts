@@ -6,6 +6,12 @@ import { normalizeInstallments, validateCreditCardBuyer } from '@/lib/checkout-v
 import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import { classifyCardPaymentFailure, classifyCardProviderRequestError, isPagarmePaymentFailed } from '@/lib/card-payment-failure';
 import { formatPixFeeLabel, resolveSellerPixFee } from '@/lib/seller-pix-fee';
+import {
+    affiliateOrderSnapshot,
+    recordOrderAffiliateCommission,
+    resolveAffiliateAttribution,
+    type AffiliateAttribution,
+} from '@/lib/affiliates';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -154,6 +160,7 @@ export async function POST(req: NextRequest) {
         }
         let appliedPlatformFeeAmount = 0;
         let appliedFeeLabel = 'isento';
+        let affiliateAttribution: AffiliateAttribution | null = null;
 
         if (method === 'credit_card') {
             appliedPlatformFeeAmount = PagarmeService.calculatePlatformFeeCents({
@@ -172,12 +179,37 @@ export async function POST(req: NextRequest) {
             appliedFeeLabel = formatPixFeeLabel(resolvedPixFee);
         }
 
+        const firstCartItem = validatedCart.find((item: any) => item.id === items_cart[0].id);
+        affiliateAttribution = await resolveAffiliateAttribution({
+            req,
+            productId: items_cart[0].id,
+            producerId: sellerId,
+            grossAmount: totalAmountCents,
+            platformFeeAmount: appliedPlatformFeeAmount,
+            eligibleGrossAmount: firstCartItem
+                ? firstCartItem.priceCents * firstCartItem.quantity
+                : totalAmountCents,
+            buyerEmail: buyer.email,
+            buyerDocument: buyer.cpf,
+        });
+        const normalizedPlatformRecipient = String(platformRecipientId || '').trim().toLowerCase();
+        const normalizedSellerRecipient = String(recipient.pagarme_recipient_id || '').trim().toLowerCase();
+        const normalizedAffiliateRecipient = String(affiliateAttribution?.recipientId || '').trim().toLowerCase();
+        if (affiliateAttribution && (
+            normalizedAffiliateRecipient === normalizedSellerRecipient
+            || (normalizedPlatformRecipient && normalizedAffiliateRecipient === normalizedPlatformRecipient)
+        )) {
+            console.warn('[AFFILIATES] Recipient conflict; continuing as a direct store sale.');
+            affiliateAttribution = null;
+        }
+
         console.log('DIAGNOSTIC - Checkout Config:', {
             seller_id: sellerId,
             seller_recipient: recipient.pagarme_recipient_id,
             platform_recipient: platformRecipientId,
             platform_fee_amount: appliedPlatformFeeAmount,
             platform_fee_rule: appliedFeeLabel,
+            affiliate_commission_amount: affiliateAttribution?.commissionAmount || 0,
         });
 
         if (method === 'credit_card' && !enableCreditCard) {
@@ -223,6 +255,12 @@ export async function POST(req: NextRequest) {
                 platform_fee_amount: method === 'pix' && sellerUser.role !== 'admin'
                     ? appliedPlatformFeeAmount
                     : undefined,
+                affiliate_recipient_id: affiliateAttribution?.recipientId,
+                affiliate_commission_amount: affiliateAttribution?.commissionAmount,
+                metadata: affiliateAttribution ? {
+                    affiliate_program_id: affiliateAttribution.programId,
+                    affiliate_id: affiliateAttribution.affiliateId,
+                } : undefined,
                 card_token: method === 'credit_card' ? body.card_token : undefined,
                 installments: method === 'credit_card' ? cardInstallments || 1 : undefined,
                 items: validatedCart.map((item: any) => ({
@@ -296,7 +334,8 @@ export async function POST(req: NextRequest) {
             status: charge?.status === 'paid' ? 'paid' : 'pending',
             pagarme_order_id: pagarmeOrder.id,
             pagarme_charge_id: charge?.id,
-            installments: method === 'credit_card' ? cardInstallments : 1
+            installments: method === 'credit_card' ? cardInstallments : 1,
+            ...affiliateOrderSnapshot(affiliateAttribution),
         };
 
         // EXTREMTELY ROBUST PIX EXTRACTION
@@ -345,6 +384,22 @@ export async function POST(req: NextRequest) {
         if (orderError) {
             console.error('Supabase Order Save Error:', orderError);
             throw orderError;
+        }
+
+        if (affiliateAttribution) {
+            try {
+                await recordOrderAffiliateCommission({
+                    orderId: order.id,
+                    producerId: sellerId,
+                    productId: items_cart[0].id,
+                    grossAmount: totalAmountCents,
+                    platformFeeAmount: appliedPlatformFeeAmount,
+                    orderStatus: order.status,
+                    attribution: affiliateAttribution,
+                });
+            } catch (affiliateError) {
+                console.error('[AFFILIATES] Failed to persist store order commission:', affiliateError);
+            }
         }
 
         if (order.status === 'paid') {

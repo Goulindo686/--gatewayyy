@@ -84,6 +84,16 @@ export const dashboardAPI = {
     getSales: (params?: any) => api.get('/dashboard/sales', { params }),
 };
 
+// Affiliates
+export const affiliatesAPI = {
+    getOverview: () => internalApi.get('/affiliates/overview'),
+    saveProgram: (productId: string, data: any) => internalApi.put(`/affiliates/programs/${productId}`, data),
+    requestAffiliation: (data: { program_id?: string; invite_code?: string; terms_accepted: boolean }) =>
+        internalApi.post('/affiliates/request', data),
+    updateAffiliation: (id: string, data: { action: string; custom_commission_rate_bps?: number | null }) =>
+        internalApi.patch(`/affiliates/affiliations/${id}`, data),
+};
+
 // Checkout
 export const checkoutAPI = {
     pay: (data: any) => api.post('/checkout/pay', data),
@@ -117,6 +127,7 @@ export const adminAPI = {
     listTransactions: (params?: any) => api.get('/admin/transactions', { params }),
     getSettings: () => api.get('/admin/settings'),
     updateFees: (fee_percentage: number) => api.put('/admin/settings/fees', { fee_percentage }),
+    getAffiliates: () => internalApi.get('/admin/affiliates'),
 };
 
 // Content (Seller Side)

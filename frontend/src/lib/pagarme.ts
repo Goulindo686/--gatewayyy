@@ -180,6 +180,9 @@ export class PagarmeService {
         card_token?: string; installments?: number;
         seller_recipient_id: string; platform_fee_percentage: number;
         platform_fee_amount?: number;
+        affiliate_recipient_id?: string;
+        affiliate_commission_amount?: number;
+        metadata?: Record<string, string>;
         ip?: string; session_id?: string; device_platform?: string; order_code?: string; three_ds_transaction_id?: string;
         items?: CheckoutItem[];
     }) {
@@ -203,6 +206,7 @@ export class PagarmeService {
                 checkout_origin: 'goupay_transparent',
                 delivery_type: 'digital',
                 three_ds_authenticated: data.three_ds_transaction_id ? 'true' : 'false',
+                ...(data.metadata || {}),
             },
         };
 
@@ -255,10 +259,21 @@ export class PagarmeService {
         if (platformFeeAmount > 0 && (!platId || !sellId || platId.toLowerCase() === sellId.toLowerCase())) {
             throw new Error('Configuracao de split incompleta. Verifique os recipients da plataforma e do vendedor.');
         }
-        const sellerAmount = data.amount - platformFeeAmount;
+        const affiliateId = (data.affiliate_recipient_id || '').trim();
+        const requestedAffiliateAmount = Math.max(0, Math.round(Number(data.affiliate_commission_amount) || 0));
+        const affiliateAmount = Math.min(Math.max(0, data.amount - platformFeeAmount), requestedAffiliateAmount);
+        const includeAffiliate = !!(affiliateId && affiliateAmount > 0);
+        if (includeAffiliate && (
+            affiliateId.toLowerCase() === sellId.toLowerCase()
+            || (platId && affiliateId.toLowerCase() === platId.toLowerCase())
+        )) {
+            throw new Error('Configuracao de afiliado invalida. O recebedor do afiliado deve ser diferente dos demais recebedores.');
+        }
+        const sellerAmount = data.amount - platformFeeAmount - affiliateAmount;
 
         console.log('[PAGARME SERVICE] Split Config:', {
-            platId, sellId, platformFeeAmount, sellerAmount, applyFee,
+            platId, sellId, affiliateId: includeAffiliate ? affiliateId : undefined,
+            platformFeeAmount, affiliateAmount, sellerAmount, applyFee,
             effectiveFeePercentage: isCreditCard ? effectiveFeePercentage : undefined,
         });
 
@@ -268,13 +283,19 @@ export class PagarmeService {
         // Uma isenção individual ainda envia o vendedor como recebedor. Assim,
         // charge_processing_fee continua true e a tarifa do Pagar.me permanece
         // sob responsabilidade dele, mesmo quando a taxa da plataforma é zero.
-        const splitRules = hasSellerRecipient && (includePlatformFee || hasExplicitPixFee) ? [
+        const splitRules = hasSellerRecipient && (includePlatformFee || hasExplicitPixFee || includeAffiliate) ? [
             {
                 amount: sellerAmount,
                 recipient_id: sellId,
                 type: 'flat',
                 options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true }
             },
+            ...(includeAffiliate ? [{
+                amount: affiliateAmount,
+                recipient_id: affiliateId,
+                type: 'flat',
+                options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false }
+            }] : []),
             ...(includePlatformFee ? [{
                 amount: platformFeeAmount,
                 recipient_id: platId,
@@ -409,6 +430,8 @@ export class PagarmeService {
         seller_recipient_id: string;
         platform_fee_percentage: number;
         amount: number;
+        affiliate_recipient_id?: string;
+        affiliate_commission_amount?: number;
     }) {
         const cpf = data.customer.cpf.replace(/\D/g, '');
         const phone = (data.customer.phone || '').replace(/\D/g, '');
@@ -420,14 +443,52 @@ export class PagarmeService {
         // A mesma taxa de 2% do cartão também vale para assinaturas.
         const platformPct = applyFee ? CARD_PLATFORM_FEE_PERCENTAGE : 0;
         const sellerPct = 100 - platformPct;
+        const affiliateId = (data.affiliate_recipient_id || '').trim();
+        const affiliateAmount = Math.min(
+            data.amount,
+            Math.max(0, Math.round(Number(data.affiliate_commission_amount) || 0)),
+        );
+        const includeAffiliate = !!(affiliateId && affiliateAmount > 0);
 
         // Split como objeto com rules (formato correto para assinaturas no Pagar.me v5)
-        const splitRules = applyFee && platId && platId !== sellId && platformPct > 0 ? {
+        let splitRules: { rules: Array<Record<string, unknown>> } | undefined;
+        if (includeAffiliate) {
+            if (applyFee && (!platId || platId.toLowerCase() === sellId.toLowerCase())) {
+                throw new Error('Configuracao de split da assinatura incompleta. Verifique os recipients da plataforma e do vendedor.');
+            }
+            if (affiliateId.toLowerCase() === sellId.toLowerCase()
+                || (platId && affiliateId.toLowerCase() === platId.toLowerCase())) {
+                throw new Error('Configuracao de afiliado invalida. O recebedor do afiliado deve ser diferente dos demais recebedores.');
+            }
+            const platformAmount = applyFee && platId && platId !== sellId
+                ? PagarmeService.calculatePlatformFeeCents({
+                    amountCents: data.amount,
+                    paymentMethod: 'credit_card',
+                    feePercentage: platformPct,
+                })
+                : 0;
+            const safeAffiliateAmount = Math.min(Math.max(0, data.amount - platformAmount), affiliateAmount);
+            const sellerAmount = data.amount - platformAmount - safeAffiliateAmount;
+            splitRules = {
+                rules: [
+                    { amount: sellerAmount, recipient_id: sellId, type: 'flat', options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true } },
+                    { amount: safeAffiliateAmount, recipient_id: affiliateId, type: 'flat', options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false } },
+                    ...(platformAmount > 0 ? [{
+                        amount: platformAmount,
+                        recipient_id: platId,
+                        type: 'flat',
+                        options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false }
+                    }] : []),
+                ],
+            };
+        } else if (applyFee && platId && platId !== sellId && platformPct > 0) {
+            splitRules = {
             rules: [
                 { amount: sellerPct, recipient_id: sellId, type: 'percentage', options: { charge_processing_fee: true, liable: true, charge_remainder_fee: true } },
                 { amount: platformPct, recipient_id: platId, type: 'percentage', options: { charge_processing_fee: false, liable: false, charge_remainder_fee: false } }
             ]
-        } : undefined;
+            };
+        }
 
         const billingAddress = data.address ? {
             line_1: `${data.address.street}, ${data.address.number}`,

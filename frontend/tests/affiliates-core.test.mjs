@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {
+    affiliateCommissionStatusForOrder,
+    calculateAffiliateCommission,
+    normalizeAffiliateRateBps,
+} from '../src/lib/affiliates-core.ts';
+
+test('calcula comissao sobre o valor apos a taxa da plataforma', () => {
+    assert.deepEqual(calculateAffiliateCommission({
+        grossAmount: 10_000,
+        platformFeeAmount: 200,
+        commissionRateBps: 3000,
+    }), {
+        grossAmount: 10_000,
+        platformFeeAmount: 200,
+        commissionBaseAmount: 9_800,
+        commissionRateBps: 3000,
+        commissionAmount: 2_940,
+        sellerAmount: 6_860,
+    });
+});
+
+test('arredonda em centavos e nunca distribui acima do valor bruto', () => {
+    assert.deepEqual(calculateAffiliateCommission({
+        grossAmount: 101,
+        platformFeeAmount: 1,
+        commissionRateBps: 3333,
+    }), {
+        grossAmount: 101,
+        platformFeeAmount: 1,
+        commissionBaseAmount: 100,
+        commissionRateBps: 3333,
+        commissionAmount: 33,
+        sellerAmount: 67,
+    });
+
+    assert.equal(calculateAffiliateCommission({
+        grossAmount: 100,
+        platformFeeAmount: 500,
+        commissionRateBps: 9000,
+    }).commissionAmount, 0);
+});
+
+test('limita percentuais invalidos na fronteira permitida', () => {
+    assert.equal(normalizeAffiliateRateBps(-10), 1);
+    assert.equal(normalizeAffiliateRateBps(99_999), 9000);
+});
+
+test('mapeia status financeiros sem liberar pagamento pendente', () => {
+    assert.equal(affiliateCommissionStatusForOrder('pending'), 'pending');
+    assert.equal(affiliateCommissionStatusForOrder('paid'), 'approved');
+    assert.equal(affiliateCommissionStatusForOrder('refunded'), 'refunded');
+    assert.equal(affiliateCommissionStatusForOrder('chargeback'), 'chargeback');
+    assert.equal(affiliateCommissionStatusForOrder('failed'), 'failed');
+});

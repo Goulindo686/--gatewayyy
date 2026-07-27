@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FiHome, FiPackage, FiDollarSign, FiSettings, FiLogOut, FiMenu, FiX, FiPercent, FiBookOpen, FiMessageCircle, FiShoppingBag, FiShoppingCart, FiCalendar, FiChevronLeft, FiChevronRight, FiShield, FiRepeat, FiCreditCard, FiMail, FiCode, FiBell, FiCheckCircle, FiClock, FiXCircle, FiUser } from 'react-icons/fi';
+import { FiHome, FiPackage, FiDollarSign, FiSettings, FiLogOut, FiMenu, FiX, FiPercent, FiBookOpen, FiMessageCircle, FiShoppingBag, FiShoppingCart, FiCalendar, FiChevronLeft, FiChevronRight, FiShield, FiRepeat, FiCreditCard, FiMail, FiCode, FiBell, FiCheckCircle, FiClock, FiXCircle, FiUser, FiUsers } from 'react-icons/fi';
 import { ThemeToggle } from '@/components/theme-toggle';
 import OnboardingBar from '@/components/OnboardingBar';
 import { dashboardAPI } from '@/lib/api';
@@ -326,6 +326,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: '/dashboard', icon: <FiHome size={18} />, label: 'Dashboard' },
         { href: '/dashboard/products', icon: <FiPackage size={18} />, label: 'Produtos' },
         { href: '/dashboard/sales', icon: <FiShoppingCart size={18} />, label: 'Vendas' },
+        { href: '/dashboard/affiliates', icon: <FiUsers size={18} />, label: 'Afiliados' },
         { href: '/dashboard/sales-recovery', icon: <FiMail size={18} />, label: 'Recuperação' },
         { href: '/dashboard/billings', icon: <FiCreditCard size={18} />, label: 'Cobranças' },
         { href: '/dashboard/subscriptions', icon: <FiRepeat size={18} />, label: 'Assinaturas' },

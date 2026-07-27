@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 import { NextRequest } from 'next/server';
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHash, createHmac, timingSafeEqual } from 'crypto';
 import { supabase } from '@/lib/db';
 import { jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -14,6 +14,11 @@ import { sendPaidOrderToUtmify } from '@/lib/utmify';
 import { normalizeWebhookUrls, sendWebhookPayload } from '@/lib/webhooks';
 import { CARD_PLATFORM_FEE_PERCENTAGE } from '@/lib/pagarme';
 import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
+import {
+    recordSubscriptionRenewalCommission,
+    syncInitialSubscriptionAffiliateCommission,
+    syncOrderAffiliateCommission,
+} from '@/lib/affiliates';
 
 type SaleNotificationOrder = {
     id: string;
@@ -421,6 +426,33 @@ export async function POST(req: NextRequest) {
                         status: 'confirmed',
                         description: `Cobrança recorrente — ${sub.subscription_plans?.name || 'Assinatura'} — ${sub.customer_email}`
                     });
+
+                    try {
+                        const createdAt = new Date(sub.created_at || 0).getTime();
+                        const isInitialPaymentWindow = Number.isFinite(createdAt)
+                            && Date.now() - createdAt < 24 * 60 * 60 * 1000;
+                        if (isInitialPaymentWindow) {
+                            await syncInitialSubscriptionAffiliateCommission(
+                                sub.id,
+                                'active',
+                                sub.affiliate_hold_days || 0,
+                            );
+                        } else {
+                            const cycleReference = data?.current_cycle?.id
+                                || data?.current_cycle?.start_at
+                                || data?.cycle?.id
+                                || data?.cycle?.start_at
+                                || data?.charge?.id
+                                || data?.invoice?.id
+                                || createHash('sha256').update(rawBody).digest('hex');
+                            const providerEventId = createHash('sha256')
+                                .update(`affiliate-renewal:${sub.id}:${cycleReference}`)
+                                .digest('hex');
+                            await recordSubscriptionRenewalCommission(sub, providerEventId);
+                        }
+                    } catch (affiliateError) {
+                        console.error('[AFFILIATES] Subscription webhook sync failed:', affiliateError);
+                    }
                 }
                 return jsonSuccess({ received: true });
             }
@@ -429,6 +461,25 @@ export async function POST(req: NextRequest) {
                 await supabase.from('subscriptions')
                     .update({ status: 'past_due' })
                     .eq('pagarme_subscription_id', data.id);
+                {
+                    const { data: failedSub } = await supabase
+                        .from('subscriptions')
+                        .select('id, created_at, affiliate_hold_days')
+                        .eq('pagarme_subscription_id', data.id)
+                        .maybeSingle();
+                    const createdAt = new Date(failedSub?.created_at || 0).getTime();
+                    if (failedSub && Number.isFinite(createdAt) && Date.now() - createdAt < 24 * 60 * 60 * 1000) {
+                        try {
+                            await syncInitialSubscriptionAffiliateCommission(
+                                failedSub.id,
+                                'failed',
+                                failedSub.affiliate_hold_days || 0,
+                            );
+                        } catch (affiliateError) {
+                            console.error('[AFFILIATES] Initial subscription failure sync failed:', affiliateError);
+                        }
+                    }
+                }
                 return jsonSuccess({ received: true });
 
             case 'subscription.canceled':
@@ -476,6 +527,11 @@ export async function POST(req: NextRequest) {
         // Update order status
         if (order.status === 'paid' && newStatus === 'paid') {
             try {
+                await syncOrderAffiliateCommission(order, newStatus);
+            } catch (affiliateError) {
+                console.error('[AFFILIATES] Duplicate paid webhook sync failed:', affiliateError);
+            }
+            try {
                 await sendPaidOrderToUtmify(order);
             } catch (utmifyErr) {
                 console.error('[UTMIFY] Paid duplicate sync error:', utmifyErr);
@@ -490,6 +546,11 @@ export async function POST(req: NextRequest) {
 
         await supabase.from('orders').update({ status: newStatus }).eq('id', order.id);
         order = { ...order, status: newStatus };
+        try {
+            await syncOrderAffiliateCommission(order, newStatus);
+        } catch (affiliateError) {
+            console.error('[AFFILIATES] Order commission webhook sync failed:', affiliateError);
+        }
 
         if (newStatus === 'paid') {
             // IDEMPOTÊNCIA: verifica se a taxa já foi inserida para este pedido

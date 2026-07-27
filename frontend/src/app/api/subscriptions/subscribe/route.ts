@@ -3,6 +3,12 @@ import { supabase } from '@/lib/db';
 import { jsonError, jsonSuccess, hashPassword, generateToken } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { CARD_PLATFORM_FEE_PERCENTAGE, PagarmeService } from '@/lib/pagarme';
+import {
+    affiliateOrderSnapshot,
+    recordSubscriptionInitialCommission,
+    resolveAffiliateAttribution,
+    type AffiliateAttribution,
+} from '@/lib/affiliates';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -53,6 +59,32 @@ export async function POST(req: NextRequest) {
 
         // Cartão sempre usa split de 2% para a GouPay; apenas contas admin são isentas.
         const feePercentage = sellerUser.role === 'admin' ? 0 : CARD_PLATFORM_FEE_PERCENTAGE;
+        const platformFeeAmount = PagarmeService.calculatePlatformFeeCents({
+            amountCents: plan.amount,
+            paymentMethod: 'credit_card',
+            feePercentage,
+        });
+        let affiliateAttribution: AffiliateAttribution | null = plan.product_id
+            ? await resolveAffiliateAttribution({
+                req,
+                productId: plan.product_id,
+                producerId: plan.user_id,
+                grossAmount: plan.amount,
+                platformFeeAmount,
+                buyerEmail: customer.email,
+                buyerDocument: customer.cpf,
+            })
+            : null;
+        const platformRecipientId = String(process.env.PLATFORM_RECIPIENT_ID || '').trim().toLowerCase();
+        const sellerRecipientId = String(recipient.pagarme_recipient_id || '').trim().toLowerCase();
+        const affiliateRecipientId = String(affiliateAttribution?.recipientId || '').trim().toLowerCase();
+        if (affiliateAttribution && (
+            affiliateRecipientId === sellerRecipientId
+            || (platformRecipientId && affiliateRecipientId === platformRecipientId)
+        )) {
+            console.warn('[AFFILIATES] Subscription recipient conflict; continuing without affiliate split.');
+            affiliateAttribution = null;
+        }
 
         // Cria assinatura no Pagar.me
         const pagarmeSub = await PagarmeService.createSubscription({
@@ -62,7 +94,9 @@ export async function POST(req: NextRequest) {
             address,
             seller_recipient_id: recipient.pagarme_recipient_id,
             platform_fee_percentage: feePercentage,
-            amount: plan.amount
+            amount: plan.amount,
+            affiliate_recipient_id: affiliateAttribution?.recipientId,
+            affiliate_commission_amount: affiliateAttribution?.commissionAmount,
         });
 
         if (pagarmeSub.status === 'canceled' || pagarmeSub.status === 'failed') {
@@ -89,10 +123,31 @@ export async function POST(req: NextRequest) {
             amount: plan.amount,
             status: pagarmeSub.status === 'active' ? 'active' : 'pending',
             current_period_start: now.toISOString(),
-            current_period_end: periodEnd.toISOString()
+            current_period_end: periodEnd.toISOString(),
+            ...affiliateOrderSnapshot(affiliateAttribution),
+            ...(affiliateAttribution ? {
+                affiliate_commission_on_renewals: affiliateAttribution.commissionOnRenewals,
+                affiliate_hold_days: affiliateAttribution.holdDays,
+            } : {}),
         }).select().single();
 
         if (error) return jsonError('Erro ao salvar assinatura: ' + error.message);
+
+        if (affiliateAttribution) {
+            try {
+                await recordSubscriptionInitialCommission({
+                    subscriptionId: subscription.id,
+                    producerId: plan.user_id,
+                    productId: plan.product_id,
+                    grossAmount: plan.amount,
+                    platformFeeAmount,
+                    subscriptionStatus: subscription.status,
+                    attribution: affiliateAttribution,
+                });
+            } catch (affiliateError) {
+                console.error('[AFFILIATES] Failed to persist initial subscription commission:', affiliateError);
+            }
+        }
 
         // Criar ou encontrar conta do cliente e gerar token de login automático
         let buyerUser: any = null;
