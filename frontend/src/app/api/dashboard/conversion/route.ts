@@ -48,18 +48,36 @@ export async function GET(req: NextRequest) {
         return query;
     };
 
-    const [totalResult, paidResult] = await Promise.all([
+    const buildAffiliateCountQuery = (paidOnly = false) => {
+        let query = supabase
+            .from('affiliate_commissions')
+            .select('id', { count: 'exact', head: true })
+            .eq('affiliate_id', auth.user.id);
+
+        if (paidOnly) query = query.in('status', ['approved', 'available']);
+        if (startDate) query = query.gte('created_at', startDate.toISOString());
+        if (endDate) query = query.lte('created_at', endDate.toISOString());
+
+        return query;
+    };
+
+    const [totalResult, paidResult, affiliateTotalResult, affiliatePaidResult] = await Promise.all([
         buildCountQuery(),
         buildCountQuery('paid'),
+        buildAffiliateCountQuery(),
+        buildAffiliateCountQuery(true),
     ]);
 
-    if (totalResult.error || paidResult.error) {
-        console.error('[CONVERSION] Error counting orders:', totalResult.error || paidResult.error);
+    if (totalResult.error || paidResult.error || affiliateTotalResult.error || affiliatePaidResult.error) {
+        console.error(
+            '[CONVERSION] Error counting sales:',
+            totalResult.error || paidResult.error || affiliateTotalResult.error || affiliatePaidResult.error,
+        );
         return jsonError('Erro ao calcular taxa de conversao', 500);
     }
 
-    const total = totalResult.count || 0;
-    const paid = paidResult.count || 0;
+    const total = (totalResult.count || 0) + (affiliateTotalResult.count || 0);
+    const paid = (paidResult.count || 0) + (affiliatePaidResult.count || 0);
     const notConverted = Math.max(0, total - paid);
     const rate = total > 0 ? Number(((paid / total) * 100).toFixed(2)) : 0;
 

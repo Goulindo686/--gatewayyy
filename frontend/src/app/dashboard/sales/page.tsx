@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FiShoppingCart, FiRefreshCw, FiSearch, FiCheckCircle, FiClock, FiX } from 'react-icons/fi';
+import { FiShoppingCart, FiRefreshCw, FiSearch, FiCheckCircle, FiClock, FiPercent, FiUsers, FiX } from 'react-icons/fi';
 
 type SalesFilters = {
     status?: string;
@@ -26,6 +26,14 @@ type Sale = {
     status?: string | null;
     payment_method?: string | null;
     amount_display?: string | null;
+    gross_amount?: number | null;
+    commission_amount?: number | null;
+    commission_rate_bps?: number | null;
+    net_amount?: number | null;
+    sale_kind?: 'direct_sale' | 'affiliate_sale' | 'affiliate_commission' | string;
+    affiliate_name?: string | null;
+    producer_name?: string | null;
+    can_manage_delivery?: boolean;
     created_at: string;
     delivered?: boolean | null;
     delivered_at?: string | null;
@@ -154,6 +162,9 @@ export default function SalesPage() {
                 o.pagarme_charge_id,
                 o.status,
                 o.payment_method,
+                o.sale_kind,
+                o.affiliate_name,
+                o.producer_name,
             ].map(normalizeSearchText);
             const cpf = (o.buyer_cpf || '').replace(/\D/g, '');
             const phone = (o.buyer_phone || '').replace(/\D/g, '');
@@ -166,6 +177,7 @@ export default function SalesPage() {
     }, [sales, search]);
 
     const toggleDelivered = async (order: Sale) => {
+        if (order.can_manage_delivery === false || order.sale_kind === 'affiliate_commission') return;
         setDelivering(order.id);
         try {
             const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -272,7 +284,7 @@ export default function SalesPage() {
                     <input
                         type="text"
                         className="input-field"
-                        placeholder="Buscar por nome, e-mail, CPF ou telefone..."
+                        placeholder="Buscar por produto, cliente, produtor ou afiliado..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         style={{ paddingLeft: 40, paddingRight: search ? 40 : 16 }}
@@ -309,6 +321,7 @@ export default function SalesPage() {
                             <thead>
                                 <tr>
                                     <th>Produto</th>
+                                    <th>Origem</th>
                                     <th>Cliente</th>
                                     <th>E-mail</th>
                                     <th>CPF</th>
@@ -324,44 +337,98 @@ export default function SalesPage() {
                                 {filtered.map(o => {
                                     const st = (o.status ? statusLabel[o.status] : undefined) || { label: o.status || '—', color: 'var(--text-muted)' };
                                     const isDelivering = delivering === o.id;
+                                    const isAffiliateCommission = o.sale_kind === 'affiliate_commission';
+                                    const isAffiliateSale = o.sale_kind === 'affiliate_sale';
+                                    const sourceLabel = isAffiliateCommission
+                                        ? 'Comissão de afiliado'
+                                        : isAffiliateSale
+                                            ? 'Venda com afiliado'
+                                            : 'Venda direta';
+                                    const sourceName = isAffiliateCommission ? o.producer_name : o.affiliate_name;
+                                    const methodLabel = o.payment_method === 'credit_card' || o.payment_method === 'card'
+                                        ? 'Cartão'
+                                        : o.payment_method === 'pix'
+                                            ? 'Pix'
+                                            : o.payment_method === 'recurrence'
+                                                ? 'Recorrência'
+                                                : '—';
                                     return (
                                         <tr key={o.id} style={{ opacity: isDelivering ? 0.6 : 1 }}>
                                             <td style={{ fontWeight: 600 }}>{o.product_name}</td>
-                                            <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{o.buyer_name || '—'}</td>
+                                            <td>
+                                                <div style={{ display: 'grid', gap: 5, justifyItems: 'start', minWidth: 145 }}>
+                                                    <span style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                                                        padding: '4px 8px', borderRadius: 999,
+                                                        background: isAffiliateCommission || isAffiliateSale ? 'rgba(139,92,246,0.12)' : 'var(--bg-secondary)',
+                                                        color: isAffiliateCommission || isAffiliateSale ? '#7c3aed' : 'var(--text-muted)',
+                                                        fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap',
+                                                    }}>
+                                                        {isAffiliateCommission
+                                                            ? <FiPercent size={12} />
+                                                            : isAffiliateSale
+                                                                ? <FiUsers size={12} />
+                                                                : null}
+                                                        {sourceLabel}
+                                                    </span>
+                                                    {sourceName && (
+                                                        <span style={{ color: 'var(--text-muted)', fontSize: 11, maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                            {isAffiliateCommission ? 'Produtor' : 'Afiliado'}: {sourceName}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{isAffiliateCommission ? 'Venda indicada' : o.buyer_name || '—'}</td>
                                             <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{o.buyer_email || '—'}</td>
                                             <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{o.buyer_cpf || '—'}</td>
                                             <td style={{ color: 'var(--text-secondary)', fontSize: 13, whiteSpace: 'nowrap' }}>{formatPhone(o.buyer_phone)}</td>
-                                            <td style={{ fontWeight: 600 }}>R$ {o.amount_display}</td>
+                                            <td style={{ fontWeight: 600 }}>
+                                                <div style={{ display: 'grid', gap: 3, minWidth: 105 }}>
+                                                    <span>R$ {o.amount_display}</span>
+                                                    {isAffiliateCommission && (
+                                                        <span style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>Sua comissão</span>
+                                                    )}
+                                                    {isAffiliateSale && o.net_amount != null && (
+                                                        <span style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>
+                                                            Líquido: R$ {(Number(o.net_amount) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td style={{ textTransform: 'uppercase', fontSize: 12, color: 'var(--text-muted)' }}>
-                                                {o.payment_method === 'credit_card' ? 'Cartão' : 'Pix'}
+                                                {methodLabel}
                                             </td>
                                             <td>
                                                 <span style={{ fontSize: 12, fontWeight: 600, color: st.color }}>{st.label}</span>
                                             </td>
                                             <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{formatDate(o.created_at)}</td>
                                             <td>
-                                                <button
-                                                    onClick={() => toggleDelivered(o)}
-                                                    disabled={isDelivering}
-                                                    title={o.delivered ? `Entregue em ${formatDate(o.delivered_at)}. Clique para desmarcar.` : 'Marcar como entregue'}
-                                                    style={{
-                                                        display: 'inline-flex', alignItems: 'center', gap: 5,
-                                                        padding: '5px 12px', borderRadius: 8, border: 'none',
-                                                        cursor: isDelivering ? 'not-allowed' : 'pointer',
-                                                        fontSize: 12, fontWeight: 600,
-                                                        background: o.delivered ? 'rgba(85,239,196,0.15)' : 'rgba(255,255,255,0.06)',
-                                                        color: o.delivered ? '#55efc4' : 'var(--text-muted)',
-                                                        transition: 'all 0.2s',
-                                                        whiteSpace: 'nowrap',
-                                                    }}
-                                                >
-                                                    {isDelivering
-                                                        ? <FiClock size={13} />
-                                                        : o.delivered
-                                                            ? <><FiCheckCircle size={13} /> Entregue</>
-                                                            : <><FiClock size={13} /> Pendente</>
-                                                    }
-                                                </button>
+                                                {isAffiliateCommission ? (
+                                                    <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Responsável: produtor</span>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => toggleDelivered(o)}
+                                                        disabled={isDelivering}
+                                                        title={o.delivered ? `Entregue em ${formatDate(o.delivered_at)}. Clique para desmarcar.` : 'Marcar como entregue'}
+                                                        style={{
+                                                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                                                            padding: '5px 12px', borderRadius: 8, border: 'none',
+                                                            cursor: isDelivering ? 'not-allowed' : 'pointer',
+                                                            fontSize: 12, fontWeight: 600,
+                                                            background: o.delivered ? 'rgba(85,239,196,0.15)' : 'rgba(255,255,255,0.06)',
+                                                            color: o.delivered ? '#55efc4' : 'var(--text-muted)',
+                                                            transition: 'all 0.2s',
+                                                            whiteSpace: 'nowrap',
+                                                        }}
+                                                    >
+                                                        {isDelivering
+                                                            ? <FiClock size={13} />
+                                                            : o.delivered
+                                                                ? <><FiCheckCircle size={13} /> Entregue</>
+                                                                : <><FiClock size={13} /> Pendente</>
+                                                        }
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     );

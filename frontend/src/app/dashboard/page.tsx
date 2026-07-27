@@ -40,6 +40,8 @@ interface MonthlySale {
     amount: number;
     net_revenue?: number;
     fees?: number;
+    affiliate_earnings?: number;
+    affiliate_commissions_paid?: number;
 }
 
 interface ConversionMetrics {
@@ -161,6 +163,7 @@ export default function DashboardPage() {
     const pending = Number(stats?.stats?.pending_balance ?? 0);
     const withdrawn = Number(stats?.stats?.total_withdrawn ?? 0);
     const products = Number(stats?.stats?.total_products ?? 0);
+    const affiliateEarnings = Number(stats?.stats?.affiliate_earnings ?? 0);
     const conversionRate = Math.min(100, Math.max(0, Number(conversion.rate) || 0));
     const conversionLabel = conversionRate.toLocaleString('pt-BR', {
         minimumFractionDigits: 0,
@@ -176,7 +179,7 @@ export default function DashboardPage() {
         labels: monthlySalesData.map((item) => item.month),
         datasets: [
             {
-                label: 'Vendas brutas',
+                label: affiliateEarnings > 0 ? 'Vendas e comissões' : 'Vendas brutas',
                 data: monthlySalesData.map((item) => item.amount),
                 borderColor: lineColor,
                 backgroundColor: (ctx: any) => {
@@ -277,7 +280,9 @@ export default function DashboardPage() {
         {
             label: 'Total Vendido',
             value: `R$ ${money(totalSold)}`,
-            hint: `R$ ${money(totalNetRevenue)} liquido`,
+            hint: affiliateEarnings > 0
+                ? `R$ ${money(affiliateEarnings)} em comissões`
+                : `R$ ${money(totalNetRevenue)} liquido`,
             trend: '+8.4%',
             up: true,
             icon: <FiUsers size={16} />,
@@ -656,6 +661,45 @@ export default function DashboardPage() {
                     color: #8b5cf6;
                     flex: 0 0 auto;
                 }
+                .source-cell {
+                    display: grid;
+                    gap: 4px;
+                    justify-items: start;
+                }
+                .source-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    border-radius: 999px;
+                    padding: 4px 8px;
+                    font-size: 10px;
+                    font-weight: 900;
+                    color: #6d28d9;
+                    background: rgba(139,92,246,0.12);
+                    white-space: nowrap;
+                }
+                .source-badge.direct {
+                    color: var(--dash-secondary);
+                    background: var(--dash-row);
+                }
+                .source-detail {
+                    color: var(--dash-muted);
+                    font-size: 10px;
+                    font-weight: 700;
+                    max-width: 150px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+                .amount-cell {
+                    display: grid;
+                    gap: 3px;
+                    color: #18a866;
+                }
+                .amount-detail {
+                    color: var(--dash-muted);
+                    font-size: 10px;
+                    white-space: nowrap;
+                }
                 .status-badge {
                     display: inline-flex;
                     align-items: center;
@@ -741,7 +785,7 @@ export default function DashboardPage() {
                         <div className="card-head">
                             <div>
                                 <h2 className="card-title">Lucro Total</h2>
-                                <div className="card-muted">Vendas brutas vs. receita liquida</div>
+                                <div className="card-muted">Vendas, comissões e receita líquida</div>
                             </div>
                             <FiMoreHorizontal color="#94a3b8" />
                         </div>
@@ -805,6 +849,7 @@ export default function DashboardPage() {
                                         <tr>
                                             <th>ID</th>
                                             <th>Produto</th>
+                                            <th>Origem</th>
                                             <th>Valor</th>
                                             <th>Metodo</th>
                                             <th>Status</th>
@@ -818,6 +863,25 @@ export default function DashboardPage() {
                                                 : order.status === 'pending'
                                                     ? 'status-pending'
                                                     : 'status-failed';
+                                            const isAffiliateCommission = order.sale_kind === 'affiliate_commission';
+                                            const isAffiliateSale = order.sale_kind === 'affiliate_sale';
+                                            const sourceLabel = isAffiliateCommission
+                                                ? 'Comissão de afiliado'
+                                                : isAffiliateSale
+                                                    ? 'Venda com afiliado'
+                                                    : 'Venda direta';
+                                            const sourceDetail = isAffiliateCommission
+                                                ? order.producer_name
+                                                : isAffiliateSale
+                                                    ? order.affiliate_name
+                                                    : null;
+                                            const methodLabel = order.payment_method === 'pix'
+                                                ? 'PIX'
+                                                : order.payment_method === 'credit_card' || order.payment_method === 'card'
+                                                    ? 'Cartão'
+                                                    : order.payment_method === 'recurrence'
+                                                        ? 'Recorrência'
+                                                        : '—';
 
                                             return (
                                                 <tr key={order.id}>
@@ -828,8 +892,26 @@ export default function DashboardPage() {
                                                             <span>{order.product_name || order.products?.name || 'Produto'}</span>
                                                         </div>
                                                     </td>
-                                                    <td style={{ color: '#18a866' }}>R$ {order.amount_display || money(order.amount)}</td>
-                                                    <td>{order.payment_method === 'pix' ? 'PIX' : 'Cartao'}</td>
+                                                    <td>
+                                                        <div className="source-cell">
+                                                            <span className={`source-badge ${isAffiliateCommission || isAffiliateSale ? '' : 'direct'}`}>
+                                                                {sourceLabel}
+                                                            </span>
+                                                            {sourceDetail && <span className="source-detail">{sourceDetail}</span>}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="amount-cell">
+                                                            <span>R$ {order.amount_display || money(order.amount)}</span>
+                                                            {isAffiliateSale && order.net_amount != null && (
+                                                                <span className="amount-detail">Líquido: R$ {money(Number(order.net_amount) / 100)}</span>
+                                                            )}
+                                                            {isAffiliateCommission && (
+                                                                <span className="amount-detail">Sua comissão</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td>{methodLabel}</td>
                                                     <td>
                                                         <span className={`status-badge ${statusClass}`}>
                                                             {order.status === 'paid' ? 'Pago' : order.status === 'pending' ? 'Pendente' : 'Falhou'}
