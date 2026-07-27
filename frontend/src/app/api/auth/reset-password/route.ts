@@ -7,6 +7,7 @@ import { jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
+import { buildPasswordResetUpdate, getStoredPasswordHash } from '@/lib/password-storage';
 
 export async function POST(req: NextRequest) {
     try {
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
         const { token, password } = await req.json();
 
         if (!token) return jsonError('Token é obrigatório');
-        if (!password || password.length < 6) {
+        if (typeof password !== 'string' || password.length < 6) {
             return jsonError('Senha deve ter no mínimo 6 caracteres');
         }
 
@@ -51,45 +52,31 @@ export async function POST(req: NextRequest) {
         // Hash new password
         const passwordHash = await bcrypt.hash(password, 12);
 
-        // Update password and clear reset token
-        const baseUpdate: Record<string, any> = {
-            password_reset_token: null,
-            password_reset_expires: null,
-            updated_at: new Date().toISOString(),
-        };
+        const passwordUpdate = buildPasswordResetUpdate(user, passwordHash);
+        const { data: updatedUser, error: updateError } = await supabase
+            .from('users')
+            .update(passwordUpdate)
+            .eq('id', user.id)
+            .eq('password_reset_token', token)
+            .select('*')
+            .single();
 
-        let updateError: any = null;
-
-        const attemptUpdates: Array<Record<string, any>> = [
-            { ...baseUpdate, password_hash: passwordHash },
-            { ...baseUpdate, password: passwordHash },
-            { password_hash: passwordHash, password_reset_token: null, password_reset_expires: null },
-            { password: passwordHash, password_reset_token: null, password_reset_expires: null },
-        ];
-
-        for (const payload of attemptUpdates) {
-            const { error } = await supabase
-                .from('users')
-                .update(payload)
-                .eq('id', user.id);
-            if (!error) {
-                updateError = null;
-                break;
-            }
-            updateError = error;
-            const msg = String(error?.message || '');
-            if (/password_hash/i.test(msg) || /updated_at/i.test(msg) || /password/i.test(msg)) {
-                continue;
-            }
-            break;
-        }
-
-        if (updateError) {
+        if (updateError || !updatedUser) {
             console.error(`[RESET-PASSWORD][${requestId}] Error updating password:`, updateError);
             return jsonError('Erro ao atualizar senha', 500);
         }
 
-        console.log(`[RESET-PASSWORD][${requestId}] Password updated successfully for user:`, user.email);
+        const storedHash = getStoredPasswordHash(updatedUser);
+        const updateWasPersisted = storedHash
+            ? await bcrypt.compare(password, storedHash)
+            : false;
+
+        if (!updateWasPersisted) {
+            console.error(`[RESET-PASSWORD][${requestId}] Password update verification failed`);
+            return jsonError('Erro ao confirmar atualização da senha', 500);
+        }
+
+        console.log(`[RESET-PASSWORD][${requestId}] Password updated successfully`);
         return jsonSuccess({ message: 'Senha alterada com sucesso!' });
     } catch (err) {
         console.error('Reset password error:', err);

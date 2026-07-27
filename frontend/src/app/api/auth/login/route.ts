@@ -6,6 +6,13 @@ import { comparePassword, generateToken, jsonError, jsonSuccess } from '@/lib/au
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { requestEmailVerification } from '@/lib/email-verification';
 import { createTwoFactorChallenge } from '@/lib/two-factor';
+import { getStoredPasswordHash } from '@/lib/password-storage';
+
+type PaidOrderRow = {
+    id: string;
+    product_id?: string | null;
+    products?: { type?: string | null } | Array<{ type?: string | null }> | null;
+};
 
 export async function POST(req: NextRequest) {
     try {
@@ -36,7 +43,7 @@ export async function POST(req: NextRequest) {
         if (!user) return jsonError('Credenciais inválidas', 401);
         if (user.status === 'blocked') return jsonError('Conta bloqueada', 403);
 
-        const passwordHash = user.password_hash || user.password;
+        const passwordHash = getStoredPasswordHash(user);
         if (!passwordHash) return jsonError('Credenciais inválidas', 401);
 
         const validPassword = await comparePassword(password, passwordHash);
@@ -56,14 +63,21 @@ export async function POST(req: NextRequest) {
                 .eq('status', 'paid')
                 .ilike('buyer_email', userEmailNormalized);
 
-            const enrollmentsToUpsert = (paidOrders || [])
-                .filter((o: any) => o?.product_id && o?.products?.type === 'digital')
-                .map((o: any) => ({
-                    user_id: user.id,
-                    product_id: o.product_id,
-                    order_id: o.id,
-                    status: 'active'
-                }));
+            const enrollmentsToUpsert = ((paidOrders || []) as PaidOrderRow[])
+                .flatMap((order) => {
+                    const product = Array.isArray(order.products)
+                        ? order.products[0]
+                        : order.products;
+
+                    if (!order.product_id || product?.type !== 'digital') return [];
+
+                    return [{
+                        user_id: user.id,
+                        product_id: order.product_id,
+                        order_id: order.id,
+                        status: 'active',
+                    }];
+                });
 
             if (enrollmentsToUpsert.length > 0) {
                 await supabase

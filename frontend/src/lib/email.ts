@@ -253,7 +253,7 @@ export async function sendPixSalesRecoveryEmail({
 }) {
     const { transporter, from } = createSmtpClient();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://goupay.com.br';
-    const resumeUrl = `${appUrl}/store/recovery/payment/${orderId}`;
+    const resumeUrl = `${appUrl}/store/goupay/payment/${orderId}`;
     const safeBuyerName = escapeHtml(buyerName || 'cliente');
     const safeProductName = escapeHtml(productName);
     const safeAmount = escapeHtml(amount.replace('.', ','));

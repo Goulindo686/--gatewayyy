@@ -4,6 +4,35 @@ import { PagarmeService } from '@/lib/pagarme';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 import { resolveSellerPixFee } from '@/lib/seller-pix-fee';
+import { sendPixSalesRecoveryEmail } from '@/lib/email';
+
+type PixCandidate = {
+    qr_code?: string | null;
+    qrCode?: string | null;
+    qr_code_url?: string | null;
+    qrCodeUrl?: string | null;
+    expires_at?: string | null;
+    expiresAt?: string | null;
+    pix?: PixCandidate | null;
+};
+
+type PagarmeCharge = PixCandidate & {
+    id?: string;
+    status?: string;
+    last_transaction?: PixCandidate & {
+        acquirer_message?: string;
+        gateway_response?: {
+            errors?: Array<{ message?: string }>;
+        };
+    };
+};
+
+type PagarmeOrder = PixCandidate & {
+    id?: string;
+    status?: string;
+    charges?: PagarmeCharge[];
+    payments?: PixCandidate[];
+};
 
 // CORS restrito às origens configuradas (ou qualquer origem se não configurado)
 const allowedOrigin = process.env.API_ALLOWED_ORIGIN || '*';
@@ -13,7 +42,7 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
 };
 
-const jsonResponse = (data: any, status = 200) => 
+const jsonResponse = (data: Record<string, unknown>, status = 200) =>
     NextResponse.json(data, { status, headers: corsHeaders });
 
 const jsonError = (message: string, status = 400) => 
@@ -128,10 +157,10 @@ export async function POST(req: NextRequest) {
             platform_fee_amount: userRow.role === 'admin' ? undefined : platformFeeAmount,
         };
 
-        const pagarmeOrder = await PagarmeService.createOrder(orderData);
+        const pagarmeOrder = await PagarmeService.createOrder(orderData) as PagarmeOrder;
 
         // 7. Extract Pix Data
-        const extractPix = (pagarmeOrder: any) => {
+        const extractPix = (pagarmeOrder: PagarmeOrder) => {
             const charge = pagarmeOrder?.charges?.[0];
             const lastTransaction = charge?.last_transaction;
 
@@ -173,7 +202,7 @@ export async function POST(req: NextRequest) {
                 const acquirerMsg = transaction?.acquirer_message || 'Transação recusada pelo gateway';
                 const gatewayErrors = transaction?.gateway_response?.errors;
                 const userMsg = gatewayErrors?.length
-                    ? gatewayErrors.map((e: any) => e.message).join('; ')
+                    ? gatewayErrors.map((item) => item.message || 'Erro no gateway').join('; ')
                     : acquirerMsg;
 
                 // Log interno com detalhes (nunca exposto ao cliente)
@@ -197,7 +226,7 @@ export async function POST(req: NextRequest) {
         const transactionId = uuidv4();
 
         // 8.1 Create Order
-        const orderPayload: any = {
+        const orderPayload = {
             id: orderId,
             seller_id: userId,
             // product_id omitido pois é API Sale
@@ -242,6 +271,29 @@ export async function POST(req: NextRequest) {
             return jsonError(`Erro interno ao salvar transação: ${insertError.message}`, 500);
         }
 
+        let pendingEmailSent = false;
+        const pendingEmailEnabled =
+            process.env.API_PIX_PENDING_EMAIL_ENABLED?.trim().toLowerCase() !== 'false';
+
+        if (pendingEmailEnabled) {
+            try {
+                await sendPixSalesRecoveryEmail({
+                    buyerName: customer.name,
+                    buyerEmail: customer.email,
+                    productName: String(description || 'Cobrança PIX'),
+                    amount: (amount / 100).toFixed(2),
+                    orderId,
+                    pixQrCode: pixData.qr_code,
+                    pixQrCodeUrl: pixData.qr_code_url || undefined,
+                    pixExpiresAt: pixData.expires_at || undefined,
+                });
+                pendingEmailSent = true;
+            } catch (emailError: unknown) {
+                const message = emailError instanceof Error ? emailError.message : String(emailError);
+                console.error(`[API PIX] Falha ao enviar email de Pix pendente do pedido ${orderId}:`, message);
+            }
+        }
+
         return jsonResponse({
             success: true,
             transaction_id: orderId, // Return Order ID as the main ID for status lookup
@@ -251,18 +303,28 @@ export async function POST(req: NextRequest) {
                 expires_at: pixData.expires_at
             },
             amount: amount,
-            status: 'pending'
+            status: 'pending',
+            notifications: {
+                pending_email_sent: pendingEmailSent,
+            },
         });
 
-    } catch (error: any) {
-        console.error('API Pix Error:', error);
+    } catch (error: unknown) {
+        const apiError = error as {
+            message?: string;
+            response?: {
+                data?: { message?: string };
+                status?: number;
+            };
+        };
+        console.error('API Pix Error:', apiError);
         
-        if (error.response?.data) {
-            console.error('Pagar.me raw error:', JSON.stringify(error.response.data, null, 2));
-            const msg = error.response.data?.message || 'Erro no processamento do pagamento';
-            return jsonError(msg, error.response.status || 400);
+        if (apiError.response?.data) {
+            console.error('Pagar.me raw error:', JSON.stringify(apiError.response.data, null, 2));
+            const msg = apiError.response.data.message || 'Erro no processamento do pagamento';
+            return jsonError(msg, apiError.response.status || 400);
         }
 
-        return jsonError(error.message || 'Erro interno ao processar pagamento', 500);
+        return jsonError(apiError.message || 'Erro interno ao processar pagamento', 500);
     }
 }

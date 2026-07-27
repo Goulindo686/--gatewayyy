@@ -679,6 +679,9 @@ def webhook():
     "qr_code": "00020126580014BR.GOV.BCB.PIX...",
     "qr_code_url": "https://api.pagar.me/.../qrcode",
     "expires_at": "2026-08-01T15:30:00.000Z"
+  },
+  "notifications": {
+    "pending_email_sent": true
   }
 }`;
 
@@ -1013,7 +1016,7 @@ Authorization: Bearer SUA_CHAVE_AQUI`}
                                         <td><code>customer.email</code></td>
                                         <td><span className={styles.type}>string</span></td>
                                         <td><span className={styles.required}>Sim</span></td>
-                                        <td>E-mail válido do pagador.</td>
+                                        <td>E-mail válido do pagador. Também recebe os dados do PIX pendente.</td>
                                     </tr>
                                     <tr>
                                         <td><code>customer.cpf</code></td>
@@ -1048,6 +1051,7 @@ Authorization: Bearer SUA_CHAVE_AQUI`}
                             <div><code>pix.qr_code</code><span>Código PIX copia e cola.</span></div>
                             <div><code>pix.qr_code_url</code><span>Imagem pronta do QR Code.</span></div>
                             <div><code>pix.expires_at</code><span>Validade em ISO 8601.</span></div>
+                            <div><code>notifications.pending_email_sent</code><span>Confirma se o e-mail do PIX foi aceito pelo SMTP.</span></div>
                         </div>
                     </section>
 
