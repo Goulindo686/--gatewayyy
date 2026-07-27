@@ -69,6 +69,20 @@ test('provider requests carry idempotency and affiliate liability explicitly', (
     assert.match(pagarme, /recipient_id:\s*affiliateId,[\s\S]*liable:\s*true/);
 });
 
+test('push notifications report real delivery and resync browser subscriptions', () => {
+    const webpush = read('../src/lib/webpush.ts');
+    const pushTest = read('../src/app/api/push/test/route.ts');
+    const settings = read('../src/app/dashboard/settings/page.tsx');
+
+    assert.match(webpush, /interface PushDeliveryReport/);
+    assert.match(webpush, /reason:\s*'no_subscriptions'/);
+    assert.match(webpush, /return 'delivered' as const/);
+    assert.match(pushTest, /delivery\.subscriptions === 0/);
+    assert.match(pushTest, /delivery\.delivered === 0/);
+    assert.match(settings, /subscriptionUsesPublicKey/);
+    assert.match(settings, /sub\.toJSON\(\)/);
+});
+
 test('affiliate attribution cannot override a valid cookie or redirect off checkout', () => {
     const affiliates = read('../src/lib/affiliates.ts');
     const redirect = read('../src/app/a/[code]/route.ts');

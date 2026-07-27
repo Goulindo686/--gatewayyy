@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     }).format(amount);
 
     try {
-        await sendPushNotification(auth.user.id, {
+        const delivery = await sendPushNotification(auth.user.id, {
             title: 'Venda Aprovada!',
             body: `Valor: ${formatted.replace(/\u00a0/g, ' ')}`,
             url: '/dashboard',
@@ -29,7 +29,20 @@ export async function POST(req: NextRequest) {
             timestamp: Date.now(),
         });
 
-        return jsonSuccess({ sent: true });
+        if (!delivery.configured) {
+            return jsonError('As chaves de notificacao do servidor estao incompletas.', 503);
+        }
+        if (delivery.reason === 'subscription_lookup_failed') {
+            return jsonError('Nao foi possivel consultar os dispositivos registrados.', 503);
+        }
+        if (delivery.subscriptions === 0) {
+            return jsonError('Este dispositivo nao esta registrado no servidor. Desative e ative as notificacoes novamente.', 409);
+        }
+        if (delivery.delivered === 0) {
+            return jsonError('O dispositivo recusou a notificacao. Desative e ative as notificacoes novamente.', 502);
+        }
+
+        return jsonSuccess({ sent: true, delivery });
     } catch (err: unknown) {
         console.error('[Push Test] Erro:', err);
         return jsonError('Erro ao enviar notificacao de teste', 500);

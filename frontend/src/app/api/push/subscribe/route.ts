@@ -4,6 +4,23 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 
+export async function GET(req: NextRequest) {
+    const auth = await getAuthUser(req);
+    if (!auth) return jsonError('Nao autorizado', 401);
+
+    const { count, error } = await supabase
+        .from('push_subscriptions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', auth.user.id);
+
+    if (error) {
+        console.error('[Push Subscribe] Erro ao consultar dispositivos:', error);
+        return jsonError('Erro ao consultar dispositivos', 500);
+    }
+
+    return jsonSuccess({ registered_devices: count || 0 });
+}
+
 export async function POST(req: NextRequest) {
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Nao autorizado', 401);

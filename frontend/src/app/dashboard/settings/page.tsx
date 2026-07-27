@@ -14,6 +14,16 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
     return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
 }
 
+function subscriptionUsesPublicKey(subscription: PushSubscription, publicKey: string) {
+    const currentKey = subscription.options.applicationServerKey;
+    if (!currentKey) return false;
+
+    const current = new Uint8Array(currentKey);
+    const expected = urlBase64ToUint8Array(publicKey);
+    return current.length === expected.length
+        && current.every((value, index) => value === expected[index]);
+}
+
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -49,13 +59,38 @@ export default function SettingsPage() {
     const checkPushStatus = async () => {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
         try {
-            const reg = await navigator.serviceWorker.ready;
-            const sub = await reg.pushManager.getSubscription();
+            const reg = await navigator.serviceWorker.getRegistration('/');
+            if (!reg) return;
+
+            let sub = await reg.pushManager.getSubscription();
+            if (!sub) return;
+
+            const { data: vapidData } = await axios.get('/api/push/vapid-public-key');
+            const token = localStorage.getItem('token');
+
+            if (!subscriptionUsesPublicKey(sub, vapidData.publicKey)) {
+                await sub.unsubscribe();
+                await axios.delete('/api/push/subscribe', {
+                    headers: { Authorization: `Bearer ${token}` },
+                    data: { endpoint: sub.endpoint },
+                }).catch(() => undefined);
+                sub = null;
+            }
+
             if (sub) {
+                // Regrava a subscription no servidor caso o registro tenha sido
+                // perdido, mantendo navegador e banco sempre sincronizados.
+                await axios.post('/api/push/subscribe', sub.toJSON(), {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
                 setPushSubscribed(true);
                 setPushSubscription(sub);
             }
-        } catch {}
+        } catch (err) {
+            console.error('[Push] Erro ao sincronizar dispositivo:', err);
+            setPushSubscribed(false);
+            setPushSubscription(null);
+        }
     };
 
     const enablePush = async () => {
@@ -95,10 +130,17 @@ export default function SettingsPage() {
             const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
             await navigator.serviceWorker.ready;
 
-            const sub = await reg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: applicationServerKey as BufferSource,
-            });
+            let sub = await reg.pushManager.getSubscription();
+            if (sub && !subscriptionUsesPublicKey(sub, vapidData.publicKey)) {
+                await sub.unsubscribe();
+                sub = null;
+            }
+            if (!sub) {
+                sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: applicationServerKey as BufferSource,
+                });
+            }
 
             const token = localStorage.getItem('token');
             await axios.post('/api/push/subscribe', sub.toJSON(), {

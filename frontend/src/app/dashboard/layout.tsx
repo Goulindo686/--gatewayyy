@@ -572,7 +572,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <div className="dashboard-theme-toggle">
                                 <ThemeToggle />
                             </div>
-                            <button ref={bellRef} aria-label="Notificacoes" onClick={() => setNotificationsOpen(!notificationsOpen)} style={{
+                            <button ref={bellRef} aria-label="Notificacoes" onClick={async () => {
+                                const opening = !notificationsOpen;
+                                setNotificationsOpen(opening);
+                                if (opening) {
+                                    try {
+                                        const { data } = await dashboardAPI.getStats();
+                                        setDashboardNotifications((data?.notifications || data?.recent_orders || []).slice(0, 8));
+                                    } catch {
+                                        // Mantem os dados anteriores se a atualizacao pontual falhar.
+                                    }
+                                }
+                            }} style={{
                                 width: 38, height: 38, borderRadius: '50%', border: '1px solid var(--border-color)',
                                 background: 'var(--bg-card)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center',
                                 justifyContent: 'center', cursor: 'pointer', position: 'relative'
