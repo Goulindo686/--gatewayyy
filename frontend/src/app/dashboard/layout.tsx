@@ -351,6 +351,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const asideWidth = effectiveCollapsed ? 76 : 230;
     const unreadNotifications = dashboardNotifications.filter((order) => order.status === 'paid').length;
     const notificationStatus = (order: any) => {
+        if (order.notification_kind === 'platform_fee') return { label: 'Taxa da plataforma', color: '#7c3aed', bg: 'rgba(124,58,237,0.12)', icon: <FiDollarSign size={15} /> };
         if (order.notification_kind === 'affiliate_commission') return { label: 'Comissão de venda', color: '#7c3aed', bg: 'rgba(124,58,237,0.12)', icon: <FiPercent size={15} /> };
         if (order.notification_kind === 'affiliate_sale' && order.status === 'paid') return { label: 'Venda de afiliado', color: '#16a34a', bg: 'rgba(22,163,74,0.12)', icon: <FiUsers size={15} /> };
         if (order.status === 'paid') return { label: 'Venda aprovada', color: '#16a34a', bg: 'rgba(22,163,74,0.12)', icon: <FiCheckCircle size={15} /> };

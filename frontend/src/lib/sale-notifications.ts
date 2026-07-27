@@ -1,4 +1,5 @@
 import { checkRateLimit } from '@/lib/rate-limit';
+import { supabase } from '@/lib/db';
 import { notifySale } from '@/lib/telegram';
 import { sendPushNotification } from '@/lib/webpush';
 
@@ -27,6 +28,48 @@ export function formatApprovedSaleValue(amountCents: number) {
         maximumFractionDigits: 2,
     }).format(normalizedAmount / 100);
     return `R$ ${value}`;
+}
+
+async function notifyPlatformFee(
+    input: ApprovedSaleNotificationInput,
+    platformFeeAmountCents: number,
+) {
+    if (platformFeeAmountCents <= 0) return;
+
+    const [{ data: admins, error: adminsError }, { data: seller }] = await Promise.all([
+        supabase.from('users').select('id').eq('role', 'admin'),
+        supabase.from('users').select('name, email').eq('id', input.sellerId).maybeSingle(),
+    ]);
+    if (adminsError) throw adminsError;
+    if (!admins?.length) return;
+
+    const value = formatApprovedSaleValue(platformFeeAmountCents);
+    const sellerLabel = seller?.name || seller?.email || 'Vendedor';
+    const productName = input.productName || 'Venda';
+
+    await Promise.allSettled(
+        admins.flatMap((admin) => [
+            notifySale(admin.id, {
+                title: 'Taxa da plataforma!',
+                amount_label: 'Taxa GouPay',
+                product_name: productName,
+                amount: platformFeeAmountCents,
+                payment_method: input.paymentMethod || 'Pagamento',
+                customer_name: sellerLabel,
+                image_url: input.imageUrl || undefined,
+            }),
+            sendPushNotification(admin.id, {
+                title: 'Taxa da plataforma!',
+                body: `${value} - ${sellerLabel} - ${productName}`,
+                url: '/admin/transactions',
+                icon: '/favicon.png',
+                tag: `platform-fee-${input.orderId}`,
+                type: 'platform_fee',
+                sound: 'sale_chime',
+                timestamp: Date.now(),
+            }),
+        ]),
+    );
 }
 
 /**
@@ -58,6 +101,7 @@ export async function sendApprovedSaleNotification(input: ApprovedSaleNotificati
         && affiliateId !== input.sellerId
         && commissionAmountCents > 0,
     );
+    const platformFeeNotification = notifyPlatformFee(input, platformFeeAmountCents);
 
     if (isAffiliateSale) {
         const producerAmountCents = Math.max(
@@ -109,6 +153,7 @@ export async function sendApprovedSaleNotification(input: ApprovedSaleNotificati
                 sound: 'sale_chime',
                 timestamp: Date.now(),
             }),
+            platformFeeNotification,
         ]);
     } else {
         const value = formatApprovedSaleValue(input.amountCents);
@@ -130,6 +175,7 @@ export async function sendApprovedSaleNotification(input: ApprovedSaleNotificati
                 sound: 'sale_chime',
                 timestamp: Date.now(),
             }),
+            platformFeeNotification,
         ]);
     }
 

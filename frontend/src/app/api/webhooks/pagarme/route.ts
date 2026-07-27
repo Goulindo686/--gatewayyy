@@ -7,7 +7,6 @@ import { supabase } from '@/lib/db';
 import { jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { v4 as uuidv4 } from 'uuid';
-import { sendPushNotification } from '@/lib/webpush';
 import { sendPurchaseApprovedEmail } from '@/lib/email';
 import { sendFacebookEvent } from '@/lib/facebook-capi';
 import { sendPaidOrderToUtmify } from '@/lib/utmify';
@@ -523,36 +522,12 @@ export async function POST(req: NextRequest) {
                                     orderId: `billing-${billing.id}`,
                                     sellerId: seller.id,
                                     amountCents: billing.amount,
+                                    platformFeeAmountCents: billing.fee_amount || 0,
                                     paymentMethod: 'PIX',
                                     productName: billing.description || 'Cobrança Avulsa',
                                     customerName: 'Pagamento de Cobrança',
                                     url: '/dashboard/billings',
                                 });
-
-                                // Notificar Admin sobre a taxa (Web Push)
-                                if (billing.fee_amount > 0) {
-                                    const { data: admins } = await supabase
-                                        .from('users')
-                                        .select('id')
-                                        .eq('role', 'admin');
-
-                                    if (admins && admins.length > 0) {
-                                        const feeFormatted = new Intl.NumberFormat('pt-BR', {
-                                            style: 'currency',
-                                            currency: 'BRL',
-                                        }).format(billing.fee_amount / 100);
-
-                                        await Promise.allSettled(
-                                            admins.map((a: any) =>
-                                                sendPushNotification(a.id, {
-                                                    title: '📈 Taxa de Cobrança',
-                                                    body: `${feeFormatted} • De: ${seller.name || seller.email}`,
-                                                    url: '/admin/transactions',
-                                                })
-                                            )
-                                        );
-                                    }
-                                }
                             }
                         } catch (notifyError) {
                             console.error('[WEBHOOK] Error sending billing notifications:', notifyError);
@@ -738,7 +713,6 @@ export async function POST(req: NextRequest) {
             // Get platform fee percentage
             let feePercentage = parseFloat(process.env.PLATFORM_FEE_PERCENTAGE || '2');
             const isCardPayment = order.payment_method === 'credit_card' || order.payment_method === 'card';
-            let sellerDisplayName: string | null = null;
             try {
                 const { data: settingsRow } = await supabase
                     .from('platform_settings')
@@ -755,13 +729,12 @@ export async function POST(req: NextRequest) {
             try {
                 const { data: sellerUser } = await supabase
                     .from('users')
-                    .select('role, name, email, utmify_enabled, utmify_api_token')
+                    .select('role')
                     .eq('id', order.seller_id)
                     .single();
                 if (sellerUser?.role === 'admin') {
                     feePercentage = 0;
                 }
-                sellerDisplayName = sellerUser?.name || sellerUser?.email || null;
             } catch {}
             const hasStoredFee = order.platform_fee_amount !== null
                 && order.platform_fee_amount !== undefined
@@ -889,38 +862,6 @@ export async function POST(req: NextRequest) {
                         }
                     }
                 }
-            }
-
-            // Send Web Push Notification (Admin: taxa recebida)
-            try {
-                if (feeAmount > 0) {
-                    const { data: admins } = await supabase
-                        .from('users')
-                        .select('id')
-                        .eq('role', 'admin');
-
-                    const feeFormatted = new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL',
-                    }).format(feeAmount / 100);
-
-                    const sellerLabel = sellerDisplayName || order.seller_id;
-                    const body = `${feeFormatted} • ${sellerLabel} • ${productName}`;
-
-                    if (admins && admins.length > 0) {
-                        await Promise.allSettled(
-                            admins.map((a: any) =>
-                                sendPushNotification(a.id, {
-                                    title: '📈 Taxa Recebida',
-                                    body,
-                                    url: '/admin/transactions',
-                                })
-                            )
-                        );
-                    }
-                }
-            } catch (adminPushError) {
-                console.error('Error sending Admin Push notification:', adminPushError);
             }
 
             // Notificação única e padronizada para PIX, cartão e demais vendas.

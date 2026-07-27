@@ -56,6 +56,22 @@ type ReferencedUserRow = {
     email?: string | null;
 };
 
+type PlatformFeeNotificationRow = {
+    id: string;
+    order_id?: string | null;
+    user_id?: string | null;
+    amount?: number | null;
+    status?: string | null;
+    description?: string | null;
+    created_at?: string | null;
+};
+
+type PlatformFeeOrderRow = {
+    id: string;
+    payment_method?: string | null;
+    products?: { name?: string | null } | null;
+};
+
 function commissionStatusToSaleStatus(status?: string | null) {
     if (status === 'approved' || status === 'available') return 'paid';
     if (status === 'refunded' || status === 'chargeback') return 'refunded';
@@ -281,9 +297,43 @@ export async function GET(req: NextRequest) {
     const { data: affiliate_notifications_raw } = await affiliateNotificationsQuery;
     const rawRecentOrders = (recent_orders_raw || []) as RecentOrderRow[];
     const rawAffiliateCommissions = (affiliate_notifications_raw || []) as RecentAffiliateCommissionRow[];
+
+    let rawPlatformFees: PlatformFeeNotificationRow[] = [];
+    if (auth.user.role === 'admin') {
+        let platformFeeQuery = supabase
+            .from('transactions')
+            .select('id, order_id, user_id, amount, status, description, created_at')
+            .eq('type', 'fee')
+            .eq('status', 'confirmed')
+            .order('created_at', { ascending: false })
+            .limit(20);
+        if (startDate) platformFeeQuery = platformFeeQuery.gte('created_at', startDate.toISOString());
+        if (endDate) platformFeeQuery = platformFeeQuery.lte('created_at', endDate.toISOString());
+        const { data: platformFeeRows, error: platformFeeError } = await platformFeeQuery;
+        if (platformFeeError) {
+            console.error('[STATS] Platform fee notifications lookup error:', platformFeeError);
+        } else {
+            rawPlatformFees = (platformFeeRows || []) as PlatformFeeNotificationRow[];
+        }
+    }
+
+    const platformFeeOrderIds = Array.from(new Set(
+        rawPlatformFees.map((fee) => fee.order_id).filter((id): id is string => Boolean(id)),
+    ));
+    const { data: platform_fee_orders } = platformFeeOrderIds.length
+        ? await supabase
+            .from('orders')
+            .select('id, payment_method, products(name)')
+            .in('id', platformFeeOrderIds)
+        : { data: [] };
+    const platformFeeOrderById = Object.fromEntries(
+        ((platform_fee_orders || []) as PlatformFeeOrderRow[]).map((order) => [order.id, order]),
+    ) as Record<string, PlatformFeeOrderRow>;
+
     const referencedUserIds = Array.from(new Set([
         ...rawRecentOrders.map((order) => order.affiliate_id).filter((id): id is string => Boolean(id)),
         ...rawAffiliateCommissions.map((commission) => commission.producer_id).filter((id): id is string => Boolean(id)),
+        ...rawPlatformFees.map((fee) => fee.user_id).filter((id): id is string => Boolean(id)),
     ]));
     const { data: referenced_users } = referencedUserIds.length
         ? await supabase.from('users').select('id, name, email').in('id', referencedUserIds)
@@ -351,12 +401,34 @@ export async function GET(req: NextRequest) {
             notification_amount: amount,
         };
     });
+    const platformFeeNotifications = rawPlatformFees.map((fee) => {
+        const amount = Math.max(0, Math.round(Number(fee.amount) || 0));
+        const order = fee.order_id ? platformFeeOrderById[fee.order_id] : null;
+        const seller = fee.user_id ? userById[fee.user_id] : null;
+        return {
+            id: `platform-fee-${fee.id}`,
+            transaction_id: fee.id,
+            order_id: fee.order_id,
+            amount,
+            amount_display: (amount / 100).toFixed(2),
+            payment_method: order?.payment_method || 'platform_fee',
+            status: 'paid',
+            created_at: fee.created_at,
+            description: fee.description,
+            product_name: order?.products?.name || 'Taxa da plataforma',
+            buyer_name: seller?.name || seller?.email || 'Vendedor',
+            sale_kind: 'platform_fee',
+            notification_kind: 'platform_fee',
+            notification_amount: amount,
+        };
+    });
     const recentSales = [...recentOrders, ...affiliateSales]
         .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
         .slice(0, 10);
     const notifications = [
         ...producerNotifications,
         ...affiliateSales.filter((sale) => sale.status === 'paid'),
+        ...platformFeeNotifications,
     ]
         .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
         .slice(0, 10);

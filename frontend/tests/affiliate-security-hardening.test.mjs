@@ -83,6 +83,19 @@ test('push notifications report real delivery and resync browser subscriptions',
     assert.match(settings, /sub\.toJSON\(\)/);
 });
 
+test('affiliate sale notifications reach producer, affiliate and platform', () => {
+    const notifications = read('../src/lib/sale-notifications.ts');
+    const stats = read('../src/app/api/dashboard/stats/route.ts');
+    const webhook = read('../src/app/api/webhooks/pagarme/route.ts');
+
+    assert.match(notifications, /title:\s*'Venda de afiliado!'/);
+    assert.match(notifications, /title:\s*'Comissão de venda!'/);
+    assert.match(notifications, /title:\s*'Taxa da plataforma!'/);
+    assert.match(notifications, /tag:\s*`platform-fee-\$\{input\.orderId\}`/);
+    assert.match(stats, /notification_kind:\s*'platform_fee'/);
+    assert.doesNotMatch(webhook, /Send Web Push Notification \(Admin: taxa recebida\)/);
+});
+
 test('affiliate attribution cannot override a valid cookie or redirect off checkout', () => {
     const affiliates = read('../src/lib/affiliates.ts');
     const redirect = read('../src/app/a/[code]/route.ts');
