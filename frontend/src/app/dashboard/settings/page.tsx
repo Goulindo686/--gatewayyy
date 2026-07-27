@@ -35,8 +35,10 @@ export default function SettingsPage() {
     const [pushSubscribed, setPushSubscribed] = useState(false);
     const [pushLoading, setPushLoading] = useState(false);
     const [pushSubscription, setPushSubscription] = useState<PushSubscription | null>(null);
-    const [testPushAmount, setTestPushAmount] = useState('10.00');
-    const [testingPush, setTestingPush] = useState(false);
+    const [testPushAmount, setTestPushAmount] = useState('29.90');
+    const [testCommissionPercentage, setTestCommissionPercentage] = useState('30');
+    const [testPlatformFee, setTestPlatformFee] = useState('2.00');
+    const [testingPush, setTestingPush] = useState<string | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [form, setForm] = useState({
         id: '', telegram_chat_id: '', webhook_url: '', webhook_urls: [''],
@@ -179,21 +181,33 @@ export default function SettingsPage() {
         }
     };
 
-    const testPushNotification = async () => {
+    const testPushNotification = async (notificationType: string) => {
         if (!pushSubscribed) {
             return toast.error('Ative as notificações push primeiro.');
         }
-        setTestingPush(true);
+        setTestingPush(notificationType);
         try {
             const token = localStorage.getItem('token');
-            await axios.post('/api/push/test', { amount: parseFloat(testPushAmount) || 10 }, {
+            const amount = Number(testPushAmount);
+            const commissionPercentage = Number(testCommissionPercentage);
+            const platformFee = Number(testPlatformFee);
+            const { data } = await axios.post('/api/push/test', {
+                notification_type: notificationType,
+                amount: Number.isFinite(amount) ? amount : 29.90,
+                commission_percentage: Number.isFinite(commissionPercentage) ? commissionPercentage : 30,
+                platform_fee: Number.isFinite(platformFee) ? platformFee : 2,
+            }, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            toast.success('Notificação de teste enviada!');
+            toast.success(
+                data.notifications_sent > 1
+                    ? `${data.notifications_sent} notificações de teste enviadas!`
+                    : 'Notificação de teste enviada!',
+            );
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Erro ao enviar notificação de teste.');
         } finally {
-            setTestingPush(false);
+            setTestingPush(null);
         }
     };
 
@@ -900,39 +914,97 @@ console.log(data.pix.qr_code); // Pix Copia e Cola`}
                                             borderRadius: 10,
                                         }}>
                                             <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 10 }}>
-                                                🧪 Testar Notificação
+                                                🧪 Simulador de notificações
                                             </p>
                                             <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
-                                                Simule uma venda para verificar se as notificações estão funcionando.
+                                                Apenas envia notificações de teste. Não cria pedidos e não altera saldos.
                                             </p>
-                                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '8px 12px', flex: 1, minWidth: 120 }}>
-                                                    <span style={{ fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>R$</span>
-                                                    <input
-                                                        type="number"
-                                                        min="1"
-                                                        step="0.01"
-                                                        value={testPushAmount}
-                                                        onChange={e => setTestPushAmount(e.target.value)}
-                                                        style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', width: '100%' }}
-                                                        placeholder="10.00"
-                                                    />
-                                                </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: 8, marginBottom: 12 }}>
+                                                <label style={{ display: 'grid', gap: 5, fontSize: 11, color: 'var(--text-secondary)' }}>
+                                                    Valor da venda
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '8px 10px' }}>
+                                                        <span style={{ fontSize: 12, whiteSpace: 'nowrap' }}>R$</span>
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            step="0.01"
+                                                            value={testPushAmount}
+                                                            onChange={e => setTestPushAmount(e.target.value)}
+                                                            style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', width: '100%', minWidth: 0 }}
+                                                        />
+                                                    </div>
+                                                </label>
+                                                <label style={{ display: 'grid', gap: 5, fontSize: 11, color: 'var(--text-secondary)' }}>
+                                                    Comissão afiliado
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '8px 10px' }}>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max="90"
+                                                            step="1"
+                                                            value={testCommissionPercentage}
+                                                            onChange={e => setTestCommissionPercentage(e.target.value)}
+                                                            style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', width: '100%', minWidth: 0 }}
+                                                        />
+                                                        <span style={{ fontSize: 12 }}>%</span>
+                                                    </div>
+                                                </label>
+                                                <label style={{ display: 'grid', gap: 5, fontSize: 11, color: 'var(--text-secondary)' }}>
+                                                    Taxa GouPay
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '8px 10px' }}>
+                                                        <span style={{ fontSize: 12, whiteSpace: 'nowrap' }}>R$</span>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.01"
+                                                            value={testPlatformFee}
+                                                            onChange={e => setTestPlatformFee(e.target.value)}
+                                                            style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', width: '100%', minWidth: 0 }}
+                                                        />
+                                                    </div>
+                                                </label>
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 8 }}>
+                                                {[
+                                                    { type: 'approved_sale', label: 'Venda normal' },
+                                                    { type: 'affiliate_sale', label: 'Parte do produtor' },
+                                                    { type: 'affiliate_commission', label: 'Comissão afiliado' },
+                                                    { type: 'platform_fee', label: 'Taxa GouPay' },
+                                                ].map((scenario) => (
+                                                    <button
+                                                        key={scenario.type}
+                                                        onClick={() => testPushNotification(scenario.type)}
+                                                        disabled={testingPush !== null}
+                                                        style={{
+                                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                                                            background: 'var(--bg-secondary)', color: 'var(--text-primary)',
+                                                            border: '1px solid var(--border-color)',
+                                                            padding: '10px 12px', borderRadius: 8,
+                                                            fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                                                            opacity: testingPush !== null ? 0.65 : 1,
+                                                        }}
+                                                    >
+                                                        <FiSend size={13} />
+                                                        {testingPush === scenario.type ? 'Enviando...' : scenario.label}
+                                                    </button>
+                                                ))}
                                                 <button
-                                                    onClick={testPushNotification}
-                                                    disabled={testingPush}
+                                                    onClick={() => testPushNotification('affiliate_complete')}
+                                                    disabled={testingPush !== null}
                                                     style={{
-                                                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                                        gridColumn: '1 / -1',
                                                         background: 'linear-gradient(135deg, #6c5ce7, #a29bfe)',
                                                         color: '#fff', border: 'none',
-                                                        padding: '10px 20px', borderRadius: 8,
-                                                        fontWeight: 600, fontSize: 13, cursor: 'pointer',
-                                                        opacity: testingPush ? 0.7 : 1,
-                                                        whiteSpace: 'nowrap'
+                                                        padding: '11px 16px', borderRadius: 8,
+                                                        fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                                                        opacity: testingPush !== null ? 0.7 : 1,
                                                     }}
                                                 >
                                                     <FiSend size={14} />
-                                                    {testingPush ? 'Enviando...' : 'Testar Notificação'}
+                                                    {testingPush === 'affiliate_complete'
+                                                        ? 'Enviando 3 notificações...'
+                                                        : 'Simular venda afiliada completa'}
                                                 </button>
                                             </div>
                                         </div>

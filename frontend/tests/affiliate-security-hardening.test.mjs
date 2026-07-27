@@ -78,9 +78,13 @@ test('push notifications report real delivery and resync browser subscriptions',
     assert.match(webpush, /reason:\s*'no_subscriptions'/);
     assert.match(webpush, /return 'delivered' as const/);
     assert.match(pushTest, /delivery\.subscriptions === 0/);
-    assert.match(pushTest, /delivery\.delivered === 0/);
+    assert.match(pushTest, /deliveries\.some\(\(result\) => result\.delivered === 0\)/);
     assert.match(settings, /subscriptionUsesPublicKey/);
     assert.match(settings, /sub\.toJSON\(\)/);
+    assert.match(pushTest, /affiliate_complete/);
+    assert.match(pushTest, /platform_fee/);
+    assert.match(settings, /Simular venda afiliada completa/);
+    assert.match(settings, /Taxa GouPay/);
 });
 
 test('affiliate sale notifications reach producer, affiliate and platform', () => {
