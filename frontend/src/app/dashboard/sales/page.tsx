@@ -322,6 +322,7 @@ export default function SalesPage() {
                                 <tr>
                                     <th>Produto</th>
                                     <th>Origem</th>
+                                    <th>Entrega</th>
                                     <th>Cliente</th>
                                     <th>E-mail</th>
                                     <th>CPF</th>
@@ -330,7 +331,6 @@ export default function SalesPage() {
                                     <th>Método</th>
                                     <th>Status</th>
                                     <th>Data</th>
-                                    <th>Entregue</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -378,33 +378,9 @@ export default function SalesPage() {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{isAffiliateCommission ? 'Venda indicada' : o.buyer_name || '—'}</td>
-                                            <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{o.buyer_email || '—'}</td>
-                                            <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{o.buyer_cpf || '—'}</td>
-                                            <td style={{ color: 'var(--text-secondary)', fontSize: 13, whiteSpace: 'nowrap' }}>{formatPhone(o.buyer_phone)}</td>
-                                            <td style={{ fontWeight: 600 }}>
-                                                <div style={{ display: 'grid', gap: 3, minWidth: 105 }}>
-                                                    <span>R$ {o.amount_display}</span>
-                                                    {isAffiliateCommission && (
-                                                        <span style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>Sua comissão</span>
-                                                    )}
-                                                    {isAffiliateSale && o.net_amount != null && (
-                                                        <span style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>
-                                                            Líquido: R$ {(Number(o.net_amount) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td style={{ textTransform: 'uppercase', fontSize: 12, color: 'var(--text-muted)' }}>
-                                                {methodLabel}
-                                            </td>
-                                            <td>
-                                                <span style={{ fontSize: 12, fontWeight: 600, color: st.color }}>{st.label}</span>
-                                            </td>
-                                            <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{formatDate(o.created_at)}</td>
                                             <td>
                                                 {isAffiliateCommission ? (
-                                                    <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Responsável: produtor</span>
+                                                    <span style={{ color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>Responsável: produtor</span>
                                                 ) : (
                                                     <button
                                                         onClick={() => toggleDelivered(o)}
@@ -430,6 +406,30 @@ export default function SalesPage() {
                                                     </button>
                                                 )}
                                             </td>
+                                            <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{isAffiliateCommission ? 'Venda indicada' : o.buyer_name || '—'}</td>
+                                            <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{o.buyer_email || '—'}</td>
+                                            <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{o.buyer_cpf || '—'}</td>
+                                            <td style={{ color: 'var(--text-secondary)', fontSize: 13, whiteSpace: 'nowrap' }}>{formatPhone(o.buyer_phone)}</td>
+                                            <td style={{ fontWeight: 600 }}>
+                                                <div style={{ display: 'grid', gap: 3, minWidth: 105 }}>
+                                                    <span>R$ {o.amount_display}</span>
+                                                    {isAffiliateCommission && (
+                                                        <span style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>Sua comissão</span>
+                                                    )}
+                                                    {isAffiliateSale && o.net_amount != null && (
+                                                        <span style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>
+                                                            Líquido: R$ {(Number(o.net_amount) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td style={{ textTransform: 'uppercase', fontSize: 12, color: 'var(--text-muted)' }}>
+                                                {methodLabel}
+                                            </td>
+                                            <td>
+                                                <span style={{ fontSize: 12, fontWeight: 600, color: st.color }}>{st.label}</span>
+                                            </td>
+                                            <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{formatDate(o.created_at)}</td>
                                         </tr>
                                     );
                                 })}
