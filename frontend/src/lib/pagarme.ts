@@ -391,13 +391,15 @@ export class PagarmeService {
     ) {
         const payload: {
             transfer_enabled: boolean;
-            transfer_interval?: 'daily' | 'weekly' | 'monthly';
-            transfer_day?: number;
+            transfer_interval: 'daily' | 'weekly' | 'monthly';
+            transfer_day: number;
         } = {
             transfer_enabled: settings.transfer_enabled,
+            // A API v5 exige os tres campos mesmo quando a transferencia
+            // automatica esta sendo desativada.
+            transfer_interval: settings.transfer_interval || 'daily',
+            transfer_day: settings.transfer_day ?? 0,
         };
-        if (settings.transfer_interval) payload.transfer_interval = settings.transfer_interval;
-        if (settings.transfer_day !== undefined) payload.transfer_day = settings.transfer_day;
 
         const response = await pagarmeApi.patch(
             `/recipients/${recipientId}/transfer-settings`,

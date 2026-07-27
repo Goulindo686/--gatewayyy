@@ -56,6 +56,8 @@ test('provider requests carry idempotency and affiliate liability explicitly', (
 
     assert.match(pagarme, /'Idempotency-Key'/);
     assert.match(pagarme, /\/recipients\/\$\{recipientId\}\/transfer-settings/);
+    assert.match(pagarme, /transfer_interval:\s*settings\.transfer_interval \|\| 'daily'/);
+    assert.match(pagarme, /transfer_day:\s*settings\.transfer_day \?\? 0/);
     assert.match(pagarme, /recipient_id:\s*affiliateId,[\s\S]*liable:\s*true/);
 });
 
