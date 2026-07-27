@@ -87,6 +87,20 @@ test('push notifications report real delivery and resync browser subscriptions',
     assert.match(settings, /Taxa GouPay/);
 });
 
+test('real checkout polling reconciles paid orders directly with the provider', () => {
+    const statusRoute = read('../src/app/api/checkout/order/[id]/route.ts');
+    const reconciliation = read('../src/lib/order-payment-reconciliation.ts');
+    const recoveryCron = read('../src/app/api/cron/sales-recovery/route.ts');
+
+    assert.match(statusRoute, /reconcileOrderPayment/);
+    assert.match(reconciliation, /PagarmeService\.getOrder/);
+    assert.match(reconciliation, /sendApprovedSaleNotification/);
+    assert.match(reconciliation, /syncOrderAffiliateCommission/);
+    assert.match(reconciliation, /provider_event_key:\s*`order-fee:/);
+    assert.match(recoveryCron, /reconcileOrderPayment/);
+    assert.match(recoveryCron, /pagarme_order_id/);
+});
+
 test('affiliate sale notifications reach producer, affiliate and platform', () => {
     const notifications = read('../src/lib/sale-notifications.ts');
     const stats = read('../src/app/api/dashboard/stats/route.ts');

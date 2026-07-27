@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/db';
 import { sendPixSalesRecoveryEmail } from '@/lib/email';
+import { reconcileOrderPayment } from '@/lib/order-payment-reconciliation';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,63 @@ export async function GET(req: NextRequest) {
     if (!cronSecret) return NextResponse.json({ error: 'CRON_SECRET nao configurado' }, { status: 500 });
     if (req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
         return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 });
+    }
+
+    const reconciliationSummary = {
+        checked: 0,
+        paid: 0,
+        terminal: 0,
+        failed: 0,
+    };
+    const reconciliationErrors: string[] = [];
+    const createdAfter = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const [pendingResult, unfinishedPaidResult] = await Promise.all([
+        supabase
+            .from('orders')
+            .select('id')
+            .in('status', ['pending', 'processing'])
+            .gte('created_at', createdAfter)
+            .not('pagarme_order_id', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(100),
+        supabase
+            .from('orders')
+            .select('id')
+            .eq('status', 'paid')
+            .is('paid_processed_at', null)
+            .gte('created_at', createdAfter)
+            .order('created_at', { ascending: false })
+            .limit(50),
+    ]);
+
+    if (pendingResult.error || unfinishedPaidResult.error) {
+        const loadError = pendingResult.error || unfinishedPaidResult.error;
+        console.error('[PAYMENT RECONCILIATION CRON] Failed to load orders:', loadError);
+        reconciliationErrors.push(loadError?.message || 'Falha ao consultar pedidos');
+    } else {
+        const uniqueOrders = new Map(
+            [...(pendingResult.data || []), ...(unfinishedPaidResult.data || [])]
+                .map((order) => [order.id, order]),
+        );
+        const queue = [...uniqueOrders.values()];
+        const workers = Array.from({ length: Math.min(5, queue.length) }, async () => {
+            while (queue.length > 0) {
+                const order = queue.shift();
+                if (!order) break;
+                reconciliationSummary.checked++;
+                try {
+                    const result = await reconcileOrderPayment(order.id);
+                    if (result.status === 'paid') reconciliationSummary.paid++;
+                    else if (!['unchanged', 'not_found'].includes(result.status)) {
+                        reconciliationSummary.terminal++;
+                    }
+                } catch (error) {
+                    reconciliationSummary.failed++;
+                    reconciliationErrors.push(`${order.id}: ${errorMessage(error)}`);
+                }
+            }
+        });
+        await Promise.all(workers);
     }
 
     const { data: settings, error: settingsError } = await supabase
@@ -113,7 +171,14 @@ export async function GET(req: NextRequest) {
         }
     }
 
-    return NextResponse.json({ success: true, sent, skipped, summary, errors: errors.slice(0, 10) });
+    return NextResponse.json({
+        success: true,
+        sent,
+        skipped,
+        summary,
+        reconciliation: reconciliationSummary,
+        errors: [...reconciliationErrors, ...errors].slice(0, 10),
+    });
 }
 
 export async function POST(req: NextRequest) {
