@@ -4,7 +4,6 @@ import { jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { CARD_PLATFORM_FEE_PERCENTAGE, PagarmeService } from '@/lib/pagarme';
 import {
-    affiliateCookieName,
     affiliateOrderSnapshot,
     recordSubscriptionInitialCommission,
     resolveAffiliateAttribution,
@@ -95,19 +94,7 @@ export async function POST(req: NextRequest) {
                 attributionToken: affiliateReference || undefined,
             })
             : null;
-        const hasAffiliateIntent = Boolean(
-            affiliateReference
-            || (
-                plan.product_id
-                && normalizeAffiliateReference(
-                    req.cookies.get(affiliateCookieName(plan.product_id))?.value,
-                )
-            ),
-        );
         let affiliateAttribution: AffiliateAttribution | null = await resolveAttributionForFee(platformFeeAmount);
-        if (hasAffiliateIntent && !affiliateAttribution) {
-            return jsonError('Nao foi possivel validar este link de afiliado. Abra novamente o link antes de pagar.', 409);
-        }
         if (affiliateAttribution) {
             const affiliatePlatformFeeAmount = calculateAffiliatePlatformFee({
                 grossAmount: plan.amount,

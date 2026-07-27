@@ -359,7 +359,7 @@ export async function resolveAffiliateAttribution(
     } catch (error) {
         if (isMissingAffiliateSchema(error)) return null;
         console.error('[AFFILIATES] Attribution lookup failed:', error);
-        return null;
+        throw error;
     }
 }
 

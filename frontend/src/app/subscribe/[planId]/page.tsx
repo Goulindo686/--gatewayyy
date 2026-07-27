@@ -49,28 +49,18 @@ export default function SubscribePage() {
     const update = (field: string, value: string) => setForm(f => ({ ...f, [field]: value }));
     const affiliateStorageKey = `goupay_subscription_affiliate_${planId}`;
 
-    const persistAffiliateReference = () => {
+    const clearLegacyAffiliateReference = () => {
         if (typeof window === 'undefined') return;
-        const reference = normalizeAffiliateReference(
-            new URLSearchParams(window.location.search).get('aff_ref'),
-        );
-        if (!reference) return;
         try {
-            window.sessionStorage.setItem(affiliateStorageKey, reference);
+            window.sessionStorage.removeItem(affiliateStorageKey);
         } catch {}
     };
 
     const getAffiliateReference = () => {
         if (typeof window === 'undefined') return null;
-        const fromUrl = normalizeAffiliateReference(
+        return normalizeAffiliateReference(
             new URLSearchParams(window.location.search).get('aff_ref'),
         );
-        if (fromUrl) return fromUrl;
-        try {
-            return normalizeAffiliateReference(window.sessionStorage.getItem(affiliateStorageKey));
-        } catch {
-            return null;
-        }
     };
 
     const isValidCPF = (v: string) => {
@@ -87,7 +77,7 @@ export default function SubscribePage() {
     const isValidPhone = (v: string) => { const d = (v || '').replace(/\D/g, ''); return d.length >= 10 && d.length <= 11; };
 
     useEffect(() => {
-        persistAffiliateReference();
+        clearLegacyAffiliateReference();
         api.get(`/subscriptions/plans/${planId}`)
             .then(r => {
                 setPlan(r.data.plan);

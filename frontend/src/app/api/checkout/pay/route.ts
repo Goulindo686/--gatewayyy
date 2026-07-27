@@ -13,7 +13,6 @@ import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import { classifyCardPaymentFailure, classifyCardProviderRequestError, isPagarmePaymentFailed } from '@/lib/card-payment-failure';
 import { formatPixFeeLabel, resolveSellerPixFee } from '@/lib/seller-pix-fee';
 import {
-    affiliateCookieName,
     affiliateOrderSnapshot,
     recordOrderAffiliateCommission,
     resolveAffiliateAttribution,
@@ -288,12 +287,6 @@ export async function POST(req: NextRequest) {
         let appliedPlatformFeeAmount = 0;
         let appliedFeeLabel = 'isento';
         let affiliateAttribution: AffiliateAttribution | null = null;
-        const hasAffiliateIntent = Boolean(
-            affiliateReference
-            || normalizeAffiliateReference(
-                req.cookies.get(affiliateCookieName(product.id))?.value,
-            ),
-        );
         try {
             totalCents = pagarmeItems.reduce((sum, item) => sum + (item.amount * item.quantity), 0);
             if (totalCents <= 0) return jsonError('Valor do pedido invalido.', 400);
@@ -329,9 +322,6 @@ export async function POST(req: NextRequest) {
             });
 
             affiliateAttribution = await resolveAttributionForFee(appliedPlatformFeeAmount);
-            if (hasAffiliateIntent && !affiliateAttribution) {
-                return jsonError('Nao foi possivel validar este link de afiliado. Abra novamente o link antes de pagar.', 409);
-            }
             if (affiliateAttribution) {
                 const affiliatePlatformFeeAmount = calculateAffiliatePlatformFee({
                     grossAmount: totalCents,

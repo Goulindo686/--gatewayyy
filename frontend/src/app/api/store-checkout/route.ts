@@ -7,7 +7,6 @@ import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import { classifyCardPaymentFailure, classifyCardProviderRequestError, isPagarmePaymentFailed } from '@/lib/card-payment-failure';
 import { formatPixFeeLabel, resolveSellerPixFee } from '@/lib/seller-pix-fee';
 import {
-    affiliateCookieName,
     affiliateOrderSnapshot,
     recordOrderAffiliateCommission,
     resolveAffiliateAttribution,
@@ -257,18 +256,7 @@ export async function POST(req: NextRequest) {
             attributionToken: affiliateReference || undefined,
         });
 
-        const hasAffiliateIntent = Boolean(
-            affiliateReference
-            || normalizeAffiliateReference(
-                req.cookies.get(affiliateCookieName(items_cart[0].id))?.value,
-            ),
-        );
         affiliateAttribution = await resolveAttributionForFee(appliedPlatformFeeAmount);
-        if (hasAffiliateIntent && !affiliateAttribution) {
-            return NextResponse.json({
-                error: 'Nao foi possivel validar este link de afiliado. Abra novamente o link antes de pagar.',
-            }, { status: 409 });
-        }
         if (affiliateAttribution) {
             const affiliatePlatformFeeAmount = calculateAffiliatePlatformFee({
                 grossAmount: totalAmountCents,

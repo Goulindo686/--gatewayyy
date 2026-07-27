@@ -366,30 +366,18 @@ export default function CheckoutPage() {
     const getTrackingStorageKey = (productId?: string) => `goupay_tracking_${productId || 'global'}`;
     const getAffiliateStorageKey = (productId?: string) => `goupay_affiliate_${productId || 'unknown'}`;
 
-    const persistAffiliateReference = (productId?: string) => {
+    const clearLegacyAffiliateReference = (productId?: string) => {
         if (typeof window === 'undefined' || !productId) return;
-        const reference = normalizeAffiliateReference(
-            new URLSearchParams(window.location.search).get('aff_ref'),
-        );
-        if (!reference) return;
         try {
-            window.sessionStorage.setItem(getAffiliateStorageKey(productId), reference);
+            window.sessionStorage.removeItem(getAffiliateStorageKey(productId));
         } catch {}
     };
 
     const getAffiliateReference = () => {
         if (typeof window === 'undefined') return null;
-        const fromUrl = normalizeAffiliateReference(
+        return normalizeAffiliateReference(
             new URLSearchParams(window.location.search).get('aff_ref'),
         );
-        if (fromUrl) return fromUrl;
-        try {
-            return normalizeAffiliateReference(
-                window.sessionStorage.getItem(getAffiliateStorageKey(params.id as string)),
-            );
-        } catch {
-            return null;
-        }
     };
 
     const readStoredTracking = (productId?: string) => {
@@ -411,7 +399,7 @@ export default function CheckoutPage() {
 
     const persistTrackingParameters = (productId?: string) => {
         if (typeof window === 'undefined') return;
-        persistAffiliateReference(productId);
+        clearLegacyAffiliateReference(productId);
         const search = new URLSearchParams(window.location.search);
         const collected: Record<string, string> = {};
         TRACKING_KEYS.forEach((key) => {

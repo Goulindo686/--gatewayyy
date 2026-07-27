@@ -73,6 +73,26 @@ test('affiliate attribution cannot override a valid cookie or redirect off check
     assert.doesNotMatch(redirect, /searchParams\.set\(['"]aff_ref/);
 });
 
+test('stale affiliate state never blocks a valid direct purchase', () => {
+    for (const path of checkoutRoutes) {
+        const source = read(path);
+        assert.doesNotMatch(source, /hasAffiliateIntent/, path);
+        assert.doesNotMatch(
+            source,
+            /Nao foi possivel validar este link de afiliado/,
+            path,
+        );
+        assert.match(source, /if \(affiliateAttribution\)/, path);
+    }
+
+    const checkoutPage = read('../src/app/checkout/[id]/page.tsx');
+    const subscriptionPage = read('../src/app/subscribe/[planId]/page.tsx');
+    assert.doesNotMatch(checkoutPage, /sessionStorage\.setItem\(getAffiliateStorageKey/);
+    assert.doesNotMatch(subscriptionPage, /sessionStorage\.setItem\(affiliateStorageKey/);
+    assert.match(checkoutPage, /sessionStorage\.removeItem\(getAffiliateStorageKey/);
+    assert.match(subscriptionPage, /sessionStorage\.removeItem\(affiliateStorageKey/);
+});
+
 test('affiliate enrollment requires current accepted terms and expiring invites', () => {
     const request = read('../src/app/api/affiliates/request/route.ts');
     const invitation = read('../src/app/api/affiliates/invite/[code]/route.ts');
