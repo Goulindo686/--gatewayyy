@@ -27,6 +27,7 @@ import {
     failPaymentAttempt,
     hashPaymentRequest,
 } from '@/lib/payment-security';
+import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -422,17 +423,15 @@ export async function POST(req: NextRequest) {
                 .maybeSingle();
             if (recoveredOrder?.pagarme_order_id) {
                 await syncOrderAffiliateCommission(recoveredOrder, recoveredOrder.status);
-                const { error: recoveredSaleError } = await supabase
-                    .from('transactions')
-                    .upsert({
-                        user_id: product.user_id,
-                        order_id: recoveredOrder.id,
-                        type: 'sale',
-                        amount: recoveredOrder.amount,
-                        status: recoveredOrder.status === 'paid' ? 'confirmed' : 'pending',
-                        description: `Venda: ${product.name}${selectedPlan ? ` - ${selectedPlan.name}` : ''}`,
-                        provider_event_key: `order-sale:${recoveredOrder.id}`,
-                    }, { onConflict: 'provider_event_key' });
+                const { error: recoveredSaleError } = await saveTransactionByProviderEvent({
+                    user_id: product.user_id,
+                    order_id: recoveredOrder.id,
+                    type: 'sale',
+                    amount: recoveredOrder.amount,
+                    status: recoveredOrder.status === 'paid' ? 'confirmed' : 'pending',
+                    description: `Venda: ${product.name}${selectedPlan ? ` - ${selectedPlan.name}` : ''}`,
+                    provider_event_key: `order-sale:${recoveredOrder.id}`,
+                });
                 if (recoveredSaleError) throw recoveredSaleError;
                 const recoveredResponse: Record<string, unknown> = {
                     order: {
@@ -610,13 +609,13 @@ export async function POST(req: NextRequest) {
         }
 
         // Save transaction
-        const { error: saleTransactionError } = await supabase.from('transactions').upsert({
+        const { error: saleTransactionError } = await saveTransactionByProviderEvent({
             id: uuidv4(), user_id: product.user_id, order_id: orderId,
             type: 'sale', amount: totalCents,
             status: charge?.status === 'paid' ? 'confirmed' : 'pending',
             description: `Venda: ${product.name}${selectedPlan ? ` - ${selectedPlan.name}` : ''}`,
             provider_event_key: `order-sale:${orderId}`,
-        }, { onConflict: 'provider_event_key' });
+        });
         if (saleTransactionError) throw saleTransactionError;
 
         // If paid immediately, create fee transaction and update sales count
@@ -704,13 +703,13 @@ export async function POST(req: NextRequest) {
 
             const feeAmount = appliedPlatformFeeAmount;
             if (feeAmount > 0) {
-                const { error: feeTransactionError } = await supabase.from('transactions').upsert({
+                const { error: feeTransactionError } = await saveTransactionByProviderEvent({
                     id: uuidv4(), user_id: product.user_id, order_id: orderId,
                     type: 'fee', amount: feeAmount,
                     status: 'confirmed',
                     description: `Taxa de plataforma (${appliedFeeLabel}) - Pedido ${orderId}`,
                     provider_event_key: `order-fee:${orderId}`,
-                }, { onConflict: 'provider_event_key' });
+                });
                 if (feeTransactionError) throw feeTransactionError;
             }
 
@@ -820,20 +819,21 @@ export async function POST(req: NextRequest) {
         return jsonSuccess(response, 201);
     } catch (err: any) {
         if (activeIdempotencyKey) await failPaymentAttempt(activeIdempotencyKey, err);
-        const errorData = err.response?.data || err.message;
+        const providerErrorData = err.response?.data;
         console.error('Checkout error details:', {
-            error: typeof errorData === 'string' ? errorData.slice(0, 500) : 'provider_error',
+            error: providerErrorData || err.message,
             stack: err.stack,
         });
 
-        // Return a more descriptive error if it's a Pagar.me validation error
-        let message = 'Erro ao processar pagamento';
-        if (typeof errorData === 'string') {
-            message = errorData;
-        } else if (errorData?.message) {
-            message = errorData.message;
-        } else if (errorData?.errors?.[0]?.message) {
-            message = errorData.errors[0].message;
+        // Only provider validation details are safe to show publicly. Database
+        // and internal errors stay in server logs and never expose the schema.
+        let message = 'Nao foi possivel processar o pagamento agora. Tente novamente.';
+        if (typeof providerErrorData === 'string') {
+            message = providerErrorData;
+        } else if (providerErrorData?.message) {
+            message = providerErrorData.message;
+        } else if (providerErrorData?.errors?.[0]?.message) {
+            message = providerErrorData.errors[0].message;
         }
         
         return jsonError(message, 500);

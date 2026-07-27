@@ -26,6 +26,7 @@ import {
     createWebhookEventKey,
     failWebhookEvent,
 } from '@/lib/webhook-security';
+import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
 
 type SaleNotificationOrder = {
     id: string;
@@ -233,7 +234,7 @@ async function handleSubscriptionWebhook(type: string, data: any, rawBody: strin
             .update({ status: 'active', current_period_start: new Date().toISOString() })
             .eq('id', subscription.id);
 
-        await supabase.from('transactions').upsert({
+        await saveTransactionByProviderEvent({
             id: uuidv4(),
             user_id: subscription.seller_id,
             type: 'subscription_payment',
@@ -241,7 +242,7 @@ async function handleSubscriptionWebhook(type: string, data: any, rawBody: strin
             status: 'confirmed',
             description: `Cobranca recorrente - ${subscription.subscription_plans?.name || 'Assinatura'} - ${subscription.customer_email}`,
             provider_event_key: `subscription-payment:${eventKey}`,
-        }, { onConflict: 'provider_event_key', ignoreDuplicates: true });
+        });
 
         const { data: initialCommission } = await supabase
             .from('affiliate_commissions')
@@ -781,17 +782,15 @@ export async function POST(req: NextRequest) {
                 .select('id');
             if (saleUpdateError) throw saleUpdateError;
             if (!updatedSales?.length) {
-                const { error: saleInsertError } = await supabase
-                    .from('transactions')
-                    .upsert({
-                        user_id: order.seller_id,
-                        order_id: order.id,
-                        type: 'sale',
-                        amount: order.amount,
-                        status: 'confirmed',
-                        description: `Venda confirmada - Pedido ${order.id}`,
-                        provider_event_key: `order-sale:${order.id}`,
-                    }, { onConflict: 'provider_event_key' });
+                const { error: saleInsertError } = await saveTransactionByProviderEvent({
+                    user_id: order.seller_id,
+                    order_id: order.id,
+                    type: 'sale',
+                    amount: order.amount,
+                    status: 'confirmed',
+                    description: `Venda confirmada - Pedido ${order.id}`,
+                    provider_event_key: `order-sale:${order.id}`,
+                });
                 if (saleInsertError) throw saleInsertError;
             }
 
@@ -799,7 +798,7 @@ export async function POST(req: NextRequest) {
                 const feeLabel = isCardPayment
                     ? `${CARD_PLATFORM_FEE_PERCENTAGE}% (cartão)`
                     : `R$ ${(feeAmount / 100).toFixed(2).replace('.', ',')} (PIX)`;
-                await supabase.from('transactions').upsert({
+                await saveTransactionByProviderEvent({
                     user_id: order.seller_id,
                     order_id: order.id,
                     type: 'fee',
@@ -807,7 +806,7 @@ export async function POST(req: NextRequest) {
                     status: 'confirmed',
                     description: `Taxa de plataforma (${feeLabel}) - Pedido ${order.id}`,
                     provider_event_key: `order-fee:${order.id}`,
-                }, { onConflict: 'provider_event_key', ignoreDuplicates: true });
+                });
             }
 
             // Fetch product data for notification and stats
@@ -980,12 +979,12 @@ export async function POST(req: NextRequest) {
 
         // Create refund transaction if needed
         if (transactionType === 'refund') {
-            await supabase.from('transactions').upsert({
+            await saveTransactionByProviderEvent({
                 id: uuidv4(), user_id: order.seller_id, order_id: order.id,
                 type: 'refund', amount: order.amount, amount_display: order.amount_display,
                 status: 'confirmed', description: `Estorno do pedido ${order.id}`,
                 provider_event_key: `order-refund:${activeWebhookEventKey}`,
-            }, { onConflict: 'provider_event_key', ignoreDuplicates: true });
+            });
         }
 
         // NOTIFICAR WEBHOOK DO USUÁRIO

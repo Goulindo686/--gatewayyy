@@ -21,6 +21,7 @@ import {
     failPaymentAttempt,
     hashPaymentRequest,
 } from '@/lib/payment-security';
+import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -398,17 +399,15 @@ export async function POST(req: NextRequest) {
                 .maybeSingle();
             if (recoveredOrder?.pagarme_order_id) {
                 await syncOrderAffiliateCommission(recoveredOrder, recoveredOrder.status);
-                const { error: recoveredSaleError } = await supabase
-                    .from('transactions')
-                    .upsert({
-                        user_id: sellerId,
-                        order_id: recoveredOrder.id,
-                        type: 'sale',
-                        amount: recoveredOrder.amount,
-                        status: recoveredOrder.status === 'paid' ? 'confirmed' : 'pending',
-                        description: `Venda pela loja ${normalizedStoreSlug}`,
-                        provider_event_key: `order-sale:${recoveredOrder.id}`,
-                    }, { onConflict: 'provider_event_key' });
+                const { error: recoveredSaleError } = await saveTransactionByProviderEvent({
+                    user_id: sellerId,
+                    order_id: recoveredOrder.id,
+                    type: 'sale',
+                    amount: recoveredOrder.amount,
+                    status: recoveredOrder.status === 'paid' ? 'confirmed' : 'pending',
+                    description: `Venda pela loja ${normalizedStoreSlug}`,
+                    provider_event_key: `order-sale:${recoveredOrder.id}`,
+                });
                 if (recoveredSaleError) throw recoveredSaleError;
                 const recoveredResponse: Record<string, unknown> = {
                     order: {
@@ -591,17 +590,15 @@ export async function POST(req: NextRequest) {
                 attribution: affiliateAttribution,
             });
         }
-        const { error: saleTransactionError } = await supabase
-            .from('transactions')
-            .upsert({
-                user_id: sellerId,
-                order_id: order.id,
-                type: 'sale',
-                amount: totalAmountCents,
-                status: order.status === 'paid' ? 'confirmed' : 'pending',
-                description: `Venda pela loja ${normalizedStoreSlug}`,
-                provider_event_key: `order-sale:${order.id}`,
-            }, { onConflict: 'provider_event_key' });
+        const { error: saleTransactionError } = await saveTransactionByProviderEvent({
+            user_id: sellerId,
+            order_id: order.id,
+            type: 'sale',
+            amount: totalAmountCents,
+            status: order.status === 'paid' ? 'confirmed' : 'pending',
+            description: `Venda pela loja ${normalizedStoreSlug}`,
+            provider_event_key: `order-sale:${order.id}`,
+        });
         if (saleTransactionError) throw saleTransactionError;
 
         if (order.status === 'paid') {
@@ -658,9 +655,11 @@ export async function POST(req: NextRequest) {
     } catch (err: any) {
         if (activeIdempotencyKey) await failPaymentAttempt(activeIdempotencyKey, err);
         console.error('Unfied Checkout Error:', err.response?.data || err.message);
+        const providerMessage = err.response?.data?.error
+            || err.response?.data?.message;
 
         return NextResponse.json(
-            { error: err.response?.data?.error || err.message || 'Erro interno ao processar checkout' },
+            { error: providerMessage || 'Nao foi possivel processar o pagamento agora. Tente novamente.' },
             { status: 500 }
         );
     }

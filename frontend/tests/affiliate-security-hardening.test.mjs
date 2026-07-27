@@ -43,12 +43,20 @@ test('sale and fee ledger entries are idempotent and recoverable', () => {
     const checkout = read('../src/app/api/checkout/pay/route.ts');
     const store = read('../src/app/api/store-checkout/route.ts');
     const webhook = read('../src/app/api/webhooks/pagarme/route.ts');
+    const ledger = read('../src/lib/transaction-ledger.ts');
 
     assert.match(checkout, /provider_event_key:\s*`order-sale:/);
     assert.match(checkout, /provider_event_key:\s*`order-fee:/);
     assert.match(store, /provider_event_key:\s*`order-sale:/);
     assert.match(webhook, /if \(!updatedSales\?\.length\)/);
     assert.match(webhook, /provider_event_key:\s*`order-sale:/);
+    assert.match(ledger, /\.eq\('provider_event_key', providerEventKey\)/);
+    assert.match(ledger, /inserted\.error\.code === '23505'/);
+    assert.doesNotMatch(checkout, /onConflict:\s*'provider_event_key'/);
+    assert.doesNotMatch(store, /onConflict:\s*'provider_event_key'/);
+    assert.doesNotMatch(webhook, /onConflict:\s*'provider_event_key'/);
+    assert.doesNotMatch(checkout, /message = err\.message/);
+    assert.doesNotMatch(store, /error:\s*err\.message/);
 });
 
 test('provider requests carry idempotency and affiliate liability explicitly', () => {
