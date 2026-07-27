@@ -32,25 +32,31 @@ export async function POST(req: NextRequest) {
 
         const normalizedEmail = email.toLowerCase().trim();
 
-        // Check if user exists
+        // Contas antigas criadas automaticamente pelo checkout podem ser
+        // reivindicadas somente pelo cadastro normal + confirmação do e-mail.
         const { data: existingUser } = await supabase
             .from('users')
-            .select('id')
+            .select('id, role, email_verified')
             .ilike('email', normalizedEmail)
             .single();
 
-        if (existingUser) {
+        const isLegacyCheckoutAccount = Boolean(
+            existingUser
+            && existingUser.role === 'customer'
+            && existingUser.email_verified !== true
+        );
+
+        if (existingUser && !isLegacyCheckoutAccount) {
             return jsonError('Email já cadastrado');
         }
 
         const hashedPassword = await hashPassword(password);
-        const userId = uuidv4();
+        const userId = existingUser?.id || uuidv4();
 
         // Defer Pagar.me recipient creation until profile update with real bank data
         const pagarmeRecipientId = null;
 
         const baseUserData: any = {
-            id: userId,
             name,
             email: normalizedEmail,
             cpf_cnpj,
@@ -64,32 +70,33 @@ export async function POST(req: NextRequest) {
         let user: any = null;
         let error: any = null;
 
-        // Try inserting with terms_accepted_at
-        ({ data: user, error } = await supabase
-            .from('users')
-            .insert({ ...baseUserData, password_hash: hashedPassword })
-            .select()
-            .single());
+        const persistUser = (payload: Record<string, unknown>) => isLegacyCheckoutAccount
+            ? supabase.from('users').update(payload).eq('id', userId).select().single()
+            : supabase.from('users').insert({ id: userId, ...payload }).select().single();
+
+        // Cria uma conta nova ou converte uma conta legada sem entregar sessão.
+        ({ data: user, error } = await persistUser({
+            ...baseUserData,
+            password_hash: hashedPassword,
+        }));
 
         // Fallback: If column doesn't exist, try without it
         if (error && (error.code === '42703' || error.message?.includes('does not exist'))) {
             const { terms_accepted_at, ...fallbackUserData } = baseUserData;
-            ({ data: user, error } = await supabase
-                .from('users')
-                .insert({ ...fallbackUserData, password_hash: hashedPassword })
-                .select()
-                .single());
+            ({ data: user, error } = await persistUser({
+                ...fallbackUserData,
+                password_hash: hashedPassword,
+            }));
         }
 
         // Fallback: If password_hash column issue (old schema), try 'password'
         if (error && /password_hash/i.test(error.message || '')) {
             const { terms_accepted_at, ...fallbackUserData } = baseUserData;
             // Try with 'password' column (legacy)
-            ({ data: user, error } = await supabase
-                .from('users')
-                .insert({ ...fallbackUserData, password: hashedPassword })
-                .select()
-                .single());
+            ({ data: user, error } = await persistUser({
+                ...fallbackUserData,
+                password: hashedPassword,
+            }));
         }
 
         if (error) {
@@ -102,33 +109,6 @@ export async function POST(req: NextRequest) {
             await supabase.from('recipients').insert({
                 id: uuidv4(), user_id: userId, pagarme_recipient_id: pagarmeRecipientId, status: 'active'
             });
-        }
-
-        const { data: paidOrders } = await supabase
-            .from('orders')
-            .select(`
-                id,
-                product_id,
-                products (
-                    type
-                )
-            `)
-            .eq('status', 'paid')
-            .ilike('buyer_email', normalizedEmail);
-
-        const enrollmentsToUpsert = (paidOrders || [])
-            .filter((o: any) => o?.product_id && o?.products?.type === 'digital')
-            .map((o: any) => ({
-                user_id: userId,
-                product_id: o.product_id,
-                order_id: o.id,
-                status: 'active'
-            }));
-
-        if (enrollmentsToUpsert.length > 0) {
-            await supabase
-                .from('enrollments')
-                .upsert(enrollmentsToUpsert, { onConflict: 'user_id, product_id' });
         }
 
         const verification = await requestEmailVerification({

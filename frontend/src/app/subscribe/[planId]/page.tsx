@@ -35,10 +35,8 @@ export default function SubscribePage() {
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
     const [success, setSuccess] = useState(false);
-    const [countdown, setCountdown] = useState(5);
     const [timerSeconds, setTimerSeconds] = useState(0);
     const timerRef = useRef<any>(null);
-    const countdownRef = useRef<any>(null);
 
     const [form, setForm] = useState({
         name: '', email: '', cpf: '', phone: '',
@@ -82,26 +80,8 @@ export default function SubscribePage() {
             .finally(() => setLoading(false));
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
-            if (countdownRef.current) clearInterval(countdownRef.current);
         };
     }, [planId]);
-
-    const autoLoginAndRedirect = (authData: any) => {
-        if (authData?.token && authData?.user) {
-            localStorage.setItem('token', authData.token);
-            localStorage.setItem('user', JSON.stringify(authData.user));
-        }
-        let count = 5;
-        setCountdown(count);
-        countdownRef.current = setInterval(() => {
-            count--;
-            setCountdown(count);
-            if (count <= 0) {
-                clearInterval(countdownRef.current);
-                router.push('/area-membros');
-            }
-        }, 1000);
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -112,7 +92,7 @@ export default function SubscribePage() {
         if (!form.street || !form.number || !form.city) { toast.error('Endereço incompleto'); return; }
         setProcessing(true);
         try {
-            const res = await api.post('/subscriptions/subscribe', {
+            await api.post('/subscriptions/subscribe', {
                 plan_id: planId,
                 customer: {
                     name: form.name,
@@ -139,7 +119,6 @@ export default function SubscribePage() {
             });
             toast.success('Assinatura ativada! 🎉');
             setSuccess(true);
-            if (res.data.auth) autoLoginAndRedirect(res.data.auth);
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Erro ao processar assinatura');
         } finally {
@@ -205,17 +184,24 @@ export default function SubscribePage() {
                     <h2 className="text-3xl font-extrabold mb-2" style={{ color: textPrimary }}>
                         Assinatura <span style={{ color: accent }}>Ativada!</span>
                     </h2>
-                    <p className="text-lg mb-8 opacity-80" style={{ color: textSecondary }}>Seu acesso já está disponível.</p>
+                    <p className="text-base mb-8 leading-relaxed opacity-80" style={{ color: textSecondary }}>
+                        Para acessar o produto, crie sua conta usando o mesmo e-mail da assinatura e confirme esse e-mail.
+                    </p>
                     <div className="p-6 rounded-2xl mb-8" style={{ background: isLight ? '#f9fafb' : 'rgba(255,255,255,0.03)' }}>
                         <div className="text-sm opacity-60 mb-1" style={{ color: textSecondary }}>Plano</div>
                         <div className="text-2xl font-black" style={{ color: accent }}>
                             R$ {fmtBRL(plan.amount)}<span className="text-base font-medium opacity-70"> / {fmtInterval(plan.interval)}</span>
                         </div>
                     </div>
-                    <button onClick={() => router.push('/area-membros')} className="w-full py-4 px-6 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]" style={{ background: accent }}>
-                        Começar Agora <FiArrowRight size={20} />
-                    </button>
-                    <p className="mt-4 text-xs opacity-50" style={{ color: textMuted }}>Redirecionando em {countdown}s...</p>
+                    <div className="grid gap-3">
+                        <button onClick={() => router.push('/register')} className="w-full py-4 px-6 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]" style={{ background: accent }}>
+                            Criar conta para acessar <FiArrowRight size={20} />
+                        </button>
+                        <button onClick={() => router.push('/login')} className="w-full py-4 px-6 rounded-xl font-bold border flex items-center justify-center gap-2" style={{ color: textPrimary, borderColor }}>
+                            Já tenho conta
+                        </button>
+                    </div>
+                    <p className="mt-4 text-xs opacity-60" style={{ color: textMuted }}>Nenhum login é feito automaticamente.</p>
                 </div>
             </div>
         );

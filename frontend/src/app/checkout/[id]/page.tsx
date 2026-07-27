@@ -234,8 +234,6 @@ export default function CheckoutPage() {
     const [pixPaid, setPixPaid] = useState(false);
     const pollingRef = useRef<any>(null);
     const purchaseTrackedRef = useRef(false);
-    const [countdown, setCountdown] = useState(5);
-    const countdownRef = useRef<any>(null);
     const [timerSeconds, setTimerSeconds] = useState(0);
     const timerRef = useRef<any>(null);
     const [form, setForm] = useState({
@@ -261,7 +259,6 @@ export default function CheckoutPage() {
         if (params.id && typeof window !== 'undefined') persistTrackingParameters(params.id as string);
         return () => {
             if (pollingRef.current) clearTimeout(pollingRef.current);
-            if (countdownRef.current) clearInterval(countdownRef.current);
             if (timerRef.current) clearInterval(timerRef.current);
         };
     }, [params.id]);
@@ -347,23 +344,6 @@ export default function CheckoutPage() {
     const grandTotal = mainPrice + bumpsTotal;
     const grandTotalCents = grandTotal;
     const grandTotalDisplay = grandTotal.toFixed(2);
-
-    const autoLoginAndRedirect = (authData: any) => {
-        if (authData?.token && authData?.user) {
-            localStorage.setItem('token', authData.token);
-            localStorage.setItem('user', JSON.stringify(authData.user));
-        }
-        let count = 5;
-        setCountdown(count);
-        countdownRef.current = setInterval(() => {
-            count--;
-            setCountdown(count);
-            if (count <= 0) {
-                clearInterval(countdownRef.current);
-                router.push('/area-membros');
-            }
-        }, 1000);
-    };
 
     const trackPurchaseOnce = (order: any) => {
         if (purchaseTrackedRef.current || !order?.id || !product?.facebook_pixel_id) return;
@@ -458,7 +438,6 @@ export default function CheckoutPage() {
                     setPixPaid(true);
                     trackPurchaseOnce(data.order);
                     toast.success('Pagamento confirmado! 🎉');
-                    if (data.auth) autoLoginAndRedirect(data.auth);
                     return; // para o polling
                 }
                 if (data.order?.status === 'failed') {
@@ -576,7 +555,6 @@ export default function CheckoutPage() {
             if (data.order?.status === 'paid') {
                 trackPurchaseOnce(data.order);
                 toast.success('Pagamento aprovado! 🎉');
-                if (data.auth) autoLoginAndRedirect(data.auth);
             } else if (methodToSend === 'pix') {
                 if (data.pix) {
                     toast.success('QR Code gerado!');
@@ -683,17 +661,26 @@ export default function CheckoutPage() {
                     <h2 className="text-3xl font-extrabold mb-2" style={{ color: textPrimary }}>
                         Pagamento <span style={{ color: accent }}>Confirmado!</span>
                     </h2>
-                    <p className="text-lg mb-8 opacity-80" style={{ color: textSecondary }}>Seu acesso já está disponível.</p>
+                    <p className="text-base mb-8 leading-relaxed opacity-80" style={{ color: textSecondary }}>
+                        Para resgatar o produto, crie sua conta usando o mesmo e-mail informado na compra e confirme esse e-mail.
+                    </p>
                     
                     <div className="p-6 rounded-2xl mb-8" style={{ background: isLight ? '#f9fafb' : 'rgba(255,255,255,0.03)' }}>
                         <div className="text-sm opacity-60 mb-1" style={{ color: textSecondary }}>Valor total</div>
                         <div className="text-4xl font-black" style={{ color: accent }}>R$ {result.order.amount_display}</div>
                     </div>
 
-                    <button onClick={() => router.push('/area-membros')} className="w-full py-4 px-6 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]" style={{ background: accent }}>
-                        Começar Agora <FiArrowRight size={20} />
-                    </button>
-                    <p className="mt-4 text-xs opacity-50" style={{ color: textMuted }}>Redirecionando em {countdown}s...</p>
+                    <div className="grid gap-3">
+                        <button onClick={() => router.push('/register')} className="w-full py-4 px-6 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]" style={{ background: accent }}>
+                            Criar conta para acessar <FiArrowRight size={20} />
+                        </button>
+                        <button onClick={() => router.push('/login')} className="w-full py-4 px-6 rounded-xl font-bold border flex items-center justify-center gap-2" style={{ color: textPrimary, borderColor }}>
+                            Já tenho conta
+                        </button>
+                    </div>
+                    <p className="mt-4 text-xs opacity-60" style={{ color: textMuted }}>
+                        Nenhum login é feito automaticamente após o pagamento.
+                    </p>
                 </div>
             </div>
         );

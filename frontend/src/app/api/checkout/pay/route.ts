@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { CARD_PLATFORM_FEE_PERCENTAGE, PagarmeService } from '@/lib/pagarme';
-import { jsonError, jsonSuccess, generateToken, hashPassword } from '@/lib/auth';
+import { jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { sendPurchaseApprovedEmail } from '@/lib/email';
 import { sendFacebookEvent } from '@/lib/facebook-capi';
@@ -519,7 +519,6 @@ export async function POST(req: NextRequest) {
         });
 
         // If paid immediately, create fee transaction and update sales count
-        let buyerUser: any = null;
         if (charge?.status === 'paid') {
             try {
                 const { data: seller } = await supabase
@@ -616,59 +615,6 @@ export async function POST(req: NextRequest) {
                 .update({ sales_count: (product.sales_count || 0) + 1 })
                 .eq('id', product.id);
 
-            // AUTO-ENROLLMENT: Find or create buyer user and enroll them
-            const { data: existingUser } = await supabase
-                .from('users')
-                .select('id, name, email, role')
-                .ilike('email', buyer.email.toLowerCase().trim())
-                .single();
-
-            if (existingUser) {
-                buyerUser = existingUser;
-            } else {
-                // Create new customer account
-                const newUserId = uuidv4();
-                const tempPassword = uuidv4().substring(0, 12);
-                const hashedPw = await hashPassword(tempPassword);
-
-                const baseUserData: any = {
-                    id: newUserId,
-                    email: buyer.email.toLowerCase().trim(),
-                    name: buyer.name,
-                    role: 'customer',
-                    status: 'active'
-                };
-
-                let newUser: any = null;
-                let createErr: any = null;
-
-                ({ data: newUser, error: createErr } = await supabase
-                    .from('users')
-                    .insert({ ...baseUserData, password_hash: hashedPw })
-                    .select('id, name, email, role')
-                    .single());
-
-                if (createErr && /password_hash/i.test(createErr.message || '')) {
-                    ({ data: newUser, error: createErr } = await supabase
-                        .from('users')
-                        .insert({ ...baseUserData, password: hashedPw })
-                        .select('id, name, email, role')
-                        .single());
-                }
-
-                if (!createErr && newUser) buyerUser = newUser;
-            }
-
-            if (buyerUser) {
-                // Enroll buyer in the product
-                await supabase.from('enrollments').upsert({
-                    user_id: buyerUser.id,
-                    product_id: product.id,
-                    order_id: orderId,
-                    status: 'active'
-                }, { onConflict: 'user_id, product_id' });
-            }
-
             // Envia email de compra aprovada
             try {
                 const buyerEmail = buyer.email.toLowerCase().trim();
@@ -720,15 +666,6 @@ export async function POST(req: NextRequest) {
                 payment_method: normalizedPaymentMethod,
             }
         };
-
-        // If paid immediately, include auto-login token for buyer
-        if (charge?.status === 'paid' && buyerUser) {
-            const token = generateToken({ id: buyerUser.id, email: buyerUser.email, role: buyerUser.role });
-            response.auth = {
-                token,
-                user: { id: buyerUser.id, name: buyerUser.name, email: buyerUser.email, role: buyerUser.role }
-            };
-        }
 
         if (normalizedPaymentMethod === 'pix') {
             if (pix?.qr_code || pix?.qr_code_url) {

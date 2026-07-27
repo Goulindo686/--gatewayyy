@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
-import { jsonError, jsonSuccess, hashPassword, generateToken } from '@/lib/auth';
+import { jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { CARD_PLATFORM_FEE_PERCENTAGE, PagarmeService } from '@/lib/pagarme';
 import {
@@ -176,48 +176,9 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // Criar ou encontrar conta do cliente e gerar token de login automático
-        let buyerUser: any = null;
-
-        const { data: existingUser } = await supabase
-            .from('users')
-            .select('id, name, email, role')
-            .ilike('email', normalizedEmail)
-            .single();
-
-        if (existingUser) {
-            buyerUser = existingUser;
-        } else {
-            const newUserId = uuidv4();
-            const tempPassword = uuidv4().substring(0, 12);
-            const hashedPw = await hashPassword(tempPassword);
-            const { data: newUser } = await supabase
-                .from('users')
-                .insert({ id: newUserId, email: normalizedEmail, name: customer.name, role: 'customer', status: 'active', password_hash: hashedPw })
-                .select('id, name, email, role')
-                .single();
-            if (newUser) buyerUser = newUser;
-        }
-
-        let authToken: string | null = null;
-        if (buyerUser) {
-            authToken = generateToken({ userId: buyerUser.id, role: buyerUser.role });
-
-            // Enroll no produto vinculado ao plano (se existir)
-            if (plan.product_id) {
-                await supabase.from('enrollments').upsert({
-                    user_id: buyerUser.id,
-                    product_id: plan.product_id,
-                    order_id: subscription.id, // usa o ID da assinatura como referência
-                    status: 'active'
-                }, { onConflict: 'user_id, product_id' });
-            }
-        }
-
         return jsonSuccess({
             subscription,
-            pagarme_status: pagarmeSub.status,
-            auth: buyerUser ? { token: authToken, user: { id: buyerUser.id, name: buyerUser.name, email: buyerUser.email, role: buyerUser.role } } : null
+            pagarme_status: pagarmeSub.status
         }, 201);
     } catch (err: any) {
         const msg = err.response?.data?.message || err.message;

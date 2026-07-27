@@ -15,25 +15,6 @@ export default function PaymentPage() {
     const [loading, setLoading] = useState(true);
     const [paid, setPaid] = useState(false);
     const pollingRef = useRef<any>(null);
-    const countdownRef = useRef<any>(null);
-    const [countdown, setCountdown] = useState(5);
-
-    const autoLoginAndRedirect = (authData: any) => {
-        if (authData?.token && authData?.user) {
-            localStorage.setItem('token', authData.token);
-            localStorage.setItem('user', JSON.stringify(authData.user));
-        }
-        let count = 5;
-        setCountdown(count);
-        countdownRef.current = setInterval(() => {
-            count--;
-            setCountdown(count);
-            if (count <= 0) {
-                clearInterval(countdownRef.current);
-                router.push('/area-membros');
-            }
-        }, 1000);
-    };
 
     useEffect(() => {
         const loadOrder = async () => {
@@ -54,7 +35,6 @@ export default function PaymentPage() {
                 if (data.order?.status === 'paid') {
                     setPaid(true);
                     toast.success('Pagamento confirmado!');
-                    autoLoginAndRedirect(data.auth);
                 }
             } catch (err) {
                 console.error('Failed to load order:', err);
@@ -70,7 +50,6 @@ export default function PaymentPage() {
     useEffect(() => {
         return () => {
             if (pollingRef.current) clearInterval(pollingRef.current);
-            if (countdownRef.current) clearInterval(countdownRef.current);
         };
     }, []);
 
@@ -91,7 +70,6 @@ export default function PaymentPage() {
                     pollingRef.current = null;
                     setPaid(true);
                     toast.success('Pagamento confirmado!');
-                    autoLoginAndRedirect(data.auth);
                 } else if (['failed', 'refunded', 'chargeback', 'cancelled'].includes(data.order?.status)) {
                     clearInterval(pollingRef.current);
                     pollingRef.current = null;
@@ -165,21 +143,26 @@ export default function PaymentPage() {
                         Pagamento <span style={{ color: '#00cec9' }}>Confirmado!</span>
                     </h2>
                     <p style={{ color: '#94a3b8', marginBottom: 18, fontSize: 14 }}>
-                        Seu pagamento foi processado com sucesso.
+                        Seu pagamento foi processado. Para resgatar o produto, crie sua conta com o mesmo e-mail usado na compra e confirme esse e-mail.
                     </p>
                     <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 18, marginBottom: 22, border: '1px solid rgba(255,255,255,0.05)' }}>
                         <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, marginBottom: 6 }}>Valor pago</div>
                         <div style={{ fontSize: 32, fontWeight: 900, color: '#00cec9' }}>R$ {order.amount_display}</div>
                     </div>
-                    <button onClick={() => router.push('/area-membros')} style={{
+                    <button onClick={() => router.push('/register')} style={{
                         width: '100%', padding: '16px', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                         background: 'white', color: '#0a0a0c', borderRadius: 14, border: 'none', cursor: 'pointer', fontWeight: 900
                     }}>
-                        <FiUser size={18} /> Acessar área de membros
+                        <FiUser size={18} /> Criar conta para acessar
                     </button>
-                    <p style={{ color: '#64748b', fontSize: 12, marginTop: 12 }}>
-                        Redirecionando automaticamente em {countdown}s...
-                    </p>
+                    <button onClick={() => router.push('/login')} style={{
+                        width: '100%', padding: '14px', marginTop: 10, fontSize: 14,
+                        background: 'transparent', color: '#e2e8f0', borderRadius: 14,
+                        border: '1px solid rgba(255,255,255,0.12)', cursor: 'pointer', fontWeight: 800
+                    }}>
+                        Já tenho conta
+                    </button>
+                    <p style={{ color: '#64748b', fontSize: 12, marginTop: 12 }}>Nenhum login é feito automaticamente.</p>
                 </div>
             </div>
         );

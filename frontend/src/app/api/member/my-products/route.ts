@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
+import { syncMemberEntitlements } from '@/lib/member-entitlements';
 
 export async function GET(req: NextRequest) {
     const auth = await getAuthUser(req);
@@ -8,32 +9,7 @@ export async function GET(req: NextRequest) {
 
     const normalizedEmail = (auth.user.email || '').toLowerCase().trim();
     if (normalizedEmail) {
-        const { data: paidOrders } = await supabase
-            .from('orders')
-            .select(`
-                id,
-                product_id,
-                products (
-                    type
-                )
-            `)
-            .eq('status', 'paid')
-            .ilike('buyer_email', normalizedEmail);
-
-        const enrollmentsToUpsert = (paidOrders || [])
-            .filter((o: any) => o?.product_id && o?.products?.type === 'digital')
-            .map((o: any) => ({
-                user_id: auth.user.id,
-                product_id: o.product_id,
-                order_id: o.id,
-                status: 'active'
-            }));
-
-        if (enrollmentsToUpsert.length > 0) {
-            await supabase
-                .from('enrollments')
-                .upsert(enrollmentsToUpsert, { onConflict: 'user_id, product_id' });
-        }
+        await syncMemberEntitlements(auth.user.id, normalizedEmail);
     }
 
     const { data: enrollments, error } = await supabase

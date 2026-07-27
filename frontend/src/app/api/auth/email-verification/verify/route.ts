@@ -5,6 +5,7 @@ import { generateToken, jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { EmailVerificationError, verifyEmailCode } from '@/lib/email-verification';
 import { createTwoFactorChallenge } from '@/lib/two-factor';
+import { syncMemberEntitlements } from '@/lib/member-entitlements';
 
 export async function POST(req: NextRequest) {
     try {
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
         if (!verificationToken || !code) return jsonError('Codigo e verificacao sao obrigatorios');
 
         const user = await verifyEmailCode(String(verificationToken), String(code));
+        await syncMemberEntitlements(user.id, user.email);
 
         if (user.two_factor_enabled === true) {
             return jsonSuccess({

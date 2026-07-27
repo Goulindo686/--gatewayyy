@@ -11,12 +11,7 @@ import {
     getStoredPasswordCandidates,
     type StoredPasswordCandidate,
 } from '@/lib/password-storage';
-
-type PaidOrderRow = {
-    id: string;
-    product_id?: string | null;
-    products?: { type?: string | null } | Array<{ type?: string | null }> | null;
-};
+import { syncMemberEntitlements } from '@/lib/member-entitlements';
 
 export async function POST(req: NextRequest) {
     try {
@@ -71,43 +66,6 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        const userEmailNormalized = (user.email || '').toLowerCase().trim();
-        if (userEmailNormalized) {
-            const { data: paidOrders } = await supabase
-                .from('orders')
-                .select(`
-                    id,
-                    product_id,
-                    products (
-                        type
-                    )
-                `)
-                .eq('status', 'paid')
-                .ilike('buyer_email', userEmailNormalized);
-
-            const enrollmentsToUpsert = ((paidOrders || []) as PaidOrderRow[])
-                .flatMap((order) => {
-                    const product = Array.isArray(order.products)
-                        ? order.products[0]
-                        : order.products;
-
-                    if (!order.product_id || product?.type !== 'digital') return [];
-
-                    return [{
-                        user_id: user.id,
-                        product_id: order.product_id,
-                        order_id: order.id,
-                        status: 'active',
-                    }];
-                });
-
-            if (enrollmentsToUpsert.length > 0) {
-                await supabase
-                    .from('enrollments')
-                    .upsert(enrollmentsToUpsert, { onConflict: 'user_id, product_id' });
-            }
-        }
-
         if (user.email_verified !== true) {
             const verification = await requestEmailVerification(user);
             return jsonSuccess({
@@ -117,6 +75,11 @@ export async function POST(req: NextRequest) {
                 code_sent: verification.sent,
                 retry_after: verification.retryAfter,
             });
+        }
+
+        const userEmailNormalized = (user.email || '').toLowerCase().trim();
+        if (userEmailNormalized) {
+            await syncMemberEntitlements(user.id, userEmailNormalized);
         }
 
         if (user.two_factor_enabled === true) {

@@ -359,7 +359,9 @@ export async function sendPurchaseApprovedEmail({
     orderId: string;
 }) {
     const methodLabel = paymentMethod === 'credit_card' ? 'Cartão de Crédito' : 'PIX';
-    const memberAreaUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://goupay.com.br'}/area-membros`;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://goupay.com.br';
+    const registerUrl = `${appUrl}/register`;
+    const loginUrl = `${appUrl}/login`;
     const { transporter, from } = createSmtpClient();
 
     const html = `
@@ -378,7 +380,7 @@ export async function sendPurchaseApprovedEmail({
           <td style="background:linear-gradient(135deg,#6c5ce7 0%,#a29bfe 100%);padding:40px;text-align:center;">
             <div style="font-size:48px;margin-bottom:12px;">✅</div>
             <h1 style="margin:0;color:#fff;font-size:26px;font-weight:800;">Pagamento Confirmado!</h1>
-            <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:15px;">Seu acesso já está disponível</p>
+            <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:15px;">Resgate protegido por confirmação de e-mail</p>
           </td>
         </tr>
         <tr>
@@ -417,9 +419,13 @@ export async function sendPurchaseApprovedEmail({
             </table>
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
               <tr><td align="center">
-                <a href="${memberAreaUrl}" style="display:inline-block;padding:16px 40px;background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:#fff;text-decoration:none;border-radius:12px;font-weight:700;font-size:16px;">
-                  Acessar Meu Conteúdo →
+                <p style="margin:0 0 16px;color:#555;font-size:14px;line-height:1.6;">
+                  Crie sua conta com este mesmo e-mail e confirme o código recebido. Se já possui conta, entre normalmente com sua senha.
+                </p>
+                <a href="${registerUrl}" style="display:inline-block;padding:16px 40px;background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:#fff;text-decoration:none;border-radius:12px;font-weight:700;font-size:16px;">
+                  Criar conta para acessar →
                 </a>
+                <div style="margin-top:14px;"><a href="${loginUrl}" style="color:#6c5ce7;font-size:14px;font-weight:700;">Já tenho conta</a></div>
               </td></tr>
             </table>
             <p style="margin:0;color:#888;font-size:13px;line-height:1.6;text-align:center;">
@@ -443,7 +449,7 @@ export async function sendPurchaseApprovedEmail({
         to: buyerEmail,
         subject: `✅ Compra aprovada — ${productName}`,
         html,
-        text: `Pagamento Confirmado!\n\nOlá ${buyerName},\n\nSua compra foi aprovada!\nProduto: ${productName}\nValor: R$ ${amount}\nMétodo: ${methodLabel}\nPedido: ${orderId}\n\nAcesse: ${memberAreaUrl}\n\nDúvidas? support@goupay.com.br`,
+        text: `Pagamento Confirmado!\n\nOlá ${buyerName},\n\nSua compra foi aprovada!\nProduto: ${productName}\nValor: R$ ${amount}\nMétodo: ${methodLabel}\nPedido: ${orderId}\n\nCrie sua conta usando este mesmo e-mail e confirme o código recebido: ${registerUrl}\nSe já possui conta, entre com sua senha: ${loginUrl}\n\nDúvidas? support@goupay.com.br`,
     });
 
     console.log(`[EMAIL] Enviado para ${buyerEmail}`);
