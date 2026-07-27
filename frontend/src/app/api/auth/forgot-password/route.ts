@@ -62,8 +62,29 @@ export async function POST(req: NextRequest) {
                         resetToken,
                     });
                     console.log(`[FORGOT-PASSWORD][${requestId}] Email de recuperação enviado para ${user.email}`);
-                } catch (sendErr: any) {
-                    console.error(`[FORGOT-PASSWORD][${requestId}] Erro ao enviar email de recuperação:`, sendErr?.message, sendErr?.code);
+                } catch (sendErr: unknown) {
+                    const sendError = sendErr as { message?: string; code?: string };
+                    console.error(
+                        `[FORGOT-PASSWORD][${requestId}] Erro ao enviar email de recuperação:`,
+                        sendError?.message,
+                        sendError?.code
+                    );
+
+                    const { error: cleanupError } = await supabase
+                        .from('users')
+                        .update({
+                            password_reset_token: null,
+                            password_reset_expires: null,
+                        })
+                        .eq('id', user.id)
+                        .eq('password_reset_token', resetToken);
+
+                    if (cleanupError) {
+                        console.error(
+                            `[FORGOT-PASSWORD][${requestId}] Erro ao invalidar token após falha no email:`,
+                            cleanupError.message
+                        );
+                    }
                 }
             } else {
                 console.error(`[FORGOT-PASSWORD][${requestId}] Erro ao salvar token de recuperação no banco:`, error.message, error.code, error.details);

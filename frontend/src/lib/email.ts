@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import { createSmtpClient } from './smtp';
 
 function escapeHtml(value: unknown) {
     return String(value ?? '')
@@ -16,13 +16,7 @@ export async function sendAccountBlockedEmail({
     toEmail: string;
     userName?: string;
 }) {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        console.log(`[EMAIL] SMTP nao configurado para aviso de bloqueio de conta`);
-        return;
-    }
-
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-    const transporter = createTransporter();
+    const { transporter, from } = createSmtpClient();
     const safeUserName = escapeHtml(userName || 'usuario');
     const supportEmail = 'support@goupay.com.br';
     const supportPhone = '32998284648';
@@ -99,7 +93,7 @@ export async function sendAccountBlockedEmail({
 </html>`;
 
     await transporter.sendMail({
-        from: `"GouPay" <${from}>`,
+        from,
         to: toEmail,
         subject: 'Conta GouPay temporariamente bloqueada para analise',
         html,
@@ -107,25 +101,6 @@ export async function sendAccountBlockedEmail({
     });
 
     console.log(`[EMAIL] Aviso de bloqueio de conta enviado para ${toEmail}`);
-}
-
-function createTransporter() {
-    return nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtpout.secureserver.net',
-        port: 587,
-        secure: false,
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-        },
-        tls: {
-            rejectUnauthorized: false,
-            ciphers: 'SSLv3'
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000,
-    });
 }
 
 export async function sendEmailVerificationCode({
@@ -139,12 +114,7 @@ export async function sendEmailVerificationCode({
     code: string;
     expiresInMinutes: number;
 }) {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        throw new Error('SMTP nao configurado para verificacao de email');
-    }
-
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-    const transporter = createTransporter();
+    const { transporter, from } = createSmtpClient();
     const safeName = escapeHtml(userName || 'usuario');
     const safeCode = escapeHtml(code);
 
@@ -181,7 +151,7 @@ export async function sendEmailVerificationCode({
 </html>`;
 
     await transporter.sendMail({
-        from: `"GouPay" <${from}>`,
+        from,
         to: toEmail,
         subject: 'Confirme seu email na GouPay',
         html,
@@ -206,13 +176,8 @@ export async function sendAccountDeletionRequestEmail({
     userAgent?: string;
     requestedAt: string;
 }) {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        throw new Error('SMTP nao configurado para solicitacao de exclusao de conta');
-    }
-
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
     const to = process.env.ACCOUNT_DELETION_EMAIL || process.env.SUPPORT_EMAIL || 'support@goupay.com.br';
-    const transporter = createTransporter();
+    const { transporter, from } = createSmtpClient();
 
     const safeName = escapeHtml(name);
     const safeAccountEmail = escapeHtml(accountEmail);
@@ -258,7 +223,7 @@ export async function sendAccountDeletionRequestEmail({
 </html>`;
 
     await transporter.sendMail({
-        from: `"GouPay" <${from}>`,
+        from,
         to,
         replyTo: contactEmail || accountEmail,
         subject: `Solicitacao de exclusao de conta - ${accountEmail}`,
@@ -286,12 +251,7 @@ export async function sendPixSalesRecoveryEmail({
     pixQrCodeUrl?: string;
     pixExpiresAt?: string;
 }) {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        throw new Error('SMTP nao configurado para recuperacao de vendas');
-    }
-
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-    const transporter = createTransporter();
+    const { transporter, from } = createSmtpClient();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://goupay.com.br';
     const resumeUrl = `${appUrl}/store/recovery/payment/${orderId}`;
     const safeBuyerName = escapeHtml(buyerName || 'cliente');
@@ -373,7 +333,7 @@ export async function sendPixSalesRecoveryEmail({
 </html>`;
 
     await transporter.sendMail({
-        from: `"GouPay" <${from}>`,
+        from,
         to: buyerEmail,
         subject: `Seu Pix ainda esta pendente - ${productName}`,
         html,
@@ -398,15 +358,9 @@ export async function sendPurchaseApprovedEmail({
     paymentMethod: string;
     orderId: string;
 }) {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        console.log(`[EMAIL] SMTP não configurado. SMTP_USER=${process.env.SMTP_USER ? 'ok' : 'MISSING'} SMTP_PASS=${process.env.SMTP_PASS ? 'ok' : 'MISSING'}`);
-        return;
-    }
-
     const methodLabel = paymentMethod === 'credit_card' ? 'Cartão de Crédito' : 'PIX';
     const memberAreaUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://goupay.com.br'}/area-membros`;
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-    const transporter = createTransporter();
+    const { transporter, from } = createSmtpClient();
 
     const html = `
 <!DOCTYPE html>
@@ -485,7 +439,7 @@ export async function sendPurchaseApprovedEmail({
 </html>`;
 
     await transporter.sendMail({
-        from: `"GouPay" <${from}>`,
+        from,
         to: buyerEmail,
         subject: `✅ Compra aprovada — ${productName}`,
         html,
@@ -504,14 +458,8 @@ export async function sendPasswordResetEmail({
     userName: string;
     resetToken: string;
 }) {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        console.log(`[EMAIL] SMTP não configurado para reset de senha`);
-        return;
-    }
-
     const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://goupay.com.br'}/reset-password?token=${resetToken}`;
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-    const transporter = createTransporter();
+    const { transporter, from } = createSmtpClient();
 
     const html = `
 <!DOCTYPE html>
@@ -570,7 +518,7 @@ export async function sendPasswordResetEmail({
 </html>`;
 
     await transporter.sendMail({
-        from: `"GouPay" <${from}>`,
+        from,
         to: toEmail,
         subject: '🔐 Recuperação de Senha — GouPay',
         html,

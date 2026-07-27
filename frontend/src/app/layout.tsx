@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.goupay.com.br"),
   title: "GouPay",
   description: "Gateway de pagamentos e marketplace SaaS. Venda seus produtos online com checkout profissional, split de pagamentos e saques via Pix.",
   keywords: "gateway de pagamentos, marketplace, pix, cartão de crédito, split, vendas online",

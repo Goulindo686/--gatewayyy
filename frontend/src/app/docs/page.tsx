@@ -1,148 +1,431 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiCode, FiArrowLeft, FiZap, FiShield, FiAlertCircle, FiCheckCircle, FiClock, FiXCircle } from 'react-icons/fi';
+import {
+    FiActivity,
+    FiAlertCircle,
+    FiAlertTriangle,
+    FiArrowLeft,
+    FiArrowRight,
+    FiBookOpen,
+    FiCheck,
+    FiCheckCircle,
+    FiChevronRight,
+    FiClock,
+    FiCode,
+    FiCopy,
+    FiCreditCard,
+    FiDatabase,
+    FiExternalLink,
+    FiKey,
+    FiLayers,
+    FiMenu,
+    FiRadio,
+    FiSearch,
+    FiServer,
+    FiShield,
+    FiTerminal,
+    FiX,
+    FiXCircle,
+    FiZap,
+} from 'react-icons/fi';
+import styles from './docs.module.css';
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-function CodeBlock({ code, id, lang }: { code: string; id: string; lang?: string }) {
+const API_BASE_URL = 'https://www.goupay.com.br';
+const PIX_ENDPOINT = `${API_BASE_URL}/api/v1/pix`;
+const PIX_STATUS_ENDPOINT = `${PIX_ENDPOINT}/{transaction_id}`;
+
+const NAV_GROUPS = [
+    {
+        label: 'Primeiros passos',
+        items: [
+            { id: 'inicio', label: 'Visão geral', keywords: 'começar api pix introdução' },
+            { id: 'autenticacao', label: 'Autenticação', keywords: 'api key chave bearer header' },
+            { id: 'endpoints', label: 'Endpoints', keywords: 'url post get limite rate limit' },
+        ],
+    },
+    {
+        label: 'Cobranças PIX',
+        items: [
+            { id: 'criar-pix', label: 'Criar cobrança', keywords: 'post amount customer qr code' },
+            { id: 'consultar', label: 'Consultar status', keywords: 'get transaction id resposta' },
+            { id: 'status-valores', label: 'Status da cobrança', keywords: 'pending paid failed refunded chargeback' },
+            { id: 'polling', label: 'Polling', keywords: 'consulta intervalo webhook' },
+            { id: 'exibir-qr', label: 'Exibir QR Code', keywords: 'pix copia cola imagem react html' },
+        ],
+    },
+    {
+        label: 'Eventos e referência',
+        items: [
+            { id: 'webhooks', label: 'Webhooks', keywords: 'eventos callback servidor segurança' },
+            { id: 'erros', label: 'Erros', keywords: 'http 400 401 403 404 429 500' },
+            { id: 'fluxo', label: 'Checklist final', keywords: 'fluxo integração produção' },
+        ],
+    },
+] as const;
+
+const SECTION_IDS = NAV_GROUPS.flatMap((group) => group.items.map((item) => item.id));
+
+type Method = 'GET' | 'POST';
+type NoticeTone = 'info' | 'warning' | 'success';
+
+function MethodBadge({ method }: { method: Method }) {
+    return <span className={`${styles.methodBadge} ${styles[`method${method}`]}`}>{method}</span>;
+}
+
+function CopyButton({
+    value,
+    label = 'Copiar',
+    compact = false,
+}: {
+    value: string;
+    label?: string;
+    compact?: boolean;
+}) {
     const [copied, setCopied] = useState(false);
-    const copy = () => {
-        navigator.clipboard.writeText(code);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(value);
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1800);
+        } catch {
+            setCopied(false);
+        }
     };
+
     return (
-        <div className="relative group">
-            <div className="flex items-center justify-between bg-gray-700 px-4 py-1.5 rounded-t-lg">
-                <span className="text-xs text-gray-400 font-mono">{lang ?? 'json'}</span>
-                <button onClick={copy} className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition">
-                    {copied ? <><FiCheck size={12} /> Copiado</> : <><FiCopy size={12} /> Copiar</>}
-                </button>
+        <button
+            type="button"
+            className={`${styles.copyButton} ${compact ? styles.copyButtonCompact : ''}`}
+            onClick={copy}
+            aria-label={copied ? 'Conteúdo copiado' : `${label} para a área de transferência`}
+        >
+            {copied ? <FiCheck aria-hidden="true" /> : <FiCopy aria-hidden="true" />}
+            <span>{copied ? 'Copiado' : label}</span>
+        </button>
+    );
+}
+
+function CodeBlock({ code, language = 'json' }: { code: string; language?: string }) {
+    return (
+        <div className={styles.codeBlock}>
+            <div className={styles.codeHeader}>
+                <div className={styles.codeLanguage}>
+                    <span className={styles.windowDots} aria-hidden="true">
+                        <i />
+                        <i />
+                        <i />
+                    </span>
+                    <span>{language}</span>
+                </div>
+                <CopyButton value={code} compact />
             </div>
-            <pre className="bg-gray-800 text-gray-100 p-4 rounded-b-lg overflow-x-auto text-sm leading-relaxed">
+            <pre>
                 <code>{code}</code>
             </pre>
         </div>
     );
 }
 
-function Badge({ method }: { method: 'POST' | 'GET' }) {
-    const cls = method === 'POST'
-        ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-        : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300';
-    return <span className={`px-2.5 py-1 rounded font-bold text-xs ${cls}`}>{method}</span>;
-}
-
-function StatusBadge({ status, label, color }: { status: string; label: string; color: string }) {
-    const colors: Record<string, string> = {
-        yellow: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
-        green:  'bg-green-100  text-green-800  dark:bg-green-900/40  dark:text-green-300',
-        red:    'bg-red-100    text-red-800    dark:bg-red-900/40    dark:text-red-300',
-        gray:   'bg-gray-100   text-gray-800   dark:bg-gray-700      dark:text-gray-300',
-    };
+function Notice({
+    tone,
+    title,
+    children,
+}: {
+    tone: NoticeTone;
+    title: string;
+    children: React.ReactNode;
+}) {
+    const Icon = tone === 'warning' ? FiAlertTriangle : tone === 'success' ? FiCheckCircle : FiAlertCircle;
     return (
-        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${colors[color]}`}>
-            <code>{status}</code> — {label}
-        </span>
+        <div className={`${styles.notice} ${styles[`notice${tone}`]}`}>
+            <Icon aria-hidden="true" />
+            <div>
+                <strong>{title}</strong>
+                <div>{children}</div>
+            </div>
+        </div>
     );
 }
 
-// ─── main page ──────────────────────────────────────────────────────────────
+function SectionHeading({
+    eyebrow,
+    title,
+    description,
+}: {
+    eyebrow: string;
+    title: string;
+    description?: string;
+}) {
+    return (
+        <div className={styles.sectionHeading}>
+            <span>{eyebrow}</span>
+            <h2>{title}</h2>
+            {description && <p>{description}</p>}
+        </div>
+    );
+}
+
+function EndpointBar({ method, endpoint }: { method: Method; endpoint: string }) {
+    return (
+        <div className={styles.endpointBar}>
+            <MethodBadge method={method} />
+            <code>{endpoint}</code>
+            <CopyButton value={endpoint} compact />
+        </div>
+    );
+}
+
+function SnippetTabs({
+    section,
+    languages,
+    snippets,
+    activeTabs,
+    onTabChange,
+}: {
+    section: string;
+    languages: string[];
+    snippets: Record<string, Record<string, string>>;
+    activeTabs: Record<string, string>;
+    onTabChange: (section: string, language: string) => void;
+}) {
+    const active = activeTabs[section] ?? languages[0];
+    return (
+        <div className={styles.snippet}>
+            <div className={styles.tabs} role="tablist" aria-label="Linguagem do exemplo">
+                {languages.map((language) => (
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={active === language}
+                        key={language}
+                        onClick={() => onTabChange(section, language)}
+                        className={active === language ? styles.tabActive : ''}
+                    >
+                        {language}
+                    </button>
+                ))}
+            </div>
+            <CodeBlock code={snippets[section][active]} language={active} />
+        </div>
+    );
+}
+
+function SidebarContent({
+    inputId,
+    search,
+    searchResults,
+    activeSection,
+    onSearchChange,
+    onNavigate,
+}: {
+    inputId: string;
+    search: string;
+    searchResults: Array<{ id: string; label: string; keywords: string; group: string }>;
+    activeSection: string;
+    onSearchChange: (value: string) => void;
+    onNavigate: (id: string) => void;
+}) {
+    return (
+        <>
+            <div className={styles.searchWrap}>
+                <FiSearch aria-hidden="true" />
+                <input
+                    id={inputId}
+                    type="search"
+                    placeholder="Buscar na documentação"
+                    value={search}
+                    onChange={(event) => onSearchChange(event.target.value)}
+                    aria-label="Buscar na documentação"
+                />
+                <kbd>/</kbd>
+            </div>
+
+            {search.trim() ? (
+                <div className={styles.searchResults}>
+                    <span className={styles.navGroupLabel}>
+                        {searchResults.length ? `${searchResults.length} resultado${searchResults.length > 1 ? 's' : ''}` : 'Nenhum resultado'}
+                    </span>
+                    {searchResults.map((item) => (
+                        <a key={item.id} href={`#${item.id}`} onClick={() => onNavigate(item.id)}>
+                            <small>{item.group}</small>
+                            <span>{item.label}</span>
+                            <FiChevronRight aria-hidden="true" />
+                        </a>
+                    ))}
+                </div>
+            ) : (
+                <nav className={styles.sideNav} aria-label="Seções da documentação">
+                    {NAV_GROUPS.map((group) => (
+                        <div key={group.label} className={styles.navGroup}>
+                            <span className={styles.navGroupLabel}>{group.label}</span>
+                            {group.items.map((item) => (
+                                <a
+                                    key={item.id}
+                                    href={`#${item.id}`}
+                                    onClick={() => onNavigate(item.id)}
+                                    aria-current={activeSection === item.id ? 'location' : undefined}
+                                    className={activeSection === item.id ? styles.navActive : ''}
+                                >
+                                    <span className={styles.navDot} />
+                                    {item.label}
+                                </a>
+                            ))}
+                        </div>
+                    ))}
+                </nav>
+            )}
+
+            <div className={styles.sidebarFooter}>
+                <FiShield aria-hidden="true" />
+                <div>
+                    <strong>Chave sempre no backend</strong>
+                    <span>Nunca exponha a API Key no navegador ou aplicativo.</span>
+                </div>
+            </div>
+        </>
+    );
+}
+
 export default function DocsPage() {
-    const [baseUrl, setBaseUrl] = useState('https://seu-dominio.com');
-    const [activeTab, setActiveTab] = useState<Record<string, string>>({});
+    const [activeSection, setActiveSection] = useState('inicio');
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const [activeTabs, setActiveTabs] = useState<Record<string, string>>({});
 
     useEffect(() => {
-        if (typeof window !== 'undefined') setBaseUrl(window.location.origin);
+        const elements = SECTION_IDS
+            .map((id) => document.getElementById(id))
+            .filter((element): element is HTMLElement => Boolean(element));
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const visible = entries
+                    .filter((entry) => entry.isIntersecting)
+                    .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+
+                if (visible[0]?.target.id) setActiveSection(visible[0].target.id);
+            },
+            { rootMargin: '-18% 0px -68% 0px', threshold: 0 },
+        );
+
+        elements.forEach((element) => observer.observe(element));
+        return () => observer.disconnect();
     }, []);
 
-    const setTab = (section: string, tab: string) =>
-        setActiveTab(prev => ({ ...prev, [section]: tab }));
-    const getTab = (section: string, def: string) => activeTab[section] ?? def;
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            const target = event.target as HTMLElement;
+            const isTyping = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+            if (event.key === '/' && !isTyping) {
+                event.preventDefault();
+                const mobile = window.matchMedia('(max-width: 960px)').matches;
+                if (mobile) setMobileMenuOpen(true);
+                window.setTimeout(
+                    () => document.getElementById(mobile ? 'docs-search-mobile' : 'docs-search-desktop')?.focus(),
+                    0,
+                );
+            }
+            if (event.key === 'Escape') setMobileMenuOpen(false);
+        };
 
-    const ep  = `${baseUrl}/api/v1/pix`;
-    const epS = `${baseUrl}/api/v1/pix/{transaction_id}`;
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, []);
 
-    // ── code snippets ────────────────────────────────────────────────────────
-    const snippets: Record<string, Record<string, string>> = {
-        create: {
-            'Node.js': `const axios = require('axios');
+    useEffect(() => {
+        document.body.style.overflow = mobileMenuOpen ? 'hidden' : '';
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [mobileMenuOpen]);
 
-const response = await axios.post('${ep}', {
-  amount: 2990,           // R$ 29,90 em centavos
-  description: 'Pedido #42',
-  customer: {
-    name: 'Maria Souza',
-    email: 'maria@email.com',
-    cpf: '12345678900',
-    phone: '11999999999'  // opcional
-  }
-}, {
+    const snippets: Record<string, Record<string, string>> = useMemo(
+        () => ({
+            create: {
+                'Node.js': `const response = await fetch('${PIX_ENDPOINT}', {
+  method: 'POST',
   headers: {
-    'x-api-key': 'SUA_CHAVE_AQUI',
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+    'x-api-key': process.env.GOUPAY_API_KEY
+  },
+  body: JSON.stringify({
+    amount: 2990,
+    description: 'Pedido #42',
+    customer: {
+      name: 'Maria Souza',
+      email: 'maria@email.com',
+      cpf: '12345678900',
+      phone: '11999999999'
+    }
+  })
 });
 
-const { transaction_id, pix } = response.data;
-console.log('QR Code texto:', pix.qr_code);
-console.log('QR Code imagem:', pix.qr_code_url);
-console.log('Expira em:', pix.expires_at);`,
+const data = await response.json();
+if (!response.ok) throw new Error(data.error);
 
-            'PHP': `<?php
-$ch = curl_init('${ep}');
+console.log(data.transaction_id);
+console.log(data.pix.qr_code);`,
+                PHP: `<?php
+$ch = curl_init('${PIX_ENDPOINT}');
+
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_POST           => true,
-    CURLOPT_POSTFIELDS     => json_encode([
-        'amount'      => 2990,
+    CURLOPT_POST => true,
+    CURLOPT_HTTPHEADER => [
+        'Content-Type: application/json',
+        'x-api-key: ' . getenv('GOUPAY_API_KEY'),
+    ],
+    CURLOPT_POSTFIELDS => json_encode([
+        'amount' => 2990,
         'description' => 'Pedido #42',
-        'customer'    => [
-            'name'  => 'Maria Souza',
+        'customer' => [
+            'name' => 'Maria Souza',
             'email' => 'maria@email.com',
-            'cpf'   => '12345678900',
+            'cpf' => '12345678900',
             'phone' => '11999999999',
         ],
     ]),
-    CURLOPT_HTTPHEADER => [
-        'Content-Type: application/json',
-        'x-api-key: SUA_CHAVE_AQUI',
-    ],
 ]);
 
-$body   = curl_exec($ch);
+$body = curl_exec($ch);
 $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
-$data = json_decode($body, true);
-echo $data['pix']['qr_code'];`,
+if ($status >= 400) {
+    throw new Exception($body);
+}
 
-            'Python': `import requests
+$data = json_decode($body, true);`,
+                Python: `import os
+import requests
 
-resp = requests.post(
-    '${ep}',
+response = requests.post(
+    '${PIX_ENDPOINT}',
+    headers={'x-api-key': os.environ['GOUPAY_API_KEY']},
     json={
         'amount': 2990,
         'description': 'Pedido #42',
         'customer': {
-            'name':  'Maria Souza',
+            'name': 'Maria Souza',
             'email': 'maria@email.com',
-            'cpf':   '12345678900',
+            'cpf': '12345678900',
             'phone': '11999999999',
         },
     },
-    headers={'x-api-key': 'SUA_CHAVE_AQUI'},
+    timeout=15,
 )
 
-data = resp.json()
-print(data['pix']['qr_code'])
-print(data['pix']['qr_code_url'])`,
-
-            'cURL': `curl -X POST ${ep} \\
-  -H "Content-Type: application/json" \\
-  -H "x-api-key: SUA_CHAVE_AQUI" \\
-  -d '{
+response.raise_for_status()
+data = response.json()
+print(data['transaction_id'])
+print(data['pix']['qr_code'])`,
+                cURL: `curl --request POST '${PIX_ENDPOINT}' \\
+  --header 'Content-Type: application/json' \\
+  --header 'x-api-key: SUA_CHAVE_AQUI' \\
+  --data '{
     "amount": 2990,
     "description": "Pedido #42",
     "customer": {
@@ -151,165 +434,243 @@ print(data['pix']['qr_code_url'])`,
       "cpf": "12345678900"
     }
   }'`,
-        },
-
-        status: {
-            'Node.js': `const axios = require('axios');
-
-const { data } = await axios.get(
-  \`${baseUrl}/api/v1/pix/\${transactionId}\`,
-  { headers: { 'x-api-key': 'SUA_CHAVE_AQUI' } }
+            },
+            status: {
+                'Node.js': `const response = await fetch(
+  \`${PIX_ENDPOINT}/\${transactionId}\`,
+  {
+    headers: {
+      'x-api-key': process.env.GOUPAY_API_KEY
+    }
+  }
 );
 
-if (data.status === 'paid') {
-  console.log('Pagamento confirmado!');
-}`,
+const payment = await response.json();
+if (!response.ok) throw new Error(payment.error);
 
-            'PHP': `<?php
-$ch = curl_init("${baseUrl}/api/v1/pix/{$transactionId}");
+if (payment.status === 'paid') {
+  await liberarPedidoUmaVez(payment.transaction_id);
+}`,
+                PHP: `<?php
+$transactionId = 'ID_DA_TRANSACAO';
+$ch = curl_init('${PIX_ENDPOINT}/' . $transactionId);
+
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_HTTPHEADER     => ['x-api-key: SUA_CHAVE_AQUI'],
+    CURLOPT_HTTPHEADER => [
+        'x-api-key: ' . getenv('GOUPAY_API_KEY'),
+    ],
 ]);
+
 $data = json_decode(curl_exec($ch), true);
 curl_close($ch);
 
 if ($data['status'] === 'paid') {
-    echo 'Pago!';
+    liberarPedidoUmaVez($data['transaction_id']);
 }`,
+                Python: `import os
+import requests
 
-            'Python': `import requests
-
-resp = requests.get(
-    f'${baseUrl}/api/v1/pix/{transaction_id}',
-    headers={'x-api-key': 'SUA_CHAVE_AQUI'},
+response = requests.get(
+    f'${PIX_ENDPOINT}/{transaction_id}',
+    headers={'x-api-key': os.environ['GOUPAY_API_KEY']},
+    timeout=15,
 )
-data = resp.json()
-print(data['status'])  # pending | paid | failed | expired`,
 
-            'cURL': `curl ${baseUrl}/api/v1/pix/{transaction_id} \\
-  -H "x-api-key: SUA_CHAVE_AQUI"`,
-        },
+response.raise_for_status()
+payment = response.json()
 
-        polling: {
-            'Node.js': `async function aguardarPagamento(transactionId, timeoutMs = 600_000) {
+if payment['status'] == 'paid':
+    liberar_pedido_uma_vez(payment['transaction_id'])`,
+                cURL: `curl '${PIX_STATUS_ENDPOINT}' \\
+  --header 'x-api-key: SUA_CHAVE_AQUI'`,
+            },
+            polling: {
+                'Node.js': `async function aguardarPagamento(transactionId, timeoutMs = 600_000) {
   const inicio = Date.now();
+
   while (Date.now() - inicio < timeoutMs) {
-    const { data } = await axios.get(
-      \`${baseUrl}/api/v1/pix/\${transactionId}\`,
-      { headers: { 'x-api-key': 'SUA_CHAVE_AQUI' } }
+    const response = await fetch(
+      \`${PIX_ENDPOINT}/\${transactionId}\`,
+      { headers: { 'x-api-key': process.env.GOUPAY_API_KEY } }
     );
 
-    if (data.status === 'paid')    return { pago: true };
-    if (data.status === 'failed')  return { pago: false, motivo: 'falhou' };
-    if (data.status === 'expired') return { pago: false, motivo: 'expirado' };
+    if (response.status === 429) {
+      const espera = Number(response.headers.get('Retry-After') || 60);
+      await new Promise(resolve => setTimeout(resolve, espera * 1000));
+      continue;
+    }
 
-    await new Promise(r => setTimeout(r, 5000)); // aguarda 5s
+    const payment = await response.json();
+    if (payment.status === 'paid') return payment;
+    if (['failed', 'refunded', 'chargeback'].includes(payment.status)) {
+      throw new Error(\`Cobrança finalizada como \${payment.status}\`);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 5000));
   }
-  return { pago: false, motivo: 'timeout' };
-}`,
 
-            'Python': `import time, requests
+  throw new Error('Tempo limite de consulta atingido');
+}`,
+                Python: `import os
+import time
+import requests
 
 def aguardar_pagamento(transaction_id, timeout=600):
     inicio = time.time()
-    while time.time() - inicio < timeout:
-        r = requests.get(
-            f'${baseUrl}/api/v1/pix/{transaction_id}',
-            headers={'x-api-key': 'SUA_CHAVE_AQUI'},
-        ).json()
 
-        if r['status'] == 'paid':    return True
-        if r['status'] in ('failed', 'expired'): return False
+    while time.time() - inicio < timeout:
+        response = requests.get(
+            f'${PIX_ENDPOINT}/{transaction_id}',
+            headers={'x-api-key': os.environ['GOUPAY_API_KEY']},
+            timeout=15,
+        )
+
+        if response.status_code == 429:
+            time.sleep(int(response.headers.get('Retry-After', 60)))
+            continue
+
+        response.raise_for_status()
+        payment = response.json()
+
+        if payment['status'] == 'paid':
+            return payment
+        if payment['status'] in ('failed', 'refunded', 'chargeback'):
+            raise RuntimeError(payment['status'])
 
         time.sleep(5)
-    return False`,
-        },
 
-        qrHtml: {
-            'HTML': `<!-- Exibir QR Code como imagem -->
-<img src="{qr_code_url}" alt="QR Code Pix" width="250" height="250" />
+    raise TimeoutError('Tempo limite de consulta atingido')`,
+            },
+            qr: {
+                HTML: `<img
+  src="{qr_code_url}"
+  alt="QR Code para pagamento via PIX"
+  width="240"
+  height="240"
+/>
 
-<!-- Copiar código Pix (copia e cola) -->
-<input id="pix-code" type="text" value="{qr_code}" readonly />
-<button onclick="navigator.clipboard.writeText(document.getElementById('pix-code').value)">
+<label for="pix-code">PIX copia e cola</label>
+<input id="pix-code" value="{qr_code}" readonly />
+
+<button
+  type="button"
+  onclick="navigator.clipboard.writeText(
+    document.getElementById('pix-code').value
+  )"
+>
   Copiar código
 </button>`,
+                React: `function PagamentoPix({ pix }) {
+  const expiracao = new Date(pix.expires_at);
 
-            'React': `import QRCode from 'react-qr-code'; // npm i react-qr-code
-
-function PagamentoPix({ pix }) {
   return (
-    <div>
-      {/* Renderiza o QR localmente a partir do texto */}
-      <QRCode value={pix.qr_code} size={220} />
+    <section aria-labelledby="pix-title">
+      <h2 id="pix-title">Pague com PIX</h2>
 
-      {/* Ou usa a URL de imagem retornada pela API */}
-      <img src={pix.qr_code_url} alt="QR Code Pix" width={220} />
+      <img
+        src={pix.qr_code_url}
+        alt="QR Code para pagamento via PIX"
+        width={240}
+        height={240}
+      />
 
       <button onClick={() => navigator.clipboard.writeText(pix.qr_code)}>
-        Copiar código Pix
+        Copiar código PIX
       </button>
 
-      <p>Expira em: {new Date(pix.expires_at).toLocaleString('pt-BR')}</p>
-    </div>
+      <p>Válido até {expiracao.toLocaleString('pt-BR')}</p>
+    </section>
   );
 }`,
-        },
+            },
+            webhook: {
+                'Node.js (Express)': `import express from 'express';
 
-        webhook: {
-            'Node.js (Express)': `const express = require('express');
 const app = express();
 app.use(express.json());
 
-app.post('/webhook/pix', (req, res) => {
+app.post('/webhooks/goupay', async (req, res) => {
   const { event, data } = req.body;
 
-  if (event === 'order.paid') {
-    console.log('Pago! ID:', data.id, 'Valor:', data.amount_display);
-    // liberar acesso, enviar e-mail, atualizar banco...
-  }
+  try {
+    if (event === 'order.paid') {
+      // Confirme o status na API antes de liberar o pedido.
+      const response = await fetch(
+        \`${PIX_ENDPOINT}/\${data.transaction_id}\`,
+        {
+          headers: {
+            'x-api-key': process.env.GOUPAY_API_KEY
+          }
+        }
+      );
 
-  if (event === 'order.failed') {
-    console.log('Falhou:', data.id);
-  }
+      const payment = await response.json();
+      if (payment.status === 'paid') {
+        await liberarPedidoUmaVez(payment.transaction_id);
+      }
+    }
 
-  res.sendStatus(200); // sempre responda 200
+    return res.sendStatus(200);
+  } catch (error) {
+    console.error('Falha ao processar webhook', error);
+    return res.sendStatus(500);
+  }
 });`,
-
-            'PHP': `<?php
+                PHP: `<?php
 $payload = json_decode(file_get_contents('php://input'), true);
-$event   = $payload['event'] ?? '';
-$data    = $payload['data']  ?? [];
+$event = $payload['event'] ?? '';
+$data = $payload['data'] ?? [];
 
 if ($event === 'order.paid') {
-    // liberar acesso, atualizar banco...
-    error_log('Pago: ' . $data['id']);
+    // Consulte GET /api/v1/pix/{id} antes de liberar.
+    confirmarEProcessarUmaVez($data['transaction_id']);
 }
 
 http_response_code(200);
 echo 'ok';`,
-
-            'Python (Flask)': `from flask import Flask, request
+                'Python (Flask)': `from flask import Flask, request
 
 app = Flask(__name__)
 
-@app.post('/webhook/pix')
+@app.post('/webhooks/goupay')
 def webhook():
-    body  = request.get_json()
-    event = body.get('event')
-    data  = body.get('data', {})
+    payload = request.get_json(silent=True) or {}
+    event = payload.get('event')
+    data = payload.get('data', {})
 
     if event == 'order.paid':
-        print('Pago:', data['id'], data['amount_display'])
-        # liberar acesso, enviar e-mail...
+        # Consulte GET /api/v1/pix/{id} antes de liberar.
+        confirmar_e_processar_uma_vez(data['transaction_id'])
 
     return 'ok', 200`,
-        },
+            },
+        }),
+        [],
+    );
+
+    const searchResults = useMemo(() => {
+        const normalized = search.trim().toLocaleLowerCase('pt-BR');
+        if (!normalized) return [];
+
+        return NAV_GROUPS.flatMap((group) =>
+            group.items
+                .filter((item) => `${item.label} ${item.keywords}`.toLocaleLowerCase('pt-BR').includes(normalized))
+                .map((item) => ({ ...item, group: group.label })),
+        );
+    }, [search]);
+
+    const setTab = (section: string, language: string) => {
+        setActiveTabs((current) => ({ ...current, [section]: language }));
     };
 
-    // ── response examples ────────────────────────────────────────────────────
-    const resCreate = `{
+    const scrollToSection = (id: string) => {
+        setActiveSection(id);
+        setMobileMenuOpen(false);
+        setSearch('');
+    };
+
+    const createResponse = `{
   "success": true,
   "transaction_id": "8a40135d-e021-456d-a94f-3122c525d5d9",
   "status": "pending",
@@ -317,26 +678,32 @@ def webhook():
   "pix": {
     "qr_code": "00020126580014BR.GOV.BCB.PIX...",
     "qr_code_url": "https://api.pagar.me/.../qrcode",
-    "expires_at": "2026-04-01T13:00:00.000Z"
+    "expires_at": "2026-08-01T15:30:00.000Z"
   }
 }`;
 
-    const resStatus = `{
+    const statusResponse = `{
   "success": true,
   "transaction_id": "8a40135d-e021-456d-a94f-3122c525d5d9",
   "status": "paid",
+  "raw_status": "paid",
   "amount": 2990,
   "payment_method": "pix",
-  "customer": { "name": "Maria Souza", "email": "maria@email.com" },
+  "pagarme_id": "or_...",
+  "description": "Venda via API",
+  "customer": {
+    "name": "Maria Souza",
+    "email": "maria@email.com"
+  },
+  "created_at": "2026-08-01T15:00:00.000Z",
   "pix": {
     "qr_code": "00020126580014BR.GOV.BCB.PIX...",
     "qr_code_url": "https://api.pagar.me/.../qrcode",
-    "expires_at": "2026-04-01T13:00:00.000Z"
-  },
-  "created_at": "2026-04-01T12:00:00.000Z"
+    "expires_at": "2026-08-01T15:30:00.000Z"
+  }
 }`;
 
-    const resWebhook = `{
+    const webhookResponse = `{
   "event": "order.paid",
   "data": {
     "id": "8a40135d-e021-456d-a94f-3122c525d5d9",
@@ -344,6 +711,7 @@ def webhook():
     "status": "paid",
     "amount": 2990,
     "amount_display": "29.90",
+    "description": null,
     "payment_method": "pix",
     "customer": {
       "name": "Maria Souza",
@@ -351,350 +719,645 @@ def webhook():
       "cpf": "12345678900",
       "phone": "11999999999"
     },
-    "created_at": "2026-04-01T12:00:00.000Z",
-    "updated_at": "2026-04-01T12:04:33.000Z"
+    "created_at": "2026-08-01T15:00:00.000Z",
+    "updated_at": "2026-08-01T15:04:33.000Z"
   }
 }`;
 
-    // ── tabs helper ──────────────────────────────────────────────────────────
-    function Tabs({ section, langs }: { section: string; langs: string[] }) {
-        const active = getTab(section, langs[0]);
-        return (
-            <div>
-                <div className="flex gap-1 mb-0 flex-wrap">
-                    {langs.map(l => (
-                        <button
-                            key={l}
-                            onClick={() => setTab(section, l)}
-                            className={`px-3 py-1.5 text-xs rounded-t-md font-medium transition ${
-                                active === l
-                                    ? 'bg-gray-700 text-white'
-                                    : 'bg-gray-200 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-600'
-                            }`}
-                        >
-                            {l}
-                        </button>
-                    ))}
-                </div>
-                <CodeBlock code={snippets[section][active]} id={`${section}-${active}`} lang={active} />
-            </div>
-        );
-    }
+    const errorResponse = `{
+  "error": "Chave de API inválida",
+  "status": "error"
+}`;
 
-    // ── render ───────────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans">
-            {/* sidebar nav */}
-            <nav className="hidden lg:flex flex-col fixed left-0 top-0 h-full w-56 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-6 gap-1 text-sm overflow-y-auto z-10">
-                <Link href="/" className="flex items-center gap-2 text-gray-500 hover:text-blue-500 mb-6 transition">
-                    <FiArrowLeft /> Voltar
-                </Link>
-                {[
-                    ['#inicio',        'Início'],
-                    ['#autenticacao',  '1. Autenticação'],
-                    ['#endpoints',     '2. Endpoints'],
-                    ['#criar-pix',     '3. Criar PIX'],
-                    ['#consultar',     '4. Consultar Status'],
-                    ['#status-valores','5. Valores de Status'],
-                    ['#polling',       '6. Polling'],
-                    ['#exibir-qr',     '7. Exibir QR Code'],
-                    ['#webhooks',      '8. Webhooks'],
-                    ['#erros',         '9. Erros'],
-                    ['#fluxo',         '10. Fluxo Completo'],
-                ].map(([href, label]) => (
-                    <a key={href} href={href} className="text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 py-1 transition">
-                        {label}
-                    </a>
-                ))}
-            </nav>
+        <div className={styles.docsPage}>
+            <a className={styles.skipLink} href="#conteudo">
+                Pular para o conteúdo
+            </a>
 
-            <main className="lg:ml-56 max-w-4xl mx-auto px-6 py-12 space-y-16">
+            <div className={styles.ambientOne} aria-hidden="true" />
+            <div className={styles.ambientTwo} aria-hidden="true" />
 
-                {/* header */}
-                <header id="inicio">
-                    <div className="flex items-center gap-3 mb-2 lg:hidden">
-                        <Link href="/" className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition">
-                            <FiArrowLeft />
+            <header className={styles.topbar}>
+                <div className={styles.topbarInner}>
+                    <Link href="/" className={styles.brand} aria-label="GouPay — página inicial">
+                        <span className={styles.brandMark}>G</span>
+                        <span>GouPay</span>
+                        <span className={styles.brandDivider} />
+                        <small>Developers</small>
+                    </Link>
+
+                    <div className={styles.topbarActions}>
+                        <span className={styles.versionBadge}>
+                            <span />
+                            API v1
+                        </span>
+                        <Link href="/dashboard/integrations" className={styles.dashboardLink}>
+                            Gerar API Key
+                            <FiExternalLink aria-hidden="true" />
                         </Link>
+                        <button
+                            type="button"
+                            className={styles.mobileMenuButton}
+                            onClick={() => setMobileMenuOpen(true)}
+                            aria-label="Abrir navegação"
+                            aria-expanded={mobileMenuOpen}
+                        >
+                            <FiMenu aria-hidden="true" />
+                        </button>
                     </div>
-                    <div className="flex items-center gap-3 mb-3">
-                        <FiCode size={28} className="text-blue-500" />
-                        <h1 className="text-3xl font-bold text-blue-600 dark:text-blue-400">Documentação da API PIX</h1>
-                    </div>
-                    <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">
-                        Integre cobranças PIX diretamente no seu site, app ou sistema em minutos.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {[
-                            { icon: <FiZap className="text-yellow-500" />, title: 'Simples', desc: 'Uma chamada POST para gerar o QR Code' },
-                            { icon: <FiShield className="text-green-500" />, title: 'Seguro', desc: 'Autenticação por API Key + HTTPS' },
-                            { icon: <FiCheckCircle className="text-blue-500" />, title: 'Confiável', desc: 'Webhooks automáticos na confirmação' },
-                        ].map(c => (
-                            <div key={c.title} className="flex items-start gap-3 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                                <div className="mt-0.5 text-xl">{c.icon}</div>
-                                <div>
-                                    <p className="font-semibold">{c.title}</p>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">{c.desc}</p>
+                </div>
+            </header>
+
+            <div
+                className={`${styles.mobileOverlay} ${mobileMenuOpen ? styles.mobileOverlayOpen : ''}`}
+                onClick={() => setMobileMenuOpen(false)}
+                aria-hidden={!mobileMenuOpen}
+            />
+            <aside className={`${styles.mobileDrawer} ${mobileMenuOpen ? styles.mobileDrawerOpen : ''}`}>
+                <div className={styles.mobileDrawerHeader}>
+                    <span>Documentação</span>
+                    <button type="button" onClick={() => setMobileMenuOpen(false)} aria-label="Fechar navegação">
+                        <FiX aria-hidden="true" />
+                    </button>
+                </div>
+                <SidebarContent
+                    inputId="docs-search-mobile"
+                    search={search}
+                    searchResults={searchResults}
+                    activeSection={activeSection}
+                    onSearchChange={setSearch}
+                    onNavigate={scrollToSection}
+                />
+            </aside>
+
+            <div className={styles.layout}>
+                <aside className={styles.sidebar}>
+                    <SidebarContent
+                        inputId="docs-search-desktop"
+                        search={search}
+                        searchResults={searchResults}
+                        activeSection={activeSection}
+                        onSearchChange={setSearch}
+                        onNavigate={scrollToSection}
+                    />
+                </aside>
+
+                <main id="conteudo" className={styles.content}>
+                    <section id="inicio" className={styles.hero}>
+                        <div className={styles.heroGrid}>
+                            <div>
+                                <div className={styles.eyebrow}>
+                                    <FiBookOpen aria-hidden="true" />
+                                    Documentação oficial
+                                </div>
+                                <h1>
+                                    Integre pagamentos PIX
+                                    <span> com clareza e segurança.</span>
+                                </h1>
+                                <p>
+                                    Crie cobranças, exiba o QR Code e acompanhe cada pagamento com uma API simples,
+                                    previsível e pronta para o seu backend.
+                                </p>
+                                <div className={styles.heroActions}>
+                                    <a href="#autenticacao" className={styles.primaryAction}>
+                                        Começar integração
+                                        <FiArrowRight aria-hidden="true" />
+                                    </a>
+                                    <Link href="/" className={styles.secondaryAction}>
+                                        <FiArrowLeft aria-hidden="true" />
+                                        Voltar ao site
+                                    </Link>
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                </header>
 
-                {/* 1. autenticação */}
-                <section id="autenticacao">
-                    <h2 className="text-2xl font-bold mb-4">1. Autenticação</h2>
-                    <p className="mb-4 text-gray-700 dark:text-gray-300">
-                        Todas as requisições precisam de uma <strong>Chave de API</strong> no header.
-                        Para gerar a sua, acesse o painel em <strong>Integrações → API Pix</strong> e clique em <em>Gerar nova chave</em>.
-                    </p>
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 p-4 mb-4 rounded-r-lg">
-                        <p className="text-sm text-blue-800 dark:text-blue-200">
-                            Guarde sua chave em segurança. Ela dá acesso à sua conta e não deve ser exposta no frontend/browser.
-                            Use sempre no backend (servidor).
-                        </p>
-                    </div>
-                    <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">Você pode enviar a chave de duas formas:</p>
-                    <CodeBlock code={`# Opção 1 — header dedicado (recomendado)
+                            <div className={styles.heroTerminal} aria-label="Exemplo de criação de cobrança">
+                                <div className={styles.terminalTop}>
+                                    <span className={styles.windowDots} aria-hidden="true">
+                                        <i />
+                                        <i />
+                                        <i />
+                                    </span>
+                                    <span>criar-cobranca.sh</span>
+                                    <span className={styles.terminalLive}>live</span>
+                                </div>
+                                <pre>
+                                    <code>
+                                        <span className={styles.codeMuted}>$ </span>
+                                        <span className={styles.codeBlue}>curl</span> -X POST \{'\n'}
+                                        {'  '}<span className={styles.codeGreen}>/api/v1/pix</span> \{'\n\n'}
+                                        <span className={styles.codeMuted}>→ 200 OK</span>
+                                        {'\n'}
+                                        {'{'}
+                                        {'\n'}
+                                        {'  '}<span className={styles.codePurple}>&quot;status&quot;</span>: <span className={styles.codeGreen}>&quot;pending&quot;</span>,{'\n'}
+                                        {'  '}<span className={styles.codePurple}>&quot;transaction_id&quot;</span>: <span className={styles.codeGreen}>&quot;8a401...&quot;</span>,{'\n'}
+                                        {'  '}<span className={styles.codePurple}>&quot;pix&quot;</span>: {'{'} <span className={styles.codeMuted}>...</span> {'}'}{'\n'}
+                                        {'}'}
+                                    </code>
+                                </pre>
+                            </div>
+                        </div>
+
+                        <div className={styles.baseUrl}>
+                            <div>
+                                <FiServer aria-hidden="true" />
+                                <span>Base URL</span>
+                            </div>
+                            <code>{API_BASE_URL}</code>
+                            <CopyButton value={API_BASE_URL} compact />
+                        </div>
+
+                        <div className={styles.quickStart}>
+                            {[
+                                { number: '01', icon: <FiKey />, title: 'Gere sua chave', text: 'Crie uma API Key no painel de integrações.' },
+                                { number: '02', icon: <FiZap />, title: 'Crie a cobrança', text: 'Envie valor e dados do cliente pelo backend.' },
+                                { number: '03', icon: <FiActivity />, title: 'Confirme o pagamento', text: 'Consulte o status ou receba um webhook.' },
+                            ].map((step) => (
+                                <div key={step.number} className={styles.quickStep}>
+                                    <span>{step.number}</span>
+                                    <i>{step.icon}</i>
+                                    <div>
+                                        <strong>{step.title}</strong>
+                                        <p>{step.text}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+
+                    <section id="autenticacao" className={styles.docSection}>
+                        <SectionHeading
+                            eyebrow="01 · Primeiros passos"
+                            title="Autenticação"
+                            description="Toda requisição precisa identificar sua conta por uma chave de API."
+                        />
+
+                        <div className={styles.twoColumns}>
+                            <div className={styles.infoCard}>
+                                <FiKey aria-hidden="true" />
+                                <div>
+                                    <h3>Obtenha sua chave</h3>
+                                    <p>
+                                        No painel, acesse <strong>Integrações → API Pix</strong> e selecione
+                                        <strong> Gerar nova chave</strong>.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className={styles.infoCard}>
+                                <FiServer aria-hidden="true" />
+                                <div>
+                                    <h3>Use pelo servidor</h3>
+                                    <p>
+                                        Armazene a chave em uma variável de ambiente e faça as chamadas somente pelo backend.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3 className={styles.subheading}>Headers aceitos</h3>
+                        <CodeBlock
+                            language="http"
+                            code={`# Recomendado
 x-api-key: SUA_CHAVE_AQUI
 
-# Opção 2 — Authorization Bearer
-Authorization: Bearer SUA_CHAVE_AQUI`} id="auth" lang="http" />
-                </section>
+# Alternativa
+Authorization: Bearer SUA_CHAVE_AQUI`}
+                        />
 
-                {/* 2. endpoints */}
-                <section id="endpoints">
-                    <h2 className="text-2xl font-bold mb-4">2. Endpoints</h2>
-                    <div className="space-y-3">
-                        {[
-                            { method: 'POST' as const, path: ep,  desc: 'Criar cobrança PIX' },
-                            { method: 'GET'  as const, path: epS, desc: 'Consultar status de uma cobrança' },
-                        ].map(e => (
-                            <div key={e.path} className="flex flex-wrap items-center gap-3 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                                <Badge method={e.method} />
-                                <code className="flex-1 font-mono text-sm break-all">{e.path}</code>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">{e.desc}</span>
-                            </div>
-                        ))}
-                    </div>
-                    <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                        Limite: <strong>20 requisições por minuto</strong> por chave de API.
-                    </p>
-                </section>
+                        <Notice tone="warning" title="Sua API Key é um segredo">
+                            <p>
+                                Não inclua a chave em JavaScript entregue ao navegador, aplicativos distribuídos, repositórios
+                                públicos ou logs. Se houver exposição, desative a chave e gere uma nova.
+                            </p>
+                        </Notice>
+                    </section>
 
-                {/* 3. criar pix */}
-                <section id="criar-pix">
-                    <h2 className="text-2xl font-bold mb-4">3. Criar Cobrança PIX</h2>
-                    <div className="flex items-center gap-3 mb-4">
-                        <Badge method="POST" />
-                        <code className="font-mono text-sm">{ep}</code>
-                    </div>
+                    <section id="endpoints" className={styles.docSection}>
+                        <SectionHeading
+                            eyebrow="02 · Referência"
+                            title="Endpoints"
+                            description="A API v1 usa JSON, HTTPS e valores monetários inteiros em centavos."
+                        />
 
-                    <h3 className="font-semibold mb-2">Parâmetros (Body JSON)</h3>
-                    <div className="overflow-x-auto mb-4">
-                        <table className="w-full text-sm border-collapse">
-                            <thead>
-                                <tr className="bg-gray-100 dark:bg-gray-700">
-                                    <th className="text-left p-3 rounded-tl-lg">Campo</th>
-                                    <th className="text-left p-3">Tipo</th>
-                                    <th className="text-left p-3">Obrigatório</th>
-                                    <th className="text-left p-3 rounded-tr-lg">Descrição</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {[
-                                    ['amount',           'integer', 'Sim', 'Valor em centavos. Ex: 1000 = R$ 10,00. Mínimo: 100'],
-                                    ['description',      'string',  'Não', 'Descrição da cobrança (aparece no extrato)'],
-                                    ['customer.name',    'string',  'Sim', 'Nome completo do pagador'],
-                                    ['customer.email',   'string',  'Sim', 'E-mail do pagador'],
-                                    ['customer.cpf',     'string',  'Sim', 'CPF do pagador (somente números)'],
-                                    ['customer.phone',   'string',  'Não', 'Telefone com DDD (somente números)'],
-                                ].map(([f, t, r, d]) => (
-                                    <tr key={f} className="bg-white dark:bg-gray-800">
-                                        <td className="p-3 font-mono text-xs text-blue-600 dark:text-blue-400">{f}</td>
-                                        <td className="p-3 text-gray-500">{t}</td>
-                                        <td className="p-3">{r === 'Sim' ? <span className="text-red-500 font-semibold">Sim</span> : <span className="text-gray-400">Não</span>}</td>
-                                        <td className="p-3 text-gray-600 dark:text-gray-400">{d}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <h3 className="font-semibold mb-2">Exemplos de código</h3>
-                    <Tabs section="create" langs={['Node.js', 'PHP', 'Python', 'cURL']} />
-
-                    <h3 className="font-semibold mt-6 mb-2">Resposta de sucesso <span className="text-green-500 font-mono text-sm">200</span></h3>
-                    <CodeBlock code={resCreate} id="res-create" />
-                </section>
-
-                {/* 4. consultar */}
-                <section id="consultar">
-                    <h2 className="text-2xl font-bold mb-4">4. Consultar Status</h2>
-                    <div className="flex items-center gap-3 mb-4">
-                        <Badge method="GET" />
-                        <code className="font-mono text-sm">{epS}</code>
-                    </div>
-                    <p className="mb-4 text-gray-700 dark:text-gray-300">
-                        Use o <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">transaction_id</code> retornado na criação para consultar o status atual da cobrança.
-                    </p>
-                    <Tabs section="status" langs={['Node.js', 'PHP', 'Python', 'cURL']} />
-                    <h3 className="font-semibold mt-6 mb-2">Resposta</h3>
-                    <CodeBlock code={resStatus} id="res-status" />
-                </section>
-
-                {/* 5. status values */}
-                <section id="status-valores">
-                    <h2 className="text-2xl font-bold mb-4">5. Valores de Status</h2>
-                    <div className="space-y-3">
-                        {[
-                            { s: 'pending', label: 'Aguardando pagamento', color: 'yellow', icon: <FiClock />, desc: 'QR Code gerado, aguardando o pagador escanear e pagar.' },
-                            { s: 'paid',    label: 'Pago',                 color: 'green',  icon: <FiCheckCircle />, desc: 'Pagamento confirmado. Você pode liberar o produto/serviço.' },
-                            { s: 'failed',  label: 'Falhou',               color: 'red',    icon: <FiXCircle />, desc: 'Pagamento recusado ou erro no processamento.' },
-                            { s: 'expired', label: 'Expirado',             color: 'gray',   icon: <FiAlertCircle />, desc: 'O QR Code venceu sem pagamento (geralmente 30 minutos).' },
-                        ].map(({ s, label, color, icon, desc }) => (
-                            <div key={s} className="flex items-start gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                                <div className="mt-0.5 text-lg">{icon}</div>
+                        <div className={styles.endpointCards}>
+                            <a href="#criar-pix" className={styles.endpointCard}>
+                                <MethodBadge method="POST" />
                                 <div>
-                                    <StatusBadge status={s} label={label} color={color} />
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{desc}</p>
+                                    <code>/api/v1/pix</code>
+                                    <span>Criar uma cobrança PIX</span>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-
-                {/* 6. polling */}
-                <section id="polling">
-                    <h2 className="text-2xl font-bold mb-2">6. Polling de Status</h2>
-                    <p className="mb-4 text-gray-700 dark:text-gray-300">
-                        Se você não usa webhooks, pode verificar o status periodicamente. Recomendamos intervalos de <strong>5 segundos</strong> e timeout de <strong>10 minutos</strong>.
-                    </p>
-                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 mb-4 rounded-r-lg text-sm text-yellow-800 dark:text-yellow-200">
-                        Prefira webhooks quando possível — são mais eficientes e instantâneos.
-                    </div>
-                    <Tabs section="polling" langs={['Node.js', 'Python']} />
-                </section>
-
-                {/* 7. exibir qr */}
-                <section id="exibir-qr">
-                    <h2 className="text-2xl font-bold mb-2">7. Exibir QR Code</h2>
-                    <p className="mb-4 text-gray-700 dark:text-gray-300">
-                        A API retorna dois campos para exibir o QR Code:
-                    </p>
-                    <ul className="list-disc list-inside mb-4 space-y-1 text-sm text-gray-700 dark:text-gray-300">
-                        <li><code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">pix.qr_code</code> — texto do código PIX (copia e cola)</li>
-                        <li><code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">pix.qr_code_url</code> — URL de imagem PNG do QR Code</li>
-                        <li><code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">pix.expires_at</code> — data/hora de expiração (ISO 8601)</li>
-                    </ul>
-                    <Tabs section="qrHtml" langs={['HTML', 'React']} />
-                </section>
-
-                {/* 8. webhooks */}
-                <section id="webhooks">
-                    <h2 className="text-2xl font-bold mb-4">8. Webhooks</h2>
-                    <p className="mb-4 text-gray-700 dark:text-gray-300">
-                        Configure uma URL no painel em <strong>Integrações → API Pix → Webhook da API Pix</strong>.
-                        Quando o status de uma cobrança mudar, faremos um <code>POST</code> automático para essa URL com o payload abaixo.
-                    </p>
-
-                    <h3 className="font-semibold mb-2">Eventos disponíveis</h3>
-                    <div className="overflow-x-auto mb-6">
-                        <table className="w-full text-sm border-collapse">
-                            <thead>
-                                <tr className="bg-gray-100 dark:bg-gray-700">
-                                    <th className="text-left p-3 rounded-tl-lg">Evento</th>
-                                    <th className="text-left p-3 rounded-tr-lg">Quando ocorre</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {[
-                                    ['order.paid',      'Pagamento confirmado'],
-                                    ['order.failed',    'Pagamento recusado ou falhou'],
-                                    ['order.refunded',  'Pagamento estornado'],
-                                    ['order.chargeback','Chargeback registrado'],
-                                ].map(([e, d]) => (
-                                    <tr key={e} className="bg-white dark:bg-gray-800">
-                                        <td className="p-3 font-mono text-xs text-purple-600 dark:text-purple-400">{e}</td>
-                                        <td className="p-3 text-gray-600 dark:text-gray-400">{d}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <h3 className="font-semibold mb-2">Payload recebido</h3>
-                    <CodeBlock code={resWebhook} id="webhook-payload" />
-
-                    <h3 className="font-semibold mt-6 mb-2">Como receber no seu servidor</h3>
-                    <Tabs section="webhook" langs={['Node.js (Express)', 'PHP', 'Python (Flask)']} />
-
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 p-4 mt-4 rounded-r-lg text-sm text-blue-800 dark:text-blue-200">
-                        Seu endpoint de webhook deve sempre responder <strong>HTTP 200</strong>, mesmo em caso de erro interno.
-                        Caso contrário, o sistema tentará reenviar o evento.
-                    </div>
-                </section>
-
-                {/* 9. erros */}
-                <section id="erros">
-                    <h2 className="text-2xl font-bold mb-4">9. Códigos de Erro</h2>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm border-collapse">
-                            <thead>
-                                <tr className="bg-gray-100 dark:bg-gray-700">
-                                    <th className="text-left p-3 rounded-tl-lg">HTTP</th>
-                                    <th className="text-left p-3">Código</th>
-                                    <th className="text-left p-3 rounded-tr-lg">Descrição</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {[
-                                    ['400', 'BAD_REQUEST',   'Parâmetros inválidos (amount < 100, customer incompleto, etc.)'],
-                                    ['401', 'UNAUTHORIZED',  'Chave de API ausente ou inválida'],
-                                    ['403', 'FORBIDDEN',     'Chave de API inativa'],
-                                    ['404', 'NOT_FOUND',     'Transação não encontrada'],
-                                    ['429', 'RATE_LIMITED',  'Limite de 20 req/min excedido. Aguarde 1 minuto.'],
-                                    ['500', 'INTERNAL',      'Erro interno. Verifique os logs e configuração do recebedor.'],
-                                ].map(([code, name, desc]) => (
-                                    <tr key={code} className="bg-white dark:bg-gray-800">
-                                        <td className="p-3 font-mono font-bold text-red-500">{code}</td>
-                                        <td className="p-3 font-mono text-xs text-gray-500">{name}</td>
-                                        <td className="p-3 text-gray-600 dark:text-gray-400">{desc}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    <h3 className="font-semibold mt-6 mb-2">Formato da resposta de erro</h3>
-                    <CodeBlock code={`{
-  "error": "Descrição do erro",
-  "status": "error"
-}`} id="error-format" />
-                </section>
-
-                {/* 10. fluxo completo */}
-                <section id="fluxo" className="pb-16">
-                    <h2 className="text-2xl font-bold mb-4">10. Fluxo Completo de Integração</h2>
-                    <div className="space-y-4">
-                        {[
-                            { n: '1', title: 'Gerar API Key', desc: 'No painel, vá em Integrações → API Pix e gere sua chave.' },
-                            { n: '2', title: 'Criar cobrança', desc: 'Faça um POST para /api/v1/pix com o valor e dados do cliente. Guarde o transaction_id retornado.' },
-                            { n: '3', title: 'Exibir QR Code', desc: 'Mostre o qr_code_url como imagem e o qr_code como texto copiável para o usuário.' },
-                            { n: '4', title: 'Aguardar pagamento', desc: 'Use polling (GET /api/v1/pix/{id} a cada 5s) ou configure um webhook para ser notificado automaticamente.' },
-                            { n: '5', title: 'Confirmar e liberar', desc: 'Quando status === "paid", libere o produto, acesso ou serviço para o cliente.' },
-                        ].map(({ n, title, desc }) => (
-                            <div key={n} className="flex gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm">{n}</div>
+                                <FiArrowRight aria-hidden="true" />
+                            </a>
+                            <a href="#consultar" className={styles.endpointCard}>
+                                <MethodBadge method="GET" />
                                 <div>
-                                    <p className="font-semibold">{title}</p>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">{desc}</p>
+                                    <code>/api/v1/pix/{'{transaction_id}'}</code>
+                                    <span>Consultar uma cobrança</span>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
+                                <FiArrowRight aria-hidden="true" />
+                            </a>
+                        </div>
 
-            </main>
+                        <div className={styles.rateLimit}>
+                            <FiClock aria-hidden="true" />
+                            <div>
+                                <strong>Limite compartilhado por chave</strong>
+                                <p>
+                                    São permitidas <strong>20 requisições por minuto</strong> para cada API Key. Em uma resposta
+                                    429, respeite o header <code>Retry-After</code>.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="criar-pix" className={styles.docSection}>
+                        <SectionHeading
+                            eyebrow="03 · Cobranças"
+                            title="Criar cobrança PIX"
+                            description="Envie o valor em centavos e os dados essenciais do pagador."
+                        />
+                        <EndpointBar method="POST" endpoint={PIX_ENDPOINT} />
+
+                        <h3 className={styles.subheading}>Body JSON</h3>
+                        <div className={styles.tableWrap}>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Campo</th>
+                                        <th>Tipo</th>
+                                        <th>Obrigatório</th>
+                                        <th>Descrição</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>amount</code></td>
+                                        <td><span className={styles.type}>integer</span></td>
+                                        <td><span className={styles.required}>Sim</span></td>
+                                        <td>Valor em centavos. Mínimo de 100 (R$ 1,00).</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>description</code></td>
+                                        <td><span className={styles.type}>string</span></td>
+                                        <td><span className={styles.optional}>Não</span></td>
+                                        <td>Identificação interna da cobrança.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>customer.name</code></td>
+                                        <td><span className={styles.type}>string</span></td>
+                                        <td><span className={styles.required}>Sim</span></td>
+                                        <td>Nome completo do pagador.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>customer.email</code></td>
+                                        <td><span className={styles.type}>string</span></td>
+                                        <td><span className={styles.required}>Sim</span></td>
+                                        <td>E-mail válido do pagador.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>customer.cpf</code></td>
+                                        <td><span className={styles.type}>string</span></td>
+                                        <td><span className={styles.required}>Sim</span></td>
+                                        <td>CPF com 11 dígitos, somente números.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>customer.phone</code></td>
+                                        <td><span className={styles.type}>string</span></td>
+                                        <td><span className={styles.optional}>Não</span></td>
+                                        <td>Telefone com DDD, somente números.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h3 className={styles.subheading}>Exemplo de requisição</h3>
+                        <SnippetTabs
+                            section="create"
+                            languages={['Node.js', 'PHP', 'Python', 'cURL']}
+                            snippets={snippets}
+                            activeTabs={activeTabs}
+                            onTabChange={setTab}
+                        />
+
+                        <h3 className={styles.subheading}>Resposta de sucesso <span className={styles.httpOk}>200</span></h3>
+                        <CodeBlock code={createResponse} />
+
+                        <div className={styles.responseNotes}>
+                            <div><code>transaction_id</code><span>Guarde para consultar a cobrança.</span></div>
+                            <div><code>pix.qr_code</code><span>Código PIX copia e cola.</span></div>
+                            <div><code>pix.qr_code_url</code><span>Imagem pronta do QR Code.</span></div>
+                            <div><code>pix.expires_at</code><span>Validade em ISO 8601.</span></div>
+                        </div>
+                    </section>
+
+                    <section id="consultar" className={styles.docSection}>
+                        <SectionHeading
+                            eyebrow="04 · Cobranças"
+                            title="Consultar status"
+                            description="Use o transaction_id recebido na criação para obter o estado mais recente."
+                        />
+                        <EndpointBar method="GET" endpoint={PIX_STATUS_ENDPOINT} />
+
+                        <h3 className={styles.subheading}>Exemplo de consulta</h3>
+                        <SnippetTabs
+                            section="status"
+                            languages={['Node.js', 'PHP', 'Python', 'cURL']}
+                            snippets={snippets}
+                            activeTabs={activeTabs}
+                            onTabChange={setTab}
+                        />
+
+                        <h3 className={styles.subheading}>Resposta</h3>
+                        <CodeBlock code={statusResponse} />
+
+                        <Notice tone="success" title="Liberação idempotente">
+                            <p>
+                                Ao receber <code>paid</code>, registre o <code>transaction_id</code> como processado. Assim, uma
+                                nova consulta ou notificação não libera o mesmo pedido duas vezes.
+                            </p>
+                        </Notice>
+                    </section>
+
+                    <section id="status-valores" className={styles.docSection}>
+                        <SectionHeading
+                            eyebrow="05 · Cobranças"
+                            title="Status da cobrança"
+                            description="Use o status para controlar o ciclo de vida do pedido no seu sistema."
+                        />
+
+                        <div className={styles.statusGrid}>
+                            {[
+                                { value: 'pending', title: 'Aguardando', text: 'Cobrança criada e ainda não confirmada.', icon: <FiClock />, tone: 'pending' },
+                                { value: 'paid', title: 'Pago', text: 'Pagamento confirmado. Pode liberar o pedido.', icon: <FiCheckCircle />, tone: 'paid' },
+                                { value: 'failed', title: 'Falhou', text: 'A cobrança falhou durante o processamento.', icon: <FiXCircle />, tone: 'failed' },
+                                { value: 'refunded', title: 'Estornado', text: 'O valor pago foi estornado.', icon: <FiArrowLeft />, tone: 'refunded' },
+                                { value: 'chargeback', title: 'Chargeback', text: 'Contestação registrada para o pagamento.', icon: <FiAlertTriangle />, tone: 'chargeback' },
+                            ].map((status) => (
+                                <article key={status.value} className={`${styles.statusCard} ${styles[`status${status.tone}`]}`}>
+                                    <i>{status.icon}</i>
+                                    <div>
+                                        <code>{status.value}</code>
+                                        <strong>{status.title}</strong>
+                                        <p>{status.text}</p>
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+
+                        <Notice tone="info" title="Expiração do QR Code">
+                            <p>
+                                A validade vem em <code>pix.expires_at</code>. Use esse campo para bloquear novas tentativas no
+                                checkout; <code>expired</code> não faz parte dos status retornados atualmente pelo endpoint.
+                            </p>
+                        </Notice>
+                    </section>
+
+                    <section id="polling" className={styles.docSection}>
+                        <SectionHeading
+                            eyebrow="06 · Cobranças"
+                            title="Polling de status"
+                            description="Quando não for possível usar webhooks, consulte a cobrança em intervalos controlados."
+                        />
+
+                        <div className={styles.recommendation}>
+                            <div>
+                                <span>Intervalo recomendado</span>
+                                <strong>5 segundos</strong>
+                            </div>
+                            <div>
+                                <span>Tempo máximo sugerido</span>
+                                <strong>10 minutos</strong>
+                            </div>
+                            <div>
+                                <span>Preferência</span>
+                                <strong>Webhook</strong>
+                            </div>
+                        </div>
+
+                        <Notice tone="warning" title="Considere o limite global">
+                            <p>
+                                O limite de 20 requisições/minuto é compartilhado por todas as cobranças da mesma chave.
+                                Para várias cobranças simultâneas, prefira webhooks e aplique backoff ao receber 429.
+                            </p>
+                        </Notice>
+
+                        <SnippetTabs
+                            section="polling"
+                            languages={['Node.js', 'Python']}
+                            snippets={snippets}
+                            activeTabs={activeTabs}
+                            onTabChange={setTab}
+                        />
+                    </section>
+
+                    <section id="exibir-qr" className={styles.docSection}>
+                        <SectionHeading
+                            eyebrow="07 · Checkout"
+                            title="Exibir o QR Code"
+                            description="Ofereça a imagem e o código copia e cola para o cliente escolher como pagar."
+                        />
+
+                        <div className={styles.fieldCards}>
+                            <div><FiCode /><code>pix.qr_code</code><span>Texto PIX copia e cola</span></div>
+                            <div><FiCreditCard /><code>pix.qr_code_url</code><span>URL da imagem PNG</span></div>
+                            <div><FiClock /><code>pix.expires_at</code><span>Expiração em ISO 8601</span></div>
+                        </div>
+
+                        <SnippetTabs
+                            section="qr"
+                            languages={['HTML', 'React']}
+                            snippets={snippets}
+                            activeTabs={activeTabs}
+                            onTabChange={setTab}
+                        />
+                    </section>
+
+                    <section id="webhooks" className={styles.docSection}>
+                        <SectionHeading
+                            eyebrow="08 · Eventos"
+                            title="Webhooks"
+                            description="Receba uma notificação HTTP quando o status de uma cobrança mudar."
+                        />
+
+                        <div className={styles.webhookIntro}>
+                            <FiRadio aria-hidden="true" />
+                            <div>
+                                <strong>Configure seu endpoint</strong>
+                                <p>
+                                    No painel, acesse <strong>Integrações → API Pix → Webhook da API Pix</strong> e cadastre
+                                    uma URL HTTPS pública.
+                                </p>
+                            </div>
+                        </div>
+
+                        <Notice tone="warning" title="Confirme a notificação pela API">
+                            <p>
+                                O payload de webhook ainda não inclui assinatura criptográfica. Antes de liberar um produto,
+                                consulte <code>GET /api/v1/pix/{'{transaction_id}'}</code> pelo backend e confirme
+                                <code> status === &quot;paid&quot;</code>.
+                            </p>
+                        </Notice>
+
+                        <h3 className={styles.subheading}>Eventos enviados</h3>
+                        <div className={styles.tableWrap}>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Evento</th>
+                                        <th>Quando ocorre</th>
+                                        <th>Ação sugerida</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>order.paid</code></td><td>Pagamento confirmado</td><td>Consultar e liberar uma vez</td></tr>
+                                    <tr><td><code>order.failed</code></td><td>Pagamento falhou</td><td>Informar o cliente</td></tr>
+                                    <tr><td><code>order.refunded</code></td><td>Pagamento estornado</td><td>Atualizar o pedido</td></tr>
+                                    <tr><td><code>order.chargeback</code></td><td>Chargeback registrado</td><td>Bloquear entrega pendente</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h3 className={styles.subheading}>Payload</h3>
+                        <CodeBlock code={webhookResponse} />
+
+                        <h3 className={styles.subheading}>Receber no seu servidor</h3>
+                        <SnippetTabs
+                            section="webhook"
+                            languages={['Node.js (Express)', 'PHP', 'Python (Flask)']}
+                            snippets={snippets}
+                            activeTabs={activeTabs}
+                            onTabChange={setTab}
+                        />
+
+                        <div className={styles.webhookRules}>
+                            {[
+                                { icon: <FiCheckCircle />, title: 'Responda rapidamente', text: 'Retorne HTTP 200 após processar com sucesso.' },
+                                { icon: <FiDatabase />, title: 'Seja idempotente', text: 'Use transaction_id como chave única no seu banco.' },
+                                { icon: <FiShield />, title: 'Valide pela API', text: 'Confirme o status com sua API Key antes da entrega.' },
+                            ].map((rule) => (
+                                <div key={rule.title}>
+                                    <i>{rule.icon}</i>
+                                    <strong>{rule.title}</strong>
+                                    <span>{rule.text}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+
+                    <section id="erros" className={styles.docSection}>
+                        <SectionHeading
+                            eyebrow="09 · Referência"
+                            title="Códigos de erro"
+                            description="Trate o código HTTP antes de consumir o corpo da resposta."
+                        />
+
+                        <div className={styles.tableWrap}>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>HTTP</th>
+                                        <th>Situação</th>
+                                        <th>Motivo comum</th>
+                                        <th>O que fazer</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span className={styles.http4xx}>400</span></td><td>Requisição inválida</td><td>Valor inválido, cliente incompleto ou conta recebedora ausente</td><td>Revise o body e a configuração</td></tr>
+                                    <tr><td><span className={styles.http4xx}>401</span></td><td>Não autenticado</td><td>Chave ausente ou inválida</td><td>Envie uma API Key ativa</td></tr>
+                                    <tr><td><span className={styles.http4xx}>403</span></td><td>Acesso bloqueado</td><td>Chave inativa ou conta bloqueada</td><td>Verifique o painel</td></tr>
+                                    <tr><td><span className={styles.http4xx}>404</span></td><td>Não encontrado</td><td>Transação ou usuário não encontrado</td><td>Confira o transaction_id</td></tr>
+                                    <tr><td><span className={styles.http4xx}>429</span></td><td>Limite excedido</td><td>20 requisições/minuto excedidas</td><td>Respeite Retry-After</td></tr>
+                                    <tr><td><span className={styles.http5xx}>500</span></td><td>Erro interno</td><td>Falha interna ou do processador</td><td>Registre o erro e tente mais tarde</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className={styles.errorExample}>
+                            <div>
+                                <h3>Formato padrão</h3>
+                                <p>A maioria dos erros segue esta estrutura.</p>
+                            </div>
+                            <CodeBlock code={errorResponse} />
+                        </div>
+
+                        <Notice tone="info" title="Resposta 429">
+                            <p>
+                                Além do JSON de erro, a resposta inclui <code>Retry-After</code> (segundos) e
+                                <code> X-RateLimit-Reset</code> (data ISO).
+                            </p>
+                        </Notice>
+                    </section>
+
+                    <section id="fluxo" className={`${styles.docSection} ${styles.finalSection}`}>
+                        <SectionHeading
+                            eyebrow="10 · Produção"
+                            title="Checklist de integração"
+                            description="Um caminho seguro do primeiro teste até a liberação do pedido."
+                        />
+
+                        <div className={styles.timeline}>
+                            {[
+                                { icon: <FiKey />, title: 'Gere e proteja a API Key', text: 'Salve a chave em uma variável de ambiente do backend.' },
+                                { icon: <FiTerminal />, title: 'Crie uma cobrança', text: 'Faça o POST, trate erros e guarde o transaction_id.' },
+                                { icon: <FiLayers />, title: 'Exiba as opções PIX', text: 'Mostre o QR Code, o copia e cola e a validade.' },
+                                { icon: <FiRadio />, title: 'Acompanhe o pagamento', text: 'Use webhook como principal e polling como contingência.' },
+                                { icon: <FiCheckCircle />, title: 'Confirme e libere uma vez', text: 'Valide paid pela API e processe de forma idempotente.' },
+                            ].map((step, index) => (
+                                <div key={step.title} className={styles.timelineItem}>
+                                    <span>{String(index + 1).padStart(2, '0')}</span>
+                                    <i>{step.icon}</i>
+                                    <div>
+                                        <strong>{step.title}</strong>
+                                        <p>{step.text}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className={styles.finalCta}>
+                            <div>
+                                <span>Pronto para integrar?</span>
+                                <h2>Gere sua chave e faça a primeira cobrança.</h2>
+                            </div>
+                            <Link href="/dashboard/integrations">
+                                Abrir integrações
+                                <FiArrowRight aria-hidden="true" />
+                            </Link>
+                        </div>
+                    </section>
+                </main>
+
+                <aside className={styles.rightRail}>
+                    <div className={styles.rightRailCard}>
+                        <span className={styles.rightRailLabel}>API atual</span>
+                        <strong><span /> v1</strong>
+                        <p>JSON sobre HTTPS</p>
+                    </div>
+
+                    <div className={styles.rightRailCard}>
+                        <span className={styles.rightRailLabel}>Essencial</span>
+                        <a href="#autenticacao"><FiKey /> Autenticação</a>
+                        <a href="#criar-pix"><FiZap /> Criar cobrança</a>
+                        <a href="#webhooks"><FiRadio /> Webhooks</a>
+                        <a href="#erros"><FiAlertCircle /> Erros</a>
+                    </div>
+
+                    <div className={styles.rightRailCard}>
+                        <span className={styles.rightRailLabel}>Base URL</span>
+                        <code>goupay.com.br</code>
+                        <CopyButton value={API_BASE_URL} label="Copiar URL" compact />
+                    </div>
+                </aside>
+            </div>
+
+            <footer className={styles.footer}>
+                <div>
+                    <span className={styles.brandMark}>G</span>
+                    <span>GouPay Developers</span>
+                </div>
+                <p>API PIX v1 · Documentação alinhada ao comportamento atual da aplicação.</p>
+            </footer>
         </div>
     );
 }

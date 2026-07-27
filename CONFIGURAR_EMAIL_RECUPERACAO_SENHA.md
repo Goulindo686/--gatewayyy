@@ -1,274 +1,125 @@
-# 📧 Configuração de Email para Recuperação de Senha
+# Configuração de e-mail da GouPay
 
-## ✅ Sistema Implementado
+O frontend Next.js envia todos os e-mails transacionais pelo Nodemailer usando SMTP. O mesmo transporte atende:
 
-O sistema de recuperação de senha foi implementado com sucesso! Agora os usuários podem:
+- recuperação de senha;
+- verificação de e-mail;
+- compra aprovada;
+- recuperação de venda Pix;
+- aviso de conta bloqueada;
+- solicitação de exclusão de conta.
 
-1. ✅ Solicitar recuperação de senha na página `/forgot-password`
-2. ✅ Receber um link de redefinição por email (token válido por 1 hora)
-3. ✅ Redefinir a senha na página `/reset-password?token=XXX`
-4. ✅ Fazer login com a nova senha
+O fluxo atual não usa o Supabase Auth nem o backend Express antigo para enviar esses e-mails.
 
-## 🎯 Páginas Criadas
+## GoDaddy Professional Email / Titan
 
-### 1. **Página de Esqueci Minha Senha**
-- **URL:** `/forgot-password`
-- **Funcionalidade:** Usuário digita o email e recebe link de recuperação
-- **Segurança:** Não revela se o email existe no sistema
+Cadastre estas variáveis no projeto do frontend:
 
-### 2. **Página de Redefinir Senha**
-- **URL:** `/reset-password?token=XXX`
-- **Funcionalidade:** Usuário define nova senha usando o token recebido
-- **Validação:** Token expira em 1 hora
-- **UX:** Mostra/oculta senha, confirma senha
-
-## 📁 Arquivos Criados/Modificados
-
-### Frontend:
-- ✅ `frontend/src/app/reset-password/page.tsx` - Página de redefinição
-- ✅ `frontend/src/app/api/auth/reset-password/route.ts` - API de reset
-- ✅ `frontend/src/app/api/auth/forgot-password/route.ts` - API melhorada
-- ✅ `frontend/src/app/forgot-password/page.tsx` - Já existia, mantido
-
-### Backend:
-- ✅ `backend/src/services/email.service.js` - Serviço de envio de emails
-- ✅ `backend/src/controllers/auth.controller.js` - Controller atualizado
-
-## 🔧 Como Funciona (Atualmente)
-
-### Modo de Desenvolvimento:
-Por padrão, o sistema está configurado para **logar o link de recuperação no console** ao invés de enviar email real. Isso é útil para desenvolvimento e testes.
-
-Quando um usuário solicita recuperação:
-1. Sistema gera um token único (UUID)
-2. Token é salvo no banco com validade de 1 hora
-3. **Link é exibido no console do servidor**
-4. Usuário pode copiar o link do console e acessar
-
-**Exemplo de log:**
-```
-=== PASSWORD RESET REQUEST ===
-Email: usuario@email.com
-Reset URL: http://localhost:3000/reset-password?token=abc123...
-Token: abc123-def456-ghi789
-Expires: 2026-05-04T15:30:00.000Z
-==============================
-```
-
-## 📮 Configurar Envio Real de Emails
-
-Para enviar emails reais em produção, você tem 3 opções:
-
-### **Opção 1: Nodemailer com SMTP (Recomendado)**
-
-1. **Instale o Nodemailer:**
-```bash
-cd backend
-npm install nodemailer
-```
-
-2. **Configure as variáveis de ambiente** (`.env`):
 ```env
-# Email Configuration
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=seu-email@gmail.com
-SMTP_PASS=sua-senha-de-app
-SMTP_FROM=noreply@goupay.com.br
-FRONTEND_URL=https://seu-dominio.com
+SMTP_HOST=smtpout.secureserver.net
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=contato@goupay.com.br
+SMTP_PASS=senha-da-caixa-de-email
+SMTP_FROM=GouPay <contato@goupay.com.br>
+NEXT_PUBLIC_APP_URL=https://www.goupay.com.br
 ```
 
-3. **Descomente o código no `email.service.js`:**
+Regras importantes:
 
-Abra `backend/src/services/email.service.js` e descomente a seção:
-```javascript
-// Example with nodemailer (requires: npm install nodemailer)
-const nodemailer = require('nodemailer');
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: true,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-    }
-});
+1. `SMTP_USER` deve ser uma caixa de e-mail real e ativa na GoDaddy.
+2. `SMTP_PASS` é a senha dessa caixa, não a senha geral da conta GoDaddy.
+3. O endereço de `SMTP_FROM` deve ser o mesmo de `SMTP_USER`, salvo quando a GoDaddy tiver autorizado outro remetente.
+4. Nunca salve `SMTP_PASS` no Git.
+5. Depois de alterar as variáveis na Vercel, faça um novo deploy.
 
-await transporter.sendMail({
-    from: process.env.SMTP_FROM || 'noreply@goupay.com.br',
-    to: email,
-    subject: 'Recuperação de Senha - Gateway de Pagamentos',
-    text: textContent,
-    html: htmlContent
-});
-```
+## Configuração na Vercel
 
-### **Opção 2: SendGrid**
+1. Abra o projeto da GouPay na Vercel.
+2. Entre em **Settings > Environment Variables**.
+3. Cadastre todas as variáveis SMTP.
+4. Marque **Production**, **Preview** e **Development** conforme os ambientes usados.
+5. Salve e execute um novo deploy de produção.
 
-1. **Instale o SDK:**
-```bash
-npm install @sendgrid/mail
-```
+Alterar uma variável sem gerar um novo deploy não atualiza uma versão que já está publicada.
 
-2. **Configure:**
-```javascript
-const sgMail = require('@sendgrid/mail');
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+## Teste seguro
 
-await sgMail.send({
-    to: email,
-    from: 'noreply@goupay.com.br',
-    subject: 'Recuperação de Senha',
-    text: textContent,
-    html: htmlContent
-});
-```
-
-### **Opção 3: Resend (Moderno e Simples)**
-
-1. **Instale:**
-```bash
-npm install resend
-```
-
-2. **Configure:**
-```javascript
-const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-await resend.emails.send({
-    from: 'noreply@goupay.com.br',
-    to: email,
-    subject: 'Recuperação de Senha',
-    html: htmlContent
-});
-```
-
-## 🔐 Segurança Implementada
-
-✅ **Token único (UUID)** - Impossível de adivinhar
-✅ **Expiração de 1 hora** - Token expira automaticamente
-✅ **Hash de senha (bcrypt)** - Senhas nunca são armazenadas em texto puro
-✅ **Rate limiting** - Máximo 3 tentativas por hora
-✅ **Não revela emails** - Sempre retorna sucesso, mesmo se email não existir
-✅ **Token de uso único** - Token é deletado após uso
-
-## 🧪 Como Testar
-
-### 1. **Teste Local (Desenvolvimento):**
+Crie temporariamente `frontend/.env.local` com as variáveis acima e execute:
 
 ```bash
-# 1. Inicie o backend
-cd backend
-npm run dev
-
-# 2. Inicie o frontend (outro terminal)
 cd frontend
-npm run dev
-
-# 3. Acesse http://localhost:3000/forgot-password
-# 4. Digite um email cadastrado
-# 5. Veja o link no console do backend
-# 6. Copie e cole o link no navegador
-# 7. Defina nova senha
-# 8. Faça login com a nova senha
+npm run email:verify
 ```
 
-### 2. **Teste com Email Real:**
+Esse comando testa conexão, TLS e autenticação, sem enviar mensagem.
 
-Depois de configurar SMTP:
+Para testar a entrega em uma caixa real:
+
 ```bash
-# 1. Configure as variáveis de ambiente
-# 2. Reinicie o servidor
-# 3. Solicite recuperação de senha
-# 4. Verifique sua caixa de entrada
-# 5. Clique no link do email
-# 6. Redefina a senha
+npm run email:verify -- seu-email-de-teste@gmail.com
 ```
 
-## 📧 Template de Email
+O teste informa:
 
-O email enviado é profissional e responsivo:
+- servidor, porta e modo seguro utilizados;
+- se a autenticação foi aceita;
+- destinatários aceitos ou rejeitados;
+- identificador da mensagem.
 
-- ✅ Design moderno com gradiente
-- ✅ Botão destacado para ação
-- ✅ Link alternativo para copiar/colar
-- ✅ Aviso de expiração (1 hora)
-- ✅ Instruções claras
-- ✅ Responsivo (funciona em mobile)
+Apague a senha do `.env.local` quando não precisar mais dela. O arquivo real não deve ser enviado ao Git.
 
-## 🚀 Deploy em Produção
+## Teste da recuperação de senha
 
-### Variáveis de Ambiente Necessárias:
+Depois do deploy:
+
+1. Acesse `https://www.goupay.com.br/forgot-password`.
+2. Informe o e-mail de um usuário que realmente exista na tabela `users`.
+3. Confira a caixa de entrada e a pasta de spam.
+4. Abra o link recebido.
+5. Defina uma nova senha e faça login.
+
+A API mostra uma resposta genérica mesmo quando a conta não existe. Esse comportamento evita a descoberta de usuários e não serve, sozinho, como confirmação de entrega.
+
+## Erros comuns
+
+### `EAUTH` ou autenticação recusada
+
+- Confirme a caixa usada em `SMTP_USER`.
+- Entre no webmail da GoDaddy com a mesma senha.
+- Redefina a senha da caixa caso necessário.
+- Não use a senha da conta administrativa da GoDaddy.
+
+### `ECONNECTION`, timeout ou conexão encerrada
+
+- Confirme `SMTP_HOST=smtpout.secureserver.net`.
+- Confirme `SMTP_PORT=465`.
+- Confirme `SMTP_SECURE=true`.
+- Verifique os logs da função na Vercel.
+
+### SMTP aceita, mas o Gmail não recebe
+
+- Confira spam e promoções.
+- Use o mesmo domínio e endereço no usuário autenticado e no remetente.
+- Verifique SPF, DKIM e DMARC do domínio.
+- Aguarde alguns minutos e procure o `Message ID` nos logs.
+
+### Microsoft 365 comprado pela GoDaddy
+
+Essa modalidade utiliza outra configuração:
 
 ```env
-# Backend (.env)
-SMTP_HOST=smtp.gmail.com
+SMTP_HOST=smtp.office365.com
 SMTP_PORT=587
-SMTP_USER=seu-email@gmail.com
-SMTP_PASS=sua-senha-de-app
-SMTP_FROM=noreply@goupay.com.br
-FRONTEND_URL=https://seu-dominio.com
-JWT_SECRET=seu-secret-super-seguro
-
-# Frontend (.env.local)
-NEXT_PUBLIC_APP_URL=https://seu-dominio.com
+SMTP_SECURE=false
 ```
 
-### Checklist de Deploy:
+Também é necessário habilitar **SMTP Authentication** para o usuário no painel Email & Office da GoDaddy. Não use essa configuração quando a caixa for Professional Email/Titan.
 
-- [ ] Configurar SMTP ou serviço de email
-- [ ] Definir `FRONTEND_URL` correto
-- [ ] Testar envio de email em staging
-- [ ] Verificar rate limiting está ativo
-- [ ] Confirmar que tokens expiram corretamente
-- [ ] Testar fluxo completo de recuperação
+## Segurança e comportamento do sistema
 
-## 🔍 Troubleshooting
-
-### Email não está sendo enviado:
-1. Verifique as credenciais SMTP no `.env`
-2. Veja os logs do console para erros
-3. Teste com um serviço de email de teste (Mailtrap, Ethereal)
-
-### Token inválido ou expirado:
-1. Verifique se o token está correto na URL
-2. Confirme que não passou 1 hora desde a solicitação
-3. Solicite um novo link de recuperação
-
-### Link não funciona:
-1. Verifique se `FRONTEND_URL` está correto
-2. Confirme que a página `/reset-password` está acessível
-3. Veja se há erros no console do navegador
-
-## 📚 Recursos Adicionais
-
-### Provedores de Email Recomendados:
-
-1. **Gmail SMTP** (Grátis, 500 emails/dia)
-   - Fácil de configurar
-   - Requer senha de app (2FA)
-
-2. **SendGrid** (100 emails/dia grátis)
-   - API simples
-   - Bom para produção
-
-3. **Resend** (3.000 emails/mês grátis)
-   - Moderno e fácil
-   - Ótima documentação
-
-4. **Amazon SES** (62.000 emails/mês grátis)
-   - Escalável
-   - Requer configuração AWS
-
-## ✅ Status Atual
-
-- ✅ Sistema de recuperação implementado
-- ✅ Páginas criadas e funcionais
-- ✅ Segurança implementada
-- ✅ Template de email profissional
-- ⚠️ **Envio de email real precisa ser configurado**
-
----
-
-**Próximo Passo:** Configure um provedor de email (SMTP, SendGrid, ou Resend) para enviar emails reais em produção.
+- A conexão exige TLS 1.2 ou superior.
+- Certificados inválidos não são aceitos.
+- Ausência de credenciais gera erro explícito nos logs.
+- Em uma falha de envio de recuperação, o token que não foi entregue é invalidado.
+- A resposta pública continua genérica para não revelar se um e-mail possui conta.
