@@ -75,6 +75,11 @@ export async function GET(req: NextRequest) {
     const start = searchParams.get('start') || '';
     const end = searchParams.get('end') || '';
     const search = searchParams.get('search')?.trim() || '';
+    const requestedPage = Math.max(1, Math.trunc(Number(searchParams.get('page') || 1)) || 1);
+    const pageSize = Math.min(
+        100,
+        Math.max(10, Math.trunc(Number(searchParams.get('per_page') || 50)) || 50),
+    );
 
     let producerSalesQuery = supabase
         .from('orders')
@@ -217,14 +222,25 @@ export async function GET(req: NextRequest) {
         });
     }
 
+    const totalCount = sales.length;
     const totalAmount = sales.reduce((sum, sale) => sum + (sale.amount || 0), 0);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const page = Math.min(requestedPage, totalPages);
+    const pageStart = (page - 1) * pageSize;
+    const paginatedSales = sales.slice(pageStart, pageStart + pageSize);
 
     return jsonSuccess({
-        sales,
+        sales: paginatedSales,
         summary: {
-            count: sales.length,
+            count: totalCount,
             total_amount: totalAmount,
             total_amount_display: (totalAmount / 100).toFixed(2),
+        },
+        pagination: {
+            page,
+            page_size: pageSize,
+            total_pages: totalPages,
+            total_count: totalCount,
         },
     });
 }
