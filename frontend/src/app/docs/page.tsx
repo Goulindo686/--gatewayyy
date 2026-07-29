@@ -1059,7 +1059,7 @@ Authorization: Bearer SUA_CHAVE_AQUI`}
                         <SectionHeading
                             eyebrow="04 · Cobranças"
                             title="Consultar status"
-                            description="Use o transaction_id recebido na criação para obter o estado mais recente."
+                            description="Use o transaction_id recebido na criação para obter o estado mais recente e reconciliar cobranças pendentes."
                         />
                         <EndpointBar method="GET" endpoint={PIX_STATUS_ENDPOINT} />
 
@@ -1079,6 +1079,14 @@ Authorization: Bearer SUA_CHAVE_AQUI`}
                             <p>
                                 Ao receber <code>paid</code>, registre o <code>transaction_id</code> como processado. Assim, uma
                                 nova consulta ou notificação não libera o mesmo pedido duas vezes.
+                            </p>
+                        </Notice>
+
+                        <Notice tone="info" title="Reconciliação automática">
+                            <p>
+                                Quando o pedido local ainda está pendente, esta consulta também confere o estado diretamente
+                                no provedor de pagamento. Se o provedor estiver temporariamente indisponível, a API preserva
+                                o último estado conhecido e uma consulta posterior tenta novamente.
                             </p>
                         </Notice>
                     </section>
@@ -1121,7 +1129,7 @@ Authorization: Bearer SUA_CHAVE_AQUI`}
                         <SectionHeading
                             eyebrow="06 · Cobranças"
                             title="Polling de status"
-                            description="Quando não for possível usar webhooks, consulte a cobrança em intervalos controlados."
+                            description="Use consultas controladas como contingência do webhook e para reconciliar pagamentos pendentes."
                         />
 
                         <div className={styles.recommendation}>
@@ -1203,6 +1211,15 @@ Authorization: Bearer SUA_CHAVE_AQUI`}
                             </p>
                         </Notice>
 
+                        <Notice tone="info" title="Entrega pelo menos uma vez">
+                            <p>
+                                Cada URL configurada é processada de forma independente. Respostas fora da faixa
+                                <code> 2xx</code>, falhas de conexão ou demora superior a 10 segundos mantêm a entrega
+                                pendente. A GouPay realiza até 12 tentativas com intervalos progressivos. Por isso, o mesmo
+                                evento pode chegar mais de uma vez e seu endpoint deve ser idempotente.
+                            </p>
+                        </Notice>
+
                         <h3 className={styles.subheading}>Eventos enviados</h3>
                         <div className={styles.tableWrap}>
                             <table>
@@ -1236,7 +1253,7 @@ Authorization: Bearer SUA_CHAVE_AQUI`}
 
                         <div className={styles.webhookRules}>
                             {[
-                                { icon: <FiCheckCircle />, title: 'Responda rapidamente', text: 'Retorne HTTP 200 após processar com sucesso.' },
+                                { icon: <FiCheckCircle />, title: 'Responda rapidamente', text: 'Persista o evento e retorne qualquer HTTP 2xx em até 10 segundos.' },
                                 { icon: <FiDatabase />, title: 'Seja idempotente', text: 'Use transaction_id como chave única no seu banco.' },
                                 { icon: <FiShield />, title: 'Valide pela API', text: 'Confirme o status com sua API Key antes da entrega.' },
                             ].map((rule) => (

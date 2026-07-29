@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/db';
+import { reconcileOrderPayment } from '@/lib/order-payment-reconciliation';
 
 const allowedOrigin = process.env.API_ALLOWED_ORIGIN || '*';
 const corsHeaders = {
@@ -56,6 +57,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         }
 
         if (order) {
+            try {
+                const reconciliation = await reconcileOrderPayment(order.id);
+                if (reconciliation.order) order = reconciliation.order;
+            } catch (reconciliationError) {
+                // Preserve the API response even if the provider is
+                // temporarily unavailable. A later poll can retry.
+                console.error('[API v1 Status] Reconciliation failed:', reconciliationError);
+            }
+
             const normalizedStatus = order.status === 'paid' ? 'paid' : order.status;
             return jsonResponse({
                 success: true,

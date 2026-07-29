@@ -5,6 +5,7 @@ import { PagarmeService } from '@/lib/pagarme';
 import { syncOrderAffiliateCommission } from '@/lib/affiliates';
 import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
+import { enqueueAndProcessOrderWebhook } from '@/lib/outgoing-webhooks';
 
 type ReconciliationStatus =
     | 'not_found'
@@ -110,6 +111,21 @@ async function notifyReconciledSale(order: any) {
     });
 }
 
+async function ensureMerchantWebhook(
+    order: Parameters<typeof enqueueAndProcessOrderWebhook>[0],
+    status: string,
+) {
+    try {
+        return await enqueueAndProcessOrderWebhook(order, status);
+    } catch (error) {
+        // Provider status is still authoritative. A temporary outbox failure
+        // must not turn a paid order back into an API error; the next poll or
+        // recovery run will try to enqueue it again.
+        console.error('[PAYMENT RECONCILIATION] Failed to queue merchant webhook:', error);
+        return null;
+    }
+}
+
 /**
  * Confere um pedido local diretamente na Pagar.me.
  *
@@ -150,6 +166,7 @@ export async function reconcileOrderPayment(
                 console.error('[PAYMENT RECONCILIATION] Failed to recover paid notification:', error);
             }
         }
+        await ensureMerchantWebhook(currentOrder, 'paid');
         return {
             status: 'paid',
             reconciled: false,
@@ -162,6 +179,12 @@ export async function reconcileOrderPayment(
         ['failed', 'cancelled', 'canceled', 'refunded', 'chargeback'].includes(currentOrder.status)
         || !currentOrder.pagarme_order_id
     ) {
+        if (currentOrder.status !== 'pending' && currentOrder.status !== 'processing') {
+            await ensureMerchantWebhook(
+                currentOrder,
+                currentOrder.status === 'canceled' ? 'cancelled' : currentOrder.status,
+            );
+        }
         return {
             status: currentOrder.status === 'canceled' ? 'cancelled' : currentOrder.status,
             reconciled: false,
@@ -204,6 +227,7 @@ export async function reconcileOrderPayment(
             .update({ status: refreshedOrder.status })
             .eq('order_id', refreshedOrder.id)
             .in('type', ['sale', 'api_sale']);
+        await ensureMerchantWebhook(refreshedOrder, refreshedOrder.status);
         return {
             status: providerStatus,
             reconciled: true,
@@ -226,6 +250,7 @@ export async function reconcileOrderPayment(
     } catch (error) {
         console.error('[PAYMENT RECONCILIATION] Failed to notify paid order:', error);
     }
+    await ensureMerchantWebhook(refreshedOrder, 'paid');
 
     if (refreshedOrder.product_id) {
         const { count } = await supabase

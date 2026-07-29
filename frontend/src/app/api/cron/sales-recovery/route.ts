@@ -3,6 +3,7 @@ import { supabase } from '@/lib/db';
 import { sendPixSalesRecoveryEmail } from '@/lib/email';
 import { reconcileOrderPayment } from '@/lib/order-payment-reconciliation';
 import { ensureRecipientManualPayoutControl } from '@/lib/affiliates';
+import { processOutgoingWebhookDeliveries } from '@/lib/outgoing-webhooks';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,6 +116,18 @@ export async function GET(req: NextRequest) {
         await Promise.all(workers);
     }
 
+    let outgoingWebhooks = {
+        claimed: 0,
+        delivered: 0,
+        failed: 0,
+    };
+    try {
+        outgoingWebhooks = await processOutgoingWebhookDeliveries({ limit: 100 });
+    } catch (error) {
+        console.error('[OUTGOING WEBHOOK CRON] Failed to process delivery queue:', error);
+        reconciliationErrors.push(`webhooks: ${errorMessage(error)}`);
+    }
+
     const { data: settings, error: settingsError } = await supabase
         .from('sales_recovery_settings')
         .select('user_id, product_id, delay_minutes, products(name)')
@@ -219,6 +232,7 @@ export async function GET(req: NextRequest) {
         skipped,
         summary,
         reconciliation: reconciliationSummary,
+        outgoing_webhooks: outgoingWebhooks,
         payout_control: payoutControlSummary,
         errors: [...payoutControlErrors, ...reconciliationErrors, ...errors].slice(0, 10),
     });

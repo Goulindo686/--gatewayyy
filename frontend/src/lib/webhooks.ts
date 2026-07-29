@@ -22,21 +22,32 @@ export function normalizeWebhookUrls(value: unknown, fallback?: unknown): string
     return Array.from(new Set(values));
 }
 
-export async function sendWebhookPayload(url: string, payload: unknown) {
+export async function sendWebhookPayload(
+    url: string,
+    payload: unknown,
+    options: { timeoutMs?: number } = {},
+) {
     const startTime = Date.now();
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-    });
-    const duration = Date.now() - startTime;
-    const text = response.ok ? '' : await response.text().catch(() => '');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), options.timeoutMs || 10_000);
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+        });
+        const duration = Date.now() - startTime;
+        const text = response.ok ? '' : await response.text().catch(() => '');
 
-    return {
-        url,
-        ok: response.ok,
-        status: response.status,
-        duration,
-        error: response.ok ? null : text.slice(0, 200),
-    };
+        return {
+            url,
+            ok: response.ok,
+            status: response.status,
+            duration,
+            error: response.ok ? null : text.slice(0, 200),
+        };
+    } finally {
+        clearTimeout(timeout);
+    }
 }

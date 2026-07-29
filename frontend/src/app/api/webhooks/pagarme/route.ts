@@ -10,7 +10,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { sendPurchaseApprovedEmail } from '@/lib/email';
 import { sendFacebookEvent } from '@/lib/facebook-capi';
 import { sendPaidOrderToUtmify } from '@/lib/utmify';
-import { normalizeWebhookUrls, sendWebhookPayload } from '@/lib/webhooks';
+import {
+    enqueueOrderWebhookDeliveries,
+    processOutgoingWebhookDeliveries,
+} from '@/lib/outgoing-webhooks';
 import { CARD_PLATFORM_FEE_PERCENTAGE } from '@/lib/pagarme';
 import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import {
@@ -902,6 +905,10 @@ export async function POST(req: NextRequest) {
                     console.warn(`[EMAIL] Rate limit atingido para email de compra do pedido ${order.id}`);
                 }
             }
+            // Register the merchant callback before completing financial
+            // post-processing. Actual delivery is independent and retryable.
+            await enqueueOrderWebhookDeliveries(order, newStatus);
+
             const { error: paidProcessedError } = await supabase
                 .from('orders')
                 .update({
@@ -916,6 +923,7 @@ export async function POST(req: NextRequest) {
             await supabase.from('transactions')
                 .update({ status: newStatus === 'failed' ? 'failed' : newStatus })
                 .eq('order_id', order.id).eq('type', 'sale');
+            await enqueueOrderWebhookDeliveries(order, newStatus);
         }
 
         // Create refund transaction if needed
@@ -930,47 +938,20 @@ export async function POST(req: NextRequest) {
 
         // NOTIFICAR WEBHOOK DO USUÁRIO
         try {
-            const { data: seller } = await supabase
-                .from('users')
-                .select('webhook_url, webhook_urls')
-                .eq('id', order.seller_id)
-                .single();
-            const webhookUrls = normalizeWebhookUrls(seller?.webhook_urls, seller?.webhook_url);
-
-            if (webhookUrls.length > 0) {
-                const payload = {
-                    event: `order.${newStatus}`,
-                    data: {
-                        id: order.id,
-                        transaction_id: order.id, // Adicionado para compatibilidade
-                        status: newStatus,
-                        amount: order.amount,
-                        amount_display: (order.amount / 100).toFixed(2),
-                        description: order.description,
-                        payment_method: order.payment_method,
-                        customer: {
-                            name: order.buyer_name,
-                            email: order.buyer_email,
-                            cpf: order.buyer_cpf,
-                            phone: order.buyer_phone
-                        },
-                        created_at: order.created_at,
-                        updated_at: new Date().toISOString()
-                    }
-                };
-
-                console.log(`Sending ${webhookUrls.length} webhook(s) to user ${order.seller_id}`);
-                const results = await Promise.allSettled(webhookUrls.map((url) => sendWebhookPayload(url, payload)));
-                results.forEach((result, index) => {
-                    if (result.status === 'rejected') {
-                        console.error(`Error sending user webhook ${webhookUrls[index]}:`, result.reason);
-                    } else if (!result.value.ok) {
-                        console.error(`User webhook returned ${result.value.status} for ${result.value.url}: ${result.value.error || ''}`);
-                    }
+            const delivery = await processOutgoingWebhookDeliveries({
+                orderId: order.id,
+                eventType: `order.${newStatus}`,
+                limit: 25,
+            });
+            if (delivery.failed > 0) {
+                console.warn('[OUTGOING WEBHOOK] Delivery queued for retry:', {
+                    order_id: order.id,
+                    event_type: `order.${newStatus}`,
+                    failed: delivery.failed,
                 });
             }
         } catch (webhookError) {
-            console.error('Error sending user webhook:', webhookError);
+            console.error('[OUTGOING WEBHOOK] Immediate delivery failed:', webhookError);
         }
 
         return webhookSuccess({ received: true });
