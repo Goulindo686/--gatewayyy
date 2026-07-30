@@ -159,6 +159,11 @@ export default function SalesPage() {
             if (axios.isCancel(error)) return;
             if (currentRequestId !== requestId.current) return;
             setSales([]);
+            setSummary(null);
+            const message = axios.isAxiosError(error)
+                ? error.response?.data?.error || 'Não foi possível carregar as vendas.'
+                : 'Não foi possível carregar as vendas.';
+            toast.error(message);
         } finally {
             if (currentRequestId === requestId.current) {
                 setLoading(false);
@@ -173,6 +178,7 @@ export default function SalesPage() {
             page: 1,
         };
         appliedFilters.current = initialFilters;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         void loadSales(initialFilters);
     }, [loadSales]);
 

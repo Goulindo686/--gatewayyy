@@ -22,7 +22,6 @@ type SaleRow = {
     affiliate_id?: string | null;
     affiliate_commission_amount?: number | null;
     platform_fee_amount?: number | null;
-    products?: { name?: string | null } | null;
 };
 
 type AffiliateCommissionRow = {
@@ -37,16 +36,22 @@ type AffiliateCommissionRow = {
     status?: string | null;
     source_type?: string | null;
     created_at?: string | null;
-    products?: { name?: string | null } | null;
-    orders?: {
-        payment_method?: string | null;
-    } | null;
 };
 
 type ReferencedUserRow = {
     id: string;
     name?: string | null;
     email?: string | null;
+};
+
+type ProductNameRow = {
+    id: string;
+    name?: string | null;
+};
+
+type RelatedOrderRow = {
+    id: string;
+    payment_method?: string | null;
 };
 
 function commissionStatusToSaleStatus(status?: string | null) {
@@ -83,13 +88,13 @@ export async function GET(req: NextRequest) {
 
     let producerSalesQuery = supabase
         .from('orders')
-        .select('id, product_id, buyer_name, buyer_email, buyer_cpf, buyer_phone, amount, payment_method, status, pagarme_order_id, pagarme_charge_id, created_at, delivered, delivered_at, affiliate_id, affiliate_commission_amount, platform_fee_amount, products(name)')
+        .select('id, product_id, buyer_name, buyer_email, buyer_cpf, buyer_phone, amount, payment_method, status, pagarme_order_id, pagarme_charge_id, created_at, delivered, delivered_at, affiliate_id, affiliate_commission_amount, platform_fee_amount')
         .eq('seller_id', auth.user.id)
         .order('created_at', { ascending: false });
 
     let affiliateSalesQuery = supabase
         .from('affiliate_commissions')
-        .select('id, order_id, subscription_id, product_id, producer_id, gross_amount, commission_amount, commission_rate_bps, status, source_type, created_at, products(name), orders(payment_method)')
+        .select('id, order_id, subscription_id, product_id, producer_id, gross_amount, commission_amount, commission_rate_bps, status, source_type, created_at')
         .eq('affiliate_id', auth.user.id)
         .order('created_at', { ascending: false });
 
@@ -117,6 +122,41 @@ export async function GET(req: NextRequest) {
         return jsonError('Erro ao buscar vendas: ' + message);
     }
 
+    // Busca relações separadamente para não depender da descoberta automática
+    // de relacionamentos do PostgREST. O módulo de Entregas Únicas adiciona
+    // novas tabelas entre orders e products, tornando embeds genéricos ambíguos.
+    const referencedProductIds = Array.from(new Set([
+        ...producerSales.map((sale) => sale.product_id),
+        ...affiliateCommissions.map((commission) => commission.product_id),
+    ].filter((id): id is string => Boolean(id))));
+    const referencedOrderIds = Array.from(new Set(
+        affiliateCommissions
+            .map((commission) => commission.order_id)
+            .filter((id): id is string => Boolean(id)),
+    ));
+    const [productsLookup, relatedOrdersLookup] = await Promise.all([
+        referencedProductIds.length
+            ? supabase.from('products').select('id, name').in('id', referencedProductIds)
+            : Promise.resolve({ data: [], error: null }),
+        referencedOrderIds.length
+            ? supabase.from('orders').select('id, payment_method').in('id', referencedOrderIds)
+            : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (productsLookup.error) {
+        console.error('[SALES] Product names lookup error:', productsLookup.error);
+    }
+    if (relatedOrdersLookup.error) {
+        console.error('[SALES] Related orders lookup error:', relatedOrdersLookup.error);
+    }
+    const productNameById = new Map(
+        ((productsLookup.data || []) as ProductNameRow[])
+            .map((product) => [product.id, product.name || '—']),
+    );
+    const paymentMethodByOrderId = new Map(
+        ((relatedOrdersLookup.data || []) as RelatedOrderRow[])
+            .map((order) => [order.id, order.payment_method || null]),
+    );
+
     const referencedUserIds = Array.from(new Set([
         ...producerSales.map((sale) => sale.affiliate_id).filter((id): id is string => Boolean(id)),
         ...affiliateCommissions.map((commission) => commission.producer_id).filter((id): id is string => Boolean(id)),
@@ -137,7 +177,9 @@ export async function GET(req: NextRequest) {
 
         return {
             ...sale,
-            product_name: sale.products?.name || (!sale.product_id && sale.payment_method === 'pix' ? 'API Pix' : '—'),
+            product_name: sale.product_id
+                ? productNameById.get(sale.product_id) || '—'
+                : sale.payment_method === 'pix' ? 'API Pix' : '—',
             amount: grossAmount,
             amount_display: (grossAmount / 100).toFixed(2),
             gross_amount: grossAmount,
@@ -160,7 +202,9 @@ export async function GET(req: NextRequest) {
             order_id: commission.order_id,
             subscription_id: commission.subscription_id,
             product_id: commission.product_id,
-            product_name: commission.products?.name || 'Produto',
+            product_name: commission.product_id
+                ? productNameById.get(commission.product_id) || 'Produto'
+                : 'Produto',
             buyer_name: null,
             buyer_email: null,
             buyer_cpf: null,
@@ -170,7 +214,9 @@ export async function GET(req: NextRequest) {
             gross_amount: Math.max(0, Math.round(Number(commission.gross_amount) || 0)),
             commission_amount: commissionAmount,
             commission_rate_bps: Math.max(0, Math.round(Number(commission.commission_rate_bps) || 0)),
-            payment_method: commission.orders?.payment_method
+            payment_method: (commission.order_id
+                ? paymentMethodByOrderId.get(commission.order_id)
+                : null)
                 || (commission.source_type?.startsWith('subscription') ? 'recurrence' : 'affiliate'),
             status: commissionStatusToSaleStatus(commission.status),
             commission_status: commission.status,

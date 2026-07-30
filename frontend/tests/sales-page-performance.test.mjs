@@ -23,6 +23,17 @@ test('sales history renders a bounded page and cancels obsolete searches', () =>
     assert.match(route, /total_pages: totalPages/);
 });
 
+test('sales API avoids ambiguous embedded product relationships', () => {
+    const page = read('../src/app/dashboard/sales/page.tsx');
+    const route = read('../src/app/api/sales/route.ts');
+
+    assert.doesNotMatch(route, /products\(name\)/);
+    assert.match(route, /productNameById/);
+    assert.match(route, /\.from\('products'\)\.select\('id, name'\)/);
+    assert.match(page, /error\.response\?\.data\?\.error/);
+    assert.match(page, /toast\.error\(message\)/);
+});
+
 test('sales information is grouped without a horizontal table scroller', () => {
     const page = read('../src/app/dashboard/sales/page.tsx');
 
