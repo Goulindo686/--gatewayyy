@@ -233,7 +233,7 @@ export default function ContentEditorPage() {
     return (
         <div className="animate-fade-in">
             <header style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
-                <Link href="/dashboard/products" style={{
+                <Link href={`/dashboard/products/${productId}`} style={{
                     width: 40, height: 40, borderRadius: 12, background: 'var(--bg-card)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)',
                     border: '1px solid var(--border-color)'

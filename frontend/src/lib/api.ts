@@ -77,6 +77,49 @@ export const productsAPI = {
     enroll: (id: string, email: string) => api.post(`/products/${id}/enroll`, { email }),
 };
 
+// Product management always uses the colocated Next.js API. This keeps the new
+// management shell and protected delivery module independent from the legacy
+// Express API URL that may still exist in development environments.
+export const productManagementAPI = {
+    create: (data: any) => internalApi.post('/products', data),
+    getById: (id: string) => internalApi.get(`/products/${id}`),
+    update: (id: string, data: any) => internalApi.put(`/products/${id}`, data),
+    delete: (id: string) => internalApi.delete(`/products/${id}`),
+    enroll: (id: string, email: string) => internalApi.post(`/products/${id}/enroll`, { email }),
+};
+
+export const uniqueDeliveryAPI = {
+    getInventory: (productId: string) =>
+        internalApi.get(`/products/${productId}/unique-deliveries`),
+    createItems: (productId: string, items: any[]) =>
+        internalApi.post(`/products/${productId}/unique-deliveries`, { items }),
+    updateSettings: (productId: string, enabled: boolean) =>
+        internalApi.patch(`/products/${productId}/unique-deliveries`, { enabled }),
+    deleteItem: (productId: string, itemId: string) =>
+        internalApi.delete(`/products/${productId}/unique-deliveries/${itemId}`),
+    uploadFile: (productId: string, itemId: string, file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return internalApi.post(
+            `/products/${productId}/unique-deliveries/${itemId}/files`,
+            formData,
+        );
+    },
+    deleteFile: (productId: string, itemId: string, fileId: string) =>
+        internalApi.delete(
+            `/products/${productId}/unique-deliveries/${itemId}/files/${fileId}`,
+        ),
+};
+
+export const myUniqueDeliveryAPI = {
+    list: () => internalApi.get('/my-unique-deliveries'),
+    download: (fulfillmentId: string, fileId: string) =>
+        internalApi.get(
+            `/my-unique-deliveries/${fulfillmentId}/files/${fileId}`,
+            { responseType: 'blob' },
+        ),
+};
+
 // Dashboard
 export const dashboardAPI = {
     getStats: (params?: any) => api.get('/dashboard/stats', { params }),

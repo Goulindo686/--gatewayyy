@@ -22,6 +22,7 @@ import {
     hashPaymentRequest,
 } from '@/lib/payment-security';
 import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
+import { getUniqueDeliveryStock } from '@/lib/unique-deliveries';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -211,6 +212,8 @@ export async function POST(req: NextRequest) {
                 name: dbProduct.name,
             };
         });
+
+        const uniqueDeliveryProductIds: string[] = [];
 
         const totalAmountCents = validatedCart.reduce((sum: number, item: any) => sum + item.priceCents * item.quantity, 0);
         const method = normalizedPaymentMethod;
@@ -436,6 +439,29 @@ export async function POST(req: NextRequest) {
                 );
                 return NextResponse.json(recoveredResponse, { status: 200 });
             }
+            for (const item of validatedCart) {
+                const stock = await getUniqueDeliveryStock(item.id);
+                if (!stock.enabled) continue;
+                if (item.quantity !== 1) {
+                    await failPaymentAttempt(
+                        activeIdempotencyKey,
+                        new Error('Quantidade invalida para entrega exclusiva.'),
+                    );
+                    return NextResponse.json({
+                        error: 'Produtos com entrega exclusiva devem ser comprados uma unidade por vez.',
+                    }, { status: 409 });
+                }
+                if ((stock.available || 0) < 1) {
+                    await failPaymentAttempt(
+                        activeIdempotencyKey,
+                        new Error('Estoque de entrega exclusiva indisponivel.'),
+                    );
+                    return NextResponse.json({
+                        error: 'Um produto do carrinho esta temporariamente sem acessos exclusivos disponiveis.',
+                    }, { status: 409 });
+                }
+                uniqueDeliveryProductIds.push(item.id);
+            }
             pagarmeOrder = await PagarmeService.createOrder({
                 amount: totalAmountCents,
                 payment_method: method,
@@ -577,6 +603,22 @@ export async function POST(req: NextRequest) {
         if (orderError) {
             console.error('Supabase Order Save Error:', orderError);
             throw orderError;
+        }
+
+        if (uniqueDeliveryProductIds.length > 0) {
+            const { error: uniqueProductsError } = await supabase
+                .from('unique_delivery_order_products')
+                .upsert(
+                    uniqueDeliveryProductIds.map((uniqueProductId) => ({
+                        order_id: order.id,
+                        product_id: uniqueProductId,
+                        seller_id: sellerId,
+                    })),
+                    { onConflict: 'order_id,product_id', ignoreDuplicates: true },
+                );
+            if (uniqueProductsError) {
+                console.error('[UNIQUE DELIVERY] Failed to register store products');
+            }
         }
 
         if (affiliateAttribution) {

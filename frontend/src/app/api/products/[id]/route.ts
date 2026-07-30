@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { normalizeFacebookSettings } from '@/lib/facebook-capi';
+import { UNIQUE_DELIVERY_BUCKET } from '@/lib/unique-deliveries';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -113,6 +114,23 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const { id } = await params;
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Não autorizado', 401);
+
+    const { data: protectedFiles } = await supabase
+        .from('unique_delivery_files')
+        .select('storage_path')
+        .eq('product_id', id)
+        .eq('seller_id', auth.user.id);
+    const protectedPaths = (protectedFiles || [])
+        .map((file: any) => file.storage_path)
+        .filter(Boolean);
+    if (protectedPaths.length > 0) {
+        const { error: storageError } = await supabase.storage
+            .from(UNIQUE_DELIVERY_BUCKET)
+            .remove(protectedPaths);
+        if (storageError) {
+            return jsonError('Erro ao remover arquivos protegidos do produto');
+        }
+    }
 
     const { error } = await supabase.from('products')
         .delete().eq('id', id).eq('user_id', auth.user.id);

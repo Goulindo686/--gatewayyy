@@ -239,7 +239,7 @@ export default function OrderBumpsPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32, flexWrap: 'wrap', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                     <button
-                        onClick={() => router.push('/dashboard/products')}
+                        onClick={() => router.push(`/dashboard/products/${productId}`)}
                         style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 12, border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
                     >
                         <FiArrowLeft size={16} /> Voltar

@@ -29,9 +29,17 @@ export default function RegisterPage() {
         localStorage.setItem('user', JSON.stringify(data.user));
         toast.success('Email confirmado. Sua conta esta pronta!');
         const pendingAffiliateInvite = localStorage.getItem('pending_affiliate_invite');
-        router.push(pendingAffiliateInvite
-            ? `/dashboard/affiliates?invite=${encodeURIComponent(pendingAffiliateInvite)}`
-            : '/dashboard');
+        const requestedReturnTo = new URLSearchParams(window.location.search).get('returnTo');
+        const safeReturnTo = requestedReturnTo
+            && requestedReturnTo.startsWith('/')
+            && !requestedReturnTo.startsWith('//')
+            ? requestedReturnTo
+            : null;
+        router.push(
+            pendingAffiliateInvite
+                ? `/dashboard/affiliates?invite=${encodeURIComponent(pendingAffiliateInvite)}`
+                : safeReturnTo || '/dashboard',
+        );
     };
 
     const handleSubmit = async (e: React.FormEvent) => {

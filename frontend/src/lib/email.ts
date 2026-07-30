@@ -350,6 +350,7 @@ export async function sendPurchaseApprovedEmail({
     amount,
     paymentMethod,
     orderId,
+    hasUniqueDelivery = false,
 }: {
     buyerName: string;
     buyerEmail: string;
@@ -357,11 +358,14 @@ export async function sendPurchaseApprovedEmail({
     amount: string;
     paymentMethod: string;
     orderId: string;
+    hasUniqueDelivery?: boolean;
 }) {
     const methodLabel = paymentMethod === 'credit_card' ? 'Cartão de Crédito' : 'PIX';
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://goupay.com.br';
-    const registerUrl = `${appUrl}/register`;
-    const loginUrl = `${appUrl}/login`;
+    const destination = hasUniqueDelivery ? '/minhas-entregas' : '/area-membros';
+    const destinationQuery = encodeURIComponent(destination);
+    const registerUrl = `${appUrl}/register?returnTo=${destinationQuery}`;
+    const loginUrl = `${appUrl}/login?returnTo=${destinationQuery}`;
     const { transporter, from } = createSmtpClient();
 
     const html = `
@@ -380,7 +384,7 @@ export async function sendPurchaseApprovedEmail({
           <td style="background:linear-gradient(135deg,#6c5ce7 0%,#a29bfe 100%);padding:40px;text-align:center;">
             <div style="font-size:48px;margin-bottom:12px;">✅</div>
             <h1 style="margin:0;color:#fff;font-size:26px;font-weight:800;">Pagamento Confirmado!</h1>
-            <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:15px;">Resgate protegido por confirmação de e-mail</p>
+            <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:15px;">${hasUniqueDelivery ? 'Sua entrega exclusiva esta protegida' : 'Resgate protegido por confirmacao de e-mail'}</p>
           </td>
         </tr>
         <tr>
@@ -420,10 +424,12 @@ export async function sendPurchaseApprovedEmail({
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
               <tr><td align="center">
                 <p style="margin:0 0 16px;color:#555;font-size:14px;line-height:1.6;">
-                  Crie sua conta com este mesmo e-mail e confirme o código recebido. Se já possui conta, entre normalmente com sua senha.
+                  ${hasUniqueDelivery
+                      ? 'Crie sua conta com este mesmo e-mail e confirme o codigo recebido para abrir sua entrega exclusiva. Se ja possui conta, entre normalmente.'
+                      : 'Crie sua conta com este mesmo e-mail e confirme o codigo recebido. Se ja possui conta, entre normalmente com sua senha.'}
                 </p>
                 <a href="${registerUrl}" style="display:inline-block;padding:16px 40px;background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:#fff;text-decoration:none;border-radius:12px;font-weight:700;font-size:16px;">
-                  Criar conta para acessar →
+                  ${hasUniqueDelivery ? 'Criar conta e abrir entrega' : 'Criar conta para acessar'} →
                 </a>
                 <div style="margin-top:14px;"><a href="${loginUrl}" style="color:#6c5ce7;font-size:14px;font-weight:700;">Já tenho conta</a></div>
               </td></tr>
@@ -449,7 +455,7 @@ export async function sendPurchaseApprovedEmail({
         to: buyerEmail,
         subject: `✅ Compra aprovada — ${productName}`,
         html,
-        text: `Pagamento Confirmado!\n\nOlá ${buyerName},\n\nSua compra foi aprovada!\nProduto: ${productName}\nValor: R$ ${amount}\nMétodo: ${methodLabel}\nPedido: ${orderId}\n\nCrie sua conta usando este mesmo e-mail e confirme o código recebido: ${registerUrl}\nSe já possui conta, entre com sua senha: ${loginUrl}\n\nDúvidas? support@goupay.com.br`,
+        text: `Pagamento Confirmado!\n\nOla ${buyerName},\n\nSua compra foi aprovada!\nProduto: ${productName}\nValor: R$ ${amount}\nMetodo: ${methodLabel}\nPedido: ${orderId}\n\nCrie sua conta usando este mesmo e-mail e confirme o codigo recebido${hasUniqueDelivery ? ' para abrir sua entrega exclusiva' : ''}: ${registerUrl}\nSe ja possui conta, entre com sua senha: ${loginUrl}\n\nDuvidas? support@goupay.com.br`,
     });
 
     console.log(`[EMAIL] Enviado para ${buyerEmail}`);

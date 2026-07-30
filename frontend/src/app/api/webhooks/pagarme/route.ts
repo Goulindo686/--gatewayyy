@@ -29,6 +29,7 @@ import {
     failWebhookEvent,
 } from '@/lib/webhook-security';
 import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
+import { hasAssignedUniqueDelivery } from '@/lib/unique-deliveries';
 
 type SaleNotificationOrder = {
     id: string;
@@ -897,6 +898,7 @@ export async function POST(req: NextRequest) {
                             amount: (order.amount / 100).toFixed(2),
                             paymentMethod: order.payment_method || 'pix',
                             orderId: order.id,
+                            hasUniqueDelivery: await hasAssignedUniqueDelivery(order.id),
                         });
                     } catch (err: any) {
                         console.error('[EMAIL] Erro ao enviar email de compra:', err?.message);

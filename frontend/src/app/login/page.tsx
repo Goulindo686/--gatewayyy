@@ -31,8 +31,16 @@ export default function LoginPage() {
             router.push(`/dashboard/affiliates?invite=${encodeURIComponent(pendingAffiliateInvite)}`);
             return;
         }
+        const requestedReturnTo = new URLSearchParams(window.location.search).get('returnTo');
+        const safeReturnTo = requestedReturnTo
+            && requestedReturnTo.startsWith('/')
+            && !requestedReturnTo.startsWith('//')
+            ? requestedReturnTo
+            : null;
         if (data.user.role === 'admin') {
             router.push('/admin');
+        } else if (safeReturnTo) {
+            router.push(safeReturnTo);
         } else if (data.user.role === 'customer') {
             router.push('/area-membros');
         } else {

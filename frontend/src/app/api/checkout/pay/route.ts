@@ -28,6 +28,10 @@ import {
     hashPaymentRequest,
 } from '@/lib/payment-security';
 import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
+import {
+    getUniqueDeliveryStock,
+    hasAssignedUniqueDelivery,
+} from '@/lib/unique-deliveries';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -140,6 +144,7 @@ export async function POST(req: NextRequest) {
             .from('products').select('*').eq('id', product_id).eq('status', 'active').single();
 
         if (!product) return jsonError('Produto não encontrado', 404);
+        const purchasedProductIds = new Set<string>([product.id]);
 
         // Optional plan
         let selectedPlan: any = null;
@@ -277,10 +282,13 @@ export async function POST(req: NextRequest) {
                             quantity: 1,
                             code: itemCode(codeSource, bump.id),
                         });
+                        if (bumpProduct?.id) purchasedProductIds.add(bumpProduct.id);
                     }
                 }
             }
         }
+
+        const uniqueDeliveryProductIds: string[] = [];
 
         let orderId = uuidv4();
         let pagarmeOrder;
@@ -461,6 +469,20 @@ export async function POST(req: NextRequest) {
                 );
                 return jsonSuccess(recoveredResponse, 200);
             }
+            for (const purchasedProductId of purchasedProductIds) {
+                const stock = await getUniqueDeliveryStock(purchasedProductId);
+                if (stock.enabled && (stock.available || 0) < 1) {
+                    await failPaymentAttempt(
+                        activeIdempotencyKey,
+                        new Error('Estoque de entrega exclusiva indisponivel.'),
+                    );
+                    return jsonError(
+                        'Este produto esta temporariamente sem acessos exclusivos disponiveis.',
+                        409,
+                    );
+                }
+                if (stock.enabled) uniqueDeliveryProductIds.push(purchasedProductId);
+            }
             pagarmeOrder = await PagarmeService.createOrder({
                 amount: totalCents,
                 payment_method: normalizedPaymentMethod,
@@ -576,6 +598,25 @@ export async function POST(req: NextRequest) {
             ...affiliateOrderSnapshot(affiliateAttribution),
         });
         if (orderInsertError) throw orderInsertError;
+
+        if (uniqueDeliveryProductIds.length > 0) {
+            const { error: uniqueProductsError } = await supabase
+                .from('unique_delivery_order_products')
+                .upsert(
+                    uniqueDeliveryProductIds.map((uniqueProductId) => ({
+                        order_id: orderId,
+                        product_id: uniqueProductId,
+                        seller_id: product.user_id,
+                    })),
+                    { onConflict: 'order_id,product_id', ignoreDuplicates: true },
+                );
+            if (uniqueProductsError) {
+                // O pedido ja existe no provedor neste ponto. O trigger de orders
+                // ainda protege o produto principal; a reconciliacao pode repetir
+                // a vinculacao de produtos adicionais.
+                console.error('[UNIQUE DELIVERY] Failed to register purchased products');
+            }
+        }
 
         if (affiliateAttribution) {
             await recordOrderAffiliateCommission({
@@ -734,6 +775,7 @@ export async function POST(req: NextRequest) {
                         amount: amountDisplay,
                         paymentMethod: normalizedPaymentMethod,
                         orderId,
+                        hasUniqueDelivery: await hasAssignedUniqueDelivery(orderId),
                     });
                     console.log(`[EMAIL] Email de compra enviado para ${buyer.email}`);
                 } else {
