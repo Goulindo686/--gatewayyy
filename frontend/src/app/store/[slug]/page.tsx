@@ -1,14 +1,23 @@
 'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { storeAPI } from '@/lib/api';
-import { FiArrowRight, FiBookOpen, FiCheckCircle, FiChevronLeft, FiChevronRight, FiGrid, FiPackage, FiSearch, FiShield, FiShoppingBag, FiUser, FiZap } from 'react-icons/fi';
+import { FiArrowRight, FiBookOpen, FiCheckCircle, FiGrid, FiInstagram, FiMail, FiPackage, FiSearch, FiShield, FiShoppingBag, FiUser, FiZap } from 'react-icons/fi';
 import { useCart } from '@/contexts/CartContext';
 import toast from 'react-hot-toast';
+import StoreBannerCarousel from '@/components/store/StoreBannerCarousel';
+import {
+    buildAutomaticProductSections,
+    buildRenderableStoreSections,
+    normalizeStoreBackground,
+    normalizeStoreFooter,
+    normalizeStoreLayoutSections,
+    StoreLayoutSection
+} from '@/lib/store-builder';
 
 type TemplateKey = 'creator' | 'academy' | 'studio';
-const PRODUCTS_PER_PAGE = 4;
 
 const templateStyles: Record<TemplateKey, {
     bg: string;
@@ -65,29 +74,32 @@ export default function StorePage() {
     const [products, setProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [productPage, setProductPage] = useState(1);
     const activeCategory = searchParams.get('category') || '';
     const [quickProduct, setQuickProduct] = useState<any>(null);
     const [quickPlan, setQuickPlan] = useState<any>(null);
 
     useEffect(() => {
-        if (params.slug) loadStore(params.slug as string, activeCategory);
+        if (!params.slug) return;
+        let cancelled = false;
+        storeAPI.getStoreBySlug(params.slug as string, activeCategory)
+            .then(({ data }) => {
+                if (cancelled) return;
+                setStore(data.store);
+                setCategories(data.categories || []);
+                setProducts(data.products || []);
+            })
+            .catch(error => {
+                if (cancelled) return;
+                console.error(error);
+                setStore(null);
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
     }, [params.slug, activeCategory]);
-
-    const loadStore = async (slug: string, category: string) => {
-        try {
-            setLoading(true);
-            const { data } = await storeAPI.getStoreBySlug(slug, category);
-            setStore(data.store);
-            setCategories(data.categories || []);
-            setProducts(data.products || []);
-        } catch (err) {
-            console.error(err);
-            setStore(null);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const template = (store?.template || 'creator') as TemplateKey;
     const theme = templateStyles[template] || templateStyles.creator;
@@ -107,14 +119,20 @@ export default function StorePage() {
         );
     }, [products, searchTerm]);
 
-    useEffect(() => {
-        setProductPage(1);
-    }, [searchTerm, activeCategory, products.length]);
-
-    const totalProductPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE));
-    const safeProductPage = Math.min(productPage, totalProductPages);
-    const paginatedProducts = filteredProducts.slice((safeProductPage - 1) * PRODUCTS_PER_PAGE, safeProductPage * PRODUCTS_PER_PAGE);
     const featuredProduct = filteredProducts[0];
+    const configuredSections = useMemo(
+        () => normalizeStoreLayoutSections(store?.layout_sections),
+        [store?.layout_sections]
+    );
+    const renderedSections = useMemo<StoreLayoutSection[]>(() => {
+        const availableIds = filteredProducts.map(product => String(product.id));
+        if (searchTerm.trim() || activeCategory) return buildAutomaticProductSections(availableIds);
+        return buildRenderableStoreSections(configuredSections, availableIds);
+    }, [activeCategory, configuredSections, filteredProducts, searchTerm]);
+    const productsById = useMemo(
+        () => new Map(filteredProducts.map(product => [String(product.id), product])),
+        [filteredProducts]
+    );
 
     const handleCategoryClick = (catSlug: string) => {
         router.push(catSlug === activeCategory ? `/store/${slug}` : `/store/${slug}?category=${catSlug}`);
@@ -187,9 +205,15 @@ export default function StorePage() {
     const heroBg = store.banner_url
         ? `linear-gradient(90deg, ${theme.heroMode === 'light' ? 'rgba(248,250,252,0.96)' : 'rgba(9,9,11,0.92)'} 0%, ${theme.heroMode === 'light' ? 'rgba(248,250,252,0.78)' : 'rgba(9,9,11,0.54)'} 52%, rgba(9,9,11,0.15) 100%), url(${store.banner_url}) center/cover`
         : `radial-gradient(circle at top right, ${accent}44, transparent 34%), linear-gradient(135deg, ${theme.bg}, ${theme.surfaceAlt})`;
+    const background = normalizeStoreBackground(store.background);
+    const footer = normalizeStoreFooter(store.footer);
+    const pageBackground = background.mode === 'image' && background.image_url
+        ? `linear-gradient(rgba(9,9,11,${background.overlay / 100}), rgba(9,9,11,${background.overlay / 100})), url("${background.image_url}") center/cover fixed`
+        : undefined;
+    const pageBackgroundColor = background.mode === 'color' ? background.color : theme.bg;
 
     return (
-        <div id="top" style={{ minHeight: '100vh', background: theme.bg, color: theme.text, fontFamily: 'Inter, Outfit, sans-serif' }}>
+        <div id="top" style={{ minHeight: '100vh', background: pageBackground || pageBackgroundColor, color: theme.text, fontFamily: 'Inter, Outfit, sans-serif' }}>
             <header className="store-floating-header">
                 <div
                     className="store-topbar"
@@ -284,11 +308,12 @@ export default function StorePage() {
                 </div>
             </section>
 
-            <main id="store-products" className="store-shell" style={{ maxWidth: 1240, margin: '0 auto', padding: '34px 24px 70px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 18, marginBottom: 22 }} className="store-section-head">
+            <main id="store-products" className="store-shell storefront-content" style={{ maxWidth: 1240, margin: '0 auto', padding: '38px 24px 76px' }}>
+                <div className="store-catalog-toolbar" style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
                     <div>
-                        <h2 style={{ fontSize: 28, fontWeight: 950, marginBottom: 6 }}>Produtos digitais</h2>
-                        <p style={{ color: theme.muted, fontSize: 14 }}>{filteredProducts.length} produto{filteredProducts.length === 1 ? '' : 's'} disponiveis</p>
+                        <span style={{ color: accent }}>CATÁLOGO</span>
+                        <h2>Explore a loja</h2>
+                        <p style={{ color: theme.muted }}>{filteredProducts.length} produto{filteredProducts.length === 1 ? '' : 's'} disponíve{filteredProducts.length === 1 ? 'l' : 'is'}</p>
                     </div>
                     <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }} className="category-row">
                         <button className="category-button" onClick={() => handleCategoryClick('')} style={{ ...categoryButtonStyle(!activeCategory, accent, theme) }}>
@@ -303,77 +328,72 @@ export default function StorePage() {
                 </div>
 
                 {filteredProducts.length === 0 ? (
-                    <div style={{ padding: 48, textAlign: 'center', borderRadius: 20, border: `1px dashed ${theme.border}`, background: theme.surface }}>
+                    <div style={{ padding: 54, textAlign: 'center', borderRadius: 24, border: `1px dashed ${theme.border}`, background: theme.surface }}>
                         <FiPackage size={40} style={{ color: theme.muted, marginBottom: 12 }} />
                         <h3 style={{ fontSize: 18, fontWeight: 900, marginBottom: 6 }}>Nenhum produto encontrado</h3>
                         <p style={{ color: theme.muted, fontSize: 14 }}>Tente buscar por outro termo ou categoria.</p>
                     </div>
                 ) : (
-                    <>
-                        <div className={`products-grid template-${template}`} style={{ display: 'grid', gridTemplateColumns: template === 'academy' ? 'repeat(3, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: 18 }}>
-                            {paginatedProducts.map(product => (
-                                <article key={product.id} className="store-product-card" style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: template === 'studio' ? 8 : 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                                    <button className="store-product-media" onClick={() => openQuick(product)} style={{ height: template === 'academy' ? 150 : 178, border: 'none', padding: 0, cursor: 'pointer', background: product.image_url ? `url(${product.image_url}) center/cover` : `linear-gradient(135deg, ${accent}, ${theme.surfaceAlt})` }} aria-label={`Ver ${product.name}`} />
-                                    <div className="store-product-body" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12, flex: 1 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-                                            <h3 className="store-product-title" style={{ fontSize: 17, fontWeight: 900, lineHeight: 1.25 }}>{product.name}</h3>
-                                            <span className="store-online-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: accent, fontSize: 11, fontWeight: 900, whiteSpace: 'nowrap' }}>
-                                                <FiBookOpen size={13} /> Online
-                                            </span>
-                                        </div>
-                                        <p className="store-product-description" style={{ color: theme.muted, fontSize: 13, lineHeight: 1.5, minHeight: 38, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                            {product.description || 'Produto digital com compra segura e entrega online.'}
-                                        </p>
-                                        <div style={{ marginTop: 'auto', display: 'grid', gap: 10 }}>
-                                            <div>
-                                                <div className="store-price-label" style={{ color: theme.muted, fontSize: 12, fontWeight: 700 }}>{product.has_plans ? 'A partir de' : 'Preco'}</div>
-                                                <div className="store-product-price" style={{ fontSize: 22, fontWeight: 950 }}>R$ {product.price_display}</div>
-                                            </div>
-                                            <button className="store-card-action" onClick={() => openQuick(product)} style={{ width: '100%', border: 'none', borderRadius: 12, background: accent, color: 'white', padding: 12, fontWeight: 900, cursor: 'pointer' }}>
-                                                Ver produto
-                                            </button>
-                                        </div>
+                    <div className="storefront-sections">
+                        {renderedSections.map(section => section.type === 'banner_carousel' ? (
+                            <StoreBannerCarousel
+                                key={section.id}
+                                section={section}
+                                accent={accent}
+                                surface={theme.surface}
+                                border={theme.border}
+                                onNavigate={handleNavClick}
+                            />
+                        ) : (
+                            <section className="store-product-section" key={section.id}>
+                                <div className="store-product-section-heading">
+                                    <div>
+                                        <span style={{ color: accent }}>SELEÇÃO DA LOJA</span>
+                                        <h2>{section.title || 'Produtos em destaque'}</h2>
+                                        {section.subtitle && <p style={{ color: theme.muted }}>{section.subtitle}</p>}
                                     </div>
-                                </article>
-                            ))}
-                        </div>
-
-                        {totalProductPages > 1 && (
-                            <div className="product-pagination" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
-                                <button
-                                    type="button"
-                                    className="product-page-arrow"
-                                    onClick={() => setProductPage(page => Math.max(1, page - 1))}
-                                    disabled={safeProductPage === 1}
-                                    style={{ ...paginationButtonStyle(false, accent, theme), opacity: safeProductPage === 1 ? 0.45 : 1 }}
-                                    aria-label="Produtos anteriores"
-                                >
-                                    <FiChevronLeft size={16} />
-                                </button>
-                                {Array.from({ length: totalProductPages }, (_, index) => index + 1).map(page => (
-                                    <button
-                                        key={page}
-                                        type="button"
-                                        className="product-page-button"
-                                        onClick={() => setProductPage(page)}
-                                        style={paginationButtonStyle(page === safeProductPage, accent, theme)}
-                                    >
-                                        {page}
-                                    </button>
-                                ))}
-                                <button
-                                    type="button"
-                                    className="product-page-arrow"
-                                    onClick={() => setProductPage(page => Math.min(totalProductPages, page + 1))}
-                                    disabled={safeProductPage === totalProductPages}
-                                    style={{ ...paginationButtonStyle(false, accent, theme), opacity: safeProductPage === totalProductPages ? 0.45 : 1 }}
-                                    aria-label="Proximos produtos"
-                                >
-                                    <FiChevronRight size={16} />
-                                </button>
-                            </div>
-                        )}
-                    </>
+                                    <div className="store-section-count" style={{ color: theme.muted, borderColor: theme.border }}>
+                                        {section.product_ids.length} produto{section.product_ids.length === 1 ? '' : 's'}
+                                    </div>
+                                </div>
+                                <div className={`products-grid template-${template}`}>
+                                    {section.product_ids.map(productId => productsById.get(productId)).filter(Boolean).map(product => (
+                                        <article key={product.id} className="store-product-card" style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: template === 'studio' ? 10 : 18 }}>
+                                            <button
+                                                className="store-product-media"
+                                                onClick={() => openQuick(product)}
+                                                style={{
+                                                    background: product.image_url
+                                                        ? `url("${product.image_url}") center/cover`
+                                                        : `radial-gradient(circle at 80% 10%, rgba(255,255,255,.22), transparent 35%), linear-gradient(135deg, ${accent}, ${theme.surfaceAlt})`
+                                                }}
+                                                aria-label={`Ver ${product.name}`}
+                                            >
+                                                <span className="store-product-view">Ver detalhes</span>
+                                            </button>
+                                            <div className="store-product-body">
+                                                <div className="store-product-meta">
+                                                    <span style={{ color: accent }}><FiBookOpen size={12} /> Produto digital</span>
+                                                    <small style={{ color: theme.muted }}>{product.has_plans ? 'Planos disponíveis' : 'Acesso online'}</small>
+                                                </div>
+                                                <h3 className="store-product-title">{product.name}</h3>
+                                                <p className="store-product-description" style={{ color: theme.muted }}>
+                                                    {product.description || 'Produto digital com compra segura e entrega online.'}
+                                                </p>
+                                                <div className="store-product-purchase">
+                                                    <div>
+                                                        <small style={{ color: theme.muted }}>{product.has_plans ? 'A partir de' : 'Por apenas'}</small>
+                                                        <strong>R$ {product.price_display}</strong>
+                                                    </div>
+                                                    <button onClick={() => openQuick(product)} style={{ background: accent }}>Comprar</button>
+                                                </div>
+                                            </div>
+                                        </article>
+                                    ))}
+                                </div>
+                            </section>
+                        ))}
+                    </div>
                 )}
             </main>
 
@@ -394,6 +414,37 @@ export default function StorePage() {
                     ))}
                 </div>
             </section>
+
+            {footer.enabled && (
+                <footer className="store-footer" style={{ background: theme.surface, borderTop: `1px solid ${theme.border}` }}>
+                    <div className="store-shell store-footer-inner">
+                        <div className="store-footer-brand">
+                            <strong>{store.name || slug}</strong>
+                            <p style={{ color: theme.muted }}>
+                                {footer.description || 'Produtos digitais selecionados para ajudar você a avançar.'}
+                            </p>
+                        </div>
+                        <div className="store-footer-links">
+                            {footer.links.map(link => (
+                                <button key={link.id} onClick={() => handleNavClick(link.url)} style={{ color: theme.text }}>{link.label}</button>
+                            ))}
+                            {footer.contact_email && (
+                                <a href={`mailto:${footer.contact_email}`} style={{ color: theme.text }}><FiMail /> {footer.contact_email}</a>
+                            )}
+                            {footer.whatsapp && (
+                                <a href={`https://wa.me/${footer.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ color: theme.text }}>WhatsApp</a>
+                            )}
+                            {footer.instagram && (
+                                <a href={`https://instagram.com/${footer.instagram}`} target="_blank" rel="noopener noreferrer" style={{ color: theme.text }}><FiInstagram /> @{footer.instagram}</a>
+                            )}
+                        </div>
+                    </div>
+                    <div className="store-shell store-footer-bottom" style={{ borderTop: `1px solid ${theme.border}`, color: theme.muted }}>
+                        <span>© {new Date().getFullYear()} {store.name || slug}. {footer.copyright_text || 'Todos os direitos reservados.'}</span>
+                        <span>Pagamento seguro via GouPay</span>
+                    </div>
+                </footer>
+            )}
 
             {quickProduct && (
                 <div onClick={() => setQuickProduct(null)} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.72)', display: 'grid', placeItems: 'center', padding: 18, overflowY: 'auto' }}>
@@ -436,7 +487,7 @@ export default function StorePage() {
                 </div>
             )}
 
-            <style jsx>{`
+            <style jsx global>{`
                 .store-floating-header {
                     position: fixed;
                     top: 0;
@@ -554,13 +605,217 @@ export default function StorePage() {
                 .topbar-login {
                     padding: 0 14px;
                 }
+                .store-catalog-toolbar {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 20px;
+                    border-radius: 22px;
+                    padding: 18px 20px;
+                    margin-bottom: 38px;
+                    backdrop-filter: blur(16px);
+                }
+                .store-catalog-toolbar > div:first-child > span,
+                .store-product-section-heading > div:first-child > span {
+                    display: block;
+                    font-size: 10px;
+                    font-weight: 950;
+                    letter-spacing: .13em;
+                    margin-bottom: 4px;
+                }
+                .store-catalog-toolbar h2 {
+                    font-size: 22px;
+                    font-weight: 950;
+                    margin-bottom: 3px;
+                }
+                .store-catalog-toolbar p {
+                    font-size: 12px;
+                }
+                .storefront-sections {
+                    display: grid;
+                    gap: 48px;
+                }
+                .store-product-section {
+                    min-width: 0;
+                }
+                .store-product-section-heading {
+                    display: flex;
+                    align-items: end;
+                    justify-content: space-between;
+                    gap: 18px;
+                    margin-bottom: 18px;
+                }
+                .store-product-section-heading h2 {
+                    font-size: 27px;
+                    line-height: 1.1;
+                    font-weight: 950;
+                    margin-bottom: 5px;
+                }
+                .store-product-section-heading p {
+                    font-size: 13px;
+                }
+                .store-section-count {
+                    border: 1px solid;
+                    border-radius: 999px;
+                    padding: 7px 11px;
+                    font-size: 11px;
+                    font-weight: 800;
+                    white-space: nowrap;
+                }
+                .products-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 15px;
+                }
                 .store-product-card {
+                    overflow: hidden;
+                    display: flex;
+                    flex-direction: column;
+                    min-width: 0;
                     transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
                 }
                 .store-product-card:hover {
                     transform: translateY(-4px);
                     border-color: ${accent};
                     box-shadow: 0 18px 48px rgba(0,0,0,.22);
+                }
+                .store-product-media {
+                    position: relative;
+                    height: 180px;
+                    border: none;
+                    padding: 0;
+                    cursor: pointer;
+                    overflow: hidden;
+                }
+                .store-product-view {
+                    position: absolute;
+                    right: 10px;
+                    bottom: 10px;
+                    border-radius: 999px;
+                    padding: 7px 10px;
+                    color: white;
+                    background: rgba(9,9,11,.72);
+                    backdrop-filter: blur(8px);
+                    font-size: 10px;
+                    font-weight: 900;
+                    opacity: 0;
+                    transform: translateY(4px);
+                    transition: .2s ease;
+                }
+                .store-product-card:hover .store-product-view {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+                .store-product-body {
+                    padding: 15px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    flex: 1;
+                }
+                .store-product-meta {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 8px;
+                    font-size: 9px;
+                    font-weight: 850;
+                }
+                .store-product-meta > span {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 5px;
+                }
+                .store-product-title {
+                    font-size: 16px;
+                    line-height: 1.25;
+                    font-weight: 950;
+                }
+                .store-product-description {
+                    font-size: 12px;
+                    line-height: 1.5;
+                    min-height: 36px;
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                }
+                .store-product-purchase {
+                    margin-top: auto;
+                    padding-top: 11px;
+                    border-top: 1px solid rgba(148,163,184,.14);
+                    display: flex;
+                    align-items: end;
+                    justify-content: space-between;
+                    gap: 9px;
+                }
+                .store-product-purchase small {
+                    display: block;
+                    font-size: 9px;
+                    margin-bottom: 2px;
+                }
+                .store-product-purchase strong {
+                    display: block;
+                    font-size: 18px;
+                    white-space: nowrap;
+                }
+                .store-product-purchase button {
+                    min-height: 34px;
+                    border: none;
+                    border-radius: 10px;
+                    padding: 0 12px;
+                    color: white;
+                    font-size: 11px;
+                    font-weight: 900;
+                    cursor: pointer;
+                }
+                .store-footer-inner {
+                    max-width: 1240px;
+                    margin: 0 auto;
+                    padding: 42px 24px 30px;
+                    display: grid;
+                    grid-template-columns: 1fr 1.5fr;
+                    gap: 40px;
+                }
+                .store-footer-brand strong {
+                    display: block;
+                    font-size: 20px;
+                    font-weight: 950;
+                    margin-bottom: 9px;
+                }
+                .store-footer-brand p {
+                    max-width: 440px;
+                    font-size: 13px;
+                    line-height: 1.65;
+                }
+                .store-footer-links {
+                    display: flex;
+                    justify-content: flex-end;
+                    align-content: flex-start;
+                    gap: 9px 18px;
+                    flex-wrap: wrap;
+                }
+                .store-footer-links button,
+                .store-footer-links a {
+                    border: none;
+                    background: transparent;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 0;
+                    text-decoration: none;
+                    font-size: 12px;
+                    font-weight: 750;
+                    cursor: pointer;
+                }
+                .store-footer-bottom {
+                    max-width: 1240px;
+                    margin: 0 auto;
+                    padding: 16px 24px 24px;
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 16px;
+                    font-size: 10px;
                 }
                 @media (max-width: 900px) {
                     .hero-creator,
@@ -599,6 +854,20 @@ export default function StorePage() {
                     }
                     .store-section-head {
                         grid-template-columns: 1fr !important;
+                    }
+                    .store-catalog-toolbar {
+                        align-items: flex-start;
+                        flex-direction: column;
+                    }
+                    .products-grid {
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                    }
+                    .store-footer-inner {
+                        grid-template-columns: 1fr;
+                        gap: 22px;
+                    }
+                    .store-footer-links {
+                        justify-content: flex-start;
                     }
                     .trust-row {
                         grid-template-columns: 1fr !important;
@@ -740,7 +1009,7 @@ export default function StorePage() {
                         box-shadow: none;
                     }
                     .store-product-media {
-                        height: 92px !important;
+                        height: 112px !important;
                     }
                     .store-product-body {
                         padding: 10px !important;
@@ -774,6 +1043,33 @@ export default function StorePage() {
                         padding: 8px 9px !important;
                         border-radius: 9px !important;
                         font-size: 12px !important;
+                    }
+                    .store-product-meta small {
+                        display: none;
+                    }
+                    .store-product-purchase {
+                        align-items: stretch;
+                        flex-direction: column;
+                    }
+                    .store-product-purchase button {
+                        width: 100%;
+                    }
+                    .store-product-section-heading {
+                        align-items: flex-start;
+                    }
+                    .store-product-section-heading h2 {
+                        font-size: 21px;
+                    }
+                    .store-section-count {
+                        display: none;
+                    }
+                    .store-footer-inner {
+                        padding-top: 30px !important;
+                        padding-bottom: 22px !important;
+                    }
+                    .store-footer-bottom {
+                        align-items: flex-start;
+                        flex-direction: column;
                     }
                     .product-pagination {
                         margin-top: 14px !important;
@@ -814,24 +1110,6 @@ function categoryButtonStyle(active: boolean, accent: string, theme: typeof temp
         fontSize: 13,
         fontWeight: 850,
         whiteSpace: 'nowrap',
-        cursor: 'pointer'
-    };
-}
-
-function paginationButtonStyle(active: boolean, accent: string, theme: typeof templateStyles.creator): React.CSSProperties {
-    return {
-        minWidth: 40,
-        height: 40,
-        border: `1px solid ${active ? accent : theme.border}`,
-        background: active ? accent : theme.surface,
-        color: active ? 'white' : theme.text,
-        borderRadius: 999,
-        padding: '0 14px',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 13,
-        fontWeight: 900,
         cursor: 'pointer'
     };
 }

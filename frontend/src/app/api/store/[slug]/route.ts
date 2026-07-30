@@ -1,8 +1,19 @@
 export const dynamic = 'force-dynamic';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { jsonError, jsonSuccess } from '@/lib/auth';
+import {
+    DEFAULT_STORE_BACKGROUND,
+    DEFAULT_STORE_FOOTER,
+    normalizeStoreBackground,
+    normalizeStoreFooter,
+    normalizeStoreLayoutSections
+} from '@/lib/store-builder';
+
+const PUBLIC_STORE_FIELDS = 'id, name, store_name, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text, store_layout_sections, store_footer_config, store_background_config';
+const LEGACY_PUBLIC_STORE_FIELDS = 'id, name, store_name, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
@@ -11,10 +22,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     try {
         // 1. Get store owner info
         // Simple eq with slug, since it should be sanitized
-        const { data: users, error: userError } = await supabase
+        const fullStoreResult = await supabase
             .from('users')
-            .select('id, name, store_name, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text')
+            .select(PUBLIC_STORE_FIELDS)
             .ilike('store_slug', slug);
+        let users: any[] | null = fullStoreResult.data as any[] | null;
+        let userError = fullStoreResult.error;
+
+        // The public storefront remains available while migration 029 is pending.
+        if (userError) {
+            const legacyResult = await supabase
+                .from('users')
+                .select(LEGACY_PUBLIC_STORE_FIELDS)
+                .ilike('store_slug', slug);
+            users = legacyResult.data;
+            userError = legacyResult.error;
+        }
 
         if (userError) {
             console.error('Supabase user slug error:', userError);
@@ -102,7 +125,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
                 accent_color: user.store_accent_color || '#6c5ce7',
                 headline: user.store_headline || user.store_name,
                 cta_text: user.store_cta_text || 'Ver produtos',
-                badge_text: user.store_badge_text || 'Produtos digitais com acesso online'
+                badge_text: user.store_badge_text || 'Produtos digitais com acesso online',
+                layout_sections: normalizeStoreLayoutSections(user.store_layout_sections),
+                footer: normalizeStoreFooter(user.store_footer_config || DEFAULT_STORE_FOOTER),
+                background: normalizeStoreBackground(user.store_background_config || DEFAULT_STORE_BACKGROUND)
             },
             categories: categories || [],
             products: formattedProducts

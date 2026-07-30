@@ -7,7 +7,7 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
     const pathname = usePathname();
 
     const tabs = [
-        { href: '/dashboard/store/settings', label: 'Configurações' },
+        { href: '/dashboard/store/settings', label: 'Design e Estrutura' },
         { href: '/dashboard/store/categories', label: 'Categorias' },
         { href: '/dashboard/store/products', label: 'Produtos da Loja' }
     ];
@@ -16,7 +16,7 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
         <div className="animate-fade-in">
             <div style={{ marginBottom: 32 }} className="store-header">
                 <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }} className="store-title">Minha Loja</h1>
-                <p style={{ color: 'var(--text-secondary)', fontSize: 14 }} className="store-subtitle">Personalize sua vitrine de vendas e defina as categorias.</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 14 }} className="store-subtitle">Monte sua vitrine, organize produtos, banners, fundo e rodapé.</p>
             </div>
 
             <div style={{
