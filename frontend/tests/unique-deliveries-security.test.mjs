@@ -74,7 +74,8 @@ test('database allocation is atomic, one-time and service-role only', () => {
     assert.match(migration, /UNIQUE \(order_id, product_id\)/);
     assert.match(migration, /status = 'available'/);
     assert.match(migration, /status = 'assigned'/);
-    assert.match(migration, /AFTER INSERT OR UPDATE OF status ON public\.orders/);
+    assert.match(migration, /AFTER INSERT OR UPDATE ON public\.orders/);
+    assert.doesNotMatch(migration, /INSERT OR UPDATE OF/);
     assert.match(migration, /NEW\.status = 'paid'/);
     assert.match(migration, /FORCE ROW LEVEL SECURITY/g);
     assert.match(

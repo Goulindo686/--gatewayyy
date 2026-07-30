@@ -34,7 +34,7 @@ $$;
 
 DROP TRIGGER IF EXISTS normalize_order_buyer_email ON public.orders;
 CREATE TRIGGER normalize_order_buyer_email
-BEFORE INSERT OR UPDATE OF buyer_email ON public.orders
+BEFORE INSERT OR UPDATE ON public.orders
 FOR EACH ROW EXECUTE FUNCTION public.goupay_normalize_order_buyer_email();
 
 CREATE TABLE IF NOT EXISTS public.unique_delivery_settings (
@@ -375,7 +375,7 @@ $$;
 
 DROP TRIGGER IF EXISTS assign_unique_deliveries_on_paid ON public.orders;
 CREATE TRIGGER assign_unique_deliveries_on_paid
-AFTER INSERT OR UPDATE OF status ON public.orders
+AFTER INSERT OR UPDATE ON public.orders
 FOR EACH ROW EXECUTE FUNCTION public.goupay_assign_unique_deliveries_on_paid();
 
 CREATE OR REPLACE FUNCTION public.goupay_assign_unique_delivery_on_bump_insert()
