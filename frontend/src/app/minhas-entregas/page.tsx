@@ -10,21 +10,13 @@ import {
     FiArrowLeft,
     FiCheck,
     FiCopy,
-    FiDownload,
     FiExternalLink,
-    FiFileText,
     FiKey,
     FiLock,
     FiPackage,
     FiShield,
 } from 'react-icons/fi';
 import { myUniqueDeliveryAPI } from '@/lib/api';
-
-function formatBytes(value: number) {
-    if (value < 1024) return `${value} B`;
-    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-    return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 function formatDate(value: string) {
     return new Date(value).toLocaleString('pt-BR');
@@ -35,7 +27,6 @@ export default function MyUniqueDeliveriesPage() {
     const [deliveries, setDeliveries] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState<string | null>(null);
-    const [downloading, setDownloading] = useState<string | null>(null);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -74,28 +65,6 @@ export default function MyUniqueDeliveriesPage() {
         window.setTimeout(() => setCopied((current) => current === id ? null : current), 2500);
     };
 
-    const download = async (
-        fulfillmentId: string,
-        file: { id: string; name: string },
-    ) => {
-        setDownloading(file.id);
-        try {
-            const response = await myUniqueDeliveryAPI.download(fulfillmentId, file.id);
-            const url = URL.createObjectURL(response.data);
-            const anchor = document.createElement('a');
-            anchor.href = url;
-            anchor.download = file.name;
-            document.body.appendChild(anchor);
-            anchor.click();
-            anchor.remove();
-            URL.revokeObjectURL(url);
-        } catch {
-            toast.error('Arquivo indisponível.');
-        } finally {
-            setDownloading(null);
-        }
-    };
-
     return (
         <main className="myDeliveriesPage">
             <header className="myDeliveriesTopbar">
@@ -126,7 +95,7 @@ export default function MyUniqueDeliveriesPage() {
                     <FiLock size={18} />
                     <div>
                         <strong>Seus dados são descriptografados apenas para esta sessão autenticada.</strong>
-                        <p>Não compartilhe senhas, keys ou arquivos. A GouPay não envia essas credenciais por APIs públicas.</p>
+                        <p>Não compartilhe senhas ou keys. A GouPay não envia essas credenciais por APIs públicas.</p>
                     </div>
                 </section>
 
@@ -201,30 +170,6 @@ export default function MyUniqueDeliveriesPage() {
                                     </section>
                                 )}
 
-                                {delivery.files?.length > 0 && (
-                                    <section className="myDeliveryFiles">
-                                        <h3><FiFileText size={15} /> Arquivos protegidos</h3>
-                                        <div>
-                                            {delivery.files.map((file: any) => (
-                                                <button
-                                                    type="button"
-                                                    key={file.id}
-                                                    onClick={() => download(delivery.id, file)}
-                                                    disabled={downloading === file.id}
-                                                >
-                                                    <span>
-                                                        <strong>{file.name}</strong>
-                                                        <small>{formatBytes(Number(file.size || 0))}</small>
-                                                    </span>
-                                                    <span>
-                                                        <FiDownload size={15} />
-                                                        {downloading === file.id ? 'Abrindo...' : 'Baixar'}
-                                                    </span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </section>
-                                )}
                             </article>
                         ))}
                     </div>
@@ -434,8 +379,7 @@ export default function MyUniqueDeliveriesPage() {
                     white-space:pre-wrap;
                 }
                 .myDeliveryText { border-top:1px solid var(--border-color); padding:15px 2px; }
-                .myDeliveryText h3,
-                .myDeliveryFiles h3 {
+                .myDeliveryText h3 {
                     color:var(--text-primary);
                     font-size:12px;
                     margin:0 0 7px;
@@ -460,35 +404,6 @@ export default function MyUniqueDeliveriesPage() {
                     margin:4px 0 14px;
                     padding:10px 13px;
                     text-decoration:none;
-                }
-                .myDeliveryFiles {
-                    border-top:1px solid var(--border-color);
-                    margin-top:3px;
-                    padding-top:16px;
-                }
-                .myDeliveryFiles h3 { align-items:center; display:flex; gap:6px; }
-                .myDeliveryFiles > div { display:grid; gap:8px; }
-                .myDeliveryFiles button {
-                    align-items:center;
-                    background:var(--bg-secondary);
-                    border:1px solid var(--border-color);
-                    border-radius:11px;
-                    color:var(--text-primary);
-                    cursor:pointer;
-                    display:flex;
-                    justify-content:space-between;
-                    padding:11px 13px;
-                    text-align:left;
-                }
-                .myDeliveryFiles button > span:first-child strong { display:block; font-size:11px; margin-bottom:2px; }
-                .myDeliveryFiles button > span:first-child small { color:var(--text-muted); font-size:9px; }
-                .myDeliveryFiles button > span:last-child {
-                    align-items:center;
-                    color:var(--accent-primary);
-                    display:flex;
-                    font-size:10px;
-                    font-weight:750;
-                    gap:6px;
                 }
                 .myDeliveriesEmpty {
                     background:var(--card-bg);

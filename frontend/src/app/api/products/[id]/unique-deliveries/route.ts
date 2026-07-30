@@ -73,26 +73,16 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
         const items = itemsResult.data || [];
         const fulfillments = fulfillmentsResult.data || [];
         const orderIds = fulfillments.map((entry: any) => entry.order_id).filter(Boolean);
-        const itemIds = items.map((entry: any) => entry.id);
 
-        const [ordersResult, filesResult] = await Promise.all([
-            orderIds.length
-                ? supabase
-                    .from('orders')
-                    .select('id, buyer_email, status')
-                    .eq('seller_id', authorization.auth.user.id)
-                    .in('id', orderIds)
-                : Promise.resolve({ data: [], error: null }),
-            itemIds.length
-                ? supabase
-                    .from('unique_delivery_files')
-                    .select('id, item_id')
-                    .eq('seller_id', authorization.auth.user.id)
-                    .in('item_id', itemIds)
-                : Promise.resolve({ data: [], error: null }),
-        ]);
+        const ordersResult = orderIds.length
+            ? await supabase
+                .from('orders')
+                .select('id, buyer_email, status')
+                .eq('seller_id', authorization.auth.user.id)
+                .in('id', orderIds)
+            : { data: [], error: null };
 
-        if (ordersResult.error || filesResult.error) {
+        if (ordersResult.error) {
             return protectedError('Nao foi possivel carregar o inventario.', 500);
         }
 
@@ -104,14 +94,6 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
                 .filter((entry: any) => entry.item_id)
                 .map((entry: any) => [entry.item_id, entry]),
         );
-        const fileCountByItem = new Map<string, number>();
-        for (const file of filesResult.data || []) {
-            fileCountByItem.set(
-                file.item_id,
-                (fileCountByItem.get(file.item_id) || 0) + 1,
-            );
-        }
-
         const inventory = items.map((item: any) => {
             const fulfillment: any = fulfillmentByItem.get(item.id);
             const order: any = fulfillment ? ordersById.get(fulfillment.order_id) : null;
@@ -121,7 +103,6 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
                 status: item.status,
                 created_at: item.created_at,
                 assigned_at: item.assigned_at,
-                file_count: fileCountByItem.get(item.id) || 0,
                 fulfillment: fulfillment ? {
                     id: fulfillment.id,
                     order_id: fulfillment.order_id,
@@ -135,14 +116,18 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
             };
         });
 
+        const savedSettings = settingsResult.data || {
+            enabled: false,
+            enabled_at: null,
+        };
         const response = jsonSuccess({
             product: {
                 id: authorization.product.id,
                 name: authorization.product.name,
             },
-            settings: settingsResult.data || {
-                enabled: false,
-                enabled_at: null,
+            settings: {
+                ...savedSettings,
+                delivery_mode: savedSettings.enabled ? 'unique' : 'members',
             },
             summary: {
                 total: inventory.length,
@@ -274,9 +259,14 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
         if ('error' in authorization) return authorization.error;
 
         const body = await req.json();
-        if (typeof body?.enabled !== 'boolean') {
-            return protectedError('Informe se o modulo deve ficar ativo.');
+        const requestedMode = body?.mode
+            ?? (typeof body?.enabled === 'boolean'
+                ? body.enabled ? 'unique' : 'members'
+                : null);
+        if (!['members', 'unique'].includes(requestedMode)) {
+            return protectedError('Selecione Area de Membros ou Entrega Unica.');
         }
+        const enableUniqueDelivery = requestedMode === 'unique';
 
         const { data: current, error: currentError } = await supabase
             .from('unique_delivery_settings')
@@ -290,7 +280,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
             );
         }
 
-        if (body.enabled) {
+        if (enableUniqueDelivery) {
             assertUniqueDeliveryEncryptionConfigured();
             const { count: subscriptionPlanCount, error: subscriptionPlanError } = await supabase
                 .from('subscription_plans')
@@ -304,22 +294,9 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
                     409,
                 );
             }
-            const { count, error } = await supabase
-                .from('unique_delivery_items')
-                .select('id', { count: 'exact', head: true })
-                .eq('product_id', productId)
-                .eq('seller_id', authorization.auth.user.id)
-                .eq('status', 'available');
-            if (error) throw error;
-            if (!count) {
-                return protectedError(
-                    'Cadastre ao menos uma entrega disponivel antes de ativar.',
-                    409,
-                );
-            }
         }
 
-        const enabledAt = body.enabled
+        const enabledAt = enableUniqueDelivery
             ? current?.enabled
                 ? current.enabled_at
                 : new Date().toISOString()
@@ -330,14 +307,19 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
             .upsert({
                 product_id: productId,
                 seller_id: authorization.auth.user.id,
-                enabled: body.enabled,
+                enabled: enableUniqueDelivery,
                 enabled_at: enabledAt,
             }, { onConflict: 'product_id' })
             .select('enabled, enabled_at, updated_at')
             .single();
         if (error) throw error;
 
-        return withSensitiveResponseHeaders(jsonSuccess({ settings }));
+        return withSensitiveResponseHeaders(jsonSuccess({
+            settings: {
+                ...settings,
+                delivery_mode: settings.enabled ? 'unique' : 'members',
+            },
+        }));
     } catch (error: any) {
         if (/UNIQUE_DELIVERY_ENCRYPTION_KEY/.test(String(error?.message || ''))) {
             return protectedError('Criptografia do modulo nao configurada.', 503);

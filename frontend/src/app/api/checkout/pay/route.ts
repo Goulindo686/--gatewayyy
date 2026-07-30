@@ -30,7 +30,7 @@ import {
 import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
 import {
     getUniqueDeliveryStock,
-    hasAssignedUniqueDelivery,
+    orderUsesUniqueDelivery,
 } from '@/lib/unique-deliveries';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -775,7 +775,7 @@ export async function POST(req: NextRequest) {
                         amount: amountDisplay,
                         paymentMethod: normalizedPaymentMethod,
                         orderId,
-                        hasUniqueDelivery: await hasAssignedUniqueDelivery(orderId),
+                        hasUniqueDelivery: await orderUsesUniqueDelivery(orderId, product.id),
                     });
                     console.log(`[EMAIL] Email de compra enviado para ${buyer.email}`);
                 } else {

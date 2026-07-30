@@ -123,8 +123,8 @@ export default function ProductOverviewPage() {
                     <div>
                         <h3>Entregar produto manualmente</h3>
                         <p>
-                            Libera a Área de Membros existente para um usuário já cadastrado.
-                            Esta função permanece independente das Entregas Únicas.
+                            Libera a Área de Membros para um usuário já cadastrado.
+                            Para usar esta função, selecione Área de Membros como modalidade do produto.
                         </p>
                     </div>
                     <form onSubmit={enroll}>
@@ -308,4 +308,3 @@ export default function ProductOverviewPage() {
         </div>
     );
 }
-

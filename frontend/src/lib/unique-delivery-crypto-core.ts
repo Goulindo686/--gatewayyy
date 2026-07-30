@@ -16,11 +16,6 @@ export type UniqueDeliveryPayload = {
     notes: string;
 };
 
-export type UniqueDeliveryFileMetadata = {
-    filename: string;
-    contentType: string;
-};
-
 export type EncryptedValue = {
     ciphertext: string;
     iv: string;

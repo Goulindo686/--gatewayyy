@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
     decryptUniqueDeliveryValue,
@@ -106,4 +106,35 @@ test('the encryption key has no public frontend alias', () => {
     const cryptoFacade = read('../src/lib/unique-delivery-crypto.ts');
     assert.doesNotMatch(env, /NEXT_PUBLIC_UNIQUE_DELIVERY/);
     assert.doesNotMatch(cryptoFacade, /NEXT_PUBLIC_UNIQUE_DELIVERY/);
+});
+
+test('delivery mode is exclusive and file delivery endpoints are removed', () => {
+    const sellerRoute = read('../src/app/api/products/[id]/unique-deliveries/route.ts');
+    const buyerRoute = read('../src/app/api/my-unique-deliveries/route.ts');
+    const memberEntitlements = read('../src/lib/member-entitlements.ts');
+    const webhook = read('../src/app/api/webhooks/pagarme/route.ts');
+    const managementPage = read('../src/app/dashboard/products/[id]/unique-deliveries/page.tsx');
+
+    assert.match(sellerRoute, /delivery_mode/);
+    assert.match(sellerRoute, /requestedMode === 'unique'/);
+    assert.doesNotMatch(sellerRoute, /unique_delivery_files/);
+    assert.doesNotMatch(buyerRoute, /unique_delivery_files|download_url/);
+    assert.match(memberEntitlements, /getUniqueDeliveryPurchaseKeys/);
+    assert.match(memberEntitlements, /!isUniqueDelivery/);
+    assert.match(webhook, /!usesUniqueDelivery/);
+    assert.match(managementPage, /Área de Membros/);
+    assert.match(managementPage, /Entrega Única/);
+    assert.match(managementPage, /updateDeliveryMode/);
+    assert.doesNotMatch(managementPage, /type="file"|uploadFile|Arquivos protegidos/);
+
+    const sellerUploadRoute = new URL(
+        '../src/app/api/products/[id]/unique-deliveries/[deliveryId]/files/route.ts',
+        import.meta.url,
+    );
+    const buyerDownloadRoute = new URL(
+        '../src/app/api/my-unique-deliveries/[fulfillmentId]/files/[fileId]/route.ts',
+        import.meta.url,
+    );
+    assert.equal(existsSync(sellerUploadRoute), false);
+    assert.equal(existsSync(buyerDownloadRoute), false);
 });

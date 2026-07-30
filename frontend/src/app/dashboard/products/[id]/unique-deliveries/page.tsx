@@ -3,18 +3,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import {
     FiAlertTriangle,
+    FiBookOpen,
+    FiCheck,
     FiCheckCircle,
-    FiFile,
     FiKey,
     FiLock,
     FiPackage,
     FiShield,
     FiTrash2,
-    FiUploadCloud,
 } from 'react-icons/fi';
 import { uniqueDeliveryAPI } from '@/lib/api';
 
@@ -37,11 +38,10 @@ export default function UniqueDeliveriesPage() {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [toggling, setToggling] = useState(false);
+    const [switchingMode, setSwitchingMode] = useState(false);
     const [mode, setMode] = useState<'single' | 'bulk'>('single');
     const [form, setForm] = useState(emptyForm);
     const [bulkAccess, setBulkAccess] = useState('');
-    const [files, setFiles] = useState<File[]>([]);
 
     const load = useCallback(async () => {
         try {
@@ -68,24 +68,24 @@ export default function UniqueDeliveriesPage() {
         setForm((current) => ({ ...current, [field]: value }));
     };
 
-    const toggleModule = async () => {
-        const nextEnabled = !data?.settings?.enabled;
-        if (
-            nextEnabled
-            && !confirm(
-                'Ao ativar, toda nova venda aprovada deste produto consumirá uma entrega disponível. Continuar?',
-            )
-        ) return;
+    const selectDeliveryMode = async (nextMode: 'members' | 'unique') => {
+        const currentMode = data?.settings?.delivery_mode
+            || (data?.settings?.enabled ? 'unique' : 'members');
+        if (nextMode === currentMode) return;
 
-        setToggling(true);
+        setSwitchingMode(true);
         try {
-            await uniqueDeliveryAPI.updateSettings(productId, nextEnabled);
-            toast.success(nextEnabled ? 'Entregas Únicas ativadas.' : 'Entregas Únicas pausadas.');
+            await uniqueDeliveryAPI.updateDeliveryMode(productId, nextMode);
+            toast.success(
+                nextMode === 'unique'
+                    ? 'Entrega Única ativada para as próximas vendas.'
+                    : 'Área de Membros ativada para as próximas vendas.',
+            );
             await load();
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Não foi possível atualizar o módulo.');
+            toast.error(error.response?.data?.error || 'Não foi possível alterar a modalidade.');
         } finally {
-            setToggling(false);
+            setSwitchingMode(false);
         }
     };
 
@@ -108,21 +108,6 @@ export default function UniqueDeliveriesPage() {
                 access,
             }));
             const response = await uniqueDeliveryAPI.createItems(productId, items);
-            const created = response.data.created || [];
-
-            if (mode === 'single' && created[0]?.id && files.length) {
-                const uploads = await Promise.allSettled(
-                    files.map((file) => uniqueDeliveryAPI.uploadFile(
-                        productId,
-                        created[0].id,
-                        file,
-                    )),
-                );
-                const failed = uploads.filter((result) => result.status === 'rejected').length;
-                if (failed) {
-                    toast.error(`${failed} arquivo(s) não puderam ser protegidos.`);
-                }
-            }
 
             const duplicateCount = Number(response.data.duplicate_count || 0);
             toast.success(
@@ -132,7 +117,6 @@ export default function UniqueDeliveriesPage() {
             );
             setForm(emptyForm);
             setBulkAccess('');
-            setFiles([]);
             await load();
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Erro ao proteger as entregas.');
@@ -142,7 +126,7 @@ export default function UniqueDeliveriesPage() {
     };
 
     const deleteItem = async (itemId: string) => {
-        if (!confirm('Excluir esta entrega disponível e seus arquivos protegidos?')) return;
+        if (!confirm('Excluir esta entrega disponível?')) return;
         try {
             await uniqueDeliveryAPI.deleteItem(productId, itemId);
             toast.success('Entrega removida.');
@@ -173,30 +157,91 @@ export default function UniqueDeliveriesPage() {
     }
 
     const enabled = Boolean(data?.settings?.enabled);
+    const deliveryMode: 'members' | 'unique' = enabled ? 'unique' : 'members';
     const summary = data?.summary || { total: 0, available: 0, assigned: 0, waiting: 0 };
 
     return (
         <div className="uniqueDeliveryPage">
+            <section className="glass-card deliveryModeSelector">
+                <header>
+                    <p>Modalidade de entrega</p>
+                    <h2>Como você quer entregar este produto?</h2>
+                    <span>
+                        Escolha uma opção. Somente a modalidade selecionada será
+                        liberada automaticamente nas próximas vendas.
+                    </span>
+                </header>
+
+                <div className="deliveryModeGrid">
+                    <button
+                        type="button"
+                        className={`deliveryModeCard ${deliveryMode === 'members' ? 'active members' : ''}`}
+                        onClick={() => selectDeliveryMode('members')}
+                        disabled={switchingMode}
+                        aria-pressed={deliveryMode === 'members'}
+                    >
+                        <span className="deliveryModeIcon"><FiBookOpen size={28} /></span>
+                        <span className="deliveryModeCardContent">
+                            <strong>Área de Membros</strong>
+                            <small>
+                                Conteúdos compartilhados, módulos e aulas disponíveis
+                                para todos os compradores deste produto.
+                            </small>
+                        </span>
+                        <span className="deliveryModeStatus">
+                            {deliveryMode === 'members'
+                                ? <><FiCheck size={15} /> Ativa</>
+                                : 'Selecionar'}
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        className={`deliveryModeCard ${deliveryMode === 'unique' ? 'active unique' : ''}`}
+                        onClick={() => selectDeliveryMode('unique')}
+                        disabled={switchingMode}
+                        aria-pressed={deliveryMode === 'unique'}
+                    >
+                        <span className="deliveryModeIcon"><FiKey size={28} /></span>
+                        <span className="deliveryModeCardContent">
+                            <strong>Entrega Única</strong>
+                            <small>
+                                Uma credencial, conta, key ou código exclusivo para
+                                cada venda aprovada.
+                            </small>
+                        </span>
+                        <span className="deliveryModeStatus">
+                            {deliveryMode === 'unique'
+                                ? <><FiCheck size={15} /> Ativa</>
+                                : 'Selecionar'}
+                        </span>
+                    </button>
+                </div>
+
+                <footer>
+                    <span>
+                        A alteração vale para novas compras. Entregas já realizadas
+                        continuam preservadas.
+                    </span>
+                    {deliveryMode === 'members' && (
+                        <Link href={`/dashboard/products/${productId}/content`}>
+                            Gerenciar conteúdos da Área de Membros
+                        </Link>
+                    )}
+                </footer>
+            </section>
+
             <section className="glass-card uniqueDeliveryIntro">
                 <span><FiKey size={24} /></span>
                 <div>
                     <p>Estoque individual por venda</p>
-                    <h2>Entregas Únicas</h2>
+                    <h2>Estoque de Entregas Únicas</h2>
                     <div>
                         Cada aprovação recebe uma única linha. A alocação é atômica e
-                        uma entrega utilizada nunca retorna ao estoque.
+                        uma entrega utilizada nunca retorna ao estoque. O estoque só
+                        é consumido quando Entrega Única está selecionada acima.
                     </div>
                 </div>
-                <button
-                    type="button"
-                    className={`uniqueDeliverySwitch ${enabled ? 'active' : ''}`}
-                    onClick={toggleModule}
-                    disabled={toggling}
-                    aria-pressed={enabled}
-                >
-                    <span />
-                    {toggling ? 'Salvando...' : enabled ? 'Ativado' : 'Desativado'}
-                </button>
             </section>
 
             <section className="uniqueDeliverySecurity">
@@ -340,28 +385,6 @@ export default function UniqueDeliveriesPage() {
                         />
                     </label>
 
-                    {mode === 'single' && (
-                        <label className="uniqueDeliveryFiles">
-                            <FiUploadCloud size={22} />
-                            <span>
-                                <strong>Arquivos protegidos (opcional)</strong>
-                                <small>
-                                    Até 15 MB por arquivo. Executáveis e conteúdo ativo são bloqueados.
-                                </small>
-                                {files.length > 0 && (
-                                    <em>{files.length} arquivo(s) selecionado(s)</em>
-                                )}
-                            </span>
-                            <input
-                                type="file"
-                                multiple
-                                onChange={(event) => setFiles(
-                                    Array.from(event.target.files || []).slice(0, 5),
-                                )}
-                            />
-                        </label>
-                    )}
-
                     <button className="btn-primary uniqueDeliverySubmit" disabled={saving}>
                         <FiLock size={15} />
                         {saving
@@ -388,7 +411,6 @@ export default function UniqueDeliveriesPage() {
                                 <tr>
                                     <th>Entrega</th>
                                     <th>Status</th>
-                                    <th>Arquivos</th>
                                     <th>Venda vinculada</th>
                                     <th>Cadastro</th>
                                     <th aria-label="Ações" />
@@ -404,11 +426,6 @@ export default function UniqueDeliveriesPage() {
                                         <td>
                                             <span className={`uniqueDeliveryStatus ${item.status}`}>
                                                 {item.status === 'available' ? 'Disponível' : 'Utilizada'}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span className="uniqueDeliveryFileCount">
-                                                <FiFile size={13} /> {item.file_count}
                                             </span>
                                         </td>
                                         <td>
@@ -445,13 +462,133 @@ export default function UniqueDeliveriesPage() {
                     <div className="uniqueDeliveryEmpty">
                         <FiKey size={38} />
                         <h4>Nenhuma entrega cadastrada</h4>
-                        <p>Adicione a primeira linha acima e depois ative o módulo.</p>
+                        <p>Adicione a primeira linha acima antes de iniciar suas vendas.</p>
                     </div>
                 )}
             </section>
 
             <style>{`
                 .uniqueDeliveryPage { display:grid; gap:18px; }
+                .deliveryModeSelector {
+                    background:
+                        radial-gradient(circle at 8% 0,rgba(108,92,231,.16),transparent 34%),
+                        var(--card-bg);
+                    padding:28px;
+                }
+                .deliveryModeSelector > header { margin-bottom:20px; text-align:center; }
+                .deliveryModeSelector > header p {
+                    color:var(--accent-primary);
+                    font-size:10px;
+                    font-weight:850;
+                    letter-spacing:.11em;
+                    margin:0 0 5px;
+                    text-transform:uppercase;
+                }
+                .deliveryModeSelector > header h2 {
+                    font-size:24px;
+                    letter-spacing:-.025em;
+                    margin:0 0 7px;
+                }
+                .deliveryModeSelector > header span {
+                    color:var(--text-secondary);
+                    display:block;
+                    font-size:12px;
+                    line-height:1.55;
+                }
+                .deliveryModeGrid {
+                    display:grid;
+                    gap:15px;
+                    grid-template-columns:repeat(2,minmax(0,1fr));
+                }
+                .deliveryModeCard {
+                    align-items:center;
+                    background:var(--bg-secondary);
+                    border:2px solid var(--border-color);
+                    border-radius:18px;
+                    color:var(--text-primary);
+                    cursor:pointer;
+                    display:grid;
+                    gap:14px;
+                    grid-template-columns:auto 1fr auto;
+                    min-height:142px;
+                    padding:22px;
+                    text-align:left;
+                    transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+                }
+                .deliveryModeCard:hover:not(:disabled) {
+                    border-color:rgba(108,92,231,.42);
+                    transform:translateY(-2px);
+                }
+                .deliveryModeCard:disabled { cursor:wait; opacity:.72; }
+                .deliveryModeCard.active {
+                    background:linear-gradient(135deg,rgba(108,92,231,.1),rgba(108,92,231,.035));
+                    border-color:var(--accent-primary);
+                    box-shadow:0 12px 30px rgba(108,92,231,.13);
+                }
+                .deliveryModeCard.active.members {
+                    background:linear-gradient(135deg,rgba(9,132,227,.1),rgba(9,132,227,.035));
+                    border-color:#0984e3;
+                    box-shadow:0 12px 30px rgba(9,132,227,.12);
+                }
+                .deliveryModeIcon {
+                    align-items:center;
+                    background:var(--card-bg);
+                    border:1px solid var(--border-color);
+                    border-radius:15px;
+                    color:var(--text-muted);
+                    display:flex;
+                    height:58px;
+                    justify-content:center;
+                    width:58px;
+                }
+                .deliveryModeCard.active.unique .deliveryModeIcon { color:var(--accent-primary); }
+                .deliveryModeCard.active.members .deliveryModeIcon { color:#0984e3; }
+                .deliveryModeCardContent { display:block; min-width:0; }
+                .deliveryModeCardContent strong {
+                    display:block;
+                    font-size:17px;
+                    margin-bottom:6px;
+                }
+                .deliveryModeCardContent small {
+                    color:var(--text-secondary);
+                    display:block;
+                    font-size:11px;
+                    line-height:1.55;
+                }
+                .deliveryModeStatus {
+                    align-items:center;
+                    border:1px solid var(--border-color);
+                    border-radius:999px;
+                    color:var(--text-muted);
+                    display:flex;
+                    font-size:10px;
+                    font-weight:800;
+                    gap:5px;
+                    padding:7px 10px;
+                    text-transform:uppercase;
+                }
+                .deliveryModeCard.active .deliveryModeStatus {
+                    background:rgba(0,184,148,.1);
+                    border-color:rgba(0,184,148,.25);
+                    color:#00b894;
+                }
+                .deliveryModeSelector > footer {
+                    align-items:center;
+                    display:flex;
+                    gap:14px;
+                    justify-content:space-between;
+                    margin-top:15px;
+                }
+                .deliveryModeSelector > footer > span {
+                    color:var(--text-muted);
+                    font-size:10px;
+                }
+                .deliveryModeSelector > footer a {
+                    color:var(--accent-primary);
+                    font-size:11px;
+                    font-weight:750;
+                    text-decoration:none;
+                }
                 .uniqueDeliveryIntro {
                     align-items:center;
                     background:radial-gradient(circle at 90% 0,rgba(108,92,231,.2),transparent 43%),var(--card-bg);
@@ -486,32 +623,6 @@ export default function UniqueDeliveriesPage() {
                     font-size:12px;
                     line-height:1.5;
                 }
-                .uniqueDeliverySwitch {
-                    align-items:center;
-                    background:var(--bg-secondary);
-                    border:1px solid var(--border-color);
-                    border-radius:999px;
-                    color:var(--text-secondary);
-                    cursor:pointer;
-                    display:flex;
-                    flex:0 0 auto;
-                    font-size:12px;
-                    font-weight:700;
-                    gap:8px;
-                    padding:7px 12px 7px 7px;
-                }
-                .uniqueDeliverySwitch > span {
-                    background:var(--text-muted);
-                    border-radius:50%;
-                    height:18px;
-                    width:18px;
-                }
-                .uniqueDeliverySwitch.active {
-                    background:rgba(0,184,148,.11);
-                    border-color:rgba(0,184,148,.3);
-                    color:#00b894;
-                }
-                .uniqueDeliverySwitch.active > span { background:#00b894; box-shadow:0 0 0 4px rgba(0,184,148,.12); }
                 .uniqueDeliverySecurity,
                 .uniqueDeliveryWarning {
                     align-items:flex-start;
@@ -606,23 +717,6 @@ export default function UniqueDeliveriesPage() {
                     gap:14px;
                     grid-template-columns:repeat(2,minmax(0,1fr));
                 }
-                .uniqueDeliveryFiles {
-                    align-items:center;
-                    background:rgba(255,255,255,.02);
-                    border:1px dashed var(--border-color);
-                    border-radius:13px;
-                    color:var(--accent-primary);
-                    cursor:pointer;
-                    display:flex;
-                    gap:12px;
-                    padding:14px;
-                    position:relative;
-                }
-                .uniqueDeliveryFiles > span { display:grid; gap:2px; }
-                .uniqueDeliveryFiles strong { color:var(--text-primary); font-size:12px; }
-                .uniqueDeliveryFiles small { color:var(--text-muted); font-size:10px; }
-                .uniqueDeliveryFiles em { color:var(--accent-primary); font-size:10px; font-style:normal; font-weight:700; }
-                .uniqueDeliveryFiles input { inset:0; opacity:0; position:absolute; }
                 .uniqueDeliverySubmit {
                     align-items:center;
                     display:flex;
@@ -673,7 +767,6 @@ export default function UniqueDeliveriesPage() {
                 }
                 .uniqueDeliveryStatus.available { background:rgba(0,184,148,.11); color:#00b894; }
                 .uniqueDeliveryStatus.assigned { background:rgba(108,92,231,.12); color:var(--accent-primary); }
-                .uniqueDeliveryFileCount { align-items:center; display:flex; gap:5px; }
                 .uniqueDeliveryBuyer strong { color:var(--text-primary); font-size:11px; }
                 .uniqueDeliveryInventory td:last-child button {
                     align-items:center;
@@ -694,9 +787,22 @@ export default function UniqueDeliveriesPage() {
                 @media (max-width:820px) {
                     .uniqueDeliveryStats { grid-template-columns:repeat(2,minmax(0,1fr)); }
                     .uniqueDeliveryIntro { align-items:flex-start; flex-wrap:wrap; }
-                    .uniqueDeliverySwitch { margin-left:68px; }
+                    .deliveryModeGrid { grid-template-columns:1fr; }
                 }
                 @media (max-width:600px) {
+                    .deliveryModeSelector { padding:22px 14px; }
+                    .deliveryModeSelector > header h2 { font-size:21px; }
+                    .deliveryModeCard {
+                        grid-template-columns:auto 1fr;
+                        min-height:0;
+                        padding:17px 14px;
+                    }
+                    .deliveryModeIcon { height:50px; width:50px; }
+                    .deliveryModeStatus { grid-column:1 / -1; justify-content:center; }
+                    .deliveryModeSelector > footer {
+                        align-items:flex-start;
+                        flex-direction:column;
+                    }
                     .uniqueDeliveryStats { grid-template-columns:1fr 1fr; }
                     .uniqueDeliveryCreate,
                     .uniqueDeliveryInventory { padding:18px 14px; }
@@ -705,7 +811,6 @@ export default function UniqueDeliveriesPage() {
                     .uniqueDeliveryMode button { flex:1; }
                     .uniqueDeliveryFormGrid { grid-template-columns:1fr; }
                     .uniqueDeliverySubmit { justify-self:stretch; width:100%; }
-                    .uniqueDeliverySwitch { margin-left:0; }
                 }
             `}</style>
         </div>

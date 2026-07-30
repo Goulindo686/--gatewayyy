@@ -14,22 +14,31 @@ aplicação.
 
 3. Salve o resultado em `UNIQUE_DELIVERY_ENCRYPTION_KEY` no ambiente do
    frontend Next.js. A variável não pode ter o prefixo `NEXT_PUBLIC_`.
-4. Faça o deploy e cadastre estoque antes de ativar o módulo em um produto.
+4. Faça o deploy. Na aba `Entregas Únicas`, escolha entre `Área de Membros`
+   e `Entrega Única` para cada produto.
 
 ## Garantias implementadas
 
-- payloads e arquivos usam AES-256-GCM com IV aleatório e AAD vinculada ao
-  produto, item e arquivo;
+- os payloads usam AES-256-GCM com IV aleatório e AAD vinculada ao produto e item;
 - fingerprints HMAC evitam cadastrar a mesma entrega duas vezes sem expor seu
   conteúdo;
-- tabelas e bucket não possuem acesso para `anon` ou `authenticated`;
+- as tabelas não possuem acesso para `anon` ou `authenticated`;
 - a alocação usa `FOR UPDATE SKIP LOCKED` e índices únicos no PostgreSQL;
 - uma entrega atribuída nunca retorna ao estoque;
 - o comprador precisa autenticar uma conta com e-mail verificado idêntico ao
   e-mail normalizado de um pedido pago;
-- respostas sensíveis usam `no-store`, downloads passam por autorização e todo
-  acesso é auditado;
+- respostas sensíveis usam `no-store` e todo acesso é auditado;
 - o vendedor não recebe o plaintext de volta após salvar.
+
+O módulo de Entrega Única aceita somente texto e links. Uploads e downloads de
+arquivos continuam disponíveis apenas na Área de Membros.
+
+## Modalidade por produto
+
+- `Área de Membros`: novas compras recebem a matrícula no conteúdo compartilhado.
+- `Entrega Única`: novas compras recebem somente uma linha exclusiva do estoque.
+- a modalidade é registrada no momento da compra; trocar a seleção não revoga
+  entregas nem acessos concedidos anteriormente.
 
 Não remova a chave enquanto existirem entregas cadastradas: sem ela os dados
 continuam protegidos, mas não podem ser abertos. Guarde uma cópia em um cofre de

@@ -93,31 +93,14 @@ export const uniqueDeliveryAPI = {
         internalApi.get(`/products/${productId}/unique-deliveries`),
     createItems: (productId: string, items: any[]) =>
         internalApi.post(`/products/${productId}/unique-deliveries`, { items }),
-    updateSettings: (productId: string, enabled: boolean) =>
-        internalApi.patch(`/products/${productId}/unique-deliveries`, { enabled }),
+    updateDeliveryMode: (productId: string, mode: 'members' | 'unique') =>
+        internalApi.patch(`/products/${productId}/unique-deliveries`, { mode }),
     deleteItem: (productId: string, itemId: string) =>
         internalApi.delete(`/products/${productId}/unique-deliveries/${itemId}`),
-    uploadFile: (productId: string, itemId: string, file: File) => {
-        const formData = new FormData();
-        formData.append('file', file);
-        return internalApi.post(
-            `/products/${productId}/unique-deliveries/${itemId}/files`,
-            formData,
-        );
-    },
-    deleteFile: (productId: string, itemId: string, fileId: string) =>
-        internalApi.delete(
-            `/products/${productId}/unique-deliveries/${itemId}/files/${fileId}`,
-        ),
 };
 
 export const myUniqueDeliveryAPI = {
     list: () => internalApi.get('/my-unique-deliveries'),
-    download: (fulfillmentId: string, fileId: string) =>
-        internalApi.get(
-            `/my-unique-deliveries/${fulfillmentId}/files/${fileId}`,
-            { responseType: 'blob' },
-        ),
 };
 
 // Dashboard

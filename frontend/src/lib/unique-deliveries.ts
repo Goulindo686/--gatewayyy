@@ -5,14 +5,7 @@ import { supabase } from '@/lib/db';
 import type { UniqueDeliveryPayload } from '@/lib/unique-delivery-crypto';
 
 export const UNIQUE_DELIVERY_BUCKET = 'unique-deliveries';
-export const UNIQUE_DELIVERY_MAX_FILE_BYTES = 15 * 1024 * 1024;
 export const UNIQUE_DELIVERY_MAX_BATCH = 250;
-
-const BLOCKED_FILE_EXTENSIONS = new Set([
-    'apk', 'app', 'bat', 'bin', 'cmd', 'com', 'cpl', 'dll', 'dmg', 'exe',
-    'hta', 'html', 'htm', 'iso', 'jar', 'js', 'jse', 'lnk', 'msi', 'msp',
-    'ps1', 'reg', 'scr', 'sh', 'svg', 'vbe', 'vbs', 'wsf',
-]);
 
 function cleanText(value: unknown, maxLength: number) {
     return typeof value === 'string'
@@ -47,30 +40,6 @@ export function normalizeUniqueDeliveryPayload(raw: unknown): UniqueDeliveryPayl
     }
 
     return payload;
-}
-
-export function normalizeUniqueDeliveryFilename(value: string) {
-    const filename = String(value || 'arquivo')
-        .normalize('NFKC')
-        .replace(/[\u0000-\u001f\u007f]/g, '')
-        .replace(/[\\/]/g, '_')
-        .trim()
-        .slice(0, 180) || 'arquivo';
-    const extension = filename.includes('.')
-        ? filename.split('.').pop()!.toLowerCase()
-        : '';
-
-    if (extension && BLOCKED_FILE_EXTENSIONS.has(extension)) {
-        throw new Error('Este tipo de arquivo nao e permitido.');
-    }
-    return filename;
-}
-
-export function normalizeUniqueDeliveryContentType(value: unknown) {
-    const contentType = String(value || '').trim().toLowerCase();
-    return /^[a-z0-9][a-z0-9!#$&^_.+-]{0,126}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,126}$/.test(contentType)
-        ? contentType
-        : 'application/octet-stream';
 }
 
 export function requestIp(req: NextRequest) {
@@ -130,14 +99,50 @@ export async function getUniqueDeliveryStock(productId: string) {
     return { enabled: true, available: count || 0 };
 }
 
-export async function hasAssignedUniqueDelivery(orderId: string) {
-    const { count, error } = await supabase
-        .from('unique_delivery_fulfillments')
-        .select('id', { count: 'exact', head: true })
-        .eq('order_id', orderId)
-        .eq('status', 'assigned');
-    if (error) return false;
-    return (count || 0) > 0;
+function isMissingUniqueDeliverySchema(error: unknown) {
+    const details = error && typeof error === 'object'
+        ? error as { code?: unknown; message?: unknown }
+        : {};
+    return ['42P01', 'PGRST205'].includes(String(details.code || ''))
+        || /schema cache|does not exist/i.test(String(details.message || ''));
+}
+
+export async function getUniqueDeliveryPurchaseKeys(orderIds: string[]) {
+    const normalizedOrderIds = Array.from(new Set(orderIds.filter(Boolean)));
+    const purchases = new Set<string>();
+    if (!normalizedOrderIds.length) return purchases;
+
+    for (let offset = 0; offset < normalizedOrderIds.length; offset += 200) {
+        const orderIdBatch = normalizedOrderIds.slice(offset, offset + 200);
+        const [mappedProducts, fulfillments] = await Promise.all([
+            supabase
+                .from('unique_delivery_order_products')
+                .select('order_id, product_id')
+                .in('order_id', orderIdBatch),
+            supabase
+                .from('unique_delivery_fulfillments')
+                .select('order_id, product_id')
+                .in('order_id', orderIdBatch),
+        ]);
+
+        for (const result of [mappedProducts, fulfillments]) {
+            if (result.error && !isMissingUniqueDeliverySchema(result.error)) {
+                throw result.error;
+            }
+            for (const row of result.data || []) {
+                if (row.order_id && row.product_id) {
+                    purchases.add(`${row.order_id}:${row.product_id}`);
+                }
+            }
+        }
+    }
+
+    return purchases;
+}
+
+export async function orderUsesUniqueDelivery(orderId: string, productId: string) {
+    const purchases = await getUniqueDeliveryPurchaseKeys([orderId]);
+    return purchases.has(`${orderId}:${productId}`);
 }
 
 export function withSensitiveResponseHeaders(response: Response) {

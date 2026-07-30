@@ -7,7 +7,6 @@ import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { supabase } from '@/lib/db';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import {
-    decryptUniqueDeliveryFileMetadata,
     decryptUniqueDeliveryPayload,
     hashUniqueDeliveryIp,
 } from '@/lib/unique-delivery-crypto';
@@ -16,11 +15,11 @@ import {
     withSensitiveResponseHeaders,
 } from '@/lib/unique-deliveries';
 
-function encryptedValue(row: any, prefix: 'payload' | 'metadata') {
+function encryptedPayload(row: any) {
     return {
-        ciphertext: row[`${prefix}_ciphertext`],
-        iv: row[`${prefix}_iv`],
-        authTag: row[`${prefix}_auth_tag`],
+        ciphertext: row.payload_ciphertext,
+        iv: row.payload_iv,
+        authTag: row.payload_auth_tag,
         encryptionVersion: row.encryption_version,
     };
 }
@@ -97,7 +96,7 @@ export async function GET(req: NextRequest) {
         const productIds = Array.from(new Set(
             validFulfillments.map((entry: any) => entry.product_id),
         ));
-        const [itemsResult, productsResult, filesResult] = await Promise.all([
+        const [itemsResult, productsResult] = await Promise.all([
             supabase
                 .from('unique_delivery_items')
                 .select('id, product_id, seller_id, payload_ciphertext, payload_iv, payload_auth_tag, encryption_version')
@@ -107,24 +106,13 @@ export async function GET(req: NextRequest) {
                 .from('products')
                 .select('id, user_id, name')
                 .in('id', productIds),
-            supabase
-                .from('unique_delivery_files')
-                .select('id, item_id, product_id, seller_id, metadata_ciphertext, metadata_iv, metadata_auth_tag, encryption_version, size_bytes')
-                .in('item_id', itemIds)
-                .order('created_at', { ascending: true }),
         ]);
-        if (itemsResult.error || productsResult.error || filesResult.error) {
-            throw itemsResult.error || productsResult.error || filesResult.error;
+        if (itemsResult.error || productsResult.error) {
+            throw itemsResult.error || productsResult.error;
         }
 
         const itemsById = new Map((itemsResult.data || []).map((item: any) => [item.id, item]));
         const productsById = new Map((productsResult.data || []).map((product: any) => [product.id, product]));
-        const filesByItem = new Map<string, any[]>();
-        for (const file of filesResult.data || []) {
-            const list = filesByItem.get(file.item_id) || [];
-            list.push(file);
-            filesByItem.set(file.item_id, list);
-        }
 
         // A descriptografia acontece somente aqui, depois de comprovar:
         // token valido, e-mail verificado, e-mail da compra, pedido pago,
@@ -145,28 +133,8 @@ export async function GET(req: NextRequest) {
             const payload = decryptUniqueDeliveryPayload(
                 fulfillment.product_id,
                 item.id,
-                encryptedValue(item, 'payload'),
+                encryptedPayload(item),
             );
-            const files = (filesByItem.get(item.id) || []).map((file: any) => {
-                if (
-                    file.product_id !== fulfillment.product_id
-                    || file.seller_id !== fulfillment.seller_id
-                ) {
-                    throw new Error('Unique delivery file ownership chain is inconsistent');
-                }
-                const metadata = decryptUniqueDeliveryFileMetadata(
-                    fulfillment.product_id,
-                    item.id,
-                    file.id,
-                    encryptedValue(file, 'metadata'),
-                );
-                return {
-                    id: file.id,
-                    name: metadata.filename,
-                    size: file.size_bytes,
-                    download_url: `/api/my-unique-deliveries/${fulfillment.id}/files/${file.id}`,
-                };
-            });
 
             return {
                 id: fulfillment.id,
@@ -182,7 +150,6 @@ export async function GET(req: NextRequest) {
                 custom_text: payload.customText,
                 redirect_url: payload.redirectUrl,
                 notes: payload.notes,
-                files,
             };
         });
 

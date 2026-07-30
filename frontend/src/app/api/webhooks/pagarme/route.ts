@@ -29,7 +29,7 @@ import {
     failWebhookEvent,
 } from '@/lib/webhook-security';
 import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
-import { hasAssignedUniqueDelivery } from '@/lib/unique-deliveries';
+import { orderUsesUniqueDelivery } from '@/lib/unique-deliveries';
 
 type SaleNotificationOrder = {
     id: string;
@@ -847,8 +847,16 @@ export async function POST(req: NextRequest) {
                         }
                     }
                     
-                    // Enroll user if digital product
-                    if (product.type === 'digital' && order.buyer_email) {
+                    // A modalidade e capturada no pedido. Uma compra de Entrega
+                    // Unica nao recebe tambem a Area de Membros.
+                    const usesUniqueDelivery = order.product_id
+                        ? await orderUsesUniqueDelivery(order.id, order.product_id)
+                        : false;
+                    if (
+                        product.type === 'digital'
+                        && order.buyer_email
+                        && !usesUniqueDelivery
+                    ) {
                         const normalizedEmail = order.buyer_email.toLowerCase().trim();
                         const { data: existingUser } = await supabase
                             .from('users')
@@ -898,7 +906,9 @@ export async function POST(req: NextRequest) {
                             amount: (order.amount / 100).toFixed(2),
                             paymentMethod: order.payment_method || 'pix',
                             orderId: order.id,
-                            hasUniqueDelivery: await hasAssignedUniqueDelivery(order.id),
+                            hasUniqueDelivery: order.product_id
+                                ? await orderUsesUniqueDelivery(order.id, order.product_id)
+                                : false,
                         });
                     } catch (err: any) {
                         console.error('[EMAIL] Erro ao enviar email de compra:', err?.message);

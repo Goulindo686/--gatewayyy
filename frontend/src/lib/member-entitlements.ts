@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/db';
+import { getUniqueDeliveryPurchaseKeys } from '@/lib/unique-deliveries';
 
 type ProductRelation = {
     type?: string | null;
@@ -67,10 +68,29 @@ export async function syncMemberEntitlements(userId: string, email: string) {
     }
 
     const products = new Map<string, string | null>();
+    const paidOrders = (ordersResult.data || []) as unknown as PaidOrderRow[];
+    let uniqueDeliveryPurchases = new Set<string>();
 
-    for (const order of (ordersResult.data || []) as unknown as PaidOrderRow[]) {
+    try {
+        uniqueDeliveryPurchases = await getUniqueDeliveryPurchaseKeys(
+            paidOrders.map((order) => order.id),
+        );
+    } catch (error) {
+        console.error(
+            '[MEMBERS] Falha ao validar a modalidade das compras:',
+            error instanceof Error ? error.message : 'erro desconhecido',
+        );
+        // Em caso de erro inesperado, nao concede matriculas novas a partir de
+        // pedidos ate comprovar que eles usam a Area de Membros.
+        paidOrders.length = 0;
+    }
+
+    for (const order of paidOrders) {
         const product = firstRelation(order.products);
-        if (order.product_id && product?.type === 'digital') {
+        const isUniqueDelivery = order.product_id
+            ? uniqueDeliveryPurchases.has(`${order.id}:${order.product_id}`)
+            : false;
+        if (order.product_id && product?.type === 'digital' && !isUniqueDelivery) {
             products.set(order.product_id, order.id);
         }
     }

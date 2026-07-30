@@ -23,6 +23,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const product = products?.[0];
         if (productError || !product) return jsonError('Você não tem permissão para gerenciar este produto.', 403);
 
+        const { data: uniqueSettings, error: settingsError } = await supabase
+            .from('unique_delivery_settings')
+            .select('enabled')
+            .eq('product_id', id)
+            .maybeSingle();
+        const settingsUnavailableDuringRollout = settingsError
+            && (
+                ['42P01', 'PGRST205'].includes(String(settingsError.code || ''))
+                || /schema cache|does not exist/i.test(settingsError.message || '')
+            );
+        if (settingsError && !settingsUnavailableDuringRollout) {
+            return jsonError('Erro ao verificar a modalidade de entrega.', 500);
+        }
+        if (uniqueSettings?.enabled) {
+            return jsonError(
+                'Este produto usa Entrega Única. Selecione Área de Membros antes de liberar acesso manual.',
+                409,
+            );
+        }
+
         const { data: existingUsers, error: searchErr } = await supabase
             .from('users')
             .select('id, email')
