@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { storeAPI } from '@/lib/api';
-import { FiArrowRight, FiBookOpen, FiCheckCircle, FiGrid, FiInstagram, FiMail, FiPackage, FiSearch, FiShield, FiShoppingBag, FiUser, FiZap } from 'react-icons/fi';
+import { FiArrowRight, FiBookOpen, FiCheckCircle, FiCreditCard, FiGrid, FiHeadphones, FiInstagram, FiLock, FiMail, FiPackage, FiSearch, FiShield, FiShoppingBag, FiUser, FiZap } from 'react-icons/fi';
 import { useCart } from '@/contexts/CartContext';
 import toast from 'react-hot-toast';
 import StoreBannerCarousel from '@/components/store/StoreBannerCarousel';
@@ -105,11 +105,6 @@ export default function StorePage() {
     const theme = templateStyles[template] || templateStyles.creator;
     const accent = store?.accent_color || '#6c5ce7';
     const slug = params.slug as string;
-    const navLinks = [
-        { label: 'Inicio', url: '#top' },
-        { label: 'Loja', url: '#store-products' }
-    ];
-
     const filteredProducts = useMemo(() => {
         const term = searchTerm.trim().toLowerCase();
         if (!term) return products;
@@ -119,7 +114,6 @@ export default function StorePage() {
         );
     }, [products, searchTerm]);
 
-    const featuredProduct = filteredProducts[0];
     const configuredSections = useMemo(
         () => normalizeStoreLayoutSections(store?.layout_sections),
         [store?.layout_sections]
@@ -207,6 +201,23 @@ export default function StorePage() {
         : `radial-gradient(circle at top right, ${accent}44, transparent 34%), linear-gradient(135deg, ${theme.bg}, ${theme.surfaceAlt})`;
     const background = normalizeStoreBackground(store.background);
     const footer = normalizeStoreFooter(store.footer);
+    const storeInitials = String(store.name || slug)
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part: string) => part[0]?.toUpperCase())
+        .join('') || 'LO';
+    const supportUrl = footer.instagram
+        ? `https://instagram.com/${footer.instagram}`
+        : footer.whatsapp
+            ? `https://wa.me/${footer.whatsapp.replace(/\D/g, '')}`
+            : footer.contact_email
+                ? `mailto:${footer.contact_email}`
+                : '';
+    const categoryStats = categories.map(category => ({
+        ...category,
+        productCount: products.filter(product => product.store_category_id === category.id).length
+    }));
     const pageBackground = background.mode === 'image' && background.image_url
         ? `linear-gradient(rgba(9,9,11,${background.overlay / 100}), rgba(9,9,11,${background.overlay / 100})), url("${background.image_url}") center/cover fixed`
         : undefined;
@@ -214,99 +225,147 @@ export default function StorePage() {
 
     return (
         <div id="top" style={{ minHeight: '100vh', background: pageBackground || pageBackgroundColor, color: theme.text, fontFamily: 'Inter, Outfit, sans-serif' }}>
-            <header className="store-floating-header">
-                <div
-                    className="store-topbar"
-                    style={{
-                        color: theme.text,
-                        background: template === 'academy' ? 'rgba(255,255,255,0.84)' : 'rgba(30,34,45,0.82)',
-                        border: `1px solid ${template === 'academy' ? 'rgba(15,23,42,0.12)' : 'rgba(255,255,255,0.14)'}`,
-                        boxShadow: template === 'academy' ? '0 18px 50px rgba(15,23,42,0.10)' : '0 18px 54px rgba(0,0,0,0.32)'
-                    }}
-                >
-                    <button className="topbar-brand" onClick={() => router.push(`/store/${slug}`)} style={{ color: theme.text }}>
-                        {store.name || slug}
+            <header
+                className="store-main-header"
+                style={{
+                    color: theme.text,
+                    background: template === 'academy' ? 'rgba(255,255,255,.90)' : 'rgba(7,9,14,.88)',
+                    borderColor: theme.border
+                }}
+            >
+                <div className="store-main-header-inner">
+                    <button className="store-brand" onClick={() => router.push(`/store/${slug}`)} style={{ color: theme.text }}>
+                        <span className="store-brand-mark" style={{ background: `linear-gradient(145deg, ${accent}, ${accent}99)` }}>{storeInitials}</span>
+                        <span className="store-brand-name">{store.name || slug}</span>
+                        <FiCheckCircle className="store-brand-check" style={{ color: accent }} />
                     </button>
 
-                    <span className="topbar-divider" />
-
-                    <nav className="topbar-nav" aria-label="Navegacao da loja">
-                        {navLinks.map((link, index) => (
-                            <button
-                                key={`${link.label}-${index}`}
-                                type="button"
-                                onClick={() => handleNavClick(link.url)}
-                                className="topbar-tab"
-                                style={{
-                                    color: theme.text,
-                                    background: index === 0 ? (template === 'academy' ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.16)') : 'transparent'
-                                }}
-                            >
-                                {link.label}
-                            </button>
-                        ))}
-                    </nav>
-
-                    <span className="topbar-divider optional-divider" />
-
-                    <div className="store-search topbar-search">
-                        <FiSearch size={15} style={{ color: theme.muted, flex: '0 0 auto' }} />
+                    <label className="store-header-search" style={{ background: theme.surface, borderColor: theme.border }}>
+                        <FiSearch size={18} style={{ color: theme.muted }} />
                         <input
-                            placeholder="Buscar"
+                            placeholder="Encontre o produto ideal para você"
                             value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
+                            onChange={event => setSearchTerm(event.target.value)}
                             style={{ color: theme.text }}
                         />
+                        {searchTerm && (
+                            <button type="button" onClick={() => setSearchTerm('')} style={{ color: theme.muted }} aria-label="Limpar busca">×</button>
+                        )}
+                    </label>
+
+                    <div className="store-header-actions">
+                        {supportUrl && (
+                            <button className="store-support-button" onClick={() => handleNavClick(supportUrl)} style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}>
+                                <FiHeadphones /> <span>Atendimento</span>
+                            </button>
+                        )}
+                        <button className="store-cart-button" onClick={() => router.push(`/store/${slug}/cart`)} style={{ color: theme.text, borderColor: theme.border, background: theme.surface }} aria-label="Abrir carrinho">
+                            <FiShoppingBag />
+                            {totalItems > 0 && <span style={{ background: accent }}>{totalItems}</span>}
+                        </button>
+                        <button className="store-account-button" onClick={() => router.push('/login')} style={{ background: accent }}>
+                            <FiUser /> <span>Minha conta</span>
+                        </button>
                     </div>
-
-                    <button className="topbar-icon-action" onClick={() => router.push(`/store/${slug}/cart`)} style={{ background: accent, color: 'white' }} aria-label="Abrir carrinho">
-                        <FiShoppingBag size={17} />
-                        <span>{totalItems}</span>
-                    </button>
-
-                    <button className="store-login topbar-login" onClick={() => router.push('/login')} style={{ color: theme.text, background: template === 'academy' ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.12)' }}>
-                        <FiUser size={16} /> Entrar
-                    </button>
                 </div>
             </header>
 
-            <section style={{ background: heroBg, borderBottom: `1px solid ${theme.border}` }}>
-                <div className={`store-shell hero-${template}`} style={{ maxWidth: 1240, margin: '0 auto', padding: template === 'studio' ? '84px 24px 56px' : '70px 24px 48px', display: 'grid', gridTemplateColumns: featuredProduct && template !== 'academy' ? '1.1fr 0.9fr' : '1fr', gap: 32, alignItems: 'end' }}>
-                    <div>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: accent, background: template === 'academy' ? `${accent}12` : 'rgba(255,255,255,0.08)', border: `1px solid ${template === 'academy' ? `${accent}24` : theme.border}`, borderRadius: 999, padding: '8px 12px', fontSize: 12, fontWeight: 900, marginBottom: 18 }}>
-                            <FiZap size={14} /> {store.badge_text || 'Produtos digitais com acesso online'}
-                        </div>
-                        <h1 style={{ maxWidth: 760, fontSize: template === 'studio' ? 58 : 48, lineHeight: 1.02, letterSpacing: 0, fontWeight: 950, marginBottom: 16 }}>
-                            {store.headline || store.name}
-                        </h1>
-                        <p style={{ maxWidth: 680, color: theme.muted, fontSize: 17, lineHeight: 1.7, marginBottom: 26 }}>
-                            {store.description || 'Conheca os produtos digitais disponiveis nesta loja.'}
-                        </p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                            <button onClick={() => document.getElementById('store-products')?.scrollIntoView({ behavior: 'smooth' })} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, border: 'none', borderRadius: 14, background: accent, color: 'white', padding: '14px 20px', fontWeight: 900, cursor: 'pointer' }}>
-                                {store.cta_text || 'Ver produtos'} <FiArrowRight size={16} />
-                            </button>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: theme.muted, fontSize: 13, fontWeight: 700 }}>
-                                <FiShield size={15} /> Pagamento seguro via GouPay
-                            </span>
-                        </div>
+            <section className={`store-hero hero-${template}`} style={{ background: heroBg, borderBottomColor: theme.border }}>
+                <div className="store-hero-grid" style={{ opacity: template === 'academy' ? .18 : .32 }} />
+                <div className="store-hero-orb store-hero-orb-one" style={{ background: accent }} />
+                <div className="store-hero-orb store-hero-orb-two" style={{ background: accent }} />
+                <div className="store-shell store-hero-inner">
+                    <div className="store-trust-badges">
+                        <span style={{ color: accent, borderColor: `${accent}55`, background: `${accent}10` }}><FiZap /> Entrega digital</span>
+                        <span style={{ color: '#21c77a', borderColor: 'rgba(33,199,122,.30)', background: 'rgba(33,199,122,.08)' }}><FiShield /> Compra segura</span>
+                        <span style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}><FiCheckCircle /> Loja protegida</span>
                     </div>
 
-                    {featuredProduct && template !== 'academy' && (
-                        <div className="featured-card" style={{ justifySelf: 'end', width: '100%', maxWidth: 430, borderRadius: 24, overflow: 'hidden', background: theme.surface, border: `1px solid ${theme.border}`, boxShadow: '0 24px 70px rgba(0,0,0,0.32)' }}>
-                            <div style={{ height: 230, background: featuredProduct.image_url ? `url(${featuredProduct.image_url}) center/cover` : `linear-gradient(135deg, ${accent}, ${theme.surfaceAlt})` }} />
-                            <div style={{ padding: 22 }}>
-                                <div style={{ fontSize: 12, color: accent, fontWeight: 900, marginBottom: 8 }}>Produto em destaque</div>
-                                <h3 style={{ fontSize: 22, fontWeight: 900, marginBottom: 10 }}>{featuredProduct.name}</h3>
-                                <p style={{ color: theme.muted, fontSize: 13, lineHeight: 1.6, marginBottom: 18, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{featuredProduct.description || 'Produto digital disponivel para compra online.'}</p>
-                                <button className="store-card-action" onClick={() => openQuick(featuredProduct)} style={{ width: '100%', border: 'none', borderRadius: 12, background: accent, color: 'white', padding: 13, fontWeight: 900, cursor: 'pointer' }}>
-                                    Ver detalhes
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                    <div className="store-hero-logo" style={{ borderColor: `${accent}55`, background: `linear-gradient(145deg, ${accent}, ${theme.surfaceAlt})`, boxShadow: `0 20px 55px ${accent}35` }}>
+                        <span>{storeInitials}</span>
+                    </div>
+
+                    <div className="store-welcome-label" style={{ color: theme.muted }}>
+                        Bem-vindo à <strong style={{ color: accent }}>{store.name || slug}</strong>
+                    </div>
+                    <h1>{store.headline || `Descubra o melhor da ${store.name || 'nossa loja'}`}</h1>
+                    <p style={{ color: theme.muted }}>
+                        {store.description || 'Produtos digitais selecionados, compra protegida e acesso online em poucos passos.'}
+                    </p>
+
+                    <div className="store-hero-actions">
+                        <button className="store-hero-primary" onClick={() => document.getElementById('store-products')?.scrollIntoView({ behavior: 'smooth' })} style={{ background: accent, boxShadow: `0 14px 34px ${accent}42` }}>
+                            {store.cta_text || 'Ver produtos'} <FiArrowRight />
+                        </button>
+                        {categories.length > 0 && (
+                            <button className="store-hero-secondary" onClick={() => document.getElementById('store-categories')?.scrollIntoView({ behavior: 'smooth' })} style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}>
+                                <FiGrid /> Ver categorias
+                            </button>
+                        )}
+                        {supportUrl && (
+                            <button className="store-hero-secondary store-hero-support" onClick={() => handleNavClick(supportUrl)} style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}>
+                                <FiHeadphones /> Falar com a loja
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="store-hero-assurances" style={{ color: theme.muted }}>
+                        <span><i style={{ color: accent, background: `${accent}18` }}><FiZap /></i> Acesso online</span>
+                        <span className="assurance-divider" style={{ background: theme.border }} />
+                        <span><i style={{ color: '#21c77a', background: 'rgba(33,199,122,.10)' }}><FiLock /></i> Checkout protegido</span>
+                        <span className="assurance-divider" style={{ background: theme.border }} />
+                        <span><i style={{ color: '#35b6ff', background: 'rgba(53,182,255,.10)' }}><FiCreditCard /></i> PIX e cartão</span>
+                    </div>
                 </div>
             </section>
+
+            <section className="store-benefit-strip" style={{ background: theme.surfaceAlt, borderColor: theme.border }}>
+                <div className="store-shell store-benefit-strip-inner">
+                    {[
+                        { icon: <FiShield />, title: 'Pagamento protegido', text: 'Ambiente seguro do início ao fim' },
+                        { icon: <FiZap />, title: 'Entrega digital', text: 'Acesso rápido após a aprovação' },
+                        { icon: <FiHeadphones />, title: 'Suporte da loja', text: 'Canais de contato sempre visíveis' }
+                    ].map(item => (
+                        <div key={item.title}>
+                            <i style={{ color: accent, background: `${accent}12` }}>{item.icon}</i>
+                            <span><strong>{item.title}</strong><small style={{ color: theme.muted }}>{item.text}</small></span>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {categories.length > 0 && !searchTerm && !activeCategory && (
+                <section id="store-categories" className="store-shell store-featured-categories">
+                    <div className="store-categories-heading">
+                        <div>
+                            <span style={{ color: accent }}>NAVEGUE DO SEU JEITO</span>
+                            <h2>Categorias em destaque</h2>
+                            <p style={{ color: theme.muted }}>Encontre mais rápido o tipo de produto que você procura.</p>
+                        </div>
+                        <button onClick={() => document.getElementById('store-products')?.scrollIntoView({ behavior: 'smooth' })} style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}>
+                            Ver catálogo completo <FiArrowRight />
+                        </button>
+                    </div>
+                    <div className="store-category-cards">
+                        {categoryStats.slice(0, 6).map((category, index) => (
+                            <button
+                                key={category.id}
+                                onClick={() => handleCategoryClick(category.slug)}
+                                style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}
+                            >
+                                <span className="store-category-icon" style={{ color: accent, background: `${accent}${index % 2 === 0 ? '16' : '0d'}` }}>
+                                    {index % 3 === 0 ? <FiGrid /> : index % 3 === 1 ? <FiBookOpen /> : <FiZap />}
+                                </span>
+                                <span className="store-category-copy">
+                                    <strong>{category.name}</strong>
+                                    <small style={{ color: theme.muted }}>{category.productCount} produto{category.productCount === 1 ? '' : 's'}</small>
+                                </span>
+                                <FiArrowRight className="store-category-arrow" style={{ color: theme.muted }} />
+                            </button>
+                        ))}
+                    </div>
+                </section>
+            )}
 
             <main id="store-products" className="store-shell storefront-content" style={{ maxWidth: 1240, margin: '0 auto', padding: '38px 24px 76px' }}>
                 <div className="store-catalog-toolbar" style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
@@ -397,21 +456,20 @@ export default function StorePage() {
                 )}
             </main>
 
-            <section style={{ borderTop: `1px solid ${theme.border}`, background: theme.surfaceAlt }}>
-                <div className="store-shell trust-row" style={{ maxWidth: 1240, margin: '0 auto', padding: '22px 24px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-                    {[
-                        { icon: <FiShield />, title: 'Pagamento seguro', desc: 'Compra processada pela GouPay.' },
-                        { icon: <FiZap />, title: 'Entrega online', desc: 'Produtos digitais sem frete.' },
-                        { icon: <FiCheckCircle />, title: 'Acesso organizado', desc: 'Pedidos e conteudos em um so lugar.' }
-                    ].map(item => (
-                        <div key={item.title} style={{ display: 'flex', gap: 12, alignItems: 'center', color: theme.text }}>
-                            <span style={{ color: accent, fontSize: 20 }}>{item.icon}</span>
-                            <span>
-                                <strong style={{ display: 'block', fontSize: 13 }}>{item.title}</strong>
-                                <small style={{ color: theme.muted }}>{item.desc}</small>
-                            </span>
-                        </div>
-                    ))}
+            <section className="store-closing-section" style={{ borderColor: theme.border }}>
+                <div className="store-shell store-closing-card" style={{ background: theme.surface, borderColor: theme.border }}>
+                    <div className="store-closing-glow" style={{ background: accent }} />
+                    <span style={{ color: accent }}><FiShield /> COMPRA TRANQUILA</span>
+                    <h2>Escolha seu próximo produto com segurança.</h2>
+                    <p style={{ color: theme.muted }}>Navegue pelo catálogo, confira os detalhes e finalize sua compra em um ambiente protegido.</p>
+                    <div>
+                        <button onClick={() => document.getElementById('store-products')?.scrollIntoView({ behavior: 'smooth' })} style={{ background: accent }}>
+                            Explorar catálogo <FiArrowRight />
+                        </button>
+                        <button onClick={() => router.push(`/store/${slug}/cart`)} style={{ color: theme.text, borderColor: theme.border, background: theme.surfaceAlt }}>
+                            <FiShoppingBag /> Ver carrinho
+                        </button>
+                    </div>
                 </div>
             </section>
 
@@ -488,122 +546,455 @@ export default function StorePage() {
             )}
 
             <style jsx global>{`
-                .store-floating-header {
-                    position: fixed;
+                .store-main-header {
+                    position: sticky;
                     top: 0;
-                    left: 0;
-                    right: 0;
                     z-index: 100;
-                    padding: 16px 18px 0;
-                    pointer-events: none;
-                    background: transparent;
+                    min-height: 70px;
+                    border-bottom: 1px solid;
+                    backdrop-filter: blur(22px);
                 }
-                .store-topbar {
-                    width: min(1120px, 100%);
-                    min-height: 54px;
+                .store-main-header-inner {
+                    width: min(1340px, calc(100% - 40px));
+                    min-height: 70px;
                     margin: 0 auto;
-                    border-radius: 999px;
-                    backdrop-filter: blur(18px);
+                    display: grid;
+                    grid-template-columns: minmax(190px, .8fr) minmax(280px, 1.4fr) minmax(280px, .9fr);
+                    align-items: center;
+                    gap: 24px;
+                }
+                .store-brand {
+                    min-width: 0;
+                    border: none;
+                    padding: 0;
                     display: flex;
                     align-items: center;
                     gap: 10px;
-                    padding: 7px 10px 7px 18px;
-                    pointer-events: auto;
-                    overflow: hidden;
-                }
-                .topbar-brand {
-                    border: none;
                     background: transparent;
-                    font-size: 17px;
-                    font-weight: 950;
                     cursor: pointer;
-                    white-space: nowrap;
-                    max-width: 190px;
+                    text-align: left;
+                }
+                .store-brand-mark {
+                    width: 38px;
+                    height: 38px;
+                    border-radius: 12px;
+                    display: grid;
+                    place-items: center;
+                    flex: 0 0 auto;
+                    color: white;
+                    font-size: 12px;
+                    font-weight: 950;
+                    letter-spacing: -.02em;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,.24);
+                }
+                .store-brand-name {
+                    min-width: 0;
                     overflow: hidden;
                     text-overflow: ellipsis;
-                    padding: 0;
-                }
-                .topbar-divider {
-                    width: 1px;
-                    height: 26px;
-                    background: rgba(148,163,184,0.35);
-                    flex: 0 0 auto;
-                }
-                .topbar-nav {
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                    min-width: 0;
-                    overflow-x: auto;
-                    scrollbar-width: none;
-                }
-                .topbar-nav::-webkit-scrollbar {
-                    display: none;
-                }
-                .topbar-tab {
-                    height: 36px;
-                    border: none;
-                    border-radius: 999px;
-                    padding: 0 14px;
-                    font-size: 13px;
-                    font-weight: 850;
-                    cursor: pointer;
                     white-space: nowrap;
+                    font-size: 15px;
+                    font-weight: 950;
                 }
-                .topbar-search {
-                    margin-left: auto;
-                    height: 38px;
-                    min-width: 150px;
-                    max-width: 210px;
+                .store-brand-check {
+                    flex: 0 0 auto;
+                    font-size: 14px;
+                }
+                .store-header-search {
+                    width: 100%;
+                    height: 42px;
+                    border: 1px solid;
+                    border-radius: 999px;
                     display: flex;
                     align-items: center;
-                    gap: 8px;
-                    padding: 0 12px;
-                    border-radius: 999px;
-                    background: rgba(255,255,255,0.10);
-                    border: 1px solid rgba(148,163,184,0.24);
+                    gap: 10px;
+                    padding: 0 14px;
+                    transition: border-color .2s ease, box-shadow .2s ease;
                 }
-                .topbar-search input {
+                .store-header-search:focus-within {
+                    border-color: ${accent};
+                    box-shadow: 0 0 0 3px ${accent}15;
+                }
+                .store-header-search input {
                     width: 100%;
                     min-width: 0;
                     border: none;
                     outline: none;
                     background: transparent;
-                    font-size: 13px;
-                    font-weight: 750;
+                    font-size: 12px;
+                    font-weight: 650;
                 }
-                .topbar-search input::placeholder {
-                    color: rgba(148,163,184,0.92);
+                .store-header-search input::placeholder {
+                    color: ${theme.muted};
                 }
-                .topbar-icon-action,
-                .topbar-login {
-                    height: 38px;
+                .store-header-search button {
                     border: none;
+                    background: transparent;
+                    font-size: 20px;
+                    cursor: pointer;
+                }
+                .store-header-actions {
+                    display: flex;
+                    justify-content: flex-end;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .store-support-button,
+                .store-cart-button,
+                .store-account-button {
+                    height: 42px;
                     border-radius: 999px;
                     display: inline-flex;
                     align-items: center;
                     justify-content: center;
                     gap: 7px;
-                    font-weight: 900;
                     cursor: pointer;
-                    flex: 0 0 auto;
+                    white-space: nowrap;
+                    font-size: 11px;
+                    font-weight: 850;
                 }
-                .topbar-icon-action {
-                    min-width: 58px;
-                    padding: 0 12px;
+                .store-support-button,
+                .store-cart-button {
+                    border: 1px solid;
                 }
-                .topbar-icon-action span {
-                    min-width: 18px;
-                    height: 18px;
+                .store-support-button {
+                    padding: 0 14px;
+                }
+                .store-cart-button {
+                    position: relative;
+                    width: 42px;
+                    padding: 0;
+                }
+                .store-cart-button > span {
+                    position: absolute;
+                    top: -4px;
+                    right: -4px;
+                    min-width: 17px;
+                    height: 17px;
                     border-radius: 999px;
                     display: grid;
                     place-items: center;
-                    background: rgba(255,255,255,0.22);
-                    font-size: 11px;
-                    line-height: 1;
+                    color: white;
+                    font-size: 9px;
+                    box-shadow: 0 0 0 2px ${theme.bg};
                 }
-                .topbar-login {
+                .store-account-button {
+                    border: none;
+                    color: white;
+                    padding: 0 17px;
+                    box-shadow: 0 10px 26px ${accent}2c;
+                }
+                .store-hero {
+                    position: relative;
+                    min-height: 650px;
+                    border-bottom: 1px solid;
+                    display: grid;
+                    overflow: hidden;
+                    isolation: isolate;
+                }
+                .store-hero::after {
+                    content: '';
+                    position: absolute;
+                    inset: auto 0 0;
+                    height: 170px;
+                    z-index: -1;
+                    background: linear-gradient(transparent, ${pageBackgroundColor});
+                    pointer-events: none;
+                }
+                .store-hero-grid {
+                    position: absolute;
+                    inset: 0;
+                    z-index: -2;
+                    background-image:
+                        linear-gradient(rgba(148,163,184,.10) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(148,163,184,.10) 1px, transparent 1px);
+                    background-size: 64px 64px;
+                    mask-image: radial-gradient(ellipse 70% 70% at 50% 40%, black 20%, transparent 82%);
+                    pointer-events: none;
+                }
+                .store-hero-orb {
+                    position: absolute;
+                    width: 320px;
+                    height: 320px;
+                    border-radius: 999px;
+                    filter: blur(120px);
+                    opacity: .14;
+                    z-index: -1;
+                    pointer-events: none;
+                }
+                .store-hero-orb-one {
+                    top: 30px;
+                    left: 8%;
+                }
+                .store-hero-orb-two {
+                    right: 5%;
+                    bottom: 20px;
+                }
+                .store-hero-inner {
+                    width: 100%;
+                    max-width: 1040px;
+                    margin: 0 auto;
+                    padding: 76px 24px 82px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    text-align: center;
+                }
+                .store-trust-badges {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 7px;
+                    flex-wrap: wrap;
+                    margin-bottom: 24px;
+                }
+                .store-trust-badges span {
+                    min-height: 28px;
+                    border: 1px solid;
+                    border-radius: 999px;
+                    padding: 0 10px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 10px;
+                    font-weight: 850;
+                    backdrop-filter: blur(8px);
+                }
+                .store-hero-logo {
+                    width: 82px;
+                    height: 82px;
+                    border: 1px solid;
+                    border-radius: 24px;
+                    padding: 6px;
+                    display: grid;
+                    place-items: center;
+                    margin-bottom: 22px;
+                    transform: rotate(-3deg);
+                }
+                .store-hero-logo span {
+                    width: 100%;
+                    height: 100%;
+                    border: 1px solid rgba(255,255,255,.18);
+                    border-radius: 18px;
+                    display: grid;
+                    place-items: center;
+                    color: white;
+                    font-size: 23px;
+                    font-weight: 950;
+                    letter-spacing: -.05em;
+                    background: rgba(4,6,12,.30);
+                    transform: rotate(3deg);
+                }
+                .store-welcome-label {
+                    font-size: 18px;
+                    font-weight: 750;
+                    margin-bottom: 9px;
+                }
+                .store-hero h1 {
+                    max-width: 900px;
+                    font-size: clamp(42px, 6vw, 72px);
+                    line-height: .98;
+                    letter-spacing: -.045em;
+                    font-weight: 950;
+                    text-wrap: balance;
+                    margin-bottom: 20px;
+                }
+                .store-hero-inner > p {
+                    max-width: 690px;
+                    font-size: 16px;
+                    line-height: 1.75;
+                    text-wrap: balance;
+                    margin-bottom: 28px;
+                }
+                .store-hero-actions {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                }
+                .store-hero-actions button {
+                    min-height: 48px;
+                    border-radius: 14px;
+                    padding: 0 18px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 9px;
+                    font-size: 12px;
+                    font-weight: 900;
+                    cursor: pointer;
+                }
+                .store-hero-primary {
+                    border: none;
+                    color: white;
+                }
+                .store-hero-secondary {
+                    border: 1px solid;
+                    backdrop-filter: blur(10px);
+                }
+                .store-hero-assurances {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 16px;
+                    margin-top: 28px;
+                    font-size: 10px;
+                    font-weight: 750;
+                }
+                .store-hero-assurances > span:not(.assurance-divider) {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 7px;
+                }
+                .store-hero-assurances i {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 999px;
+                    display: grid;
+                    place-items: center;
+                    font-style: normal;
+                }
+                .assurance-divider {
+                    width: 1px;
+                    height: 22px;
+                }
+                .store-benefit-strip {
+                    border-bottom: 1px solid;
+                }
+                .store-benefit-strip-inner {
+                    max-width: 1240px;
+                    margin: 0 auto;
+                    padding: 17px 24px;
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                }
+                .store-benefit-strip-inner > div {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                    padding: 0 22px;
+                    border-right: 1px solid ${theme.border};
+                }
+                .store-benefit-strip-inner > div:last-child {
+                    border-right: none;
+                }
+                .store-benefit-strip i {
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 11px;
+                    display: grid;
+                    place-items: center;
+                    font-style: normal;
+                    flex: 0 0 auto;
+                }
+                .store-benefit-strip strong,
+                .store-benefit-strip small {
+                    display: block;
+                }
+                .store-benefit-strip strong {
+                    font-size: 11px;
+                    margin-bottom: 2px;
+                }
+                .store-benefit-strip small {
+                    font-size: 9px;
+                }
+                .store-featured-categories {
+                    max-width: 1240px;
+                    margin: 0 auto;
+                    padding: 64px 24px 16px;
+                }
+                .store-categories-heading {
+                    display: flex;
+                    align-items: end;
+                    justify-content: space-between;
+                    gap: 24px;
+                    margin-bottom: 22px;
+                }
+                .store-categories-heading > div > span {
+                    display: block;
+                    font-size: 10px;
+                    font-weight: 950;
+                    letter-spacing: .13em;
+                    margin-bottom: 6px;
+                }
+                .store-categories-heading h2 {
+                    font-size: 28px;
+                    line-height: 1.1;
+                    font-weight: 950;
+                    margin-bottom: 6px;
+                }
+                .store-categories-heading p {
+                    font-size: 13px;
+                }
+                .store-categories-heading > button {
+                    min-height: 40px;
+                    border: 1px solid;
+                    border-radius: 12px;
                     padding: 0 14px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 11px;
+                    font-weight: 850;
+                    cursor: pointer;
+                }
+                .store-category-cards {
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 11px;
+                }
+                .store-category-cards > button {
+                    min-height: 88px;
+                    border: 1px solid;
+                    border-radius: 18px;
+                    padding: 14px;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    text-align: left;
+                    cursor: pointer;
+                    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+                }
+                .store-category-cards > button:hover {
+                    transform: translateY(-3px);
+                    border-color: ${accent};
+                    box-shadow: 0 16px 38px rgba(0,0,0,.12);
+                }
+                .store-category-icon {
+                    width: 46px;
+                    height: 46px;
+                    border-radius: 14px;
+                    display: grid;
+                    place-items: center;
+                    flex: 0 0 auto;
+                    font-size: 18px;
+                }
+                .store-category-copy {
+                    min-width: 0;
+                }
+                .store-category-copy strong,
+                .store-category-copy small {
+                    display: block;
+                }
+                .store-category-copy strong {
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    font-size: 13px;
+                    margin-bottom: 4px;
+                }
+                .store-category-copy small {
+                    font-size: 10px;
+                }
+                .store-category-arrow {
+                    margin-left: auto;
+                    flex: 0 0 auto;
+                    transition: transform .2s ease;
+                }
+                .store-category-cards > button:hover .store-category-arrow {
+                    transform: translateX(3px);
                 }
                 .store-catalog-toolbar {
                     display: flex;
@@ -769,6 +1160,78 @@ export default function StorePage() {
                     font-weight: 900;
                     cursor: pointer;
                 }
+                .store-closing-section {
+                    border-top: 1px solid;
+                    padding: 18px 24px 64px;
+                }
+                .store-closing-card {
+                    position: relative;
+                    max-width: 1192px;
+                    min-height: 300px;
+                    margin: 0 auto;
+                    border: 1px solid;
+                    border-radius: 28px;
+                    padding: 48px 24px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    text-align: center;
+                    overflow: hidden;
+                    isolation: isolate;
+                }
+                .store-closing-glow {
+                    position: absolute;
+                    width: 440px;
+                    height: 250px;
+                    border-radius: 999px;
+                    filter: blur(110px);
+                    opacity: .13;
+                    z-index: -1;
+                }
+                .store-closing-card > span {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 10px;
+                    font-weight: 950;
+                    letter-spacing: .12em;
+                    margin-bottom: 10px;
+                }
+                .store-closing-card h2 {
+                    max-width: 650px;
+                    font-size: clamp(28px, 4vw, 42px);
+                    line-height: 1.05;
+                    letter-spacing: -.03em;
+                    font-weight: 950;
+                    text-wrap: balance;
+                    margin-bottom: 12px;
+                }
+                .store-closing-card p {
+                    max-width: 590px;
+                    font-size: 13px;
+                    line-height: 1.65;
+                    text-wrap: balance;
+                }
+                .store-closing-card > div:last-child {
+                    display: flex;
+                    gap: 9px;
+                    margin-top: 22px;
+                }
+                .store-closing-card button {
+                    min-height: 43px;
+                    border: 1px solid transparent;
+                    border-radius: 12px;
+                    padding: 0 15px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    color: white;
+                    font-size: 11px;
+                    font-weight: 900;
+                    cursor: pointer;
+                }
                 .store-footer-inner {
                     max-width: 1240px;
                     margin: 0 auto;
@@ -818,42 +1281,25 @@ export default function StorePage() {
                     font-size: 10px;
                 }
                 @media (max-width: 900px) {
-                    .hero-creator,
-                    .hero-studio,
-                    .hero-academy {
-                        grid-template-columns: 1fr !important;
+                    .store-main-header-inner {
+                        grid-template-columns: minmax(150px, .7fr) minmax(220px, 1.2fr) auto;
+                        gap: 12px;
                     }
-                    .featured-card {
-                        justify-self: stretch !important;
-                        max-width: none !important;
-                    }
-                    .store-floating-header {
-                        padding: 12px 12px 0;
-                    }
-                    .store-topbar {
-                        border-radius: 24px;
-                        flex-wrap: wrap;
-                        padding: 9px;
-                        gap: 8px;
-                    }
-                    .topbar-brand {
-                        padding-left: 6px;
-                        max-width: 150px;
-                    }
-                    .topbar-nav {
-                        flex: 1;
-                        order: 2;
-                    }
-                    .optional-divider {
+                    .store-support-button span {
                         display: none;
                     }
-                    .store-search {
-                        order: 5;
-                        flex-basis: 100%;
-                        max-width: none !important;
+                    .store-support-button {
+                        width: 42px;
+                        padding: 0;
                     }
-                    .store-section-head {
-                        grid-template-columns: 1fr !important;
+                    .store-hero {
+                        min-height: 610px;
+                    }
+                    .store-hero h1 {
+                        font-size: clamp(40px, 8vw, 62px);
+                    }
+                    .store-category-cards {
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
                     }
                     .store-catalog-toolbar {
                         align-items: flex-start;
@@ -869,9 +1315,6 @@ export default function StorePage() {
                     .store-footer-links {
                         justify-content: flex-start;
                     }
-                    .trust-row {
-                        grid-template-columns: 1fr !important;
-                    }
                     .product-modal-grid {
                         grid-template-columns: 1fr !important;
                     }
@@ -884,110 +1327,153 @@ export default function StorePage() {
                         padding-left: 12px !important;
                         padding-right: 12px !important;
                     }
-                    .store-floating-header {
-                        padding: max(10px, env(safe-area-inset-top)) 10px 0;
+                    .store-main-header {
+                        min-height: 104px;
                     }
-                    .store-topbar {
-                        width: min(350px, calc(100vw - 20px));
-                        min-height: 0;
-                        border-radius: 18px;
-                        padding: 8px;
-                        gap: 7px;
-                        align-items: center;
-                        justify-content: center;
+                    .store-main-header-inner {
+                        width: calc(100% - 20px);
+                        min-height: 104px;
+                        padding: 8px 0;
+                        grid-template-columns: minmax(0, 1fr) auto;
+                        grid-template-rows: 38px 38px;
+                        gap: 7px 8px;
                     }
-                    h1 {
-                        font-size: 30px !important;
-                        line-height: 1.08 !important;
-                    }
-                    .hero-creator,
-                    .hero-studio,
-                    .hero-academy {
-                        padding-top: 148px !important;
-                        padding-bottom: 26px !important;
-                        gap: 18px !important;
-                    }
-                    .hero-creator p,
-                    .hero-studio p,
-                    .hero-academy p {
-                        font-size: 15px !important;
-                        line-height: 1.55 !important;
-                        margin-bottom: 18px !important;
-                    }
-                    .hero-creator > div:first-child > div:first-child,
-                    .hero-studio > div:first-child > div:first-child,
-                    .hero-academy > div:first-child > div:first-child {
-                        max-width: 100%;
-                        font-size: 11px !important;
-                        padding: 7px 10px !important;
-                        margin-bottom: 14px !important;
-                    }
-                    .hero-creator > div:first-child button,
-                    .hero-studio > div:first-child button,
-                    .hero-academy > div:first-child button {
-                        width: 100%;
-                        justify-content: center;
-                        padding: 13px 16px !important;
-                        border-radius: 13px !important;
-                    }
-                    .hero-creator > div:first-child span,
-                    .hero-studio > div:first-child span,
-                    .hero-academy > div:first-child span {
-                        font-size: 12px !important;
-                    }
-                    .store-login {
-                        display: none !important;
-                    }
-                    .topbar-brand {
-                        max-width: 88px;
-                        font-size: 13px;
-                        padding-left: 2px;
-                    }
-                    .topbar-divider:first-of-type {
-                        display: none;
-                    }
-                    .topbar-nav {
-                        flex: 0 0 auto;
-                        order: 3;
-                        gap: 3px;
-                    }
-                    .topbar-tab {
-                        height: 32px;
-                        padding: 0 10px;
-                        font-size: 11px;
-                    }
-                    .topbar-icon-action {
-                        order: 2;
-                        min-width: 48px;
-                        height: 32px;
-                        padding: 0 9px;
-                        gap: 5px;
-                    }
-                    .topbar-icon-action span {
-                        min-width: 17px;
-                        height: 17px;
+                    .store-brand-mark {
+                        width: 34px;
+                        height: 34px;
+                        border-radius: 10px;
                         font-size: 10px;
                     }
-                    .topbar-search {
+                    .store-brand-name {
+                        max-width: 118px;
+                        font-size: 13px;
+                    }
+                    .store-header-search {
+                        grid-column: 1 / -1;
+                        grid-row: 2;
+                        height: 38px;
+                    }
+                    .store-header-search input {
+                        font-size: 11px;
+                    }
+                    .store-header-actions {
+                        grid-column: 2;
+                        grid-row: 1;
+                    }
+                    .store-support-button {
+                        display: none;
+                    }
+                    .store-cart-button,
+                    .store-account-button {
+                        width: 36px;
                         height: 36px;
-                        min-width: 0;
-                        flex-basis: 100%;
-                        max-width: 100%;
+                        padding: 0;
+                    }
+                    .store-account-button span {
+                        display: none;
+                    }
+                    .store-hero {
+                        min-height: 600px;
+                    }
+                    .store-hero-inner {
+                        padding-top: 54px !important;
+                        padding-bottom: 58px !important;
+                    }
+                    .store-trust-badges {
+                        margin-bottom: 19px;
+                    }
+                    .store-trust-badges span {
+                        min-height: 25px;
+                        padding: 0 8px;
+                        font-size: 8px;
+                    }
+                    .store-hero-logo {
+                        width: 68px;
+                        height: 68px;
+                        border-radius: 20px;
+                        margin-bottom: 18px;
+                    }
+                    .store-hero-logo span {
+                        border-radius: 15px;
+                        font-size: 19px;
+                    }
+                    .store-welcome-label {
+                        font-size: 14px;
+                    }
+                    .store-hero h1 {
+                        font-size: 36px !important;
+                        line-height: 1.02 !important;
+                        margin-bottom: 16px;
+                    }
+                    .store-hero-inner > p {
+                        font-size: 13px;
+                        line-height: 1.65;
+                        margin-bottom: 22px;
+                    }
+                    .store-hero-actions {
+                        width: 100%;
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                    }
+                    .store-hero-actions button {
+                        width: 100%;
+                        min-height: 44px;
                         padding: 0 11px;
-                        order: 5;
+                        font-size: 10px;
                     }
-                    .topbar-search input {
-                        font-size: 12px;
+                    .store-hero-primary {
+                        grid-column: 1 / -1;
                     }
-                    .featured-card {
-                        display: none !important;
+                    .store-hero-support {
+                        grid-column: auto;
                     }
-                    .store-section-head {
-                        gap: 14px !important;
-                        margin-bottom: 16px !important;
+                    .store-hero-assurances {
+                        gap: 9px 13px;
+                        flex-wrap: wrap;
+                        margin-top: 22px;
+                        font-size: 8px;
                     }
-                    .store-section-head h2 {
-                        font-size: 22px !important;
+                    .store-hero-assurances i {
+                        width: 24px;
+                        height: 24px;
+                    }
+                    .assurance-divider {
+                        display: none;
+                    }
+                    .store-benefit-strip-inner {
+                        grid-template-columns: 1fr;
+                        gap: 0;
+                        padding-top: 8px !important;
+                        padding-bottom: 8px !important;
+                    }
+                    .store-benefit-strip-inner > div {
+                        justify-content: flex-start;
+                        border-right: none;
+                        border-bottom: 1px solid ${theme.border};
+                        padding: 10px 2px;
+                    }
+                    .store-benefit-strip-inner > div:last-child {
+                        border-bottom: none;
+                    }
+                    .store-featured-categories {
+                        padding-top: 42px !important;
+                    }
+                    .store-categories-heading {
+                        align-items: stretch;
+                        flex-direction: column;
+                        gap: 15px;
+                    }
+                    .store-categories-heading h2 {
+                        font-size: 23px;
+                    }
+                    .store-categories-heading > button {
+                        align-self: flex-start;
+                    }
+                    .store-category-cards {
+                        grid-template-columns: 1fr;
+                    }
+                    .store-category-cards > button {
+                        min-height: 76px;
                     }
                     .category-row {
                         margin-left: -2px;
@@ -1063,6 +1549,24 @@ export default function StorePage() {
                     .store-section-count {
                         display: none;
                     }
+                    .store-closing-section {
+                        padding: 8px 12px 38px;
+                    }
+                    .store-closing-card {
+                        min-height: 280px;
+                        border-radius: 20px;
+                        padding: 36px 16px;
+                    }
+                    .store-closing-card h2 {
+                        font-size: 27px;
+                    }
+                    .store-closing-card > div:last-child {
+                        width: 100%;
+                        display: grid;
+                    }
+                    .store-closing-card button {
+                        width: 100%;
+                    }
                     .store-footer-inner {
                         padding-top: 30px !important;
                         padding-bottom: 22px !important;
@@ -1079,10 +1583,6 @@ export default function StorePage() {
                         min-width: 34px !important;
                         height: 34px !important;
                         padding: 0 10px !important;
-                    }
-                    .trust-row {
-                        padding-top: 16px !important;
-                        padding-bottom: 16px !important;
                     }
                     .product-modal {
                         width: calc(100vw - 20px) !important;

@@ -99,3 +99,15 @@ test('public store API keeps a legacy fallback until migration 029 is applied', 
     assert.match(source, /normalizeStoreFooter/);
     assert.match(source, /normalizeStoreBackground/);
 });
+
+test('default storefront includes the renewed brand, discovery and trust structure', async () => {
+    const source = await readFile(new URL('../src/app/store/[slug]/page.tsx', import.meta.url), 'utf8');
+    assert.match(source, /store-main-header/);
+    assert.match(source, /store-hero-grid/);
+    assert.match(source, /store-trust-badges/);
+    assert.match(source, /store-featured-categories/);
+    assert.match(source, /store-benefit-strip/);
+    assert.match(source, /StoreBannerCarousel/);
+    assert.match(source, /buildRenderableStoreSections/);
+    assert.doesNotMatch(source, /className="featured-card"/);
+});
