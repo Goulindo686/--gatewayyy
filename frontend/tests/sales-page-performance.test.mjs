@@ -34,6 +34,17 @@ test('sales API avoids ambiguous embedded product relationships', () => {
     assert.match(page, /toast\.error\(message\)/);
 });
 
+test('dashboard recent sales avoid ambiguous embedded relationships', () => {
+    const route = read('../src/app/api/dashboard/stats/route.ts');
+
+    assert.doesNotMatch(route, /products\(name\)/);
+    assert.doesNotMatch(route, /orders\(payment_method\)/);
+    assert.match(route, /productNameById/);
+    assert.match(route, /relatedOrderById/);
+    assert.match(route, /\.from\('products'\)\.select\('id, name'\)/);
+    assert.match(route, /\.from\('orders'\)\.select\('id, product_id, payment_method'\)/);
+});
+
 test('sales information is grouped without a horizontal table scroller', () => {
     const page = read('../src/app/dashboard/sales/page.tsx');
 

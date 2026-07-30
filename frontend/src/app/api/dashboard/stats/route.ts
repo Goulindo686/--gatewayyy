@@ -30,7 +30,6 @@ type RecentOrderRow = {
     affiliate_id?: string | null;
     affiliate_commission_amount?: number | null;
     platform_fee_amount?: number | null;
-    products?: { name?: string | null } | null;
     [key: string]: unknown;
 };
 
@@ -46,8 +45,6 @@ type RecentAffiliateCommissionRow = {
     status?: string | null;
     created_at?: string | null;
     source_type?: string | null;
-    products?: { name?: string | null } | null;
-    orders?: { payment_method?: string | null } | null;
 };
 
 type ReferencedUserRow = {
@@ -68,8 +65,13 @@ type PlatformFeeNotificationRow = {
 
 type PlatformFeeOrderRow = {
     id: string;
+    product_id?: string | null;
     payment_method?: string | null;
-    products?: { name?: string | null } | null;
+};
+
+type ProductNameRow = {
+    id: string;
+    name?: string | null;
 };
 
 function commissionStatusToSaleStatus(status?: string | null) {
@@ -274,7 +276,7 @@ export async function GET(req: NextRequest) {
 
     // Recent orders (limited to 10)
     let recentQuery = supabase
-        .from('orders').select('id, product_id, buyer_name, amount, amount_display, payment_method, status, created_at, affiliate_id, affiliate_commission_amount, platform_fee_amount, products(name)')
+        .from('orders').select('id, product_id, buyer_name, amount, amount_display, payment_method, status, created_at, affiliate_id, affiliate_commission_amount, platform_fee_amount')
         .eq('seller_id', userId)
         .order('created_at', { ascending: false })
         .limit(10);
@@ -286,7 +288,7 @@ export async function GET(req: NextRequest) {
 
     let affiliateNotificationsQuery = supabase
         .from('affiliate_commissions')
-        .select('id, order_id, subscription_id, product_id, producer_id, gross_amount, commission_amount, commission_rate_bps, status, created_at, source_type, products(name), orders(payment_method)')
+        .select('id, order_id, subscription_id, product_id, producer_id, gross_amount, commission_amount, commission_rate_bps, status, created_at, source_type')
         .eq('affiliate_id', userId)
         .order('created_at', { ascending: false })
         .limit(20);
@@ -317,29 +319,49 @@ export async function GET(req: NextRequest) {
         }
     }
 
-    const platformFeeOrderIds = Array.from(new Set(
-        rawPlatformFees.map((fee) => fee.order_id).filter((id): id is string => Boolean(id)),
-    ));
-    const { data: platform_fee_orders } = platformFeeOrderIds.length
-        ? await supabase
-            .from('orders')
-            .select('id, payment_method, products(name)')
-            .in('id', platformFeeOrderIds)
-        : { data: [] };
-    const platformFeeOrderById = Object.fromEntries(
-        ((platform_fee_orders || []) as PlatformFeeOrderRow[]).map((order) => [order.id, order]),
-    ) as Record<string, PlatformFeeOrderRow>;
-
     const referencedUserIds = Array.from(new Set([
         ...rawRecentOrders.map((order) => order.affiliate_id).filter((id): id is string => Boolean(id)),
         ...rawAffiliateCommissions.map((commission) => commission.producer_id).filter((id): id is string => Boolean(id)),
         ...rawPlatformFees.map((fee) => fee.user_id).filter((id): id is string => Boolean(id)),
     ]));
-    const { data: referenced_users } = referencedUserIds.length
-        ? await supabase.from('users').select('id, name, email').in('id', referencedUserIds)
-        : { data: [] };
+    const relatedOrderIds = Array.from(new Set([
+        ...rawAffiliateCommissions.map((commission) => commission.order_id),
+        ...rawPlatformFees.map((fee) => fee.order_id),
+    ].filter((id): id is string => Boolean(id))));
+    const [referencedUsersLookup, relatedOrdersLookup] = await Promise.all([
+        referencedUserIds.length
+            ? supabase.from('users').select('id, name, email').in('id', referencedUserIds)
+            : Promise.resolve({ data: [], error: null }),
+        relatedOrderIds.length
+            ? supabase.from('orders').select('id, product_id, payment_method').in('id', relatedOrderIds)
+            : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (referencedUsersLookup.error) {
+        console.error('[STATS] Referenced users lookup error:', referencedUsersLookup.error);
+    }
+    if (relatedOrdersLookup.error) {
+        console.error('[STATS] Related orders lookup error:', relatedOrdersLookup.error);
+    }
+    const relatedOrderById = Object.fromEntries(
+        ((relatedOrdersLookup.data || []) as PlatformFeeOrderRow[]).map((order) => [order.id, order]),
+    ) as Record<string, PlatformFeeOrderRow>;
+    const referencedProductIds = Array.from(new Set([
+        ...rawRecentOrders.map((order) => order.product_id),
+        ...rawAffiliateCommissions.map((commission) => commission.product_id),
+        ...Object.values(relatedOrderById).map((order) => order.product_id),
+    ].filter((id): id is string => Boolean(id))));
+    const productsLookup = referencedProductIds.length
+        ? await supabase.from('products').select('id, name').in('id', referencedProductIds)
+        : { data: [], error: null };
+    if (productsLookup.error) {
+        console.error('[STATS] Product names lookup error:', productsLookup.error);
+    }
+    const productNameById = new Map(
+        ((productsLookup.data || []) as ProductNameRow[])
+            .map((product) => [product.id, product.name || '—']),
+    );
     const userById = Object.fromEntries(
-        ((referenced_users || []) as ReferencedUserRow[]).map((user) => [user.id, user]),
+        ((referencedUsersLookup.data || []) as ReferencedUserRow[]).map((user) => [user.id, user]),
     ) as Record<string, ReferencedUserRow>;
 
     const recentOrders = rawRecentOrders.map((order) => {
@@ -357,7 +379,9 @@ export async function GET(req: NextRequest) {
             platform_fee_amount: platformFeeAmount,
             commission_amount: commissionAmount,
             net_amount: Math.max(0, grossAmount - platformFeeAmount - commissionAmount),
-            product_name: order.products?.name || (!order.product_id && order.payment_method === 'pix' ? 'API Pix' : '—'),
+            product_name: order.product_id
+                ? productNameById.get(order.product_id) || '—'
+                : order.payment_method === 'pix' ? 'API Pix' : '—',
             sale_kind: isAffiliateSale ? 'affiliate_sale' : 'direct_sale',
             affiliate_name: affiliate?.name || affiliate?.email || null,
         };
@@ -387,13 +411,17 @@ export async function GET(req: NextRequest) {
             gross_amount: Math.max(0, Math.round(Number(commission.gross_amount) || 0)),
             commission_amount: amount,
             commission_rate_bps: Math.max(0, Math.round(Number(commission.commission_rate_bps) || 0)),
-            payment_method: commission.orders?.payment_method
+            payment_method: (commission.order_id
+                ? relatedOrderById[commission.order_id]?.payment_method
+                : null)
                 || (commission.source_type?.startsWith('subscription') ? 'recurrence' : 'affiliate'),
             status: commissionStatusToSaleStatus(commission.status),
             commission_status: commission.status,
             created_at: commission.created_at,
             source_type: commission.source_type,
-            product_name: commission.products?.name || 'Produto',
+            product_name: commission.product_id
+                ? productNameById.get(commission.product_id) || 'Produto'
+                : 'Produto',
             producer_id: commission.producer_id,
             producer_name: producer?.name || producer?.email || null,
             sale_kind: 'affiliate_commission',
@@ -403,7 +431,7 @@ export async function GET(req: NextRequest) {
     });
     const platformFeeNotifications = rawPlatformFees.map((fee) => {
         const amount = Math.max(0, Math.round(Number(fee.amount) || 0));
-        const order = fee.order_id ? platformFeeOrderById[fee.order_id] : null;
+        const order = fee.order_id ? relatedOrderById[fee.order_id] : null;
         const seller = fee.user_id ? userById[fee.user_id] : null;
         return {
             id: `platform-fee-${fee.id}`,
@@ -415,7 +443,9 @@ export async function GET(req: NextRequest) {
             status: 'paid',
             created_at: fee.created_at,
             description: fee.description,
-            product_name: order?.products?.name || 'Taxa da plataforma',
+            product_name: order?.product_id
+                ? productNameById.get(order.product_id) || 'Taxa da plataforma'
+                : 'Taxa da plataforma',
             buyer_name: seller?.name || seller?.email || 'Vendedor',
             sale_kind: 'platform_fee',
             notification_kind: 'platform_fee',
