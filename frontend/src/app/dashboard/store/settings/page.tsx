@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
     FiCheck,
@@ -8,12 +8,16 @@ import {
     FiImage,
     FiInstagram,
     FiLayout,
+    FiLayers,
     FiLink,
     FiMail,
+    FiPackage,
     FiPlus,
     FiPower,
     FiSave,
+    FiSliders,
     FiTrash2,
+    FiType,
     FiUpload
 } from 'react-icons/fi';
 import StoreBuilderEditor from '@/components/store/StoreBuilderEditor';
@@ -243,6 +247,7 @@ export default function StoreSettingsPage() {
 
     const publicUrl = form.store_slug ? `/store/${form.store_slug}` : '';
     const visibleProducts = products.filter(product => product.status === 'active' && product.show_in_store);
+    const sectionCount = form.store_layout_sections.length;
 
     return (
         <div className="store-builder-page">
@@ -253,206 +258,254 @@ export default function StoreSettingsPage() {
                 </div>
             )}
 
-            <div className="store-builder-main">
-                <section className="glass-card store-publish-card">
+            <section className="glass-card store-publish-card">
+                <div className="store-publish-intro">
+                    <div className="store-publish-icon"><FiLayout /></div>
                     <div>
-                        <span className="store-builder-eyebrow">SUA VITRINE DIGITAL</span>
+                        <span className="store-builder-eyebrow">PAINEL DA LOJA</span>
                         <h2>{form.store_name || 'Configure sua loja'}</h2>
-                        <p>Edite a identidade, organize as seções e publique tudo em uma única tela.</p>
-                    </div>
-                    <div className="store-publish-actions">
-                        {publicUrl && (
-                            <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary">
-                                Ver loja <FiExternalLink />
-                            </a>
-                        )}
-                        <button
-                            type="button"
-                            className={`store-status-button ${form.store_active ? 'active' : ''}`}
-                            onClick={() => update('store_active', !form.store_active)}
-                        >
-                            <FiPower /> {form.store_active ? 'Loja ativa' : 'Loja offline'}
-                        </button>
-                    </div>
-                </section>
-
-                <section className="glass-card store-editor-section">
-                    <SectionHeader
-                        icon={<FiLayout />}
-                        kicker="IDENTIDADE"
-                        title="Cabeçalho e apresentação"
-                        description="Essas informações aparecem no topo e ajudam o comprador a entender sua oferta."
-                    />
-                    <div className="store-form-grid two">
-                        <Field label="Nome da loja">
-                            <input className="input-field" maxLength={100} value={form.store_name} onChange={event => update('store_name', event.target.value)} placeholder="Ex: Academia do Criador" />
-                        </Field>
-                        <Field label="Link público">
-                            <div className="store-slug-field">
-                                <span>/store/</span>
-                                <input value={form.store_slug} maxLength={64} onChange={event => update('store_slug', slugify(event.target.value))} placeholder="minha-loja" />
-                            </div>
-                        </Field>
-                        <Field label="Chamada principal">
-                            <input className="input-field" maxLength={140} value={form.store_headline} onChange={event => update('store_headline', event.target.value)} placeholder="Uma frase forte sobre sua loja" />
-                        </Field>
-                        <Field label="Texto do botão principal">
-                            <input className="input-field" maxLength={40} value={form.store_cta_text} onChange={event => update('store_cta_text', event.target.value)} placeholder="Ver produtos" />
-                        </Field>
-                        <Field label="Descrição" wide>
-                            <textarea className="input-field" rows={4} maxLength={600} value={form.store_description} onChange={event => update('store_description', event.target.value)} placeholder="Conte ao cliente o que ele encontra nesta loja." />
-                        </Field>
-                        <Field label="Selo no topo">
-                            <input className="input-field" maxLength={60} value={form.store_badge_text} onChange={event => update('store_badge_text', event.target.value)} />
-                        </Field>
-                        <Field label="Banner principal">
-                            <ImageUploader
-                                imageUrl={form.store_banner_url}
-                                uploading={uploading === 'hero'}
-                                onFile={file => handleSimpleUpload('hero', file)}
-                                onRemove={() => update('store_banner_url', '')}
-                            />
-                        </Field>
-                    </div>
-                </section>
-
-                <StoreBuilderEditor
-                    sections={form.store_layout_sections}
-                    products={products}
-                    uploadingSlideId={uploading}
-                    onChange={sections => update('store_layout_sections', sections)}
-                    onUploadSlide={handleSlideUpload}
-                />
-
-                <section className="glass-card store-editor-section">
-                    <SectionHeader
-                        icon={<FiImage />}
-                        kicker="VISUAL"
-                        title="Tema, cores e fundo"
-                        description="O novo visual mantém a mesma estrutura profissional para todos, com personalização de marca e fundo."
-                    />
-                    <div className="store-template-grid">
-                        {STORE_TEMPLATES.map(template => {
-                            const selected = form.store_template === template.key;
-                            return (
-                                <button key={template.key} type="button" className={selected ? 'selected' : ''} onClick={() => update('store_template', template.key)}>
-                                    <div className="store-template-swatch" style={{ background: template.gradient }}>
-                                        {selected && <span><FiCheck /></span>}
-                                    </div>
-                                    <strong>{template.name}</strong>
-                                    <p>{template.description}</p>
-                                    <small>{template.preview}</small>
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    <div className="store-visual-grid">
-                        <div>
-                            <label className="store-field-label">Cor de destaque</label>
-                            <div className="store-color-row">
-                                {ACCENT_COLORS.map(color => (
-                                    <button
-                                        key={color}
-                                        type="button"
-                                        className={form.store_accent_color === color ? 'selected' : ''}
-                                        style={{ background: color }}
-                                        onClick={() => update('store_accent_color', color)}
-                                        aria-label={`Usar cor ${color}`}
-                                    />
-                                ))}
-                                <input type="color" value={form.store_accent_color} onChange={event => update('store_accent_color', event.target.value)} aria-label="Escolher cor personalizada" />
-                            </div>
+                        <p>Complete as quatro etapas abaixo e publique quando estiver tudo pronto.</p>
+                        <div className="store-publish-metrics">
+                            <span><FiPackage /> {visibleProducts.length} produto{visibleProducts.length === 1 ? '' : 's'} visível{visibleProducts.length === 1 ? '' : 'is'}</span>
+                            <span><FiLayers /> {sectionCount} seç{sectionCount === 1 ? 'ão' : 'ões'} configurada{sectionCount === 1 ? '' : 's'}</span>
                         </div>
-                        <div>
-                            <label className="store-field-label">Tipo de fundo</label>
-                            <div className="store-background-modes">
-                                {[
-                                    { value: 'theme', label: 'Do tema' },
-                                    { value: 'color', label: 'Cor sólida' },
-                                    { value: 'image', label: 'Imagem' }
-                                ].map(option => (
-                                    <button
-                                        key={option.value}
-                                        type="button"
-                                        className={form.store_background_config.mode === option.value ? 'selected' : ''}
-                                        onClick={() => update('store_background_config', { ...form.store_background_config, mode: option.value as StoreBackgroundConfig['mode'] })}
-                                    >
-                                        {option.label}
-                                    </button>
-                                ))}
-                            </div>
+                    </div>
+                </div>
+                <div className="store-publish-actions">
+                    {publicUrl && (
+                        <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary">
+                            Abrir loja <FiExternalLink />
+                        </a>
+                    )}
+                    <button
+                        type="button"
+                        className={`store-status-button ${form.store_active ? 'active' : ''}`}
+                        onClick={() => update('store_active', !form.store_active)}
+                    >
+                        <FiPower /> {form.store_active ? 'Loja ativa' : 'Loja offline'}
+                    </button>
+                </div>
+            </section>
+
+            <nav className="store-setup-navigation" aria-label="Etapas de configuração">
+                <a href="#store-identity">
+                    <span><FiType /></span>
+                    <div><small>ETAPA 1</small><strong>Identidade</strong><p>Nome, textos e banner</p></div>
+                </a>
+                <a href="#store-appearance">
+                    <span><FiSliders /></span>
+                    <div><small>ETAPA 2</small><strong>Aparência</strong><p>Tema, cores e fundo</p></div>
+                </a>
+                <a href="#store-structure">
+                    <span><FiLayers /></span>
+                    <div><small>ETAPA 3</small><strong>Estrutura</strong><p>Produtos e carrosséis</p></div>
+                </a>
+                <a href="#store-footer">
+                    <span><FiLink /></span>
+                    <div><small>ETAPA 4</small><strong>Rodapé</strong><p>Contatos e links</p></div>
+                </a>
+            </nav>
+
+            <div className="store-builder-main">
+                <section id="store-identity" className="glass-card store-editor-section store-scroll-section">
+                    <SectionHeader
+                        icon={<FiType />}
+                        kicker="ETAPA 1"
+                        title="Identidade da loja"
+                        description="Defina como sua marca será apresentada no topo da página."
+                    />
+                    <div className="store-form-group">
+                        <div className="store-form-group-heading">
+                            <strong>Informações básicas</strong>
+                            <span>Dados usados para identificar e acessar sua loja.</span>
                         </div>
-                        {form.store_background_config.mode === 'color' && (
-                            <Field label="Cor do fundo">
-                                <div className="store-color-input">
-                                    <input type="color" value={form.store_background_config.color} onChange={event => update('store_background_config', { ...form.store_background_config, color: event.target.value })} />
-                                    <input className="input-field" value={form.store_background_config.color} onChange={event => update('store_background_config', { ...form.store_background_config, color: event.target.value })} />
+                        <div className="store-form-grid two">
+                            <Field label="Nome da loja">
+                                <input className="input-field" maxLength={100} value={form.store_name} onChange={event => update('store_name', event.target.value)} placeholder="Ex: Academia do Criador" />
+                            </Field>
+                            <Field label="Link público">
+                                <div className="store-slug-field">
+                                    <span>/store/</span>
+                                    <input value={form.store_slug} maxLength={64} onChange={event => update('store_slug', slugify(event.target.value))} placeholder="minha-loja" />
                                 </div>
                             </Field>
-                        )}
-                        {form.store_background_config.mode === 'image' && (
-                            <>
-                                <Field label="Imagem de fundo">
-                                    <ImageUploader
-                                        imageUrl={form.store_background_config.image_url}
-                                        uploading={uploading === 'background'}
-                                        onFile={file => handleSimpleUpload('background', file)}
-                                        onRemove={() => update('store_background_config', { ...form.store_background_config, image_url: '' })}
-                                    />
-                                </Field>
-                                <Field label={`Escurecimento da imagem: ${form.store_background_config.overlay}%`}>
-                                    <input
-                                        type="range"
-                                        min={20}
-                                        max={95}
-                                        value={form.store_background_config.overlay}
-                                        onChange={event => update('store_background_config', { ...form.store_background_config, overlay: Number(event.target.value) })}
-                                        style={{ width: '100%', accentColor: form.store_accent_color }}
-                                    />
-                                </Field>
-                            </>
-                        )}
+                        </div>
+                    </div>
+                    <div className="store-form-group">
+                        <div className="store-form-group-heading">
+                            <strong>Apresentação</strong>
+                            <span>Textos e imagem que recebem o cliente na página inicial.</span>
+                        </div>
+                        <div className="store-form-grid two">
+                            <Field label="Chamada principal">
+                                <input className="input-field" maxLength={140} value={form.store_headline} onChange={event => update('store_headline', event.target.value)} placeholder="Uma frase forte sobre sua loja" />
+                            </Field>
+                            <Field label="Texto do botão principal">
+                                <input className="input-field" maxLength={40} value={form.store_cta_text} onChange={event => update('store_cta_text', event.target.value)} placeholder="Ver produtos" />
+                            </Field>
+                            <Field label="Descrição" wide>
+                                <textarea className="input-field" rows={4} maxLength={600} value={form.store_description} onChange={event => update('store_description', event.target.value)} placeholder="Conte ao cliente o que ele encontra nesta loja." />
+                            </Field>
+                            <Field label="Selo de destaque">
+                                <input className="input-field" maxLength={60} value={form.store_badge_text} onChange={event => update('store_badge_text', event.target.value)} />
+                            </Field>
+                            <Field label="Banner principal">
+                                <ImageUploader
+                                    imageUrl={form.store_banner_url}
+                                    uploading={uploading === 'hero'}
+                                    onFile={file => handleSimpleUpload('hero', file)}
+                                    onRemove={() => update('store_banner_url', '')}
+                                />
+                            </Field>
+                        </div>
                     </div>
                 </section>
 
-                <FooterEditor
-                    value={form.store_footer_config}
-                    onChange={footer => update('store_footer_config', footer)}
-                />
-
-                <button type="button" onClick={handleSave} disabled={saving || migrationRequired} className="btn-primary store-save-button">
-                    <FiSave /> {saving ? 'Salvando...' : 'Salvar e publicar alterações'}
-                </button>
-            </div>
-
-            <aside className="store-preview-column">
-                <div className="glass-card store-preview-card">
-                    <div className="store-preview-heading">
-                        <div>
-                            <strong>Prévia ao vivo</strong>
-                            <span>{visibleProducts.length} produtos disponíveis</span>
+                <section id="store-appearance" className="glass-card store-editor-section store-scroll-section">
+                    <SectionHeader
+                        icon={<FiSliders />}
+                        kicker="ETAPA 2"
+                        title="Aparência da loja"
+                        description="Escolha uma base visual e aplique as cores da sua marca."
+                    />
+                    <div className="store-form-group">
+                        <div className="store-form-group-heading">
+                            <strong>Estilo principal</strong>
+                            <span>Escolha o acabamento que melhor combina com seus produtos.</span>
                         </div>
-                        <span className={form.store_active ? 'online' : ''}>{form.store_active ? 'ONLINE' : 'OFFLINE'}</span>
+                        <div className="store-template-grid">
+                            {STORE_TEMPLATES.map(template => {
+                                const selected = form.store_template === template.key;
+                                return (
+                                    <button key={template.key} type="button" className={selected ? 'selected' : ''} onClick={() => update('store_template', template.key)}>
+                                        <div className="store-template-swatch" style={{ background: template.gradient }}>
+                                            {selected && <span><FiCheck /></span>}
+                                        </div>
+                                        <strong>{template.name}</strong>
+                                        <p>{template.description}</p>
+                                        <small>{template.preview}</small>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
-                    <StoreMiniPreview form={form} products={visibleProducts} />
+                    <div className="store-form-group">
+                        <div className="store-form-group-heading">
+                            <strong>Cores e plano de fundo</strong>
+                            <span>Use uma cor sólida, o fundo do tema ou uma imagem personalizada.</span>
+                        </div>
+                        <div className="store-visual-grid">
+                            <div>
+                                <label className="store-field-label">Cor de destaque</label>
+                                <div className="store-color-row">
+                                    {ACCENT_COLORS.map(color => (
+                                        <button
+                                            key={color}
+                                            type="button"
+                                            className={form.store_accent_color === color ? 'selected' : ''}
+                                            style={{ background: color }}
+                                            onClick={() => update('store_accent_color', color)}
+                                            aria-label={`Usar cor ${color}`}
+                                        />
+                                    ))}
+                                    <input type="color" value={form.store_accent_color} onChange={event => update('store_accent_color', event.target.value)} aria-label="Escolher cor personalizada" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="store-field-label">Tipo de fundo</label>
+                                <div className="store-background-modes">
+                                    {[
+                                        { value: 'theme', label: 'Do tema' },
+                                        { value: 'color', label: 'Cor sólida' },
+                                        { value: 'image', label: 'Imagem' }
+                                    ].map(option => (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            className={form.store_background_config.mode === option.value ? 'selected' : ''}
+                                            onClick={() => update('store_background_config', { ...form.store_background_config, mode: option.value as StoreBackgroundConfig['mode'] })}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            {form.store_background_config.mode === 'color' && (
+                                <Field label="Cor do fundo">
+                                    <div className="store-color-input">
+                                        <input type="color" value={form.store_background_config.color} onChange={event => update('store_background_config', { ...form.store_background_config, color: event.target.value })} />
+                                        <input className="input-field" value={form.store_background_config.color} onChange={event => update('store_background_config', { ...form.store_background_config, color: event.target.value })} />
+                                    </div>
+                                </Field>
+                            )}
+                            {form.store_background_config.mode === 'image' && (
+                                <>
+                                    <Field label="Imagem de fundo">
+                                        <ImageUploader
+                                            imageUrl={form.store_background_config.image_url}
+                                            uploading={uploading === 'background'}
+                                            onFile={file => handleSimpleUpload('background', file)}
+                                            onRemove={() => update('store_background_config', { ...form.store_background_config, image_url: '' })}
+                                        />
+                                    </Field>
+                                    <Field label={`Escurecimento da imagem: ${form.store_background_config.overlay}%`}>
+                                        <input
+                                            type="range"
+                                            min={20}
+                                            max={95}
+                                            value={form.store_background_config.overlay}
+                                            onChange={event => update('store_background_config', { ...form.store_background_config, overlay: Number(event.target.value) })}
+                                            style={{ width: '100%', accentColor: form.store_accent_color }}
+                                        />
+                                    </Field>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </section>
+
+                <div id="store-structure" className="store-scroll-section">
+                    <StoreBuilderEditor
+                        sections={form.store_layout_sections}
+                        products={products}
+                        uploadingSlideId={uploading}
+                        onChange={sections => update('store_layout_sections', sections)}
+                        onUploadSlide={handleSlideUpload}
+                    />
                 </div>
-            </aside>
+
+                <div id="store-footer" className="store-scroll-section">
+                    <FooterEditor
+                        value={form.store_footer_config}
+                        onChange={footer => update('store_footer_config', footer)}
+                    />
+                </div>
+
+                <div className="store-save-bar">
+                    <div>
+                        <strong>Pronto para publicar?</strong>
+                        <span>As alterações só aparecem na loja depois de salvar.</span>
+                    </div>
+                    <button type="button" onClick={handleSave} disabled={saving || migrationRequired} className="btn-primary store-save-button">
+                        <FiSave /> {saving ? 'Salvando...' : 'Salvar e publicar'}
+                    </button>
+                </div>
+            </div>
 
             <style jsx global>{`
                 .store-builder-page {
                     display: grid;
-                    grid-template-columns: minmax(0, 1fr) 390px;
-                    gap: 22px;
-                    align-items: start;
+                    gap: 18px;
                 }
                 .store-builder-main {
                     display: grid;
                     gap: 18px;
                     min-width: 0;
                 }
+                .store-scroll-section {
+                    scroll-margin-top: 92px;
+                }
                 .store-migration-alert {
-                    grid-column: 1 / -1;
                     border: 1px solid rgba(245,158,11,.34);
                     border-radius: 14px;
                     background: rgba(245,158,11,.10);
@@ -464,7 +517,7 @@ export default function StoreSettingsPage() {
                     font-size: 13px;
                 }
                 .store-publish-card {
-                    padding: 24px;
+                    padding: 22px;
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
@@ -472,6 +525,24 @@ export default function StoreSettingsPage() {
                     background:
                         radial-gradient(circle at 92% 8%, rgba(108,92,231,.16), transparent 32%),
                         var(--bg-card);
+                }
+                .store-publish-intro {
+                    min-width: 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                }
+                .store-publish-icon {
+                    width: 52px;
+                    height: 52px;
+                    border-radius: 16px;
+                    display: grid;
+                    place-items: center;
+                    flex: 0 0 auto;
+                    color: white;
+                    background: linear-gradient(135deg, var(--accent-primary), #8b5cf6);
+                    box-shadow: 0 10px 24px rgba(108,92,231,.24);
+                    font-size: 21px;
                 }
                 .store-builder-eyebrow {
                     color: var(--accent-primary);
@@ -487,6 +558,26 @@ export default function StoreSettingsPage() {
                 .store-publish-card p {
                     color: var(--text-secondary);
                     font-size: 13px;
+                }
+                .store-publish-metrics {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                    margin-top: 10px;
+                }
+                .store-publish-metrics span {
+                    min-height: 26px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 999px;
+                    padding: 0 9px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    color: var(--text-secondary);
+                    background: var(--bg-secondary);
+                    font-size: 10px;
+                    font-weight: 750;
                 }
                 .store-publish-actions {
                     display: flex;
@@ -518,8 +609,64 @@ export default function StoreSettingsPage() {
                     background: rgba(0,184,148,.11);
                     color: #00b894;
                 }
+                .store-setup-navigation {
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 10px;
+                }
+                .store-setup-navigation > a {
+                    min-width: 0;
+                    border: 1px solid var(--border-color);
+                    border-radius: 15px;
+                    padding: 13px;
+                    display: flex;
+                    align-items: center;
+                    gap: 11px;
+                    color: var(--text-primary);
+                    background: var(--bg-card);
+                    text-decoration: none;
+                    transition: border-color .2s, transform .2s, background .2s;
+                }
+                .store-setup-navigation > a:hover {
+                    border-color: rgba(108,92,231,.36);
+                    background: rgba(108,92,231,.045);
+                    transform: translateY(-1px);
+                }
+                .store-setup-navigation > a > span {
+                    width: 38px;
+                    height: 38px;
+                    border-radius: 12px;
+                    display: grid;
+                    place-items: center;
+                    flex: 0 0 auto;
+                    color: var(--accent-primary);
+                    background: rgba(108,92,231,.11);
+                }
+                .store-setup-navigation small,
+                .store-setup-navigation strong,
+                .store-setup-navigation p {
+                    display: block;
+                }
+                .store-setup-navigation small {
+                    color: var(--accent-primary);
+                    font-size: 8px;
+                    font-weight: 900;
+                    letter-spacing: .1em;
+                    margin-bottom: 2px;
+                }
+                .store-setup-navigation strong {
+                    font-size: 12px;
+                    margin-bottom: 2px;
+                }
+                .store-setup-navigation p {
+                    overflow: hidden;
+                    color: var(--text-muted);
+                    font-size: 9px;
+                    white-space: nowrap;
+                    text-overflow: ellipsis;
+                }
                 .store-editor-section {
-                    padding: 24px;
+                    padding: 26px;
                 }
                 .store-section-header {
                     display: flex;
@@ -554,6 +701,31 @@ export default function StoreSettingsPage() {
                     color: var(--text-secondary);
                     font-size: 13px;
                     line-height: 1.45;
+                }
+                .store-form-group {
+                    border: 1px solid var(--border-color);
+                    border-radius: 16px;
+                    padding: 18px;
+                    background: var(--bg-secondary);
+                }
+                .store-form-group + .store-form-group {
+                    margin-top: 14px;
+                }
+                .store-form-group-heading {
+                    display: flex;
+                    align-items: baseline;
+                    justify-content: space-between;
+                    gap: 14px;
+                    margin-bottom: 15px;
+                }
+                .store-form-group-heading strong {
+                    color: var(--text-primary);
+                    font-size: 13px;
+                }
+                .store-form-group-heading span {
+                    color: var(--text-muted);
+                    font-size: 10px;
+                    text-align: right;
                 }
                 .store-form-grid {
                     display: grid;
@@ -636,7 +808,6 @@ export default function StoreSettingsPage() {
                     display: grid;
                     grid-template-columns: repeat(3, minmax(0, 1fr));
                     gap: 11px;
-                    margin-bottom: 22px;
                 }
                 .store-template-grid > button {
                     border: 1px solid var(--border-color);
@@ -690,8 +861,6 @@ export default function StoreSettingsPage() {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
                     gap: 18px;
-                    border-top: 1px solid var(--border-color);
-                    padding-top: 20px;
                 }
                 .store-color-row {
                     display: flex;
@@ -791,175 +960,45 @@ export default function StoreSettingsPage() {
                     cursor: pointer;
                 }
                 .store-save-button {
-                    width: 100%;
-                    min-height: 52px;
+                    min-width: 210px;
+                    min-height: 46px;
                     display: inline-flex;
                     justify-content: center;
                     align-items: center;
                     gap: 9px;
                     font-size: 14px;
                 }
-                .store-preview-column {
+                .store-save-bar {
                     position: sticky;
-                    top: 88px;
-                }
-                .store-preview-card {
-                    padding: 15px;
-                }
-                .store-preview-heading {
+                    bottom: 14px;
+                    z-index: 8;
+                    border: 1px solid rgba(108,92,231,.25);
+                    border-radius: 16px;
+                    padding: 12px 14px 12px 18px;
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    margin-bottom: 12px;
+                    gap: 18px;
+                    background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+                    box-shadow: 0 14px 34px rgba(15,23,42,.15);
+                    backdrop-filter: blur(16px);
                 }
-                .store-preview-heading strong {
+                .store-save-bar strong,
+                .store-save-bar span {
                     display: block;
+                }
+                .store-save-bar strong {
+                    color: var(--text-primary);
                     font-size: 13px;
+                    margin-bottom: 3px;
                 }
-                .store-preview-heading div span {
-                    color: var(--text-secondary);
-                    font-size: 10px;
-                }
-                .store-preview-heading > span {
+                .store-save-bar span {
                     color: var(--text-muted);
-                    font-size: 9px;
-                    font-weight: 900;
-                    letter-spacing: .08em;
-                }
-                .store-preview-heading > span.online {
-                    color: #00b894;
-                }
-                .store-mini-preview {
-                    height: 640px;
-                    border: 1px solid var(--border-color);
-                    border-radius: 17px;
-                    overflow: hidden;
-                    color: var(--mini-text);
-                    background-color: var(--mini-bg);
-                    background-size: cover;
-                    background-position: center;
-                    display: flex;
-                    flex-direction: column;
-                }
-                .store-mini-nav {
-                    margin: 9px;
-                    min-height: 36px;
-                    border: 1px solid var(--mini-border);
-                    border-radius: 999px;
-                    padding: 0 11px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    background: var(--mini-surface);
-                    backdrop-filter: blur(10px);
-                    font-size: 9px;
-                    font-weight: 900;
-                }
-                .store-mini-cart {
-                    padding: 5px 8px;
-                    border-radius: 999px;
-                    color: white;
-                    background: var(--mini-accent);
-                }
-                .store-mini-hero {
-                    min-height: 150px;
-                    padding: 20px 16px 14px;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: flex-end;
-                    background-size: cover;
-                    background-position: center;
-                }
-                .store-mini-hero small {
-                    color: var(--mini-accent);
-                    font-size: 7px;
-                    font-weight: 900;
-                }
-                .store-mini-hero strong {
-                    display: block;
-                    max-width: 270px;
-                    font-size: 20px;
-                    line-height: 1.05;
-                    margin: 5px 0;
-                }
-                .store-mini-hero p {
-                    color: var(--mini-muted);
-                    font-size: 8px;
-                    line-height: 1.4;
-                    max-width: 260px;
-                }
-                .store-mini-content {
-                    flex: 1;
-                    padding: 13px;
-                    overflow: hidden;
-                    display: grid;
-                    align-content: start;
-                    gap: 12px;
-                }
-                .store-mini-section-title {
-                    width: 110px;
-                    height: 7px;
-                    border-radius: 99px;
-                    background: var(--mini-text);
-                    margin-bottom: 7px;
-                    opacity: .86;
-                }
-                .store-mini-products {
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 5px;
-                }
-                .store-mini-product {
-                    min-width: 0;
-                    height: 78px;
-                    border: 1px solid var(--mini-border);
-                    border-radius: 7px;
-                    background: var(--mini-surface);
-                    overflow: hidden;
-                }
-                .store-mini-product div {
-                    height: 48px;
-                    background: linear-gradient(135deg, var(--mini-accent), rgba(148,163,184,.4));
-                    background-size: cover;
-                    background-position: center;
-                }
-                .store-mini-product span {
-                    display: block;
-                    height: 5px;
-                    margin: 8px;
-                    border-radius: 99px;
-                    background: var(--mini-text);
-                    opacity: .75;
-                }
-                .store-mini-banner {
-                    min-height: 80px;
-                    border-radius: 9px;
-                    background: linear-gradient(120deg, var(--mini-accent), rgba(15,23,42,.88));
-                    background-size: cover;
-                    background-position: center;
-                    display: flex;
-                    align-items: flex-end;
-                    padding: 10px;
                     font-size: 10px;
-                    font-weight: 900;
-                    color: white;
                 }
-                .store-mini-footer {
-                    border-top: 1px solid var(--mini-border);
-                    background: var(--mini-surface);
-                    padding: 12px;
-                    font-size: 8px;
-                    color: var(--mini-muted);
-                }
-                @media (max-width: 1180px) {
-                    .store-builder-page {
-                        grid-template-columns: 1fr;
-                    }
-                    .store-preview-column {
-                        position: static;
-                    }
-                    .store-mini-preview {
-                        height: 560px;
+                @media (max-width: 980px) {
+                    .store-setup-navigation {
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
                     }
                 }
                 @media (max-width: 720px) {
@@ -970,6 +1009,36 @@ export default function StoreSettingsPage() {
                     }
                     .store-publish-actions > * {
                         justify-content: center;
+                    }
+                    .store-publish-intro {
+                        align-items: flex-start;
+                    }
+                    .store-publish-icon {
+                        width: 44px;
+                        height: 44px;
+                    }
+                    .store-setup-navigation {
+                        grid-template-columns: 1fr 1fr;
+                    }
+                    .store-setup-navigation > a {
+                        align-items: flex-start;
+                    }
+                    .store-setup-navigation p {
+                        display: none;
+                    }
+                    .store-editor-section {
+                        padding: 18px;
+                    }
+                    .store-form-group {
+                        padding: 14px;
+                    }
+                    .store-form-group-heading {
+                        display: block;
+                    }
+                    .store-form-group-heading span {
+                        display: block;
+                        margin-top: 4px;
+                        text-align: left;
                     }
                     .store-form-grid.two,
                     .store-template-grid,
@@ -992,6 +1061,15 @@ export default function StoreSettingsPage() {
                     .store-footer-link-row button {
                         grid-column: 2;
                         grid-row: 1 / 3;
+                    }
+                    .store-save-bar {
+                        position: static;
+                        align-items: stretch;
+                        flex-direction: column;
+                        padding: 14px;
+                    }
+                    .store-save-button {
+                        width: 100%;
                     }
                 }
             `}</style>
@@ -1072,8 +1150,8 @@ function FooterEditor({ value, onChange }: { value: StoreFooterConfig; onChange:
         <section className="glass-card store-editor-section">
             <SectionHeader
                 icon={<FiLink />}
-                kicker="RODAPÉ"
-                title="Informações finais da loja"
+                kicker="ETAPA 4"
+                title="Rodapé e contatos"
                 description="Edite apresentação, contatos e links úteis exibidos no final da página."
                 action={(
                     <button type="button" className={`store-footer-toggle ${value.enabled ? 'active' : ''}`} onClick={() => onChange({ ...value, enabled: !value.enabled })}>
@@ -1122,92 +1200,5 @@ function FooterEditor({ value, onChange }: { value: StoreFooterConfig; onChange:
                 </div>
             )}
         </section>
-    );
-}
-
-function StoreMiniPreview({ form, products }: { form: StoreForm; products: StoreProduct[] }) {
-    const theme = form.store_template === 'academy'
-        ? { bg: '#f8fafc', surface: 'rgba(255,255,255,.92)', text: '#0f172a', muted: '#64748b', border: 'rgba(15,23,42,.10)' }
-        : form.store_template === 'studio'
-            ? { bg: '#11100f', surface: 'rgba(27,25,23,.92)', text: '#fffaf0', muted: '#c7b9a1', border: 'rgba(255,250,240,.10)' }
-            : { bg: '#09090b', surface: 'rgba(20,20,23,.92)', text: '#fff', muted: '#94a3b8', border: 'rgba(255,255,255,.08)' };
-
-    const background = form.store_background_config;
-    const backgroundImage = background.mode === 'image' && background.image_url
-        ? `linear-gradient(rgba(9,9,11,${background.overlay / 100}),rgba(9,9,11,${background.overlay / 100})),url("${background.image_url}")`
-        : undefined;
-    const backgroundColor = background.mode === 'color' ? background.color : theme.bg;
-    const sections = form.store_layout_sections.length > 0
-        ? form.store_layout_sections.slice(0, 4)
-        : [{
-            id: 'preview-products',
-            type: 'products' as const,
-            title: 'Produtos em destaque',
-            subtitle: '',
-            product_ids: products.slice(0, 4).map(product => product.id)
-        }];
-    const productsById = useMemo(() => new Map(products.map(product => [product.id, product])), [products]);
-
-    return (
-        <div
-            className="store-mini-preview"
-            style={{
-                '--mini-bg': backgroundColor,
-                '--mini-surface': theme.surface,
-                '--mini-text': theme.text,
-                '--mini-muted': theme.muted,
-                '--mini-border': theme.border,
-                '--mini-accent': form.store_accent_color,
-                backgroundImage
-            } as React.CSSProperties}
-        >
-            <div className="store-mini-nav">
-                <span>{form.store_name || 'Sua loja'}</span>
-                <span className="store-mini-cart">Carrinho</span>
-            </div>
-            <div
-                className="store-mini-hero"
-                style={{
-                    backgroundImage: form.store_banner_url
-                        ? `linear-gradient(90deg,rgba(9,9,11,.88),rgba(9,9,11,.2)),url("${form.store_banner_url}")`
-                        : `radial-gradient(circle at 90% 10%,${form.store_accent_color}99,transparent 45%)`
-                }}
-            >
-                <small>{form.store_badge_text}</small>
-                <strong>{form.store_headline || form.store_name || 'Sua vitrine digital'}</strong>
-                <p>{form.store_description || 'Uma loja bonita, rápida e organizada para seus clientes.'}</p>
-            </div>
-            <div className="store-mini-content">
-                {sections.map(section => section.type === 'products' ? (
-                    <div key={section.id}>
-                        <div className="store-mini-section-title" />
-                        <div className="store-mini-products">
-                            {section.product_ids.slice(0, 4).map(productId => {
-                                const product = productsById.get(productId);
-                                return (
-                                    <div className="store-mini-product" key={productId}>
-                                        <div style={product?.image_url ? { backgroundImage: `url("${product.image_url}")` } : undefined} />
-                                        <span />
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                ) : (
-                    <div
-                        className="store-mini-banner"
-                        key={section.id}
-                        style={section.slides[0]?.image_url ? { backgroundImage: `linear-gradient(90deg,rgba(0,0,0,.68),rgba(0,0,0,.1)),url("${section.slides[0].image_url}")` } : undefined}
-                    >
-                        {section.slides[0]?.title || 'Seu banner em destaque'}
-                    </div>
-                ))}
-            </div>
-            {form.store_footer_config.enabled && (
-                <div className="store-mini-footer">
-                    {form.store_footer_config.description || `${form.store_name || 'Sua loja'} — produtos digitais selecionados.`}
-                </div>
-            )}
-        </div>
     );
 }

@@ -105,8 +105,8 @@ export default function StoreBuilderEditor({
         <section className="glass-card" style={{ padding: 24 }}>
             <div className="builder-heading">
                 <div>
-                    <span className="builder-kicker">ESTRUTURA DA PÁGINA</span>
-                    <h3 className="builder-title">Monte a vitrine na ordem que quiser</h3>
+                    <span className="builder-kicker">ETAPA 3</span>
+                    <h3 className="builder-title">Estrutura da vitrine</h3>
                     <p className="builder-description">
                         Cada linha aceita até quatro produtos. Intercale linhas e carrosséis de banners quantas vezes precisar.
                     </p>

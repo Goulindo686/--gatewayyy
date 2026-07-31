@@ -100,6 +100,22 @@ test('public store API keeps a legacy fallback until migration 029 is applied', 
     assert.match(source, /normalizeStoreBackground/);
 });
 
+test('store settings use an organized four-step editor without an embedded preview', async () => {
+    const source = await readFile(new URL('../src/app/dashboard/store/settings/page.tsx', import.meta.url), 'utf8');
+    const layout = await readFile(new URL('../src/app/dashboard/store/layout.tsx', import.meta.url), 'utf8');
+
+    assert.match(source, /store-setup-navigation/);
+    assert.match(source, /id="store-identity"/);
+    assert.match(source, /id="store-appearance"/);
+    assert.match(source, /id="store-structure"/);
+    assert.match(source, /id="store-footer"/);
+    assert.match(source, /store-save-bar/);
+    assert.doesNotMatch(source, /StoreMiniPreview/);
+    assert.doesNotMatch(source, /store-preview-column/);
+    assert.match(layout, /Aparência e organização/);
+    assert.match(layout, /Escolha o que será exibido/);
+});
+
 test('default storefront includes the renewed brand, discovery and trust structure', async () => {
     const source = await readFile(new URL('../src/app/store/[slug]/page.tsx', import.meta.url), 'utf8');
     assert.match(source, /store-main-header/);
