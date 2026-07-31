@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS = {
     banner_height_desktop: 300,
     banner_height_mobile: 200,
     banner_position: 'center',
+    show_credit_card: true,
     hide_phone: false,
     hide_address_pix: false,
     show_video: false,
@@ -302,6 +303,30 @@ export default function CheckoutCustomizationPage() {
                         </div>
                     </div>
 
+                    {/* Payment Methods */}
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+                            <FiCreditCard size={16} className="text-[#6C5CE7]" /> Métodos de Pagamento
+                        </h3>
+                        <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-gray-100 bg-gray-50">
+                            <div>
+                                <strong className="block text-sm font-bold text-gray-700">Aceitar cartão de crédito</strong>
+                                <span className="block mt-1 text-xs leading-relaxed text-gray-400">
+                                    Desative para mostrar somente o Pix neste checkout.
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                aria-label={settings.show_credit_card ? 'Desativar cartão de crédito' : 'Ativar cartão de crédito'}
+                                aria-pressed={settings.show_credit_card}
+                                onClick={() => update('show_credit_card', !settings.show_credit_card)}
+                                className={`w-12 h-6 rounded-full relative flex-shrink-0 transition-colors ${settings.show_credit_card ? 'bg-[#6C5CE7]' : 'bg-gray-200'}`}
+                            >
+                                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.show_credit_card ? 'left-7' : 'left-1'}`} />
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Notice & Countdown */}
                     <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-6">
                         <div>
@@ -487,13 +512,15 @@ export default function CheckoutCustomizationPage() {
 
                                             <div className="space-y-4">
                                                 <h4 className="text-sm font-black" style={{ color: previewText }}>Pagamento</h4>
-                                                <div className="grid grid-cols-1 gap-3">
-                                                    <div className="hidden" style={{ background: settings.theme === 'light' ? '#f3f4f6' : `${previewAccent}1A`, borderColor: previewAccent }}>
-                                                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ background: previewAccent }}>
-                                                            <FiCreditCard size={18} />
+                                                <div className={`grid gap-3 ${settings.show_credit_card ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                                    {settings.show_credit_card && (
+                                                        <div className="rounded-2xl border p-4 flex flex-col items-center justify-center text-center min-h-[96px]" style={{ background: settings.theme === 'light' ? '#f3f4f6' : `${previewAccent}1A`, borderColor: previewAccent }}>
+                                                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ background: previewAccent }}>
+                                                                <FiCreditCard size={18} />
+                                                            </div>
+                                                            <div className="mt-2 text-xs font-black" style={{ color: previewText }}>Cartão de crédito</div>
                                                         </div>
-                                                        <div className="mt-2 text-xs font-black" style={{ color: previewText }}>Cartão de crédito</div>
-                                                    </div>
+                                                    )}
                                                     <div className="rounded-2xl border p-4 flex flex-col items-center justify-center text-center min-h-[96px]" style={{ background: settings.theme === 'light' ? '#fff' : 'rgba(255,255,255,0.04)', borderColor: previewBorder }}>
                                                         <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: previewCard, color: previewMuted }}>
                                                             <FiSmartphone size={18} />

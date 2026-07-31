@@ -41,6 +41,7 @@ const DEFAULT_SETTINGS = {
     banner_height_desktop: 300,
     banner_height_mobile: 200,
     banner_position: 'center',
+    show_credit_card: true,
     hide_phone: false,
     hide_address_pix: false,
     show_video: false,
@@ -228,6 +229,7 @@ export default function CheckoutPage() {
     // Mapa bumpId → plano selecionado (para bumps com múltiplos planos sem plano fixo)
     const [selectedBumpPlans, setSelectedBumpPlans] = useState<Record<string, any>>({});
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+    const showCreditCard = enableCreditCard && settings.show_credit_card !== false;
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState('pix');
@@ -287,6 +289,7 @@ export default function CheckoutPage() {
             setOrderBumps(bumps);
             const s = { ...DEFAULT_SETTINGS, ...(data.product.checkout_settings || {}) };
             setSettings(s);
+            if (!s.show_credit_card) setPaymentMethod('pix');
             // Start countdown timer if enabled
             if (s.show_countdown) {
                 const totalSeconds = (s.countdown_minutes || 15) * 60;
@@ -477,7 +480,7 @@ export default function CheckoutPage() {
         e.preventDefault();
         setProcessing(true);
         try {
-            const methodToSend = enableCreditCard ? paymentMethod : 'pix';
+            const methodToSend = showCreditCard ? paymentMethod : 'pix';
             if (!isValidCpf(form.cpf)) { toast.error('CPF inválido'); setProcessing(false); return; }
             if ((!settings.hide_phone || methodToSend === 'credit_card') && !isValidPhone(form.phone)) { toast.error('WhatsApp inválido'); setProcessing(false); return; }
             if (methodToSend === 'credit_card') {
@@ -997,8 +1000,8 @@ export default function CheckoutPage() {
 
                             <section>
                                 <h3 className="text-base font-black mb-4" style={{ color: textPrimary }}>Pagamento</h3>
-                                <div className={`grid gap-3 ${enableCreditCard ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                                    {enableCreditCard && (
+                                <div className={`grid gap-3 ${showCreditCard ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                    {showCreditCard && (
                                         <button
                                             type="button"
                                             onClick={() => setPaymentMethod('credit_card')}
@@ -1256,7 +1259,7 @@ export default function CheckoutPage() {
                         product={product}
                         selectedPlan={selectedPlan}
                         processing={processing}
-                        paymentMethod={enableCreditCard ? paymentMethod : 'pix'}
+                        paymentMethod={showCreditCard ? paymentMethod : 'pix'}
                         installments={Number(form.installments) || 1}
                         isLight={isLight}
                         borderColor={borderColor}
