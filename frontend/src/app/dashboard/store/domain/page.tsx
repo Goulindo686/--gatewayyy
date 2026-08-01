@@ -169,7 +169,7 @@ export default function StoreDomainPage() {
                 <div className="notice error"><FiInfo /><div><strong>Banco de dados ainda não preparado</strong><span>Execute a migration <code>030_add_store_custom_domains.sql</code> no Supabase.</span></div></div>
             )}
             {!integrationConfigured && (
-                <div className="notice error"><FiInfo /><div><strong>Integração de domínio pendente</strong><span>Configure VERCEL_API_TOKEN e VERCEL_PROJECT_ID nas variáveis do projeto.</span></div></div>
+                <div className="notice error"><FiInfo /><div><strong>Integração de domínio pendente</strong><span>Configure o token e o projeto da Vercel nas variáveis de domínio.</span></div></div>
             )}
 
             {!domain ? (

@@ -48,6 +48,6 @@ test('mantém cadastro privado, exclusivo e resolvido somente após verificaçã
     assert.match(protectedApi, /\.eq\('user_id', auth\.user\.id\)/);
     assert.match(publicApi, /\.eq\('status', 'active'\)/);
     assert.match(publicApi, /\.eq\('verified', true\)/);
-    assert.match(envExample, /^VERCEL_API_TOKEN=/m);
-    assert.doesNotMatch(envExample, /^NEXT_PUBLIC_VERCEL_API_TOKEN=/m);
+    assert.match(envExample, /^CUSTOM_DOMAINS_VERCEL_TOKEN=/m);
+    assert.doesNotMatch(envExample, /^NEXT_PUBLIC_.*VERCEL_TOKEN=/m);
 });

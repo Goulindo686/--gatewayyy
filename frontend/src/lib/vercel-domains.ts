@@ -38,9 +38,9 @@ export class VercelDomainError extends Error {
 }
 
 function getConfig(): DomainIntegrationConfig {
-    const token = process.env.VERCEL_API_TOKEN;
-    const projectId = process.env.VERCEL_PROJECT_ID;
-    const teamId = process.env.VERCEL_TEAM_ID;
+    const token = process.env.CUSTOM_DOMAINS_VERCEL_TOKEN || process.env.VERCEL_API_TOKEN;
+    const projectId = process.env.CUSTOM_DOMAINS_VERCEL_PROJECT_ID || process.env.VERCEL_PROJECT_ID;
+    const teamId = process.env.CUSTOM_DOMAINS_VERCEL_TEAM_ID || process.env.VERCEL_TEAM_ID || process.env.VERCEL_ORG_ID;
     if (!token || !projectId) {
         throw new VercelDomainError('A integração de domínios ainda não foi configurada.', 503, 'NOT_CONFIGURED');
     }
@@ -48,7 +48,9 @@ function getConfig(): DomainIntegrationConfig {
 }
 
 export function isVercelDomainIntegrationConfigured(): boolean {
-    return Boolean(process.env.VERCEL_API_TOKEN && process.env.VERCEL_PROJECT_ID);
+    const token = process.env.CUSTOM_DOMAINS_VERCEL_TOKEN || process.env.VERCEL_API_TOKEN;
+    const projectId = process.env.CUSTOM_DOMAINS_VERCEL_PROJECT_ID || process.env.VERCEL_PROJECT_ID;
+    return Boolean(token && projectId);
 }
 
 async function vercelRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -163,4 +165,3 @@ export function buildDomainSnapshot(domain: string, project: VercelProjectDomain
             : null
     };
 }
-
