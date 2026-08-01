@@ -121,7 +121,8 @@ test('delivery mode is exclusive and file delivery endpoints are removed', () =>
     assert.doesNotMatch(buyerRoute, /unique_delivery_files|download_url/);
     assert.match(memberEntitlements, /getUniqueDeliveryPurchaseKeys/);
     assert.match(memberEntitlements, /!isUniqueDelivery/);
-    assert.match(webhook, /!usesUniqueDelivery/);
+    assert.match(memberEntitlements, /orderUsesUniqueDelivery/);
+    assert.match(webhook, /grantPaidOrderMemberEntitlement/);
     assert.match(managementPage, /Área de Membros/);
     assert.match(managementPage, /Entrega Única/);
     assert.match(managementPage, /updateDeliveryMode/);
@@ -137,4 +138,24 @@ test('delivery mode is exclusive and file delivery endpoints are removed', () =>
     );
     assert.equal(existsSync(sellerUploadRoute), false);
     assert.equal(existsSync(buyerDownloadRoute), false);
+});
+
+test('member delivery is granted by every paid-order path without creating buyer accounts', () => {
+    const memberEntitlements = read('../src/lib/member-entitlements.ts');
+    const paidPaths = [
+        read('../src/app/api/checkout/pay/route.ts'),
+        read('../src/app/api/store-checkout/route.ts'),
+        read('../src/app/api/webhooks/pagarme/route.ts'),
+        read('../src/lib/order-payment-reconciliation.ts'),
+    ];
+
+    assert.match(memberEntitlements, /order\.status !== 'paid'/);
+    assert.match(memberEntitlements, /orderUsesUniqueDelivery\(order\.id, order\.product_id\)/);
+    assert.match(memberEntitlements, /\.eq\('email_verified', true\)/);
+    assert.match(memberEntitlements, /\.from\('enrollments'\)[\s\S]+\.upsert\(/);
+    assert.doesNotMatch(memberEntitlements, /\.from\('users'\)[\s\S]+\.insert\(/);
+
+    for (const source of paidPaths) {
+        assert.match(source, /grantPaidOrderMemberEntitlement/);
+    }
 });

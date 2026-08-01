@@ -6,6 +6,7 @@ import { syncOrderAffiliateCommission } from '@/lib/affiliates';
 import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
 import { enqueueAndProcessOrderWebhook } from '@/lib/outgoing-webhooks';
+import { grantPaidOrderMemberEntitlement } from '@/lib/member-entitlements';
 
 type ReconciliationStatus =
     | 'not_found'
@@ -153,6 +154,11 @@ export async function reconcileOrderPayment(
 
     if (currentOrder.status === 'paid') {
         let notificationAttempted = false;
+        try {
+            await grantPaidOrderMemberEntitlement(currentOrder);
+        } catch (error) {
+            console.error('[PAYMENT RECONCILIATION] Failed to recover member access:', error);
+        }
         if (!currentOrder.paid_processed_at) {
             try {
                 await persistPaidLedger(currentOrder);
@@ -242,6 +248,12 @@ export async function reconcileOrderPayment(
         await persistPaidLedger(refreshedOrder);
     } catch (error) {
         console.error('[PAYMENT RECONCILIATION] Failed to persist ledger:', error);
+    }
+
+    try {
+        await grantPaidOrderMemberEntitlement(refreshedOrder);
+    } catch (error) {
+        console.error('[PAYMENT RECONCILIATION] Failed to grant member access:', error);
     }
 
     let notificationAttempted = false;

@@ -28,6 +28,7 @@ import {
     hashPaymentRequest,
 } from '@/lib/payment-security';
 import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
+import { grantPaidOrderMemberEntitlement } from '@/lib/member-entitlements';
 import {
     getUniqueDeliveryStock,
     orderUsesUniqueDelivery,
@@ -661,6 +662,19 @@ export async function POST(req: NextRequest) {
 
         // If paid immediately, create fee transaction and update sales count
         if (charge?.status === 'paid') {
+            try {
+                await grantPaidOrderMemberEntitlement({
+                    id: orderId,
+                    product_id: product.id,
+                    buyer_email: buyer.email,
+                    status: 'paid',
+                });
+            } catch (entitlementError) {
+                // O pagamento ja foi aprovado. Login/verificacao e a
+                // reconciliacao repetem esta operacao idempotente com seguranca.
+                console.error('[MEMBERS] Immediate checkout enrollment error:', entitlementError);
+            }
+
             try {
                 const { data: seller } = await supabase
                     .from('users')

@@ -30,6 +30,7 @@ import {
 } from '@/lib/webhook-security';
 import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
 import { orderUsesUniqueDelivery } from '@/lib/unique-deliveries';
+import { grantPaidOrderMemberEntitlement } from '@/lib/member-entitlements';
 
 type SaleNotificationOrder = {
     id: string;
@@ -847,32 +848,7 @@ export async function POST(req: NextRequest) {
                         }
                     }
                     
-                    // A modalidade e capturada no pedido. Uma compra de Entrega
-                    // Unica nao recebe tambem a Area de Membros.
-                    const usesUniqueDelivery = order.product_id
-                        ? await orderUsesUniqueDelivery(order.id, order.product_id)
-                        : false;
-                    if (
-                        product.type === 'digital'
-                        && order.buyer_email
-                        && !usesUniqueDelivery
-                    ) {
-                        const normalizedEmail = order.buyer_email.toLowerCase().trim();
-                        const { data: existingUser } = await supabase
-                            .from('users')
-                            .select('id, email')
-                            .ilike('email', normalizedEmail)
-                            .single();
-
-                        if (existingUser) {
-                            await supabase.from('enrollments').upsert({
-                                user_id: existingUser.id,
-                                product_id: order.product_id,
-                                order_id: order.id,
-                                status: 'active'
-                            }, { onConflict: 'user_id, product_id' });
-                        }
-                    }
+                    await grantPaidOrderMemberEntitlement(order);
                 }
             }
 

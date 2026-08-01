@@ -22,6 +22,7 @@ import {
     hashPaymentRequest,
 } from '@/lib/payment-security';
 import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
+import { grantPaidOrderMemberEntitlement } from '@/lib/member-entitlements';
 import { getUniqueDeliveryStock } from '@/lib/unique-deliveries';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -644,6 +645,12 @@ export async function POST(req: NextRequest) {
         if (saleTransactionError) throw saleTransactionError;
 
         if (order.status === 'paid') {
+            try {
+                await grantPaidOrderMemberEntitlement(order);
+            } catch (entitlementError) {
+                console.error('[MEMBERS] Immediate store enrollment error:', entitlementError);
+            }
+
             try {
                 await sendApprovedSaleNotification({
                     orderId: order.id,

@@ -1,5 +1,8 @@
 import { supabase } from '@/lib/db';
-import { getUniqueDeliveryPurchaseKeys } from '@/lib/unique-deliveries';
+import {
+    getUniqueDeliveryPurchaseKeys,
+    orderUsesUniqueDelivery,
+} from '@/lib/unique-deliveries';
 
 type ProductRelation = {
     type?: string | null;
@@ -23,6 +26,72 @@ type ActiveSubscriptionRow = {
 function firstRelation<T>(value: T | T[] | null | undefined): T | undefined {
     if (value == null) return undefined;
     return Array.isArray(value) ? value[0] : value;
+}
+
+type PaidOrderMemberEntitlementInput = {
+    id: string;
+    product_id?: string | null;
+    buyer_email?: string | null;
+    status?: string | null;
+};
+
+export type PaidOrderMemberEntitlementResult =
+    | 'granted'
+    | 'waiting_for_verified_account'
+    | 'skipped';
+
+/**
+ * Libera a Area de Membros para uma compra paga sem criar ou autenticar uma
+ * conta a partir dos dados do checkout. Se o comprador ainda nao confirmou o
+ * e-mail, syncMemberEntitlements conclui a vinculacao apos a verificacao.
+ */
+export async function grantPaidOrderMemberEntitlement(
+    order: PaidOrderMemberEntitlementInput,
+): Promise<PaidOrderMemberEntitlementResult> {
+    const normalizedEmail = String(order.buyer_email || '').toLowerCase().trim();
+    if (
+        order.status !== 'paid'
+        || !order.id
+        || !order.product_id
+        || !normalizedEmail
+    ) {
+        return 'skipped';
+    }
+
+    const { data: product, error: productError } = await supabase
+        .from('products')
+        .select('id, type')
+        .eq('id', order.product_id)
+        .maybeSingle();
+    if (productError) throw productError;
+    if (!product || product.type !== 'digital') return 'skipped';
+
+    // A modalidade fica registrada no pedido. Isso impede que uma compra de
+    // Entrega Unica receba tambem o conteudo compartilhado da Area de Membros.
+    if (await orderUsesUniqueDelivery(order.id, order.product_id)) {
+        return 'skipped';
+    }
+
+    const { data: buyerAccount, error: buyerAccountError } = await supabase
+        .from('users')
+        .select('id')
+        .ilike('email', normalizedEmail)
+        .eq('email_verified', true)
+        .maybeSingle();
+    if (buyerAccountError) throw buyerAccountError;
+    if (!buyerAccount) return 'waiting_for_verified_account';
+
+    const { error: enrollmentError } = await supabase
+        .from('enrollments')
+        .upsert({
+            user_id: buyerAccount.id,
+            product_id: order.product_id,
+            order_id: order.id,
+            status: 'active',
+        }, { onConflict: 'user_id, product_id' });
+    if (enrollmentError) throw enrollmentError;
+
+    return 'granted';
 }
 
 /**
