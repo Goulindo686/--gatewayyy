@@ -1,0 +1,14 @@
+name = "goupay-store-domain-proxy"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+# Copie este arquivo para wrangler.toml somente durante a configuração local.
+# O arquivo real não deve conter o segredo compartilhado.
+[vars]
+ORIGIN_URL = "https://gatewayyy-omega.vercel.app"
+CNAME_TARGET = "lojas.goupay.com.br"
+PLATFORM_HOSTNAMES = "goupay.com.br,www.goupay.com.br,carteira.goupay.com.br"
+
+# Configure como secret:
+# npx wrangler secret put EDGE_SHARED_SECRET
+# O mesmo valor deve ser salvo na Vercel como CUSTOM_DOMAINS_EDGE_SECRET.

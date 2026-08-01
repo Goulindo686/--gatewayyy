@@ -40,6 +40,10 @@ NUL
 # Vercel
 .vercel
 
+# Cloudflare Workers local state/configuration
+.wrangler/
+cloudflare/store-domain-proxy/wrangler.toml
+
 # Misc
 *.log
 *.tsbuildinfo

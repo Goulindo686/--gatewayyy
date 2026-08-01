@@ -17,10 +17,11 @@ import {
 import toast from 'react-hot-toast';
 
 type DnsRecord = {
-    type: 'A' | 'CNAME' | 'TXT';
+    type: 'CNAME' | 'TXT';
     name: string;
     value: string;
     purpose: 'routing' | 'verification';
+    proxied?: boolean;
 };
 
 type StoreDomain = {
@@ -32,12 +33,16 @@ type StoreDomain = {
     dns_records: DnsRecord[];
     last_error?: string | null;
     verified_at?: string | null;
+    provider?: 'vercel' | 'cloudflare';
+    hostname_status?: string | null;
+    ssl_status?: string | null;
 };
 
 type DomainResponse = {
     domain: StoreDomain | null;
     integration_configured?: boolean;
     migration_required?: boolean;
+    reconnect_required?: boolean;
     message?: string;
     error?: string;
 };
@@ -62,6 +67,7 @@ export default function StoreDomainPage() {
     const [action, setAction] = useState<'connect' | 'verify' | 'remove' | null>(null);
     const [integrationConfigured, setIntegrationConfigured] = useState(true);
     const [migrationRequired, setMigrationRequired] = useState(false);
+    const [reconnectRequired, setReconnectRequired] = useState(false);
 
     const loadDomain = useCallback(async () => {
         try {
@@ -70,6 +76,7 @@ export default function StoreDomainPage() {
             setDomain(data.domain);
             setIntegrationConfigured(data.integration_configured !== false);
             setMigrationRequired(Boolean(data.migration_required));
+            setReconnectRequired(Boolean(data.reconnect_required));
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Erro ao carregar o domínio.');
         } finally {
@@ -96,6 +103,7 @@ export default function StoreDomainPage() {
             const data = await readResponse(response);
             setDomain(data.domain);
             setDomainInput('');
+            setReconnectRequired(false);
             toast.success(data.message || 'Domínio adicionado.');
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Erro ao conectar domínio.');
@@ -126,6 +134,7 @@ export default function StoreDomainPage() {
             const response = await fetch('/api/store-domain', { method: 'DELETE', headers: authHeaders() });
             const data = await readResponse(response);
             setDomain(null);
+            setReconnectRequired(false);
             toast.success(data.message || 'Domínio removido.');
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Erro ao remover domínio.');
@@ -140,9 +149,9 @@ export default function StoreDomainPage() {
     }
 
     const records = domain
-        ? [...(domain.verification_records || []), ...(domain.dns_records || [])]
+        ? [...(domain.dns_records || []), ...(domain.verification_records || [])]
         : [];
-    const active = domain?.status === 'active' && domain.verified;
+    const active = domain?.provider === 'cloudflare' && domain?.status === 'active' && domain.verified;
 
     if (loading) {
         return (
@@ -166,10 +175,13 @@ export default function StoreDomainPage() {
             </section>
 
             {migrationRequired && (
-                <div className="notice error"><FiInfo /><div><strong>Banco de dados ainda não preparado</strong><span>Execute a migration <code>030_add_store_custom_domains.sql</code> no Supabase.</span></div></div>
+                <div className="notice error"><FiInfo /><div><strong>Banco de dados ainda não preparado</strong><span>Execute a migration <code>031_migrate_store_domains_to_cloudflare.sql</code> no Supabase.</span></div></div>
             )}
             {!integrationConfigured && (
-                <div className="notice error"><FiInfo /><div><strong>Integração de domínio pendente</strong><span>Configure o token e o projeto da Vercel nas variáveis de domínio.</span></div></div>
+                <div className="notice error"><FiInfo /><div><strong>Integração da Cloudflare pendente</strong><span>Configure o token, Zone ID, CNAME técnico e segredo do Worker nas variáveis do servidor.</span></div></div>
+            )}
+            {reconnectRequired && (
+                <div className="notice warning"><FiRefreshCw /><div><strong>Reconexão necessária</strong><span>Este endereço ainda pertence à integração antiga da Vercel. Remova-o abaixo e conecte novamente para migrar para a Cloudflare.</span></div></div>
             )}
 
             {!domain ? (
@@ -205,14 +217,14 @@ export default function StoreDomainPage() {
                     </section>
 
                     <section className="domain-card process-card">
-                        <span className="eyebrow">COMO FUNCIONA</span>
-                        <h3>Configuração simples e universal</h3>
+                        <span className="eyebrow">ANTES DE CONECTAR</span>
+                        <h3>Prepare o domínio na Cloudflare</h3>
                         <div className="process-list">
-                            <div><span>1</span><p><strong>Conecte o endereço</strong>Digite o domínio que seus clientes usarão.</p></div>
-                            <div><span>2</span><p><strong>Atualize o DNS</strong>Copie os registros para o painel do seu provedor.</p></div>
-                            <div><span>3</span><p><strong>Confirme a ativação</strong>Verificamos a propriedade e liberamos a loja.</p></div>
+                            <div><span>1</span><p><strong>Adicione o site à Cloudflare</strong>Crie uma conta gratuita e informe o domínio comprado.</p></div>
+                            <div><span>2</span><p><strong>Troque os nameservers</strong>Copie os dois servidores fornecidos pela Cloudflare para a GoDaddy ou seu registrador.</p></div>
+                            <div><span>3</span><p><strong>Conecte na GouPay</strong>Depois que a Cloudflare mostrar o domínio como ativo, informe-o ao lado.</p></div>
                         </div>
-                        <div className="provider-note"><FiCheckCircle /> Compatível com Registro.br, Cloudflare, Hostinger, GoDaddy e qualquer provedor que permita editar DNS.</div>
+                        <div className="provider-note"><FiCheckCircle /> A hospedagem do domínio pode ser GoDaddy, Registro.br, Hostinger ou qualquer registrador que permita alterar nameservers.</div>
                     </section>
                 </div>
             ) : (
@@ -226,7 +238,7 @@ export default function StoreDomainPage() {
                         </div>
                         <div className="status-actions">
                             {active && <a href={`https://${domain.domain}`} target="_blank" rel="noreferrer"><FiExternalLink /> Abrir loja</a>}
-                            <button onClick={verifyDomain} disabled={Boolean(action)}><FiRefreshCw className={action === 'verify' ? 'spin' : ''} /> Verificar agora</button>
+                            {!reconnectRequired && <button onClick={verifyDomain} disabled={Boolean(action)}><FiRefreshCw className={action === 'verify' ? 'spin' : ''} /> Verificar agora</button>}
                         </div>
                     </section>
 
@@ -240,7 +252,10 @@ export default function StoreDomainPage() {
                             <div className="dns-table-head"><span>Tipo</span><span>Nome / Host</span><span>Valor / Destino</span><span></span></div>
                             {records.map((record, index) => (
                                 <div className="dns-row" key={`${record.type}-${record.name}-${index}`}>
-                                    <span className={`record-type ${record.type.toLowerCase()}`}>{record.type}</span>
+                                    <div className="record-meta">
+                                        <span className={`record-type ${record.type.toLowerCase()}`}>{record.type}</span>
+                                        {record.purpose === 'routing' && <small>{record.proxied === false ? 'DNS somente' : 'Proxy ligado'}</small>}
+                                    </div>
                                     <code>{record.name}</code>
                                     <code className="record-value">{record.value}</code>
                                     <button aria-label={`Copiar registro ${record.type}`} onClick={() => copy(record.value)}><FiCopy /></button>
@@ -249,7 +264,7 @@ export default function StoreDomainPage() {
                         </div>
 
                         {records.length === 0 && <div className="empty-records">Nenhum registro adicional foi solicitado. Clique em verificar novamente.</div>}
-                        <div className="dns-tip"><FiInfo /><span>Alguns painéis usam <strong>@</strong> para representar o domínio principal. Alterações de DNS podem levar até 48 horas para se propagar, embora normalmente sejam reconhecidas antes.</span></div>
+                        <div className="dns-tip"><FiInfo /><span>Adicione estes registros na aba <strong>DNS</strong> da Cloudflare. O nome completo funciona tanto para domínio principal quanto para subdomínio. No CNAME da loja, mantenha a nuvem laranja ativada.</span></div>
                     </section>
 
                     {domain.last_error && <div className="notice warning"><FiClock /><div><strong>DNS ainda não reconhecido</strong><span>{domain.last_error}</span></div></div>}
@@ -328,6 +343,8 @@ const pageStyles = `
     .dns-row code { overflow: hidden; color: var(--text-secondary); font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
     .record-type { width: fit-content; padding: 5px 7px; border-radius: 7px; color: #2563eb; background: rgba(59,130,246,.1); font-size: 9px; font-weight: 900; }
     .record-type.txt { color: #7c3aed; background: rgba(124,58,237,.1); }
+    .record-meta { min-width: 0; display: grid; justify-items: start; gap: 4px; }
+    .record-meta small { color: #16a34a; font-size: 8px; font-weight: 800; white-space: nowrap; }
     .dns-row button { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--border-color); border-radius: 9px; color: var(--text-muted); background: var(--bg-card); cursor: pointer; }
     .dns-row button:hover { color: var(--accent-primary); border-color: rgba(108,92,231,.35); }
     .dns-tip { margin-top: 14px; display: flex; align-items: flex-start; gap: 8px; color: var(--text-muted); font-size: 10px; line-height: 1.5; }
