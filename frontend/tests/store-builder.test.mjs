@@ -84,6 +84,80 @@ test('store background clamps overlay and rejects unsafe image URLs', () => {
     );
 });
 
+test('store builder supports professional multi-niche content blocks safely', () => {
+    const sections = normalizeStoreLayoutSections([
+        {
+            id: 'about',
+            type: 'content',
+            eyebrow: 'Sobre',
+            title: 'Nossa proposta',
+            description: 'Uma apresentação completa.',
+            image_url: 'https://cdn.example.com/about.webp',
+            image_position: 'left',
+            tone: 'accent',
+            button_text: 'Conhecer',
+            button_url: '/store/demo'
+        },
+        {
+            id: 'features',
+            type: 'features',
+            title: 'Diferenciais',
+            subtitle: '',
+            items: [{ id: 'feature-1', title: 'Atendimento', description: 'Suporte próximo.' }]
+        },
+        {
+            id: 'testimonials',
+            type: 'testimonials',
+            title: 'Depoimentos',
+            subtitle: '',
+            items: [{ id: 'quote-1', quote: 'Excelente experiência.', name: 'Cliente', role: 'Comprador' }]
+        },
+        {
+            id: 'faq',
+            type: 'faq',
+            title: 'Perguntas',
+            subtitle: '',
+            items: [{ id: 'faq-1', question: 'Como funciona?', answer: 'Escolha e finalize a compra.' }]
+        }
+    ], { strict: true });
+
+    assert.deepEqual(sections.map(section => section.type), ['content', 'features', 'testimonials', 'faq']);
+    assert.throws(
+        () => normalizeStoreLayoutSections([{
+            id: 'unsafe',
+            type: 'content',
+            image_url: 'javascript:alert(1)',
+            button_url: 'data:text/html,bad'
+        }], { strict: true }),
+        StoreBuilderValidationError
+    );
+});
+
+test('store visual configuration is backward compatible and clamps unsupported choices', () => {
+    const defaults = normalizeStoreBackground({ mode: 'theme' });
+    assert.equal(defaults.hero_layout, 'split');
+    assert.equal(defaults.header_style, 'floating');
+    assert.equal(defaults.show_categories, true);
+
+    const customized = normalizeStoreBackground({
+        mode: 'theme',
+        hero_layout: 'compact',
+        font_style: 'editorial',
+        card_style: 'minimal',
+        product_image_ratio: 'portrait',
+        show_benefit_strip: false
+    }, { strict: true });
+    assert.equal(customized.hero_layout, 'compact');
+    assert.equal(customized.font_style, 'editorial');
+    assert.equal(customized.card_style, 'minimal');
+    assert.equal(customized.product_image_ratio, 'portrait');
+    assert.equal(customized.show_benefit_strip, false);
+
+    const unsupported = normalizeStoreBackground({ hero_layout: 'unknown', card_style: 'neon' });
+    assert.equal(unsupported.hero_layout, 'split');
+    assert.equal(unsupported.card_style, 'elevated');
+});
+
 test('store builder API requires authentication and validates product ownership', async () => {
     const source = await readFile(new URL('../src/app/api/store-builder/route.ts', import.meta.url), 'utf8');
     assert.match(source, /getAuthUser\(req\)/);
@@ -125,5 +199,9 @@ test('default storefront includes the renewed brand, discovery and trust structu
     assert.match(source, /store-benefit-strip/);
     assert.match(source, /StoreBannerCarousel/);
     assert.match(source, /buildRenderableStoreSections/);
+    assert.match(source, /store-content-block/);
+    assert.match(source, /store-features-grid/);
+    assert.match(source, /store-testimonials-grid/);
+    assert.match(source, /store-faq-list/);
     assert.doesNotMatch(source, /className="featured-card"/);
 });

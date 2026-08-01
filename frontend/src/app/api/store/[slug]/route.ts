@@ -153,8 +153,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
                 template: user.store_template || 'creator',
                 accent_color: user.store_accent_color || '#6c5ce7',
                 headline: user.store_headline || user.store_name,
-                cta_text: user.store_cta_text || 'Ver produtos',
-                badge_text: user.store_badge_text || 'Produtos digitais com acesso online',
+                cta_text: user.store_cta_text || 'Explorar a loja',
+                badge_text: user.store_badge_text || 'Curadoria, confiança e compra segura',
                 layout_sections: normalizeStoreLayoutSections(user.store_layout_sections),
                 footer: normalizeStoreFooter(user.store_footer_config || DEFAULT_STORE_FOOTER),
                 background: normalizeStoreBackground(user.store_background_config || DEFAULT_STORE_BACKGROUND)

@@ -91,8 +91,8 @@ const initialForm: StoreForm = {
     store_template: 'creator',
     store_accent_color: '#6c5ce7',
     store_headline: '',
-    store_cta_text: 'Ver produtos',
-    store_badge_text: 'Produtos digitais com acesso online',
+    store_cta_text: 'Explorar a loja',
+    store_badge_text: 'Curadoria, confiança e compra segura',
     store_layout_sections: [],
     store_footer_config: { ...DEFAULT_STORE_FOOTER, links: [] },
     store_background_config: { ...DEFAULT_STORE_BACKGROUND }
@@ -205,6 +205,27 @@ export default function StoreSettingsPage() {
         }
     };
 
+    const handleSectionImageUpload = async (sectionId: string, file: File) => {
+        setUploading(sectionId);
+        const loadingToast = toast.loading('Enviando imagem...');
+        try {
+            const url = await uploadImage(file);
+            setForm(previous => ({
+                ...previous,
+                store_layout_sections: previous.store_layout_sections.map(section => (
+                    section.id === sectionId && section.type === 'content'
+                        ? { ...section, image_url: url }
+                        : section
+                ))
+            }));
+            toast.success('Imagem adicionada!', { id: loadingToast });
+        } catch (error: unknown) {
+            toast.error(errorMessage(error, 'Erro ao enviar imagem'), { id: loadingToast });
+        } finally {
+            setUploading(null);
+        }
+    };
+
     const handleSave = async () => {
         if (!form.store_name.trim()) return toast.error('Informe o nome da loja');
         if (!form.store_slug.trim()) return toast.error('Informe o link da loja');
@@ -298,7 +319,7 @@ export default function StoreSettingsPage() {
                 </a>
                 <a href="#store-structure">
                     <span><FiLayers /></span>
-                    <div><small>ETAPA 3</small><strong>Estrutura</strong><p>Produtos e carrosséis</p></div>
+                    <div><small>ETAPA 3</small><strong>Estrutura</strong><p>Produtos e blocos de conteúdo</p></div>
                 </a>
                 <a href="#store-footer">
                     <span><FiLink /></span>
@@ -366,8 +387,91 @@ export default function StoreSettingsPage() {
                         icon={<FiSliders />}
                         kicker="ETAPA 2"
                         title="Aparência da loja"
-                        description="Escolha uma base visual e aplique as cores da sua marca."
+                        description="Escolha uma base visual e controle cada detalhe da composição da página."
                     />
+                    <div className="store-form-group">
+                        <div className="store-form-group-heading">
+                            <strong>Composição profissional</strong>
+                            <span>Controle a personalidade, proporção e ritmo visual da página.</span>
+                        </div>
+                        <div className="store-design-grid">
+                            <ChoiceField
+                                label="Cabeçalho"
+                                value={form.store_background_config.header_style}
+                                options={[['floating', 'Flutuante'], ['solid', 'Sólido'], ['minimal', 'Minimalista']]}
+                                onChange={value => update('store_background_config', { ...form.store_background_config, header_style: value as StoreBackgroundConfig['header_style'] })}
+                            />
+                            <ChoiceField
+                                label="Abertura da página"
+                                value={form.store_background_config.hero_layout}
+                                options={[['split', 'Dividida'], ['centered', 'Centralizada'], ['compact', 'Compacta']]}
+                                onChange={value => update('store_background_config', { ...form.store_background_config, hero_layout: value as StoreBackgroundConfig['hero_layout'] })}
+                            />
+                            <ChoiceField
+                                label="Tipografia"
+                                value={form.store_background_config.font_style}
+                                options={[['modern', 'Moderna'], ['editorial', 'Editorial'], ['friendly', 'Amigável']]}
+                                onChange={value => update('store_background_config', { ...form.store_background_config, font_style: value as StoreBackgroundConfig['font_style'] })}
+                            />
+                            <ChoiceField
+                                label="Largura do conteúdo"
+                                value={form.store_background_config.content_width}
+                                options={[['compact', 'Compacta'], ['standard', 'Padrão'], ['wide', 'Ampla']]}
+                                onChange={value => update('store_background_config', { ...form.store_background_config, content_width: value as StoreBackgroundConfig['content_width'] })}
+                            />
+                            <ChoiceField
+                                label="Espaçamento"
+                                value={form.store_background_config.section_spacing}
+                                options={[['compact', 'Compacto'], ['comfortable', 'Confortável'], ['airy', 'Arejado']]}
+                                onChange={value => update('store_background_config', { ...form.store_background_config, section_spacing: value as StoreBackgroundConfig['section_spacing'] })}
+                            />
+                            <ChoiceField
+                                label="Estilo dos cards"
+                                value={form.store_background_config.card_style}
+                                options={[['elevated', 'Elevado'], ['outlined', 'Contorno'], ['minimal', 'Minimalista']]}
+                                onChange={value => update('store_background_config', { ...form.store_background_config, card_style: value as StoreBackgroundConfig['card_style'] })}
+                            />
+                            <ChoiceField
+                                label="Cantos"
+                                value={form.store_background_config.card_radius}
+                                options={[['square', 'Discreto'], ['soft', 'Suave'], ['rounded', 'Arredondado']]}
+                                onChange={value => update('store_background_config', { ...form.store_background_config, card_radius: value as StoreBackgroundConfig['card_radius'] })}
+                            />
+                            <ChoiceField
+                                label="Formato das imagens"
+                                value={form.store_background_config.product_image_ratio}
+                                options={[['landscape', 'Paisagem'], ['square', 'Quadrada'], ['portrait', 'Vertical']]}
+                                onChange={value => update('store_background_config', { ...form.store_background_config, product_image_ratio: value as StoreBackgroundConfig['product_image_ratio'] })}
+                            />
+                        </div>
+                    </div>
+                    <div className="store-form-group">
+                        <div className="store-form-group-heading">
+                            <strong>Elementos automáticos</strong>
+                            <span>Escolha quais áreas padrão aparecem além dos blocos montados por você.</span>
+                        </div>
+                        <div className="store-visibility-grid">
+                            {[
+                                ['show_categories', 'Categorias em destaque', 'Ajuda o visitante a navegar por nichos diferentes.'],
+                                ['show_benefit_strip', 'Faixa de confiança', 'Exibe segurança, facilidade e suporte logo após a abertura.'],
+                                ['show_closing_cta', 'Chamada final', 'Reforça a ação de explorar o catálogo antes do rodapé.']
+                            ].map(([key, label, description]) => {
+                                const enabled = form.store_background_config[key as 'show_categories' | 'show_benefit_strip' | 'show_closing_cta'];
+                                return (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        className={enabled ? 'active' : ''}
+                                        onClick={() => update('store_background_config', { ...form.store_background_config, [key]: !enabled })}
+                                    >
+                                        <span>{enabled ? <FiCheck /> : null}</span>
+                                        <strong>{label}</strong>
+                                        <small>{description}</small>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
                     <div className="store-form-group">
                         <div className="store-form-group-heading">
                             <strong>Estilo principal</strong>
@@ -471,6 +575,7 @@ export default function StoreSettingsPage() {
                         uploadingSlideId={uploading}
                         onChange={sections => update('store_layout_sections', sections)}
                         onUploadSlide={handleSlideUpload}
+                        onUploadSectionImage={handleSectionImageUpload}
                     />
                 </div>
 
@@ -862,6 +967,79 @@ export default function StoreSettingsPage() {
                     grid-template-columns: 1fr 1fr;
                     gap: 18px;
                 }
+                .store-design-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 14px;
+                }
+                .store-choice-options {
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 6px;
+                }
+                .store-choice-options button {
+                    min-height: 38px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 10px;
+                    padding: 6px 8px;
+                    color: var(--text-secondary);
+                    background: var(--bg-card);
+                    font-size: 10px;
+                    font-weight: 800;
+                    cursor: pointer;
+                }
+                .store-choice-options button.selected {
+                    border-color: var(--accent-primary);
+                    color: var(--accent-primary);
+                    background: rgba(108,92,231,.09);
+                    box-shadow: 0 0 0 1px rgba(108,92,231,.08);
+                }
+                .store-visibility-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 9px;
+                }
+                .store-visibility-grid > button {
+                    min-height: 104px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 14px;
+                    padding: 12px;
+                    display: grid;
+                    grid-template-columns: 26px 1fr;
+                    grid-template-rows: auto 1fr;
+                    gap: 4px 8px;
+                    color: var(--text-primary);
+                    background: var(--bg-card);
+                    text-align: left;
+                    cursor: pointer;
+                }
+                .store-visibility-grid > button.active {
+                    border-color: rgba(108,92,231,.38);
+                    background: rgba(108,92,231,.07);
+                }
+                .store-visibility-grid > button > span {
+                    grid-row: 1 / 3;
+                    width: 26px;
+                    height: 26px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 8px;
+                    display: grid;
+                    place-items: center;
+                    color: white;
+                    background: var(--bg-secondary);
+                }
+                .store-visibility-grid > button.active > span {
+                    border-color: var(--accent-primary);
+                    background: var(--accent-primary);
+                }
+                .store-visibility-grid strong {
+                    font-size: 12px;
+                }
+                .store-visibility-grid small {
+                    color: var(--text-muted);
+                    font-size: 10px;
+                    line-height: 1.4;
+                }
                 .store-color-row {
                     display: flex;
                     gap: 8px;
@@ -1042,7 +1220,9 @@ export default function StoreSettingsPage() {
                     }
                     .store-form-grid.two,
                     .store-template-grid,
-                    .store-visual-grid {
+                    .store-visual-grid,
+                    .store-design-grid,
+                    .store-visibility-grid {
                         grid-template-columns: 1fr;
                     }
                     .store-form-field.wide,
@@ -1108,6 +1288,31 @@ function Field({ label, wide = false, children }: { label: string; wide?: boolea
         <div className={`store-form-field ${wide ? 'wide' : ''}`}>
             <label className="store-field-label">{label}</label>
             {children}
+        </div>
+    );
+}
+
+function ChoiceField({
+    label,
+    value,
+    options,
+    onChange
+}: {
+    label: string;
+    value: string;
+    options: Array<[string, string]>;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <div>
+            <label className="store-field-label">{label}</label>
+            <div className="store-choice-options">
+                {options.map(([optionValue, optionLabel]) => (
+                    <button key={optionValue} type="button" className={value === optionValue ? 'selected' : ''} onClick={() => onChange(optionValue)}>
+                        {optionLabel}
+                    </button>
+                ))}
+            </div>
         </div>
     );
 }

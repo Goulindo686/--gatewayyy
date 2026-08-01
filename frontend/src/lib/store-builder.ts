@@ -2,6 +2,9 @@ export const STORE_BUILDER_LIMITS = {
     sections: 24,
     productsPerSection: 4,
     bannersPerSection: 8,
+    featuresPerSection: 6,
+    testimonialsPerSection: 6,
+    faqPerSection: 10,
     footerLinks: 6
 } as const;
 
@@ -29,7 +32,69 @@ export type StoreBannerSection = {
     slides: StoreBannerSlide[];
 };
 
-export type StoreLayoutSection = StoreProductSection | StoreBannerSection;
+export type StoreContentSection = {
+    id: string;
+    type: 'content';
+    eyebrow: string;
+    title: string;
+    description: string;
+    image_url: string;
+    image_position: 'left' | 'right';
+    tone: 'surface' | 'accent' | 'transparent';
+    button_text: string;
+    button_url: string;
+};
+
+export type StoreFeatureItem = {
+    id: string;
+    title: string;
+    description: string;
+};
+
+export type StoreFeaturesSection = {
+    id: string;
+    type: 'features';
+    title: string;
+    subtitle: string;
+    items: StoreFeatureItem[];
+};
+
+export type StoreTestimonialItem = {
+    id: string;
+    quote: string;
+    name: string;
+    role: string;
+};
+
+export type StoreTestimonialsSection = {
+    id: string;
+    type: 'testimonials';
+    title: string;
+    subtitle: string;
+    items: StoreTestimonialItem[];
+};
+
+export type StoreFaqItem = {
+    id: string;
+    question: string;
+    answer: string;
+};
+
+export type StoreFaqSection = {
+    id: string;
+    type: 'faq';
+    title: string;
+    subtitle: string;
+    items: StoreFaqItem[];
+};
+
+export type StoreLayoutSection =
+    | StoreProductSection
+    | StoreBannerSection
+    | StoreContentSection
+    | StoreFeaturesSection
+    | StoreTestimonialsSection
+    | StoreFaqSection;
 
 export type StoreFooterLink = {
     id: string;
@@ -52,6 +117,17 @@ export type StoreBackgroundConfig = {
     color: string;
     image_url: string;
     overlay: number;
+    header_style: 'solid' | 'floating' | 'minimal';
+    hero_layout: 'split' | 'centered' | 'compact';
+    font_style: 'modern' | 'editorial' | 'friendly';
+    content_width: 'compact' | 'standard' | 'wide';
+    section_spacing: 'compact' | 'comfortable' | 'airy';
+    card_style: 'elevated' | 'outlined' | 'minimal';
+    card_radius: 'square' | 'soft' | 'rounded';
+    product_image_ratio: 'landscape' | 'square' | 'portrait';
+    show_categories: boolean;
+    show_benefit_strip: boolean;
+    show_closing_cta: boolean;
 };
 
 export type StoreBuilderConfig = {
@@ -69,7 +145,7 @@ export class StoreBuilderValidationError extends Error {
 
 export const DEFAULT_STORE_FOOTER: StoreFooterConfig = {
     enabled: true,
-    description: 'Produtos digitais selecionados para ajudar você a avançar.',
+    description: 'Soluções, experiências e produtos selecionados para ajudar você a avançar.',
     contact_email: '',
     whatsapp: '',
     instagram: '',
@@ -81,7 +157,18 @@ export const DEFAULT_STORE_BACKGROUND: StoreBackgroundConfig = {
     mode: 'theme',
     color: '#09090b',
     image_url: '',
-    overlay: 82
+    overlay: 82,
+    header_style: 'floating',
+    hero_layout: 'split',
+    font_style: 'modern',
+    content_width: 'wide',
+    section_spacing: 'comfortable',
+    card_style: 'elevated',
+    card_radius: 'soft',
+    product_image_ratio: 'landscape',
+    show_categories: true,
+    show_benefit_strip: true,
+    show_closing_cta: true
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -100,6 +187,11 @@ function requiredId(value: unknown, fallbackPrefix: string, index: number): stri
 function normalizeHexColor(value: unknown, fallback: string): string {
     const normalized = text(value, 20);
     return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized.toLowerCase() : fallback;
+}
+
+function choice<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+    const normalized = text(value, 30) as T;
+    return allowed.includes(normalized) ? normalized : fallback;
 }
 
 export function normalizeStoreUrl(value: unknown, options: { allowRelative?: boolean; strict?: boolean } = {}): string {
@@ -202,6 +294,101 @@ export function normalizeStoreLayoutSections(
             continue;
         }
 
+        if (raw.type === 'content') {
+            sections.push({
+                id: requiredId(raw.id, 'content', sectionIndex),
+                type: 'content',
+                eyebrow: text(raw.eyebrow, 60),
+                title: text(raw.title, 140),
+                description: text(raw.description, 1600),
+                image_url: normalizeStoreUrl(raw.image_url, { strict: options.strict && Boolean(raw.image_url) }),
+                image_position: choice(raw.image_position, ['left', 'right'] as const, 'right'),
+                tone: choice(raw.tone, ['surface', 'accent', 'transparent'] as const, 'surface'),
+                button_text: text(raw.button_text, 40),
+                button_url: normalizeStoreUrl(raw.button_url, { allowRelative: true, strict: options.strict && Boolean(raw.button_url) })
+            });
+            continue;
+        }
+
+        if (raw.type === 'features') {
+            if (!Array.isArray(raw.items)) {
+                if (options.strict) throw new StoreBuilderValidationError('A lista de diferenciais é inválida.');
+                continue;
+            }
+            if (options.strict && raw.items.length > STORE_BUILDER_LIMITS.featuresPerSection) {
+                throw new StoreBuilderValidationError(`Cada seção pode ter no máximo ${STORE_BUILDER_LIMITS.featuresPerSection} diferenciais.`);
+            }
+            const items = raw.items.slice(0, STORE_BUILDER_LIMITS.featuresPerSection)
+                .filter(isRecord)
+                .map((item, itemIndex) => ({
+                    id: requiredId(item.id, `feature-${sectionIndex + 1}`, itemIndex),
+                    title: text(item.title, 90),
+                    description: text(item.description, 280)
+                }))
+                .filter(item => item.title || item.description);
+            sections.push({
+                id: requiredId(raw.id, 'features', sectionIndex),
+                type: 'features',
+                title: text(raw.title, 120),
+                subtitle: text(raw.subtitle, 320),
+                items
+            });
+            continue;
+        }
+
+        if (raw.type === 'testimonials') {
+            if (!Array.isArray(raw.items)) {
+                if (options.strict) throw new StoreBuilderValidationError('A lista de depoimentos é inválida.');
+                continue;
+            }
+            if (options.strict && raw.items.length > STORE_BUILDER_LIMITS.testimonialsPerSection) {
+                throw new StoreBuilderValidationError(`Cada seção pode ter no máximo ${STORE_BUILDER_LIMITS.testimonialsPerSection} depoimentos.`);
+            }
+            const items = raw.items.slice(0, STORE_BUILDER_LIMITS.testimonialsPerSection)
+                .filter(isRecord)
+                .map((item, itemIndex) => ({
+                    id: requiredId(item.id, `testimonial-${sectionIndex + 1}`, itemIndex),
+                    quote: text(item.quote, 700),
+                    name: text(item.name, 90),
+                    role: text(item.role, 120)
+                }))
+                .filter(item => item.quote || item.name);
+            sections.push({
+                id: requiredId(raw.id, 'testimonials', sectionIndex),
+                type: 'testimonials',
+                title: text(raw.title, 120),
+                subtitle: text(raw.subtitle, 320),
+                items
+            });
+            continue;
+        }
+
+        if (raw.type === 'faq') {
+            if (!Array.isArray(raw.items)) {
+                if (options.strict) throw new StoreBuilderValidationError('A lista de perguntas é inválida.');
+                continue;
+            }
+            if (options.strict && raw.items.length > STORE_BUILDER_LIMITS.faqPerSection) {
+                throw new StoreBuilderValidationError(`Cada seção pode ter no máximo ${STORE_BUILDER_LIMITS.faqPerSection} perguntas.`);
+            }
+            const items = raw.items.slice(0, STORE_BUILDER_LIMITS.faqPerSection)
+                .filter(isRecord)
+                .map((item, itemIndex) => ({
+                    id: requiredId(item.id, `faq-${sectionIndex + 1}`, itemIndex),
+                    question: text(item.question, 180),
+                    answer: text(item.answer, 1000)
+                }))
+                .filter(item => item.question || item.answer);
+            sections.push({
+                id: requiredId(raw.id, 'faq', sectionIndex),
+                type: 'faq',
+                title: text(raw.title, 120),
+                subtitle: text(raw.subtitle, 320),
+                items
+            });
+            continue;
+        }
+
         if (options.strict) throw new StoreBuilderValidationError('Tipo de seção não permitido.');
     }
 
@@ -275,7 +462,18 @@ export function normalizeStoreBackground(value: unknown, options: { strict?: boo
         mode,
         color: normalizeHexColor(value.color, DEFAULT_STORE_BACKGROUND.color),
         image_url: normalizeStoreUrl(value.image_url, { strict: options.strict && mode === 'image' }),
-        overlay: Number.isFinite(overlayNumber) ? Math.min(95, Math.max(20, Math.round(overlayNumber))) : DEFAULT_STORE_BACKGROUND.overlay
+        overlay: Number.isFinite(overlayNumber) ? Math.min(95, Math.max(20, Math.round(overlayNumber))) : DEFAULT_STORE_BACKGROUND.overlay,
+        header_style: choice(value.header_style, ['solid', 'floating', 'minimal'] as const, DEFAULT_STORE_BACKGROUND.header_style),
+        hero_layout: choice(value.hero_layout, ['split', 'centered', 'compact'] as const, DEFAULT_STORE_BACKGROUND.hero_layout),
+        font_style: choice(value.font_style, ['modern', 'editorial', 'friendly'] as const, DEFAULT_STORE_BACKGROUND.font_style),
+        content_width: choice(value.content_width, ['compact', 'standard', 'wide'] as const, DEFAULT_STORE_BACKGROUND.content_width),
+        section_spacing: choice(value.section_spacing, ['compact', 'comfortable', 'airy'] as const, DEFAULT_STORE_BACKGROUND.section_spacing),
+        card_style: choice(value.card_style, ['elevated', 'outlined', 'minimal'] as const, DEFAULT_STORE_BACKGROUND.card_style),
+        card_radius: choice(value.card_radius, ['square', 'soft', 'rounded'] as const, DEFAULT_STORE_BACKGROUND.card_radius),
+        product_image_ratio: choice(value.product_image_ratio, ['landscape', 'square', 'portrait'] as const, DEFAULT_STORE_BACKGROUND.product_image_ratio),
+        show_categories: value.show_categories !== false,
+        show_benefit_strip: value.show_benefit_strip !== false,
+        show_closing_cta: value.show_closing_cta !== false
     };
 }
 
@@ -331,6 +529,11 @@ export function buildRenderableStoreSections(
         if (section.type === 'banner_carousel') {
             const slides = section.slides.filter(slide => Boolean(slide.image_url));
             if (slides.length > 0) rendered.push({ ...section, slides });
+            continue;
+        }
+
+        if (section.type !== 'products') {
+            rendered.push(section);
             continue;
         }
 

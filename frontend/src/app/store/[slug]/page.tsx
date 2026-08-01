@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { storeAPI } from '@/lib/api';
-import { FiArrowRight, FiBookOpen, FiCheckCircle, FiCreditCard, FiGrid, FiHeadphones, FiInstagram, FiLock, FiMail, FiPackage, FiSearch, FiShield, FiShoppingBag, FiUser, FiZap } from 'react-icons/fi';
+import { FiArrowRight, FiAward, FiBookOpen, FiCheckCircle, FiCreditCard, FiGrid, FiHeadphones, FiInstagram, FiLock, FiMail, FiMessageCircle, FiPackage, FiSearch, FiShield, FiShoppingBag, FiStar, FiTrendingUp, FiUser, FiZap } from 'react-icons/fi';
 import { useCart } from '@/contexts/CartContext';
 import toast from 'react-hot-toast';
 import StoreBannerCarousel from '@/components/store/StoreBannerCarousel';
@@ -225,9 +225,192 @@ export default function StorePage() {
         ? `linear-gradient(rgba(9,9,11,${background.overlay / 100}), rgba(9,9,11,${background.overlay / 100})), url("${background.image_url}") center/cover fixed`
         : undefined;
     const pageBackgroundColor = background.mode === 'color' ? background.color : theme.bg;
+    const shellWidth = background.content_width === 'compact'
+        ? '1080px'
+        : background.content_width === 'standard' ? '1240px' : '1380px';
+    const fontFamily = background.font_style === 'editorial'
+        ? 'Georgia, Cambria, serif'
+        : background.font_style === 'friendly'
+            ? 'Outfit, Inter, sans-serif'
+            : 'Inter, Outfit, sans-serif';
+    const cardRadius = background.card_radius === 'square'
+        ? '8px'
+        : background.card_radius === 'rounded' ? '28px' : '16px';
+    const storefrontClass = [
+        `store-font-${background.font_style}`,
+        `store-header-${background.header_style}`,
+        `store-spacing-${background.section_spacing}`,
+        `store-cards-${background.card_style}`,
+        `store-radius-${background.card_radius}`,
+        `store-images-${background.product_image_ratio}`
+    ].join(' ');
+
+    const renderStoreSection = (section: StoreLayoutSection) => {
+        if (section.type === 'banner_carousel') {
+            return (
+                <StoreBannerCarousel
+                    key={section.id}
+                    section={section}
+                    accent={accent}
+                    surface={theme.surface}
+                    border={theme.border}
+                    onNavigate={handleNavClick}
+                />
+            );
+        }
+
+        if (section.type === 'content') {
+            const accentTone = section.tone === 'accent';
+            const contentStyle = section.tone === 'transparent'
+                ? { background: 'transparent', borderColor: 'transparent' }
+                : accentTone
+                    ? { background: `linear-gradient(135deg, ${accent}, ${accent}cc)`, borderColor: `${accent}88`, color: '#fff' }
+                    : { background: theme.surface, borderColor: theme.border };
+            return (
+                <section key={section.id} className={`store-content-block image-${section.image_position} tone-${section.tone}`} style={contentStyle}>
+                    <div className="store-content-copy">
+                        {section.eyebrow && <span style={{ color: accentTone ? '#fff' : accent }}>{section.eyebrow}</span>}
+                        <h2>{section.title}</h2>
+                        <p style={{ color: accentTone ? 'rgba(255,255,255,.78)' : theme.muted }}>{section.description}</p>
+                        {section.button_text && section.button_url && (
+                            <button onClick={() => handleNavClick(section.button_url)} style={{ background: accentTone ? '#fff' : accent, color: accentTone ? accent : '#fff' }}>
+                                {section.button_text} <FiArrowRight />
+                            </button>
+                        )}
+                    </div>
+                    {section.image_url && <div className="store-content-media" style={{ backgroundImage: `url("${section.image_url}")` }} />}
+                </section>
+            );
+        }
+
+        if (section.type === 'features') {
+            const icons = [<FiAward key="award" />, <FiTrendingUp key="trend" />, <FiShield key="shield" />, <FiStar key="star" />, <FiZap key="zap" />, <FiHeadphones key="support" />];
+            return (
+                <section key={section.id} className="store-rich-section">
+                    <div className="store-rich-heading">
+                        <span style={{ color: accent }}>DIFERENCIAIS</span>
+                        <h2>{section.title}</h2>
+                        {section.subtitle && <p style={{ color: theme.muted }}>{section.subtitle}</p>}
+                    </div>
+                    <div className="store-features-grid">
+                        {section.items.map((item, index) => (
+                            <article key={item.id} style={{ background: theme.surface, borderColor: theme.border }}>
+                                <i style={{ color: accent, background: `${accent}14` }}>{icons[index % icons.length]}</i>
+                                <h3>{item.title}</h3>
+                                <p style={{ color: theme.muted }}>{item.description}</p>
+                            </article>
+                        ))}
+                    </div>
+                </section>
+            );
+        }
+
+        if (section.type === 'testimonials') {
+            return (
+                <section key={section.id} className="store-rich-section">
+                    <div className="store-rich-heading">
+                        <span style={{ color: accent }}>EXPERIÊNCIAS REAIS</span>
+                        <h2>{section.title}</h2>
+                        {section.subtitle && <p style={{ color: theme.muted }}>{section.subtitle}</p>}
+                    </div>
+                    <div className="store-testimonials-grid">
+                        {section.items.map(item => (
+                            <article key={item.id} style={{ background: theme.surface, borderColor: theme.border }}>
+                                <FiMessageCircle className="store-quote-icon" style={{ color: accent }} />
+                                <div className="store-testimonial-stars" style={{ color: accent }}><FiStar /><FiStar /><FiStar /><FiStar /><FiStar /></div>
+                                <blockquote>“{item.quote}”</blockquote>
+                                <footer><strong>{item.name}</strong>{item.role && <small style={{ color: theme.muted }}>{item.role}</small>}</footer>
+                            </article>
+                        ))}
+                    </div>
+                </section>
+            );
+        }
+
+        if (section.type === 'faq') {
+            return (
+                <section key={section.id} className="store-rich-section store-faq-section">
+                    <div className="store-rich-heading">
+                        <span style={{ color: accent }}>TIRE SUAS DÚVIDAS</span>
+                        <h2>{section.title}</h2>
+                        {section.subtitle && <p style={{ color: theme.muted }}>{section.subtitle}</p>}
+                    </div>
+                    <div className="store-faq-list">
+                        {section.items.map(item => (
+                            <details key={item.id} style={{ background: theme.surface, borderColor: theme.border }}>
+                                <summary>{item.question}<span style={{ color: accent }}>+</span></summary>
+                                <p style={{ color: theme.muted }}>{item.answer}</p>
+                            </details>
+                        ))}
+                    </div>
+                </section>
+            );
+        }
+
+        return (
+            <section className="store-product-section" key={section.id}>
+                <div className="store-product-section-heading">
+                    <div>
+                        <span style={{ color: accent }}>SELEÇÃO DA LOJA</span>
+                        <h2>{section.title || 'Produtos em destaque'}</h2>
+                        {section.subtitle && <p style={{ color: theme.muted }}>{section.subtitle}</p>}
+                    </div>
+                    <div className="store-section-count" style={{ color: theme.muted, borderColor: theme.border }}>
+                        {section.product_ids.length} produto{section.product_ids.length === 1 ? '' : 's'}
+                    </div>
+                </div>
+                <div className={`products-grid template-${template}`}>
+                    {section.product_ids.map(productId => productsById.get(productId)).filter(Boolean).map(product => (
+                        <article key={product.id} className="store-product-card" style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: cardRadius }}>
+                            <button
+                                className="store-product-media"
+                                onClick={() => openQuick(product)}
+                                style={{
+                                    background: product.image_url
+                                        ? `url("${product.image_url}") center/cover`
+                                        : `radial-gradient(circle at 80% 10%, rgba(255,255,255,.22), transparent 35%), linear-gradient(135deg, ${accent}, ${theme.surfaceAlt})`
+                                }}
+                                aria-label={`Ver ${product.name}`}
+                            >
+                                <span className="store-product-view">Ver detalhes</span>
+                            </button>
+                            <div className="store-product-body">
+                                <div className="store-product-meta">
+                                    <span style={{ color: accent }}><FiPackage size={12} /> Oferta da loja</span>
+                                    <small style={{ color: theme.muted }}>{product.has_plans ? 'Opções disponíveis' : 'Compra online'}</small>
+                                </div>
+                                <h3 className="store-product-title">{product.name}</h3>
+                                <p className="store-product-description" style={{ color: theme.muted }}>
+                                    {product.description || 'Conheça os detalhes desta oferta e escolha a melhor opção para você.'}
+                                </p>
+                                <div className="store-product-purchase">
+                                    <div>
+                                        <small style={{ color: theme.muted }}>{product.has_plans ? 'A partir de' : 'Por apenas'}</small>
+                                        <strong>R$ {product.price_display}</strong>
+                                    </div>
+                                    <button onClick={() => openQuick(product)} style={{ background: accent }}>Conhecer</button>
+                                </div>
+                            </div>
+                        </article>
+                    ))}
+                </div>
+            </section>
+        );
+    };
 
     return (
-        <div id="top" style={{ minHeight: '100vh', background: pageBackground || pageBackgroundColor, color: theme.text, fontFamily: 'Inter, Outfit, sans-serif' }}>
+        <div
+            id="top"
+            className={storefrontClass}
+            style={{
+                minHeight: '100vh',
+                background: pageBackground || pageBackgroundColor,
+                color: theme.text,
+                fontFamily,
+                '--store-shell-width': shellWidth,
+                '--store-card-radius': cardRadius
+            } as React.CSSProperties}
+        >
             <header
                 className="store-main-header"
                 style={{
@@ -273,61 +456,69 @@ export default function StorePage() {
                 </div>
             </header>
 
-            <section className={`store-hero hero-${template}`} style={{ background: heroBg, borderBottomColor: theme.border }}>
+            <section className={`store-hero hero-${template} hero-layout-${background.hero_layout}`} style={{ background: heroBg, borderBottomColor: theme.border }}>
                 <div className="store-hero-grid" style={{ opacity: template === 'academy' ? .18 : .32 }} />
                 <div className="store-hero-orb store-hero-orb-one" style={{ background: accent }} />
                 <div className="store-hero-orb store-hero-orb-two" style={{ background: accent }} />
                 <div className="store-shell store-hero-inner">
-                    <div className="store-trust-badges">
-                        <span style={{ color: accent, borderColor: `${accent}55`, background: `${accent}10` }}><FiZap /> Entrega digital</span>
-                        <span style={{ color: '#21c77a', borderColor: 'rgba(33,199,122,.30)', background: 'rgba(33,199,122,.08)' }}><FiShield /> Compra segura</span>
-                        <span style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}><FiCheckCircle /> Loja protegida</span>
-                    </div>
-
-                    <div className="store-hero-logo" style={{ borderColor: `${accent}55`, background: `linear-gradient(145deg, ${accent}, ${theme.surfaceAlt})`, boxShadow: `0 20px 55px ${accent}35` }}>
-                        <span>{storeInitials}</span>
-                    </div>
-
-                    <div className="store-welcome-label" style={{ color: theme.muted }}>
-                        Bem-vindo à <strong style={{ color: accent }}>{store.name || slug}</strong>
-                    </div>
-                    <h1>{store.headline || `Descubra o melhor da ${store.name || 'nossa loja'}`}</h1>
-                    <p style={{ color: theme.muted }}>
-                        {store.description || 'Produtos digitais selecionados, compra protegida e acesso online em poucos passos.'}
-                    </p>
-
-                    <div className="store-hero-actions">
-                        <button className="store-hero-primary" onClick={() => document.getElementById('store-products')?.scrollIntoView({ behavior: 'smooth' })} style={{ background: accent, boxShadow: `0 14px 34px ${accent}42` }}>
-                            {store.cta_text || 'Ver produtos'} <FiArrowRight />
-                        </button>
-                        {categories.length > 0 && (
-                            <button className="store-hero-secondary" onClick={() => document.getElementById('store-categories')?.scrollIntoView({ behavior: 'smooth' })} style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}>
-                                <FiGrid /> Ver categorias
+                    <div className="store-hero-copy">
+                        <div className="store-trust-badges">
+                            <span style={{ color: accent, borderColor: `${accent}55`, background: `${accent}10` }}><FiStar /> Experiência selecionada</span>
+                            <span style={{ color: '#21c77a', borderColor: 'rgba(33,199,122,.30)', background: 'rgba(33,199,122,.08)' }}><FiShield /> Compra segura</span>
+                            <span style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}><FiCheckCircle /> Marca verificada</span>
+                        </div>
+                        <div className="store-welcome-label" style={{ color: theme.muted }}>
+                            Bem-vindo à <strong style={{ color: accent }}>{store.name || slug}</strong>
+                        </div>
+                        <h1>{store.headline || `Encontre o que combina com o seu momento`}</h1>
+                        <p style={{ color: theme.muted }}>
+                            {store.description || 'Explore soluções, experiências e produtos reunidos em uma loja feita para facilitar sua escolha.'}
+                        </p>
+                        <div className="store-hero-actions">
+                            <button className="store-hero-primary" onClick={() => document.getElementById('store-products')?.scrollIntoView({ behavior: 'smooth' })} style={{ background: accent, boxShadow: `0 14px 34px ${accent}42` }}>
+                                {store.cta_text || 'Explorar a loja'} <FiArrowRight />
                             </button>
-                        )}
-                        {supportUrl && (
-                            <button className="store-hero-secondary store-hero-support" onClick={() => handleNavClick(supportUrl)} style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}>
-                                <FiHeadphones /> Falar com a loja
-                            </button>
-                        )}
+                            {background.show_categories && categories.length > 0 && (
+                                <button className="store-hero-secondary" onClick={() => document.getElementById('store-categories')?.scrollIntoView({ behavior: 'smooth' })} style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}>
+                                    <FiGrid /> Ver categorias
+                                </button>
+                            )}
+                            {supportUrl && (
+                                <button className="store-hero-secondary store-hero-support" onClick={() => handleNavClick(supportUrl)} style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}>
+                                    <FiHeadphones /> Falar com a loja
+                                </button>
+                            )}
+                        </div>
+                        <div className="store-hero-assurances" style={{ color: theme.muted }}>
+                            <span><i style={{ color: accent, background: `${accent}18` }}><FiZap /></i> Compra simplificada</span>
+                            <span className="assurance-divider" style={{ background: theme.border }} />
+                            <span><i style={{ color: '#21c77a', background: 'rgba(33,199,122,.10)' }}><FiLock /></i> Checkout protegido</span>
+                            <span className="assurance-divider" style={{ background: theme.border }} />
+                            <span><i style={{ color: '#35b6ff', background: 'rgba(53,182,255,.10)' }}><FiCreditCard /></i> PIX e cartão</span>
+                        </div>
                     </div>
-
-                    <div className="store-hero-assurances" style={{ color: theme.muted }}>
-                        <span><i style={{ color: accent, background: `${accent}18` }}><FiZap /></i> Acesso online</span>
-                        <span className="assurance-divider" style={{ background: theme.border }} />
-                        <span><i style={{ color: '#21c77a', background: 'rgba(33,199,122,.10)' }}><FiLock /></i> Checkout protegido</span>
-                        <span className="assurance-divider" style={{ background: theme.border }} />
-                        <span><i style={{ color: '#35b6ff', background: 'rgba(53,182,255,.10)' }}><FiCreditCard /></i> PIX e cartão</span>
+                    <div className="store-hero-showcase" style={{ background: `${theme.surface}e8`, borderColor: theme.border, boxShadow: `0 28px 80px ${accent}22` }}>
+                        <span className="store-showcase-label" style={{ color: accent }}>{store.badge_text || 'CURADORIA DA MARCA'}</span>
+                        <div className="store-hero-logo" style={{ borderColor: `${accent}55`, background: `linear-gradient(145deg, ${accent}, ${theme.surfaceAlt})`, boxShadow: `0 20px 55px ${accent}35` }}>
+                            <span>{storeInitials}</span>
+                        </div>
+                        <strong>{store.name || slug}</strong>
+                        <p style={{ color: theme.muted }}>Uma vitrine pensada para apresentar escolhas relevantes com clareza e confiança.</p>
+                        <div className="store-showcase-stats">
+                            <span><strong>{products.length}</strong><small style={{ color: theme.muted }}>oferta{products.length === 1 ? '' : 's'}</small></span>
+                            <span><strong>{categories.length || 1}</strong><small style={{ color: theme.muted }}>categoria{categories.length === 1 ? '' : 's'}</small></span>
+                            <span><FiShield style={{ color: accent }} /><small style={{ color: theme.muted }}>ambiente seguro</small></span>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <section className="store-benefit-strip" style={{ background: theme.surfaceAlt, borderColor: theme.border }}>
+            {background.show_benefit_strip && <section className="store-benefit-strip" style={{ background: theme.surfaceAlt, borderColor: theme.border }}>
                 <div className="store-shell store-benefit-strip-inner">
                     {[
                         { icon: <FiShield />, title: 'Pagamento protegido', text: 'Ambiente seguro do início ao fim' },
-                        { icon: <FiZap />, title: 'Entrega digital', text: 'Acesso rápido após a aprovação' },
-                        { icon: <FiHeadphones />, title: 'Suporte da loja', text: 'Canais de contato sempre visíveis' }
+                        { icon: <FiStar />, title: 'Escolhas organizadas', text: 'Navegação clara para diferentes interesses' },
+                        { icon: <FiHeadphones />, title: 'Contato acessível', text: 'Canais da marca sempre visíveis' }
                     ].map(item => (
                         <div key={item.title}>
                             <i style={{ color: accent, background: `${accent}12` }}>{item.icon}</i>
@@ -335,9 +526,9 @@ export default function StorePage() {
                         </div>
                     ))}
                 </div>
-            </section>
+            </section>}
 
-            {categories.length > 0 && !searchTerm && !activeCategory && (
+            {background.show_categories && categories.length > 0 && !searchTerm && !activeCategory && (
                 <section id="store-categories" className="store-shell store-featured-categories">
                     <div className="store-categories-heading">
                         <div>
@@ -370,7 +561,7 @@ export default function StorePage() {
                 </section>
             )}
 
-            <main id="store-products" className="store-shell storefront-content" style={{ maxWidth: 1240, margin: '0 auto', padding: '38px 24px 76px' }}>
+            <main id="store-products" className="store-shell storefront-content" style={{ margin: '0 auto', padding: '38px 24px 76px' }}>
                 <div className="store-catalog-toolbar" style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
                     <div>
                         <span style={{ color: accent }}>CATÁLOGO</span>
@@ -397,74 +588,17 @@ export default function StorePage() {
                     </div>
                 ) : (
                     <div className="storefront-sections">
-                        {renderedSections.map(section => section.type === 'banner_carousel' ? (
-                            <StoreBannerCarousel
-                                key={section.id}
-                                section={section}
-                                accent={accent}
-                                surface={theme.surface}
-                                border={theme.border}
-                                onNavigate={handleNavClick}
-                            />
-                        ) : (
-                            <section className="store-product-section" key={section.id}>
-                                <div className="store-product-section-heading">
-                                    <div>
-                                        <span style={{ color: accent }}>SELEÇÃO DA LOJA</span>
-                                        <h2>{section.title || 'Produtos em destaque'}</h2>
-                                        {section.subtitle && <p style={{ color: theme.muted }}>{section.subtitle}</p>}
-                                    </div>
-                                    <div className="store-section-count" style={{ color: theme.muted, borderColor: theme.border }}>
-                                        {section.product_ids.length} produto{section.product_ids.length === 1 ? '' : 's'}
-                                    </div>
-                                </div>
-                                <div className={`products-grid template-${template}`}>
-                                    {section.product_ids.map(productId => productsById.get(productId)).filter(Boolean).map(product => (
-                                        <article key={product.id} className="store-product-card" style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: template === 'studio' ? 10 : 18 }}>
-                                            <button
-                                                className="store-product-media"
-                                                onClick={() => openQuick(product)}
-                                                style={{
-                                                    background: product.image_url
-                                                        ? `url("${product.image_url}") center/cover`
-                                                        : `radial-gradient(circle at 80% 10%, rgba(255,255,255,.22), transparent 35%), linear-gradient(135deg, ${accent}, ${theme.surfaceAlt})`
-                                                }}
-                                                aria-label={`Ver ${product.name}`}
-                                            >
-                                                <span className="store-product-view">Ver detalhes</span>
-                                            </button>
-                                            <div className="store-product-body">
-                                                <div className="store-product-meta">
-                                                    <span style={{ color: accent }}><FiBookOpen size={12} /> Produto digital</span>
-                                                    <small style={{ color: theme.muted }}>{product.has_plans ? 'Planos disponíveis' : 'Acesso online'}</small>
-                                                </div>
-                                                <h3 className="store-product-title">{product.name}</h3>
-                                                <p className="store-product-description" style={{ color: theme.muted }}>
-                                                    {product.description || 'Produto digital com compra segura e entrega online.'}
-                                                </p>
-                                                <div className="store-product-purchase">
-                                                    <div>
-                                                        <small style={{ color: theme.muted }}>{product.has_plans ? 'A partir de' : 'Por apenas'}</small>
-                                                        <strong>R$ {product.price_display}</strong>
-                                                    </div>
-                                                    <button onClick={() => openQuick(product)} style={{ background: accent }}>Comprar</button>
-                                                </div>
-                                            </div>
-                                        </article>
-                                    ))}
-                                </div>
-                            </section>
-                        ))}
+                        {renderedSections.map(renderStoreSection)}
                     </div>
                 )}
             </main>
 
-            <section className="store-closing-section" style={{ borderColor: theme.border }}>
+            {background.show_closing_cta && <section className="store-closing-section" style={{ borderColor: theme.border }}>
                 <div className="store-shell store-closing-card" style={{ background: theme.surface, borderColor: theme.border }}>
                     <div className="store-closing-glow" style={{ background: accent }} />
                     <span style={{ color: accent }}><FiShield /> COMPRA TRANQUILA</span>
-                    <h2>Escolha seu próximo produto com segurança.</h2>
-                    <p style={{ color: theme.muted }}>Navegue pelo catálogo, confira os detalhes e finalize sua compra em um ambiente protegido.</p>
+                    <h2>Encontre a escolha certa para o seu momento.</h2>
+                    <p style={{ color: theme.muted }}>Explore as opções, confira todos os detalhes e finalize sua compra em um ambiente protegido.</p>
                     <div>
                         <button onClick={() => document.getElementById('store-products')?.scrollIntoView({ behavior: 'smooth' })} style={{ background: accent }}>
                             Explorar catálogo <FiArrowRight />
@@ -474,7 +608,7 @@ export default function StorePage() {
                         </button>
                     </div>
                 </div>
-            </section>
+            </section>}
 
             {footer.enabled && (
                 <footer className="store-footer" style={{ background: theme.surface, borderTop: `1px solid ${theme.border}` }}>
@@ -482,7 +616,7 @@ export default function StorePage() {
                         <div className="store-footer-brand">
                             <strong>{store.name || slug}</strong>
                             <p style={{ color: theme.muted }}>
-                                {footer.description || 'Produtos digitais selecionados para ajudar você a avançar.'}
+                                {footer.description || 'Uma seleção de soluções e experiências para ajudar você a avançar.'}
                             </p>
                         </div>
                         <div className="store-footer-links">
@@ -515,10 +649,10 @@ export default function StorePage() {
                             <div style={{ padding: 30, display: 'flex', flexDirection: 'column', gap: 18 }}>
                                 <button onClick={() => setQuickProduct(null)} style={{ alignSelf: 'flex-end', width: 34, height: 34, borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surfaceAlt, color: theme.text, cursor: 'pointer', fontWeight: 900 }}>x</button>
                                 <div>
-                                    <span style={{ color: accent, fontSize: 12, fontWeight: 950, textTransform: 'uppercase' }}>Produto digital</span>
+                                    <span style={{ color: accent, fontSize: 12, fontWeight: 950, textTransform: 'uppercase' }}>Oferta da loja</span>
                                     <h2 style={{ fontSize: 32, lineHeight: 1.1, fontWeight: 950, marginTop: 8 }}>{quickProduct.name}</h2>
                                 </div>
-                                <p style={{ color: theme.muted, lineHeight: 1.75, fontSize: 14 }}>{quickProduct.description || 'Produto digital disponivel para compra online.'}</p>
+                                <p style={{ color: theme.muted, lineHeight: 1.75, fontSize: 14 }}>{quickProduct.description || 'Conheça os detalhes desta oferta disponível para compra online.'}</p>
 
                                 <div style={{ display: 'grid', gap: 10 }}>
                                     <strong style={{ fontSize: 13 }}>Escolha o plano</strong>
@@ -549,6 +683,12 @@ export default function StorePage() {
             )}
 
             <style jsx global>{`
+                .store-shell {
+                    width: 100%;
+                    max-width: var(--store-shell-width);
+                    margin-left: auto;
+                    margin-right: auto;
+                }
                 .store-main-header {
                     position: sticky;
                     top: 0;
@@ -558,13 +698,34 @@ export default function StorePage() {
                     backdrop-filter: blur(22px);
                 }
                 .store-main-header-inner {
-                    width: min(1340px, calc(100% - 40px));
+                    width: min(var(--store-shell-width), calc(100% - 40px));
                     min-height: 70px;
                     margin: 0 auto;
                     display: grid;
                     grid-template-columns: minmax(190px, .8fr) minmax(280px, 1.4fr) minmax(280px, .9fr);
                     align-items: center;
                     gap: 24px;
+                }
+                .store-header-floating .store-main-header {
+                    min-height: 86px;
+                    padding: 8px 0;
+                    border-bottom-color: transparent !important;
+                    background: transparent !important;
+                }
+                .store-header-floating .store-main-header-inner {
+                    min-height: 68px;
+                    border: 1px solid ${theme.border};
+                    border-radius: 20px;
+                    padding: 0 14px;
+                    background: ${theme.surface}ee;
+                    box-shadow: 0 18px 50px rgba(0,0,0,.13);
+                    backdrop-filter: blur(24px);
+                }
+                .store-header-minimal .store-main-header {
+                    background: ${pageBackgroundColor}e8 !important;
+                }
+                .store-header-minimal .store-main-header-inner {
+                    min-height: 62px;
                 }
                 .store-brand {
                     min-width: 0;
@@ -734,19 +895,39 @@ export default function StorePage() {
                 }
                 .store-hero-inner {
                     width: 100%;
-                    max-width: 1040px;
+                    max-width: var(--store-shell-width);
                     margin: 0 auto;
-                    padding: 76px 24px 82px;
-                    display: flex;
-                    flex-direction: column;
+                    padding: 82px 24px 92px;
+                    display: grid;
+                    grid-template-columns: minmax(0, 1.18fr) minmax(320px, .72fr);
                     align-items: center;
+                    gap: clamp(38px, 7vw, 96px);
+                    text-align: left;
+                }
+                .store-hero-copy {
+                    min-width: 0;
+                }
+                .hero-layout-centered .store-hero-inner,
+                .hero-layout-compact .store-hero-inner {
+                    grid-template-columns: minmax(0, 900px);
                     justify-content: center;
                     text-align: center;
+                }
+                .hero-layout-centered .store-hero-showcase,
+                .hero-layout-compact .store-hero-showcase {
+                    display: none;
+                }
+                .hero-layout-compact {
+                    min-height: 470px;
+                }
+                .hero-layout-compact .store-hero-inner {
+                    padding-top: 54px;
+                    padding-bottom: 64px;
                 }
                 .store-trust-badges {
                     display: flex;
                     align-items: center;
-                    justify-content: center;
+                    justify-content: flex-start;
                     gap: 7px;
                     flex-wrap: wrap;
                     margin-bottom: 24px;
@@ -771,7 +952,7 @@ export default function StorePage() {
                     padding: 6px;
                     display: grid;
                     place-items: center;
-                    margin-bottom: 22px;
+                    margin: 20px auto 22px;
                     transform: rotate(-3deg);
                 }
                 .store-hero-logo span {
@@ -794,15 +975,15 @@ export default function StorePage() {
                     margin-bottom: 9px;
                 }
                 .store-hero h1 {
-                    max-width: 900px;
-                    font-size: clamp(42px, 6vw, 72px);
+                    max-width: 820px;
+                    font-size: clamp(42px, 5.4vw, 72px);
                     line-height: .98;
                     letter-spacing: -.045em;
                     font-weight: 950;
                     text-wrap: balance;
                     margin-bottom: 20px;
                 }
-                .store-hero-inner > p {
+                .store-hero-copy > p {
                     max-width: 690px;
                     font-size: 16px;
                     line-height: 1.75;
@@ -811,7 +992,7 @@ export default function StorePage() {
                 }
                 .store-hero-actions {
                     display: flex;
-                    justify-content: center;
+                    justify-content: flex-start;
                     align-items: center;
                     gap: 10px;
                     flex-wrap: wrap;
@@ -839,7 +1020,7 @@ export default function StorePage() {
                 .store-hero-assurances {
                     display: flex;
                     align-items: center;
-                    justify-content: center;
+                    justify-content: flex-start;
                     gap: 16px;
                     margin-top: 28px;
                     font-size: 10px;
@@ -862,11 +1043,74 @@ export default function StorePage() {
                     width: 1px;
                     height: 22px;
                 }
+                .hero-layout-centered .store-trust-badges,
+                .hero-layout-compact .store-trust-badges,
+                .hero-layout-centered .store-hero-actions,
+                .hero-layout-compact .store-hero-actions,
+                .hero-layout-centered .store-hero-assurances,
+                .hero-layout-compact .store-hero-assurances {
+                    justify-content: center;
+                }
+                .store-hero-showcase {
+                    width: 100%;
+                    max-width: 410px;
+                    border: 1px solid;
+                    border-radius: calc(var(--store-card-radius) + 8px);
+                    padding: 28px;
+                    justify-self: end;
+                    text-align: center;
+                    backdrop-filter: blur(20px);
+                    transform: rotate(1.2deg);
+                }
+                .store-showcase-label {
+                    display: inline-flex;
+                    border: 1px solid currentColor;
+                    border-radius: 999px;
+                    padding: 6px 9px;
+                    font-size: 9px;
+                    font-weight: 950;
+                    letter-spacing: .12em;
+                }
+                .store-hero-showcase > strong {
+                    display: block;
+                    font-size: 24px;
+                    font-weight: 950;
+                    margin-bottom: 8px;
+                }
+                .store-hero-showcase > p {
+                    font-size: 12px;
+                    line-height: 1.65;
+                }
+                .store-showcase-stats {
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 7px;
+                    margin-top: 22px;
+                }
+                .store-showcase-stats > span {
+                    min-height: 70px;
+                    border: 1px solid ${theme.border};
+                    border-radius: 13px;
+                    padding: 10px 6px;
+                    display: grid;
+                    place-items: center;
+                    align-content: center;
+                    gap: 3px;
+                    background: ${theme.surfaceAlt};
+                }
+                .store-showcase-stats strong {
+                    font-size: 18px;
+                    line-height: 1;
+                }
+                .store-showcase-stats small {
+                    font-size: 8px;
+                    line-height: 1.2;
+                }
                 .store-benefit-strip {
                     border-bottom: 1px solid;
                 }
                 .store-benefit-strip-inner {
-                    max-width: 1240px;
+                    max-width: var(--store-shell-width);
                     margin: 0 auto;
                     padding: 17px 24px;
                     display: grid;
@@ -904,7 +1148,7 @@ export default function StorePage() {
                     font-size: 9px;
                 }
                 .store-featured-categories {
-                    max-width: 1240px;
+                    max-width: var(--store-shell-width);
                     margin: 0 auto;
                     padding: 64px 24px 16px;
                 }
@@ -1029,8 +1273,174 @@ export default function StorePage() {
                     display: grid;
                     gap: 48px;
                 }
+                .store-spacing-compact .storefront-sections { gap: 30px; }
+                .store-spacing-airy .storefront-sections { gap: 72px; }
                 .store-product-section {
                     min-width: 0;
+                }
+                .store-content-block {
+                    min-height: 390px;
+                    border: 1px solid;
+                    border-radius: calc(var(--store-card-radius) + 8px);
+                    padding: clamp(24px, 5vw, 58px);
+                    display: grid;
+                    grid-template-columns: minmax(0, 1fr) minmax(300px, .9fr);
+                    align-items: center;
+                    gap: clamp(28px, 6vw, 72px);
+                    overflow: hidden;
+                }
+                .store-content-block.image-left .store-content-media { order: -1; }
+                .store-content-block:not(:has(.store-content-media)) { grid-template-columns: minmax(0, 820px); }
+                .store-content-copy > span,
+                .store-rich-heading > span {
+                    display: block;
+                    font-size: 10px;
+                    font-weight: 950;
+                    letter-spacing: .13em;
+                    margin-bottom: 8px;
+                }
+                .store-content-copy h2,
+                .store-rich-heading h2 {
+                    font-size: clamp(28px, 4vw, 44px);
+                    line-height: 1.05;
+                    letter-spacing: -.035em;
+                    font-weight: 950;
+                    text-wrap: balance;
+                }
+                .store-content-copy p {
+                    max-width: 720px;
+                    margin-top: 16px;
+                    font-size: 14px;
+                    line-height: 1.8;
+                    white-space: pre-line;
+                }
+                .store-content-copy button {
+                    min-height: 44px;
+                    border: 0;
+                    border-radius: 12px;
+                    padding: 0 16px;
+                    margin-top: 22px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 12px;
+                    font-weight: 900;
+                    cursor: pointer;
+                }
+                .store-content-media {
+                    min-height: 300px;
+                    border-radius: var(--store-card-radius);
+                    background-position: center;
+                    background-size: cover;
+                    box-shadow: 0 24px 60px rgba(0,0,0,.18);
+                }
+                .store-rich-section {
+                    min-width: 0;
+                }
+                .store-rich-heading {
+                    max-width: 760px;
+                    margin-bottom: 22px;
+                }
+                .store-rich-heading p {
+                    margin-top: 9px;
+                    font-size: 13px;
+                    line-height: 1.65;
+                }
+                .store-features-grid,
+                .store-testimonials-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 13px;
+                }
+                .store-features-grid article,
+                .store-testimonials-grid article {
+                    border: 1px solid;
+                    border-radius: var(--store-card-radius);
+                    padding: 24px;
+                }
+                .store-features-grid i {
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 13px;
+                    display: grid;
+                    place-items: center;
+                    margin-bottom: 22px;
+                    font-size: 19px;
+                    font-style: normal;
+                }
+                .store-features-grid h3 {
+                    font-size: 17px;
+                    line-height: 1.2;
+                    font-weight: 900;
+                    margin-bottom: 8px;
+                }
+                .store-features-grid p {
+                    font-size: 12px;
+                    line-height: 1.65;
+                }
+                .store-testimonials-grid article {
+                    min-height: 270px;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .store-quote-icon {
+                    font-size: 26px;
+                    margin-bottom: 14px;
+                }
+                .store-testimonial-stars {
+                    display: flex;
+                    gap: 3px;
+                    font-size: 11px;
+                    margin-bottom: 16px;
+                }
+                .store-testimonials-grid blockquote {
+                    font-size: 15px;
+                    line-height: 1.7;
+                    font-weight: 650;
+                    flex: 1;
+                }
+                .store-testimonials-grid footer {
+                    margin-top: 22px;
+                }
+                .store-testimonials-grid footer strong,
+                .store-testimonials-grid footer small {
+                    display: block;
+                }
+                .store-testimonials-grid footer strong { font-size: 13px; }
+                .store-testimonials-grid footer small { margin-top: 3px; font-size: 10px; }
+                .store-faq-section {
+                    display: grid;
+                    grid-template-columns: minmax(260px, .7fr) minmax(0, 1.3fr);
+                    gap: clamp(28px, 6vw, 80px);
+                    align-items: start;
+                }
+                .store-faq-list {
+                    display: grid;
+                    gap: 9px;
+                }
+                .store-faq-list details {
+                    border: 1px solid;
+                    border-radius: var(--store-card-radius);
+                    padding: 0 18px;
+                }
+                .store-faq-list summary {
+                    min-height: 60px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 18px;
+                    list-style: none;
+                    font-size: 13px;
+                    font-weight: 850;
+                    cursor: pointer;
+                }
+                .store-faq-list summary::-webkit-details-marker { display: none; }
+                .store-faq-list summary span { font-size: 20px; transition: transform .2s; }
+                .store-faq-list details[open] summary span { transform: rotate(45deg); }
+                .store-faq-list details p {
+                    padding: 0 0 18px;
+                    font-size: 12px;
+                    line-height: 1.7;
                 }
                 .store-product-section-heading {
                     display: flex;
@@ -1068,6 +1478,17 @@ export default function StorePage() {
                     min-width: 0;
                     transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
                 }
+                .store-cards-elevated .store-product-card,
+                .store-cards-elevated .store-features-grid article,
+                .store-cards-elevated .store-testimonials-grid article {
+                    box-shadow: 0 14px 40px rgba(0,0,0,.12);
+                }
+                .store-cards-minimal .store-product-card,
+                .store-cards-minimal .store-features-grid article,
+                .store-cards-minimal .store-testimonials-grid article {
+                    border-color: transparent !important;
+                    box-shadow: none;
+                }
                 .store-product-card:hover {
                     transform: translateY(-4px);
                     border-color: ${accent};
@@ -1081,6 +1502,8 @@ export default function StorePage() {
                     cursor: pointer;
                     overflow: hidden;
                 }
+                .store-images-square .store-product-media { height: auto; aspect-ratio: 1; }
+                .store-images-portrait .store-product-media { height: auto; aspect-ratio: 4 / 5; }
                 .store-product-view {
                     position: absolute;
                     right: 10px;
@@ -1236,7 +1659,7 @@ export default function StorePage() {
                     cursor: pointer;
                 }
                 .store-footer-inner {
-                    max-width: 1240px;
+                    max-width: var(--store-shell-width);
                     margin: 0 auto;
                     padding: 42px 24px 30px;
                     display: grid;
@@ -1275,7 +1698,7 @@ export default function StorePage() {
                     cursor: pointer;
                 }
                 .store-footer-bottom {
-                    max-width: 1240px;
+                    max-width: var(--store-shell-width);
                     margin: 0 auto;
                     padding: 16px 24px 24px;
                     display: flex;
@@ -1298,6 +1721,19 @@ export default function StorePage() {
                     .store-hero {
                         min-height: 610px;
                     }
+                    .store-hero-inner {
+                        grid-template-columns: minmax(0, 880px);
+                        justify-content: center;
+                        text-align: center;
+                    }
+                    .store-hero-showcase {
+                        display: none;
+                    }
+                    .store-trust-badges,
+                    .store-hero-actions,
+                    .store-hero-assurances {
+                        justify-content: center;
+                    }
                     .store-hero h1 {
                         font-size: clamp(40px, 8vw, 62px);
                     }
@@ -1310,6 +1746,18 @@ export default function StorePage() {
                     }
                     .products-grid {
                         grid-template-columns: repeat(2, minmax(0, 1fr));
+                    }
+                    .store-content-block {
+                        grid-template-columns: 1fr;
+                    }
+                    .store-content-block.image-left .store-content-media { order: 0; }
+                    .store-features-grid,
+                    .store-testimonials-grid {
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                    }
+                    .store-faq-section {
+                        grid-template-columns: 1fr;
+                        gap: 20px;
                     }
                     .store-footer-inner {
                         grid-template-columns: 1fr;
@@ -1408,7 +1856,7 @@ export default function StorePage() {
                         line-height: 1.02 !important;
                         margin-bottom: 16px;
                     }
-                    .store-hero-inner > p {
+                    .store-hero-copy > p {
                         font-size: 13px;
                         line-height: 1.65;
                         margin-bottom: 22px;
@@ -1489,6 +1937,23 @@ export default function StorePage() {
                     .products-grid {
                         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
                         gap: 10px !important;
+                    }
+                    .store-content-block {
+                        min-height: 0;
+                        padding: 24px 16px;
+                    }
+                    .store-content-media { min-height: 220px; }
+                    .store-features-grid,
+                    .store-testimonials-grid {
+                        grid-template-columns: 1fr;
+                    }
+                    .store-features-grid article,
+                    .store-testimonials-grid article {
+                        padding: 18px;
+                    }
+                    .store-rich-heading h2,
+                    .store-content-copy h2 {
+                        font-size: 27px;
                     }
                     .store-product-card {
                         border-radius: 12px !important;

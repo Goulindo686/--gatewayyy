@@ -5,15 +5,23 @@ import {
     createStoreBuilderId,
     STORE_BUILDER_LIMITS,
     StoreBannerSection,
+    StoreContentSection,
+    StoreFaqSection,
+    StoreFeaturesSection,
     StoreLayoutSection,
-    StoreProductSection
+    StoreProductSection,
+    StoreTestimonialsSection
 } from '@/lib/store-builder';
 import {
+    FiAlignLeft,
     FiArrowDown,
     FiArrowUp,
     FiCheck,
+    FiHelpCircle,
     FiImage,
+    FiMessageSquare,
     FiPlus,
+    FiStar,
     FiTrash2,
     FiUpload
 } from 'react-icons/fi';
@@ -32,6 +40,7 @@ type Props = {
     uploadingSlideId: string | null;
     onChange: (sections: StoreLayoutSection[]) => void;
     onUploadSlide: (sectionId: string, slideId: string, file: File) => Promise<void>;
+    onUploadSectionImage: (sectionId: string, file: File) => Promise<void>;
 };
 
 function newProductSection(productIds: string[] = []): StoreProductSection {
@@ -60,12 +69,73 @@ function newBannerSection(): StoreBannerSection {
     };
 }
 
+function newContentSection(): StoreContentSection {
+    return {
+        id: createStoreBuilderId('content'),
+        type: 'content',
+        eyebrow: 'SOBRE A MARCA',
+        title: 'Conte a história por trás da sua oferta',
+        description: 'Apresente sua proposta, seu método ou a transformação que seus clientes encontram aqui.',
+        image_url: '',
+        image_position: 'right',
+        tone: 'surface',
+        button_text: '',
+        button_url: ''
+    };
+}
+
+function newFeaturesSection(): StoreFeaturesSection {
+    return {
+        id: createStoreBuilderId('features'),
+        type: 'features',
+        title: 'Por que escolher esta loja',
+        subtitle: 'Mostre os principais diferenciais da sua marca, produto ou serviço.',
+        items: [
+            { id: createStoreBuilderId('feature'), title: 'Experiência confiável', description: 'Explique o que torna sua oferta especial.' },
+            { id: createStoreBuilderId('feature'), title: 'Compra simples', description: 'Mostre como é fácil começar.' },
+            { id: createStoreBuilderId('feature'), title: 'Suporte próximo', description: 'Destaque o atendimento disponível.' }
+        ]
+    };
+}
+
+function newTestimonialsSection(): StoreTestimonialsSection {
+    return {
+        id: createStoreBuilderId('testimonials'),
+        type: 'testimonials',
+        title: 'Quem compra recomenda',
+        subtitle: 'Use relatos reais para aumentar a confiança na sua marca.',
+        items: [{ id: createStoreBuilderId('testimonial'), quote: '', name: '', role: '' }]
+    };
+}
+
+function newFaqSection(): StoreFaqSection {
+    return {
+        id: createStoreBuilderId('faq'),
+        type: 'faq',
+        title: 'Perguntas frequentes',
+        subtitle: 'Antecipe dúvidas importantes antes da compra.',
+        items: [{ id: createStoreBuilderId('faq-item'), question: '', answer: '' }]
+    };
+}
+
+function sectionLabel(section: StoreLayoutSection): [string, string] {
+    switch (section.type) {
+        case 'products': return ['LINHA DE PRODUTOS', `${section.product_ids.length} de ${STORE_BUILDER_LIMITS.productsPerSection} produtos`];
+        case 'banner_carousel': return ['CARROSSEL DE BANNERS', `${section.slides.length} banner${section.slides.length === 1 ? '' : 's'}`];
+        case 'content': return ['CONTEÚDO INSTITUCIONAL', section.title || 'Bloco de apresentação'];
+        case 'features': return ['DIFERENCIAIS', `${section.items.length} item${section.items.length === 1 ? '' : 's'}`];
+        case 'testimonials': return ['DEPOIMENTOS', `${section.items.length} relato${section.items.length === 1 ? '' : 's'}`];
+        case 'faq': return ['PERGUNTAS FREQUENTES', `${section.items.length} pergunta${section.items.length === 1 ? '' : 's'}`];
+    }
+}
+
 export default function StoreBuilderEditor({
     sections,
     products,
     uploadingSlideId,
     onChange,
-    onUploadSlide
+    onUploadSlide,
+    onUploadSectionImage
 }: Props) {
     const visibleProducts = products.filter(product => product.status === 'active' && product.show_in_store);
 
@@ -97,8 +167,8 @@ export default function StoreBuilderEditor({
     };
 
     const buildAutomatically = () => {
-        const banners = sections.filter(section => section.type === 'banner_carousel');
-        onChange([...buildAutomaticProductSections(visibleProducts.map(product => product.id)), ...banners]);
+        const customSections = sections.filter(section => section.type !== 'products');
+        onChange([...buildAutomaticProductSections(visibleProducts.map(product => product.id)), ...customSections]);
     };
 
     return (
@@ -108,7 +178,7 @@ export default function StoreBuilderEditor({
                     <span className="builder-kicker">ETAPA 3</span>
                     <h3 className="builder-title">Estrutura da vitrine</h3>
                     <p className="builder-description">
-                        Cada linha aceita até quatro produtos. Intercale linhas e carrosséis de banners quantas vezes precisar.
+                        Combine produtos, banners, conteúdo, diferenciais, depoimentos e perguntas em qualquer ordem.
                     </p>
                 </div>
                 {visibleProducts.length > 0 && (
@@ -128,18 +198,18 @@ export default function StoreBuilderEditor({
                 </div>
             ) : (
                 <div className="builder-section-list">
-                    {sections.map((section, index) => (
+                    {sections.map((section, index) => {
+                        const [label, summary] = sectionLabel(section);
+                        return (
                         <article className="builder-section-card" key={section.id}>
                             <div className="builder-section-toolbar">
                                 <div className="builder-section-number">{String(index + 1).padStart(2, '0')}</div>
                                 <div style={{ minWidth: 0 }}>
                                     <span className="builder-section-type">
-                                        {section.type === 'products' ? 'LINHA DE PRODUTOS' : 'CARROSSEL DE BANNERS'}
+                                        {label}
                                     </span>
                                     <div className="builder-section-summary">
-                                        {section.type === 'products'
-                                            ? `${section.product_ids.length} de ${STORE_BUILDER_LIMITS.productsPerSection} produtos`
-                                            : `${section.slides.length} banner${section.slides.length === 1 ? '' : 's'}`}
+                                        {summary}
                                     </div>
                                 </div>
                                 <div className="builder-section-actions">
@@ -155,16 +225,29 @@ export default function StoreBuilderEditor({
                                     products={visibleProducts}
                                     onChange={next => replaceSection(section.id, next)}
                                 />
-                            ) : (
+                            ) : section.type === 'banner_carousel' ? (
                                 <BannerSectionEditor
                                     section={section}
                                     uploadingSlideId={uploadingSlideId}
                                     onChange={next => replaceSection(section.id, next)}
                                     onUpload={(slideId, file) => onUploadSlide(section.id, slideId, file)}
                                 />
+                            ) : section.type === 'content' ? (
+                                <ContentSectionEditor
+                                    section={section}
+                                    uploading={uploadingSlideId === section.id}
+                                    onChange={next => replaceSection(section.id, next)}
+                                    onUpload={file => onUploadSectionImage(section.id, file)}
+                                />
+                            ) : section.type === 'features' ? (
+                                <FeaturesSectionEditor section={section} onChange={next => replaceSection(section.id, next)} />
+                            ) : section.type === 'testimonials' ? (
+                                <TestimonialsSectionEditor section={section} onChange={next => replaceSection(section.id, next)} />
+                            ) : (
+                                <FaqSectionEditor section={section} onChange={next => replaceSection(section.id, next)} />
                             )}
                         </article>
-                    ))}
+                    );})}
                 </div>
             )}
 
@@ -186,6 +269,26 @@ export default function StoreBuilderEditor({
                     <span><FiImage /></span>
                     <strong>Adicionar carrossel</strong>
                     <small>Use vários banners</small>
+                </button>
+                <button type="button" onClick={() => onChange([...sections, newContentSection()])} disabled={sections.length >= STORE_BUILDER_LIMITS.sections}>
+                    <span><FiAlignLeft /></span>
+                    <strong>Adicionar conteúdo</strong>
+                    <small>Texto, imagem e chamada</small>
+                </button>
+                <button type="button" onClick={() => onChange([...sections, newFeaturesSection()])} disabled={sections.length >= STORE_BUILDER_LIMITS.sections}>
+                    <span><FiStar /></span>
+                    <strong>Adicionar diferenciais</strong>
+                    <small>Benefícios da sua oferta</small>
+                </button>
+                <button type="button" onClick={() => onChange([...sections, newTestimonialsSection()])} disabled={sections.length >= STORE_BUILDER_LIMITS.sections}>
+                    <span><FiMessageSquare /></span>
+                    <strong>Adicionar depoimentos</strong>
+                    <small>Prova social da marca</small>
+                </button>
+                <button type="button" onClick={() => onChange([...sections, newFaqSection()])} disabled={sections.length >= STORE_BUILDER_LIMITS.sections}>
+                    <span><FiHelpCircle /></span>
+                    <strong>Adicionar perguntas</strong>
+                    <small>Respostas antes da compra</small>
                 </button>
             </div>
 
@@ -448,7 +551,7 @@ export default function StoreBuilderEditor({
                 }
                 .builder-add-row {
                     display: grid;
-                    grid-template-columns: 1fr 1fr;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
                     gap: 12px;
                     margin-top: 16px;
                 }
@@ -484,7 +587,93 @@ export default function StoreBuilderEditor({
                     color: var(--text-secondary);
                     align-self: start;
                 }
+                .builder-content-layout {
+                    display: grid;
+                    grid-template-columns: minmax(220px, .8fr) 1.2fr;
+                    gap: 14px;
+                    align-items: start;
+                }
+                .builder-content-image {
+                    min-height: 210px;
+                    border: 1px dashed var(--border-color);
+                    border-radius: 14px;
+                    display: grid;
+                    place-items: center;
+                    overflow: hidden;
+                    color: var(--text-secondary);
+                    background: var(--bg-card);
+                    cursor: pointer;
+                }
+                .builder-content-image img {
+                    width: 100%;
+                    height: 210px;
+                    object-fit: cover;
+                }
+                .builder-content-image span {
+                    display: grid;
+                    justify-items: center;
+                    gap: 8px;
+                    font-size: 12px;
+                    font-weight: 800;
+                }
+                .builder-inline-remove {
+                    border: 0;
+                    background: transparent;
+                    color: var(--danger);
+                    justify-self: start;
+                    font-size: 12px;
+                    font-weight: 800;
+                    cursor: pointer;
+                }
+                .builder-repeat-list {
+                    display: grid;
+                    gap: 10px;
+                }
+                .builder-repeat-item {
+                    border: 1px solid var(--border-color);
+                    border-radius: 14px;
+                    padding: 12px;
+                    display: grid;
+                    grid-template-columns: 34px .8fr 1.2fr 34px;
+                    gap: 9px;
+                    align-items: center;
+                    background: var(--bg-card);
+                }
+                .builder-repeat-item.testimonial {
+                    grid-template-columns: 34px 1fr 1fr 34px;
+                }
+                .builder-repeat-item.faq {
+                    grid-template-columns: 34px .8fr 1.2fr 34px;
+                }
+                .builder-repeat-item > span {
+                    width: 30px;
+                    height: 30px;
+                    border-radius: 9px;
+                    display: grid;
+                    place-items: center;
+                    color: var(--accent-primary);
+                    background: rgba(108,92,231,.10);
+                    font-size: 10px;
+                    font-weight: 900;
+                }
+                .builder-repeat-item > button {
+                    width: 34px;
+                    height: 34px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 10px;
+                    display: grid;
+                    place-items: center;
+                    color: var(--danger);
+                    background: var(--bg-secondary);
+                    cursor: pointer;
+                }
+                .builder-repeat-item .wide {
+                    grid-column: 2 / 4;
+                }
                 @media (max-width: 900px) {
+                    .builder-add-row {
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                    }
                     .builder-products {
                         grid-template-columns: repeat(2, minmax(0, 1fr));
                     }
@@ -496,6 +685,22 @@ export default function StoreBuilderEditor({
                     }
                     .builder-slide-upload img {
                         height: 170px;
+                    }
+                    .builder-content-layout {
+                        grid-template-columns: 1fr;
+                    }
+                    .builder-repeat-item,
+                    .builder-repeat-item.testimonial,
+                    .builder-repeat-item.faq {
+                        grid-template-columns: 30px 1fr 34px;
+                    }
+                    .builder-repeat-item > :not(span):not(button),
+                    .builder-repeat-item .wide {
+                        grid-column: 2;
+                    }
+                    .builder-repeat-item > button {
+                        grid-column: 3;
+                        grid-row: 1;
                     }
                 }
                 @media (max-width: 640px) {
@@ -509,6 +714,9 @@ export default function StoreBuilderEditor({
                     }
                     .builder-slide-fields .wide {
                         grid-column: auto;
+                    }
+                    .builder-add-row {
+                        grid-template-columns: 1fr;
                     }
                     .builder-section-toolbar {
                         align-items: flex-start;
@@ -691,6 +899,156 @@ function BannerSectionEditor({
                     </button>
                 )}
             </div>
+        </div>
+    );
+}
+
+function ContentSectionEditor({
+    section,
+    uploading,
+    onChange,
+    onUpload
+}: {
+    section: StoreContentSection;
+    uploading: boolean;
+    onChange: (section: StoreContentSection) => void;
+    onUpload: (file: File) => Promise<void>;
+}) {
+    return (
+        <div className="builder-section-body">
+            <div className="builder-fields-two">
+                <div>
+                    <label className="builder-field-label">Texto pequeno</label>
+                    <input className="input-field" maxLength={60} value={section.eyebrow} onChange={event => onChange({ ...section, eyebrow: event.target.value })} placeholder="Ex: Sobre a marca" />
+                </div>
+                <div>
+                    <label className="builder-field-label">Título</label>
+                    <input className="input-field" maxLength={140} value={section.title} onChange={event => onChange({ ...section, title: event.target.value })} />
+                </div>
+            </div>
+            <div>
+                <label className="builder-field-label">Descrição</label>
+                <textarea className="input-field" rows={5} maxLength={1600} value={section.description} onChange={event => onChange({ ...section, description: event.target.value })} />
+            </div>
+            <div className="builder-content-layout">
+                <label className="builder-content-image">
+                    {section.image_url ? <img src={section.image_url} alt="Imagem do bloco" /> : <span><FiUpload /> {uploading ? 'Enviando...' : 'Enviar imagem opcional'}</span>}
+                    <input type="file" accept="image/*" hidden disabled={uploading} onChange={async event => {
+                        const file = event.target.files?.[0];
+                        if (file) await onUpload(file);
+                        event.target.value = '';
+                    }} />
+                </label>
+                <div className="builder-fields-two">
+                    <div>
+                        <label className="builder-field-label">Posição da imagem</label>
+                        <select className="input-field" value={section.image_position} onChange={event => onChange({ ...section, image_position: event.target.value as StoreContentSection['image_position'] })}>
+                            <option value="right">À direita</option>
+                            <option value="left">À esquerda</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="builder-field-label">Estilo do bloco</label>
+                        <select className="input-field" value={section.tone} onChange={event => onChange({ ...section, tone: event.target.value as StoreContentSection['tone'] })}>
+                            <option value="surface">Card destacado</option>
+                            <option value="accent">Cor da marca</option>
+                            <option value="transparent">Fundo transparente</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="builder-field-label">Texto do botão</label>
+                        <input className="input-field" maxLength={40} value={section.button_text} onChange={event => onChange({ ...section, button_text: event.target.value })} placeholder="Saiba mais" />
+                    </div>
+                    <div>
+                        <label className="builder-field-label">Link do botão</label>
+                        <input className="input-field" maxLength={1000} value={section.button_url} onChange={event => onChange({ ...section, button_url: event.target.value })} placeholder="https://... ou /pagina" />
+                    </div>
+                    {section.image_url && <button type="button" className="builder-inline-remove" onClick={() => onChange({ ...section, image_url: '' })}>Remover imagem</button>}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function SectionTitleFields({
+    title,
+    subtitle,
+    onTitle,
+    onSubtitle
+}: {
+    title: string;
+    subtitle: string;
+    onTitle: (value: string) => void;
+    onSubtitle: (value: string) => void;
+}) {
+    return (
+        <div className="builder-fields-two">
+            <div>
+                <label className="builder-field-label">Título da seção</label>
+                <input className="input-field" maxLength={120} value={title} onChange={event => onTitle(event.target.value)} />
+            </div>
+            <div>
+                <label className="builder-field-label">Texto de apoio</label>
+                <input className="input-field" maxLength={320} value={subtitle} onChange={event => onSubtitle(event.target.value)} />
+            </div>
+        </div>
+    );
+}
+
+function FeaturesSectionEditor({ section, onChange }: { section: StoreFeaturesSection; onChange: (section: StoreFeaturesSection) => void }) {
+    return (
+        <div className="builder-section-body">
+            <SectionTitleFields title={section.title} subtitle={section.subtitle} onTitle={title => onChange({ ...section, title })} onSubtitle={subtitle => onChange({ ...section, subtitle })} />
+            <div className="builder-repeat-list">
+                {section.items.map((item, index) => (
+                    <div className="builder-repeat-item" key={item.id}>
+                        <span>{String(index + 1).padStart(2, '0')}</span>
+                        <input className="input-field" maxLength={90} value={item.title} onChange={event => onChange({ ...section, items: section.items.map(value => value.id === item.id ? { ...value, title: event.target.value } : value) })} placeholder="Nome do diferencial" />
+                        <textarea className="input-field" rows={2} maxLength={280} value={item.description} onChange={event => onChange({ ...section, items: section.items.map(value => value.id === item.id ? { ...value, description: event.target.value } : value) })} placeholder="Explique este benefício" />
+                        <button type="button" onClick={() => onChange({ ...section, items: section.items.filter(value => value.id !== item.id) })} aria-label="Remover diferencial"><FiTrash2 /></button>
+                    </div>
+                ))}
+            </div>
+            {section.items.length < STORE_BUILDER_LIMITS.featuresPerSection && <button type="button" className="builder-add-slide" onClick={() => onChange({ ...section, items: [...section.items, { id: createStoreBuilderId('feature'), title: '', description: '' }] })}>+ Adicionar diferencial</button>}
+        </div>
+    );
+}
+
+function TestimonialsSectionEditor({ section, onChange }: { section: StoreTestimonialsSection; onChange: (section: StoreTestimonialsSection) => void }) {
+    return (
+        <div className="builder-section-body">
+            <SectionTitleFields title={section.title} subtitle={section.subtitle} onTitle={title => onChange({ ...section, title })} onSubtitle={subtitle => onChange({ ...section, subtitle })} />
+            <div className="builder-repeat-list">
+                {section.items.map((item, index) => (
+                    <div className="builder-repeat-item testimonial" key={item.id}>
+                        <span>{String(index + 1).padStart(2, '0')}</span>
+                        <textarea className="input-field wide" rows={3} maxLength={700} value={item.quote} onChange={event => onChange({ ...section, items: section.items.map(value => value.id === item.id ? { ...value, quote: event.target.value } : value) })} placeholder="Escreva o depoimento real" />
+                        <input className="input-field" maxLength={90} value={item.name} onChange={event => onChange({ ...section, items: section.items.map(value => value.id === item.id ? { ...value, name: event.target.value } : value) })} placeholder="Nome da pessoa" />
+                        <input className="input-field" maxLength={120} value={item.role} onChange={event => onChange({ ...section, items: section.items.map(value => value.id === item.id ? { ...value, role: event.target.value } : value) })} placeholder="Profissão, empresa ou contexto" />
+                        <button type="button" onClick={() => onChange({ ...section, items: section.items.filter(value => value.id !== item.id) })} aria-label="Remover depoimento"><FiTrash2 /></button>
+                    </div>
+                ))}
+            </div>
+            {section.items.length < STORE_BUILDER_LIMITS.testimonialsPerSection && <button type="button" className="builder-add-slide" onClick={() => onChange({ ...section, items: [...section.items, { id: createStoreBuilderId('testimonial'), quote: '', name: '', role: '' }] })}>+ Adicionar depoimento</button>}
+        </div>
+    );
+}
+
+function FaqSectionEditor({ section, onChange }: { section: StoreFaqSection; onChange: (section: StoreFaqSection) => void }) {
+    return (
+        <div className="builder-section-body">
+            <SectionTitleFields title={section.title} subtitle={section.subtitle} onTitle={title => onChange({ ...section, title })} onSubtitle={subtitle => onChange({ ...section, subtitle })} />
+            <div className="builder-repeat-list">
+                {section.items.map((item, index) => (
+                    <div className="builder-repeat-item faq" key={item.id}>
+                        <span>{String(index + 1).padStart(2, '0')}</span>
+                        <input className="input-field" maxLength={180} value={item.question} onChange={event => onChange({ ...section, items: section.items.map(value => value.id === item.id ? { ...value, question: event.target.value } : value) })} placeholder="Pergunta" />
+                        <textarea className="input-field" rows={3} maxLength={1000} value={item.answer} onChange={event => onChange({ ...section, items: section.items.map(value => value.id === item.id ? { ...value, answer: event.target.value } : value) })} placeholder="Resposta" />
+                        <button type="button" onClick={() => onChange({ ...section, items: section.items.filter(value => value.id !== item.id) })} aria-label="Remover pergunta"><FiTrash2 /></button>
+                    </div>
+                ))}
+            </div>
+            {section.items.length < STORE_BUILDER_LIMITS.faqPerSection && <button type="button" className="builder-add-slide" onClick={() => onChange({ ...section, items: [...section.items, { id: createStoreBuilderId('faq-item'), question: '', answer: '' }] })}>+ Adicionar pergunta</button>}
         </div>
     );
 }
