@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FiGrid, FiLayout, FiPackage, FiShoppingBag } from 'react-icons/fi';
+import { FiGlobe, FiGrid, FiLayout, FiPackage, FiShoppingBag } from 'react-icons/fi';
 
 export default function StoreLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -24,6 +24,12 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
             label: 'Produtos da loja',
             description: 'Escolha o que será exibido',
             icon: <FiPackage />
+        },
+        {
+            href: '/dashboard/store/domain',
+            label: 'Domínio próprio',
+            description: 'Conecte seu endereço',
+            icon: <FiGlobe />
         }
     ];
 
@@ -98,7 +104,7 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
                 }
                 .store-tabs {
                     display: grid;
-                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
                     gap: 10px;
                     margin-bottom: 24px;
                 }

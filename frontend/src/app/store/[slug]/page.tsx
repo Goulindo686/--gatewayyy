@@ -104,7 +104,10 @@ export default function StorePage() {
     const template = (store?.template || 'creator') as TemplateKey;
     const theme = templateStyles[template] || templateStyles.creator;
     const accent = store?.accent_color || '#6c5ce7';
-    const slug = params.slug as string;
+    // A custom hostname is used only to resolve the store. Internal navigation
+    // keeps the canonical slug so checkout/cart APIs remain fully compatible.
+    const slug = store?.slug || (params.slug as string);
+    const storeHomePath = String(params.slug).includes('.') ? '/' : `/store/${slug}`;
     const filteredProducts = useMemo(() => {
         const term = searchTerm.trim().toLowerCase();
         if (!term) return products;
@@ -129,7 +132,7 @@ export default function StorePage() {
     );
 
     const handleCategoryClick = (catSlug: string) => {
-        router.push(catSlug === activeCategory ? `/store/${slug}` : `/store/${slug}?category=${catSlug}`);
+        router.push(catSlug === activeCategory ? storeHomePath : `${storeHomePath}?category=${catSlug}`);
     };
 
     const handleNavClick = (url: string) => {
@@ -234,7 +237,7 @@ export default function StorePage() {
                 }}
             >
                 <div className="store-main-header-inner">
-                    <button className="store-brand" onClick={() => router.push(`/store/${slug}`)} style={{ color: theme.text }}>
+                    <button className="store-brand" onClick={() => router.push(storeHomePath)} style={{ color: theme.text }}>
                         <span className="store-brand-mark" style={{ background: `linear-gradient(145deg, ${accent}, ${accent}99)` }}>{storeInitials}</span>
                         <span className="store-brand-name">{store.name || slug}</span>
                         <FiCheckCircle className="store-brand-check" style={{ color: accent }} />

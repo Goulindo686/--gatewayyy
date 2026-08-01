@@ -12,29 +12,57 @@ import {
     normalizeStoreLayoutSections
 } from '@/lib/store-builder';
 
-const PUBLIC_STORE_FIELDS = 'id, name, store_name, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text, store_layout_sections, store_footer_config, store_background_config';
-const LEGACY_PUBLIC_STORE_FIELDS = 'id, name, store_name, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text';
+const PUBLIC_STORE_FIELDS = 'id, name, store_name, store_slug, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text, store_layout_sections, store_footer_config, store_background_config';
+const LEGACY_PUBLIC_STORE_FIELDS = 'id, name, store_name, store_slug, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text';
+
+function isMissingCustomDomainTable(error: { code?: string; message?: string } | null): boolean {
+    return error?.code === '42P01'
+        || error?.code === 'PGRST205'
+        || /store_custom_domains/i.test(error?.message || '');
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
+    const identifier = slug.toLowerCase().replace(/\.$/, '');
     const categorySlug = req.nextUrl.searchParams.get('category');
 
     try {
         // 1. Get store owner info
-        // Simple eq with slug, since it should be sanitized
-        const fullStoreResult = await supabase
-            .from('users')
-            .select(PUBLIC_STORE_FIELDS)
-            .ilike('store_slug', slug);
+        // A verified custom domain resolves to its owner. The original /store/slug URL
+        // remains the fallback and continues using the existing lookup.
+        let customDomainOwnerId: string | null = null;
+        if (identifier.includes('.')) {
+            const mapping = await supabase
+                .from('store_custom_domains')
+                .select('user_id')
+                .ilike('domain', identifier)
+                .eq('status', 'active')
+                .eq('verified', true)
+                .limit(1);
+
+            if (mapping.error && !isMissingCustomDomainTable(mapping.error)) {
+                console.error('Custom domain lookup error:', mapping.error);
+                return jsonError('Erro ao buscar loja', 500);
+            }
+            customDomainOwnerId = mapping.data?.[0]?.user_id || null;
+            if (!customDomainOwnerId) return jsonError('Loja não encontrada', 404);
+        }
+
+        let fullStoreQuery = supabase.from('users').select(PUBLIC_STORE_FIELDS);
+        fullStoreQuery = customDomainOwnerId
+            ? fullStoreQuery.eq('id', customDomainOwnerId)
+            : fullStoreQuery.ilike('store_slug', identifier);
+        const fullStoreResult = await fullStoreQuery;
         let users: any[] | null = fullStoreResult.data as any[] | null;
         let userError = fullStoreResult.error;
 
         // The public storefront remains available while migration 029 is pending.
         if (userError) {
-            const legacyResult = await supabase
-                .from('users')
-                .select(LEGACY_PUBLIC_STORE_FIELDS)
-                .ilike('store_slug', slug);
+            let legacyStoreQuery = supabase.from('users').select(LEGACY_PUBLIC_STORE_FIELDS);
+            legacyStoreQuery = customDomainOwnerId
+                ? legacyStoreQuery.eq('id', customDomainOwnerId)
+                : legacyStoreQuery.ilike('store_slug', identifier);
+            const legacyResult = await legacyStoreQuery;
             users = legacyResult.data;
             userError = legacyResult.error;
         }
@@ -117,6 +145,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
 
         return jsonSuccess({
             store: {
+                slug: user.store_slug,
                 name: user.store_name,
                 description: user.store_description,
                 theme: user.store_theme || 'light',
