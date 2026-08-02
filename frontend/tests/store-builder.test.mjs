@@ -220,6 +220,8 @@ test('default storefront includes the renewed brand, discovery and trust structu
     assert.match(source, /store-premium-gallery/);
     assert.match(source, /store-premium-dock/);
     assert.match(source, /store-premium-product/);
+    assert.match(source, /--store-accent/);
+    assert.match(source, /Cinematic storefront/);
     assert.match(source, /store-hero-grid/);
     assert.match(source, /store-hero-spotlight/);
     assert.match(source, /store-spotlight-media/);
