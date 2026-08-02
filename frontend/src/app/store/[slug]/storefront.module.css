@@ -1692,6 +1692,348 @@
     to { transform: translate(-40px, 50px) scale(1.18); }
 }
 
+/* Store-owner visual controls. Each class is selected from the persisted style config. */
+.fontEditorial {
+    font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+}
+
+.fontEditorial h1,
+.fontEditorial h2,
+.fontEditorial h3,
+.fontEditorial .heroCaption strong {
+    font-family: Georgia, "Times New Roman", serif;
+}
+
+.fontModern {
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+.fontModern h1,
+.fontModern h2,
+.fontModern h3,
+.fontModern .heroCaption strong {
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+    letter-spacing: -.055em;
+}
+
+.fontFriendly {
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+.fontFriendly h1,
+.fontFriendly h2,
+.fontFriendly h3,
+.fontFriendly .heroCaption strong {
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    letter-spacing: -.045em;
+}
+
+.fontBold {
+    font-family: Inter, "Arial Black", sans-serif;
+}
+
+.fontBold h1,
+.fontBold h2,
+.fontBold h3,
+.fontBold .heroCaption strong {
+    font-family: Impact, "Arial Black", sans-serif;
+    font-weight: 900;
+    letter-spacing: -.025em;
+    text-transform: uppercase;
+}
+
+.heroSplit,
+.imageArched,
+.headerGlass,
+.buttonSoft,
+.cardsColorful,
+.cornersSoft,
+.densityComfortable,
+.ratioLandscape,
+.motionExpressive,
+.patternNone {
+    --visual-option-enabled: 1;
+}
+
+.heroCentered .hero {
+    grid-template-columns: 1fr;
+    padding-top: 88px;
+    text-align: center;
+}
+
+.heroCentered .heroCopy {
+    max-width: 850px;
+    margin-inline: auto;
+}
+
+.heroCentered .heroCopy::after {
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.heroCentered .heroActions,
+.heroCentered .heroNotes {
+    justify-content: center;
+}
+
+.heroCentered .heroComposition {
+    width: min(760px, 100%);
+    min-height: 520px;
+    margin: -10px auto 20px;
+}
+
+.heroImmersive .hero {
+    position: relative;
+    min-height: 780px;
+    grid-template-columns: 1fr;
+    align-items: end;
+}
+
+.heroImmersive .heroCopy {
+    position: relative;
+    z-index: 6;
+    max-width: 720px;
+    margin: 0 0 72px 42px;
+    border: 1px solid rgba(255,255,255,.34);
+    border-radius: 28px 8px 28px 28px;
+    padding: 42px;
+    color: white;
+    background: color-mix(in srgb, var(--store-deep) 78%, transparent);
+    box-shadow: 0 30px 70px rgba(0,0,0,.22);
+    backdrop-filter: blur(14px);
+}
+
+.heroImmersive .heroCopy > p,
+.heroImmersive .heroNotes span,
+.heroImmersive .textButton {
+    color: rgba(255,255,255,.78);
+}
+
+.heroImmersive .heroComposition {
+    position: absolute;
+    inset: 30px 0;
+    z-index: 2;
+    min-height: auto;
+}
+
+.heroImmersive .heroImage {
+    inset: 2% 2% 2% 18%;
+    width: auto;
+    height: auto;
+}
+
+.imageRounded .heroImage {
+    border-radius: 42px;
+    box-shadow: 20px 22px 0 color-mix(in srgb, var(--store-accent) 20%, transparent);
+}
+
+.imageFramed .heroImage {
+    border: 14px solid var(--store-surface);
+    border-radius: 2px;
+    outline: 1px solid var(--store-line);
+    box-shadow: 18px 18px 0 color-mix(in srgb, var(--store-secondary) 50%, transparent);
+}
+
+.headerSolid .header {
+    border-bottom-color: color-mix(in srgb, var(--store-accent) 44%, transparent);
+    color: white;
+    background: var(--store-deep);
+    backdrop-filter: none;
+}
+
+.headerSolid .desktopNav button,
+.headerSolid .headerActions > button {
+    color: rgba(255,255,255,.78);
+}
+
+.headerSolid .headerSearch {
+    border-color: rgba(255,255,255,.16);
+    color: white;
+    background: rgba(255,255,255,.1);
+}
+
+.headerSolid .headerSearch input,
+.headerSolid .headerSearch input::placeholder {
+    color: rgba(255,255,255,.7);
+}
+
+.headerMinimal .header {
+    border-bottom: 0;
+    background: color-mix(in srgb, var(--store-bg) 80%, transparent);
+    backdrop-filter: blur(10px);
+}
+
+.buttonPill .primaryButton,
+.buttonPill .addToCart,
+.buttonPill .emptyState button,
+.buttonPill .categoryPills button {
+    border-radius: 999px;
+}
+
+.buttonSquare .primaryButton,
+.buttonSquare .addToCart,
+.buttonSquare .emptyState button,
+.buttonSquare .categoryPills button {
+    border-radius: 1px;
+}
+
+.cardsElevated .productCard {
+    border-color: transparent;
+    background: var(--store-surface);
+    box-shadow: 0 22px 52px rgba(15,23,42,.14);
+}
+
+.cardsElevated .productCard::before,
+.cardsOutlined .productCard::before,
+.cardsMinimal .productCard::before {
+    display: none;
+}
+
+.cardsOutlined .productCard {
+    border: 2px solid var(--store-ink);
+    background: transparent;
+    box-shadow: none;
+}
+
+.cardsMinimal .productCard {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.cardsMinimal .productCard:hover {
+    transform: translateY(-4px);
+    box-shadow: none;
+}
+
+.cardsMinimal .productBody {
+    padding-inline: 2px;
+}
+
+.cornersRounded .productCard,
+.cornersRounded .categoryGrid > button,
+.cornersRounded .closing,
+.cornersRounded .productModal {
+    border-radius: 32px;
+}
+
+.cornersRounded .brandMark,
+.cornersRounded .heroImage,
+.cornersRounded .productImage {
+    border-radius: 24px;
+}
+
+.cornersSharp .productCard,
+.cornersSharp .categoryGrid > button,
+.cornersSharp .closing,
+.cornersSharp .productModal,
+.cornersSharp .brandMark,
+.cornersSharp .heroImage,
+.cornersSharp .productImage,
+.cornersSharp .catalogSearch,
+.cornersSharp .headerSearch {
+    border-radius: 0;
+}
+
+.densityCompact .productGrid {
+    gap: 10px;
+}
+
+.densityCompact .productBody {
+    padding: 14px;
+}
+
+.densitySpacious .productGrid {
+    gap: 30px;
+}
+
+.densitySpacious .productBody {
+    padding: 28px;
+}
+
+.densitySpacious .productSection + .productSection {
+    margin-top: 86px;
+}
+
+.ratioSquare .productImage {
+    aspect-ratio: 1;
+}
+
+.ratioPortrait .productImage {
+    aspect-ratio: .76;
+}
+
+.ratioLandscape .productImage {
+    aspect-ratio: 1.28;
+}
+
+.motionNone *,
+.motionNone *::before,
+.motionNone *::after {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+}
+
+.motionSubtle .heroAuraOne,
+.motionSubtle .heroAuraTwo,
+.motionSubtle .heroComposition,
+.motionSubtle .heroImage,
+.motionSubtle .heroCaption,
+.motionSubtle .heroStamp,
+.motionSubtle .heroFloatingNote,
+.motionSubtle .heroColorCard {
+    animation-duration: 14s;
+    animation-timing-function: ease-in-out;
+}
+
+.motionSubtle .motionMarquee > div,
+.motionSubtle .announcement {
+    animation-duration: 28s;
+}
+
+.patternDots::after,
+.patternGrid::after,
+.patternWaves::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    opacity: .55;
+    pointer-events: none;
+}
+
+.patternDots::after {
+    background-image: radial-gradient(color-mix(in srgb, var(--store-accent) 22%, transparent) 1.2px, transparent 1.2px);
+    background-size: 22px 22px;
+}
+
+.patternGrid::after {
+    background-image:
+        linear-gradient(color-mix(in srgb, var(--store-ink) 7%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in srgb, var(--store-ink) 7%, transparent) 1px, transparent 1px);
+    background-size: 34px 34px;
+}
+
+.patternWaves::after {
+    background-image: radial-gradient(ellipse at 50% 100%, transparent 58%, color-mix(in srgb, var(--store-accent) 13%, transparent) 60%, transparent 64%);
+    background-size: 80px 42px;
+}
+
+.productGrid {
+    grid-template-columns: repeat(var(--catalog-columns), minmax(0, 1fr));
+}
+
+.noSearch .header > div {
+    grid-template-columns: minmax(180px, 1fr) auto auto;
+}
+
+.noSearch.noAccount .header > div {
+    grid-template-columns: minmax(180px, 1fr) auto auto;
+}
+
 @media (max-width: 1000px) {
     .header > div {
         grid-template-columns: minmax(160px, .8fr) minmax(180px, 1fr) auto;

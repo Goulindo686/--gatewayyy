@@ -28,6 +28,7 @@ import {
     normalizeStoreBackground,
     normalizeStoreFooter,
     normalizeStoreLayoutSections,
+    normalizeStoreStyle,
     StoreLayoutSection
 } from '@/lib/store-builder';
 import styles from './storefront.module.css';
@@ -72,6 +73,7 @@ type StoreData = {
     layout_sections?: unknown;
     footer?: unknown;
     background?: unknown;
+    style?: unknown;
 };
 
 type Palette = {
@@ -231,6 +233,7 @@ export default function StorePage() {
     const storeInitials = initials(store.name || slug);
     const footer = normalizeStoreFooter(store.footer);
     const background = normalizeStoreBackground(store.background);
+    const visual = normalizeStoreStyle(store.style);
     const supportUrl = footer.instagram
         ? `https://instagram.com/${footer.instagram}`
         : footer.whatsapp
@@ -244,6 +247,12 @@ export default function StorePage() {
         ...category,
         productCount: products.filter(product => product.store_category_id === category.id).length
     }));
+    const secondary = visual.color_intensity === 'monochrome'
+        ? `color-mix(in srgb, ${accent} 28%, ${palette.bg})`
+        : palette.secondary;
+    const tertiary = visual.color_intensity === 'vibrant'
+        ? palette.tertiary
+        : `color-mix(in srgb, ${accent} 45%, ${palette.soft})`;
     const rootStyle = {
         '--store-bg': background.mode === 'color' ? background.color : palette.bg,
         '--store-surface': palette.surface,
@@ -253,13 +262,30 @@ export default function StorePage() {
         '--store-line': palette.line,
         '--store-deep': palette.deep,
         '--store-accent': accent,
-        '--store-secondary': palette.secondary,
-        '--store-tertiary': palette.tertiary,
-        '--store-glow': palette.glow,
+        '--store-secondary': secondary,
+        '--store-tertiary': tertiary,
+        '--store-glow': visual.color_intensity === 'monochrome' ? accent : palette.glow,
+        '--catalog-columns': visual.catalog_columns,
         ...(background.mode === 'image' && background.image_url ? {
             backgroundImage: `linear-gradient(rgba(${palette.overlay},${background.overlay / 100}),rgba(${palette.overlay},${background.overlay / 100})),url("${background.image_url}")`
         } : {})
     } as CSSProperties;
+    const rootClasses = [
+        styles.storefront,
+        styles[`font${visual.font_style[0].toUpperCase()}${visual.font_style.slice(1)}`],
+        styles[`hero${visual.hero_layout[0].toUpperCase()}${visual.hero_layout.slice(1)}`],
+        styles[`image${visual.hero_image_style[0].toUpperCase()}${visual.hero_image_style.slice(1)}`],
+        styles[`header${visual.header_style[0].toUpperCase()}${visual.header_style.slice(1)}`],
+        styles[`button${visual.button_style[0].toUpperCase()}${visual.button_style.slice(1)}`],
+        styles[`cards${visual.card_style[0].toUpperCase()}${visual.card_style.slice(1)}`],
+        styles[`corners${visual.corner_style[0].toUpperCase()}${visual.corner_style.slice(1)}`],
+        styles[`density${visual.catalog_density[0].toUpperCase()}${visual.catalog_density.slice(1)}`],
+        styles[`ratio${visual.image_ratio[0].toUpperCase()}${visual.image_ratio.slice(1)}`],
+        styles[`motion${visual.animation_level[0].toUpperCase()}${visual.animation_level.slice(1)}`],
+        styles[`pattern${visual.background_pattern[0].toUpperCase()}${visual.background_pattern.slice(1)}`],
+        !visual.show_search && styles.noSearch,
+        !visual.show_account && styles.noAccount
+    ].filter(Boolean).join(' ');
 
     const handleCategoryClick = (categorySlug: string) => {
         router.push(categorySlug === activeCategory ? storeHomePath : `${storeHomePath}?category=${categorySlug}`);
@@ -304,13 +330,13 @@ export default function StorePage() {
     };
 
     return (
-        <div className={styles.storefront} style={rootStyle} id="inicio">
-            <div className={styles.announcement}>
+        <div className={rootClasses} style={rootStyle} id="inicio">
+            {visual.show_announcement && <div className={styles.announcement}>
                 <span>{store.badge_text || 'Uma seleção feita para você'}</span>
                 <button type="button" onClick={() => document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' })}>
                     Conhecer a loja <FiArrowRight />
                 </button>
-            </div>
+            </div>}
 
             <header className={styles.header}>
                 <div className={styles.shell}>
@@ -320,10 +346,10 @@ export default function StorePage() {
                     </button>
                     <nav className={styles.desktopNav} aria-label="Navegação principal">
                         <button onClick={() => document.getElementById('inicio')?.scrollIntoView({ behavior: 'smooth' })}>Início</button>
-                        {categories.length > 0 && <button onClick={() => document.getElementById('categorias')?.scrollIntoView({ behavior: 'smooth' })}>Categorias</button>}
+                        {visual.show_categories && categories.length > 0 && <button onClick={() => document.getElementById('categorias')?.scrollIntoView({ behavior: 'smooth' })}>Categorias</button>}
                         <button onClick={() => document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' })}>Catálogo</button>
                     </nav>
-                    <label className={styles.headerSearch}>
+                    {visual.show_search && <label className={styles.headerSearch}>
                         <FiSearch />
                         <input
                             value={searchTerm}
@@ -332,9 +358,9 @@ export default function StorePage() {
                             aria-label="Buscar produtos"
                         />
                         {searchTerm && <button type="button" onClick={() => setSearchTerm('')} aria-label="Limpar busca"><FiX /></button>}
-                    </label>
+                    </label>}
                     <div className={styles.headerActions}>
-                        <button type="button" onClick={() => router.push('/login')} aria-label="Minha conta"><FiUser /></button>
+                        {visual.show_account && <button type="button" onClick={() => router.push('/login')} aria-label="Minha conta"><FiUser /></button>}
                         <button type="button" className={styles.cartButton} onClick={() => router.push(`/store/${slug}/cart`)} aria-label="Abrir carrinho">
                             <FiShoppingBag />
                             {totalItems > 0 && <span>{totalItems}</span>}
@@ -391,15 +417,15 @@ export default function StorePage() {
                     </div>
                 </section>
 
-                <section className={styles.serviceBar}>
+                {visual.show_service_bar && <section className={styles.serviceBar}>
                     <div className={styles.shell}>
                         <div><span>01</span><p><strong>Escolha com calma</strong><small>Informações claras em cada produto</small></p></div>
                         <div><span>02</span><p><strong>Finalize com segurança</strong><small>Pagamento em ambiente protegido</small></p></div>
                         <div><span>03</span><p><strong>Conte com a loja</strong><small>Canais de contato sempre à vista</small></p></div>
                     </div>
-                </section>
+                </section>}
 
-                <div className={styles.motionMarquee} aria-hidden="true">
+                {visual.show_marquee && <div className={styles.motionMarquee} aria-hidden="true">
                     <div>
                         {[0, 1].map(copy => (
                             <span key={copy}>
@@ -410,9 +436,9 @@ export default function StorePage() {
                             </span>
                         ))}
                     </div>
-                </div>
+                </div>}
 
-                {categories.length > 0 && !searchTerm && !activeCategory && (
+                {visual.show_categories && categories.length > 0 && !searchTerm && !activeCategory && (
                     <section className={`${styles.categoriesSection} ${styles.shell}`} id="categorias">
                         <div className={styles.sectionHeading}>
                             <div>
@@ -447,14 +473,14 @@ export default function StorePage() {
                             <h2>{activeCategory ? categories.find(category => category.slug === activeCategory)?.name || 'Sua seleção' : 'Escolhas da loja'}</h2>
                             <p>{filteredProducts.length} {filteredProducts.length === 1 ? 'produto disponível' : 'produtos disponíveis'}</p>
                         </div>
-                        <label className={styles.catalogSearch}>
+                        {visual.show_search && <label className={styles.catalogSearch}>
                             <FiSearch />
                             <input value={searchTerm} onChange={event => setSearchTerm(event.target.value)} placeholder="O que você procura?" />
                             {searchTerm && <button type="button" onClick={() => setSearchTerm('')} aria-label="Limpar busca"><FiX /></button>}
-                        </label>
+                        </label>}
                     </div>
 
-                    <div className={styles.categoryPills} aria-label="Filtrar por categoria">
+                    {visual.show_categories && <div className={styles.categoryPills} aria-label="Filtrar por categoria">
                         <button className={!activeCategory ? styles.active : ''} onClick={() => handleCategoryClick('')}>Todos</button>
                         {categories.map(category => (
                             <button
@@ -465,7 +491,7 @@ export default function StorePage() {
                                 {category.name}
                             </button>
                         ))}
-                    </div>
+                    </div>}
 
                     {filteredProducts.length === 0 ? (
                         <div className={styles.emptyState}>

@@ -4,8 +4,10 @@ import { CSSProperties, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
     FiCheck,
+    FiColumns,
     FiExternalLink,
     FiEye,
+    FiEyeOff,
     FiImage,
     FiInstagram,
     FiLayout,
@@ -13,6 +15,7 @@ import {
     FiLink,
     FiMail,
     FiPackage,
+    FiPlay,
     FiPlus,
     FiPower,
     FiSave,
@@ -26,9 +29,11 @@ import {
     createStoreBuilderId,
     DEFAULT_STORE_BACKGROUND,
     DEFAULT_STORE_FOOTER,
+    DEFAULT_STORE_STYLE,
     StoreBackgroundConfig,
     StoreFooterConfig,
-    StoreLayoutSection
+    StoreLayoutSection,
+    StoreStyleConfig
 } from '@/lib/store-builder';
 
 const STORE_TEMPLATES = [
@@ -80,6 +85,7 @@ type StoreForm = {
     store_layout_sections: StoreLayoutSection[];
     store_footer_config: StoreFooterConfig;
     store_background_config: StoreBackgroundConfig;
+    store_style_config: StoreStyleConfig;
 };
 
 const initialForm: StoreForm = {
@@ -96,7 +102,8 @@ const initialForm: StoreForm = {
     store_badge_text: 'Uma seleção feita para você',
     store_layout_sections: [],
     store_footer_config: { ...DEFAULT_STORE_FOOTER, links: [] },
-    store_background_config: { ...DEFAULT_STORE_BACKGROUND }
+    store_background_config: { ...DEFAULT_STORE_BACKGROUND },
+    store_style_config: { ...DEFAULT_STORE_STYLE }
 };
 
 function slugify(value: string) {
@@ -111,10 +118,11 @@ export default function StoreSettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [migrationRequired, setMigrationRequired] = useState(false);
+    const [migrationFile, setMigrationFile] = useState('');
     const [uploading, setUploading] = useState<string | null>(null);
     const [form, setForm] = useState<StoreForm>(initialForm);
     const [products, setProducts] = useState<StoreProduct[]>([]);
-    const [activeEditor, setActiveEditor] = useState<'identity' | 'appearance' | 'structure' | 'footer'>('identity');
+    const [activeEditor, setActiveEditor] = useState<'identity' | 'appearance' | 'layout' | 'experience' | 'structure' | 'footer'>('identity');
 
     const headers = () => ({
         Authorization: `Bearer ${localStorage.getItem('token') || ''}`
@@ -132,13 +140,15 @@ export default function StoreSettingsPage() {
 
                 const store = data.store || {};
                 setMigrationRequired(Boolean(store.migration_required));
+                setMigrationFile(store.migration_file || '');
                 setProducts(data.products || []);
                 setForm({
                     ...initialForm,
                     ...store,
                     store_layout_sections: Array.isArray(store.store_layout_sections) ? store.store_layout_sections : [],
                     store_footer_config: { ...DEFAULT_STORE_FOOTER, ...(store.store_footer_config || {}), links: store.store_footer_config?.links || [] },
-                    store_background_config: { ...DEFAULT_STORE_BACKGROUND, ...(store.store_background_config || {}) }
+                    store_background_config: { ...DEFAULT_STORE_BACKGROUND, ...(store.store_background_config || {}) },
+                    store_style_config: { ...DEFAULT_STORE_STYLE, ...(store.store_style_config || {}) }
                 });
             } catch (error: unknown) {
                 toast.error(errorMessage(error, 'Erro ao carregar configurações da loja'));
@@ -151,6 +161,13 @@ export default function StoreSettingsPage() {
 
     const update = <K extends keyof StoreForm>(field: K, value: StoreForm[K]) => {
         setForm(previous => ({ ...previous, [field]: value }));
+    };
+
+    const updateStyle = <K extends keyof StoreStyleConfig>(field: K, value: StoreStyleConfig[K]) => {
+        setForm(previous => ({
+            ...previous,
+            store_style_config: { ...previous.store_style_config, [field]: value }
+        }));
     };
 
     const uploadImage = async (file: File): Promise<string> => {
@@ -211,7 +228,7 @@ export default function StoreSettingsPage() {
         if (!form.store_name.trim()) return toast.error('Informe o nome da loja');
         if (!form.store_slug.trim()) return toast.error('Informe o link da loja');
         if (migrationRequired) {
-            return toast.error('Execute primeiro a migration 029 no Supabase.');
+            return toast.error(`Execute primeiro a migration ${migrationFile || 'pendente'} no Supabase.`);
         }
 
         setSaving(true);
@@ -256,7 +273,7 @@ export default function StoreSettingsPage() {
             {migrationRequired && (
                 <div className="store-migration-alert">
                     <strong>Uma atualização do banco está pendente.</strong>
-                    <span>Execute o arquivo <code>029_add_storefront_builder.sql</code> no Supabase para ativar e salvar o novo construtor.</span>
+                    <span>Execute o arquivo <code>{migrationFile || 'indicado pela API'}</code> no Supabase para ativar e salvar todas as opções do construtor.</span>
                 </div>
             )}
 
@@ -266,7 +283,7 @@ export default function StoreSettingsPage() {
                     <div>
                         <span className="store-builder-eyebrow">PAINEL DA LOJA</span>
                         <h2>{form.store_name || 'Configure sua loja'}</h2>
-                        <p>Complete as quatro etapas abaixo e publique quando estiver tudo pronto.</p>
+                        <p>Personalize cada detalhe da experiência e publique quando estiver tudo pronto.</p>
                         <div className="store-publish-metrics">
                             <span><FiPackage /> {visibleProducts.length} produto{visibleProducts.length === 1 ? '' : 's'} visível{visibleProducts.length === 1 ? '' : 'is'}</span>
                             <span><FiLayers /> {sectionCount} seç{sectionCount === 1 ? 'ão' : 'ões'} configurada{sectionCount === 1 ? '' : 's'}</span>
@@ -295,8 +312,10 @@ export default function StoreSettingsPage() {
                         {[
                             { key: 'identity', step: '01', label: 'Marca', description: 'Nome, textos e capa', icon: <FiType /> },
                             { key: 'appearance', step: '02', label: 'Estilo', description: 'Tema, cores e fundo', icon: <FiSliders /> },
-                            { key: 'structure', step: '03', label: 'Página', description: 'Seções e destaques', icon: <FiLayers /> },
-                            { key: 'footer', step: '04', label: 'Contatos', description: 'Rodapé e canais', icon: <FiLink /> }
+                            { key: 'layout', step: '03', label: 'Layout', description: 'Capa, menu e formas', icon: <FiLayout /> },
+                            { key: 'experience', step: '04', label: 'Vitrine', description: 'Produtos e movimento', icon: <FiColumns /> },
+                            { key: 'structure', step: '05', label: 'Seções', description: 'Ordem e destaques', icon: <FiLayers /> },
+                            { key: 'footer', step: '06', label: 'Contatos', description: 'Rodapé e canais', icon: <FiLink /> }
                         ].map(item => (
                             <button
                                 key={item.key}
@@ -468,6 +487,185 @@ export default function StoreSettingsPage() {
                                     )}
                                 </div>
                             </div>
+                            <div className="store-form-group">
+                                <div className="store-form-group-heading">
+                                    <strong>Personalidade da marca</strong>
+                                    <span>A tipografia, a energia das cores e a textura mudam totalmente a sensação da loja.</span>
+                                </div>
+                                <StyleChoiceGroup
+                                    label="Estilo de tipografia"
+                                    value={form.store_style_config.font_style}
+                                    onChange={value => updateStyle('font_style', value)}
+                                    options={[
+                                        { value: 'modern', label: 'Moderna', description: 'Limpa e objetiva' },
+                                        { value: 'editorial', label: 'Editorial', description: 'Elegante e autoral' },
+                                        { value: 'friendly', label: 'Amigável', description: 'Leve e acolhedora' },
+                                        { value: 'bold', label: 'Marcante', description: 'Forte e comercial' }
+                                    ]}
+                                />
+                                <StyleChoiceGroup
+                                    label="Intensidade das cores"
+                                    value={form.store_style_config.color_intensity}
+                                    onChange={value => updateStyle('color_intensity', value)}
+                                    options={[
+                                        { value: 'monochrome', label: 'Discreta', description: 'Quase monocromática' },
+                                        { value: 'balanced', label: 'Equilibrada', description: 'Cor em pontos-chave' },
+                                        { value: 'vibrant', label: 'Vibrante', description: 'Mais energia e contraste' }
+                                    ]}
+                                />
+                                <StyleChoiceGroup
+                                    label="Textura do fundo"
+                                    value={form.store_style_config.background_pattern}
+                                    onChange={value => updateStyle('background_pattern', value)}
+                                    options={[
+                                        { value: 'none', label: 'Lisa', description: 'Fundo limpo' },
+                                        { value: 'dots', label: 'Pontos', description: 'Textura delicada' },
+                                        { value: 'grid', label: 'Grade', description: 'Ritmo contemporâneo' },
+                                        { value: 'waves', label: 'Ondas', description: 'Mais orgânica' }
+                                    ]}
+                                />
+                            </div>
+                        </section>
+                    )}
+
+                    {activeEditor === 'layout' && (
+                        <section className="glass-card store-editor-section">
+                            <SectionHeader
+                                icon={<FiLayout />}
+                                kicker="COMPOSIÇÃO DA PÁGINA"
+                                title="Escolha a forma da sua loja"
+                                description="Mude a capa, o cabeçalho, os botões e os cantos para fugir de um visual genérico."
+                            />
+                            <div className="store-form-group store-choice-stack">
+                                <StyleChoiceGroup
+                                    label="Formato da capa"
+                                    value={form.store_style_config.hero_layout}
+                                    onChange={value => updateStyle('hero_layout', value)}
+                                    options={[
+                                        { value: 'split', label: 'Dividida', description: 'Texto e imagem lado a lado' },
+                                        { value: 'centered', label: 'Central', description: 'Mensagem em destaque' },
+                                        { value: 'immersive', label: 'Imersiva', description: 'Imagem ampla e impactante' }
+                                    ]}
+                                />
+                                <StyleChoiceGroup
+                                    label="Tratamento da imagem principal"
+                                    value={form.store_style_config.hero_image_style}
+                                    onChange={value => updateStyle('hero_image_style', value)}
+                                    options={[
+                                        { value: 'arched', label: 'Arco', description: 'Curvas editoriais' },
+                                        { value: 'rounded', label: 'Suave', description: 'Bloco arredondado' },
+                                        { value: 'framed', label: 'Moldura', description: 'Imagem emoldurada' }
+                                    ]}
+                                />
+                                <StyleChoiceGroup
+                                    label="Estilo do cabeçalho"
+                                    value={form.store_style_config.header_style}
+                                    onChange={value => updateStyle('header_style', value)}
+                                    options={[
+                                        { value: 'glass', label: 'Flutuante', description: 'Transparência e desfoque' },
+                                        { value: 'solid', label: 'Sólido', description: 'Presença e contraste' },
+                                        { value: 'minimal', label: 'Minimal', description: 'Leve e sem bordas' }
+                                    ]}
+                                />
+                                <StyleChoiceGroup
+                                    label="Formato dos botões"
+                                    value={form.store_style_config.button_style}
+                                    onChange={value => updateStyle('button_style', value)}
+                                    options={[
+                                        { value: 'soft', label: 'Suave', description: 'Cantos moderados' },
+                                        { value: 'pill', label: 'Cápsula', description: 'Totalmente arredondado' },
+                                        { value: 'square', label: 'Reto', description: 'Geometria firme' }
+                                    ]}
+                                />
+                                <StyleChoiceGroup
+                                    label="Cantos da interface"
+                                    value={form.store_style_config.corner_style}
+                                    onChange={value => updateStyle('corner_style', value)}
+                                    options={[
+                                        { value: 'soft', label: 'Equilibrados', description: 'Curvas discretas' },
+                                        { value: 'rounded', label: 'Arredondados', description: 'Mais leves e orgânicos' },
+                                        { value: 'sharp', label: 'Retos', description: 'Visual editorial e preciso' }
+                                    ]}
+                                />
+                            </div>
+                        </section>
+                    )}
+
+                    {activeEditor === 'experience' && (
+                        <section className="glass-card store-editor-section">
+                            <SectionHeader
+                                icon={<FiColumns />}
+                                kicker="EXPERIÊNCIA DA VITRINE"
+                                title="Controle como o catálogo se comporta"
+                                description="Ajuste densidade, imagens, cards, animações e quais elementos aparecem para o cliente."
+                            />
+                            <div className="store-form-group store-choice-stack">
+                                <StyleChoiceGroup
+                                    label="Estilo dos produtos"
+                                    value={form.store_style_config.card_style}
+                                    onChange={value => updateStyle('card_style', value)}
+                                    options={[
+                                        { value: 'colorful', label: 'Colorido', description: 'Cards com personalidade' },
+                                        { value: 'elevated', label: 'Elevado', description: 'Sombras e profundidade' },
+                                        { value: 'outlined', label: 'Contornado', description: 'Estrutura bem definida' },
+                                        { value: 'minimal', label: 'Essencial', description: 'Produto em primeiro plano' }
+                                    ]}
+                                />
+                                <StyleChoiceGroup
+                                    label="Espaçamento do catálogo"
+                                    value={form.store_style_config.catalog_density}
+                                    onChange={value => updateStyle('catalog_density', value)}
+                                    options={[
+                                        { value: 'compact', label: 'Compacto', description: 'Mais itens na tela' },
+                                        { value: 'comfortable', label: 'Confortável', description: 'Equilíbrio visual' },
+                                        { value: 'spacious', label: 'Espaçoso', description: 'Mais respiro e luxo' }
+                                    ]}
+                                />
+                                <StyleChoiceGroup
+                                    label="Proporção das fotos"
+                                    value={form.store_style_config.image_ratio}
+                                    onChange={value => updateStyle('image_ratio', value)}
+                                    options={[
+                                        { value: 'square', label: 'Quadrada', description: '1:1 versátil' },
+                                        { value: 'portrait', label: 'Vertical', description: 'Moda e produtos altos' },
+                                        { value: 'landscape', label: 'Horizontal', description: 'Cenas e produtos largos' }
+                                    ]}
+                                />
+                                <StyleChoiceGroup
+                                    label="Colunas no desktop"
+                                    value={form.store_style_config.catalog_columns}
+                                    onChange={value => updateStyle('catalog_columns', value)}
+                                    options={[
+                                        { value: 2, label: '2 colunas', description: 'Cards grandes' },
+                                        { value: 3, label: '3 colunas', description: 'Vitrine equilibrada' },
+                                        { value: 4, label: '4 colunas', description: 'Catálogo amplo' }
+                                    ]}
+                                />
+                                <StyleChoiceGroup
+                                    label="Movimento da página"
+                                    value={form.store_style_config.animation_level}
+                                    onChange={value => updateStyle('animation_level', value)}
+                                    options={[
+                                        { value: 'none', label: 'Sem animação', description: 'Experiência direta' },
+                                        { value: 'subtle', label: 'Sutil', description: 'Movimentos delicados' },
+                                        { value: 'expressive', label: 'Expressivo', description: 'Mais vida e impacto' }
+                                    ]}
+                                />
+                            </div>
+                            <div className="store-form-group">
+                                <div className="store-form-group-heading">
+                                    <strong>Elementos visíveis</strong>
+                                    <span>Monte uma página mais completa ou enxuta conforme seu público.</span>
+                                </div>
+                                <div className="store-visibility-grid">
+                                    <VisibilityToggle icon={<FiPlay />} label="Aviso no topo" description="Mensagem curta acima do menu" enabled={form.store_style_config.show_announcement} onChange={value => updateStyle('show_announcement', value)} />
+                                    <VisibilityToggle icon={<FiLayers />} label="Barra de benefícios" description="Compra, pagamento e suporte" enabled={form.store_style_config.show_service_bar} onChange={value => updateStyle('show_service_bar', value)} />
+                                    <VisibilityToggle icon={<FiPlay />} label="Faixa animada" description="Palavras em movimento na página" enabled={form.store_style_config.show_marquee} onChange={value => updateStyle('show_marquee', value)} />
+                                    <VisibilityToggle icon={<FiColumns />} label="Categorias" description="Atalhos visuais para os departamentos" enabled={form.store_style_config.show_categories} onChange={value => updateStyle('show_categories', value)} />
+                                    <VisibilityToggle icon={<FiEye />} label="Campo de busca" description="Busca no menu e no catálogo" enabled={form.store_style_config.show_search} onChange={value => updateStyle('show_search', value)} />
+                                    <VisibilityToggle icon={<FiEyeOff />} label="Acesso à conta" description="Atalho de login no cabeçalho" enabled={form.store_style_config.show_account} onChange={value => updateStyle('show_account', value)} />
+                                </div>
+                            </div>
                         </section>
                     )}
 
@@ -635,7 +833,7 @@ export default function StoreSettingsPage() {
                 }
                 .store-setup-navigation {
                     display: grid;
-                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
                     gap: 10px;
                 }
                 .store-setup-navigation > button {
@@ -877,7 +1075,7 @@ export default function StoreSettingsPage() {
                 }
                 .store-preview-product-grid {
                     display: grid;
-                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    grid-template-columns: repeat(var(--preview-columns), minmax(0, 1fr));
                     gap: 5px;
                 }
                 .store-preview-product {
@@ -915,6 +1113,78 @@ export default function StoreSettingsPage() {
                     color: var(--preview-muted);
                     font-size: 4px;
                 }
+                .store-preview-service {
+                    min-height: 22px;
+                    padding: 0 10px;
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    align-items: center;
+                    gap: 4px;
+                    border-block: 1px solid color-mix(in srgb, var(--preview-ink) 10%, transparent);
+                    background: var(--preview-surface);
+                    color: var(--preview-muted);
+                    font-size: 4px;
+                    text-align: center;
+                }
+                .store-preview-marquee {
+                    overflow: hidden;
+                    padding: 4px 0;
+                    color: var(--preview-ink);
+                    background: var(--preview-secondary);
+                    white-space: nowrap;
+                    font-size: 5px;
+                    font-weight: 900;
+                    letter-spacing: .12em;
+                    animation: store-preview-marquee 9s linear infinite;
+                }
+                .preview-font-modern { font-family: Arial, Helvetica, sans-serif; }
+                .preview-font-modern .store-preview-copy h4,
+                .preview-font-modern .store-preview-products > span { font-family: Arial, Helvetica, sans-serif; letter-spacing: -.05em; }
+                .preview-font-friendly { font-family: "Trebuchet MS", Arial, sans-serif; }
+                .preview-font-friendly .store-preview-copy h4,
+                .preview-font-friendly .store-preview-products > span { font-family: "Trebuchet MS", Arial, sans-serif; letter-spacing: -.04em; }
+                .preview-font-bold { font-family: Impact, "Arial Black", sans-serif; }
+                .preview-font-bold .store-preview-copy p,
+                .preview-font-bold .store-preview-product { font-family: Arial, sans-serif; }
+                .preview-hero-centered .store-preview-hero { grid-template-columns: 1fr; text-align: center; }
+                .preview-hero-centered .store-preview-media { display: none; }
+                .preview-hero-centered .store-preview-copy { max-width: 80%; margin: auto; }
+                .preview-hero-immersive .store-preview-hero { position: relative; grid-template-columns: 1fr; min-height: 174px; }
+                .preview-hero-immersive .store-preview-media { position: absolute; inset: 0; opacity: .32; border-radius: 0; box-shadow: none; }
+                .preview-hero-immersive .store-preview-copy { position: relative; z-index: 1; max-width: 72%; }
+                .preview-image-rounded .store-preview-media { border-radius: 16px; box-shadow: none; }
+                .preview-image-framed .store-preview-media { border: 5px solid var(--preview-surface); border-radius: 2px; box-shadow: 0 0 0 1px var(--preview-ink); }
+                .preview-header-solid .store-preview-header { color: white; background: var(--preview-ink); }
+                .preview-header-solid .store-preview-logo { color: var(--preview-ink); background: white; }
+                .preview-header-minimal .store-preview-header { background: transparent; }
+                .preview-button-pill .store-preview-copy button { border-radius: 999px; }
+                .preview-button-square .store-preview-copy button { border-radius: 0; }
+                .preview-card-elevated .store-preview-product { padding: 4px; background: var(--preview-surface); box-shadow: 0 4px 10px rgba(15,23,42,.12); }
+                .preview-card-outlined .store-preview-product { padding: 4px; border: 1px solid color-mix(in srgb, var(--preview-ink) 18%, transparent); }
+                .preview-card-minimal .store-preview-product-image { background: color-mix(in srgb, var(--preview-bg) 80%, white); }
+                .preview-corners-rounded .store-preview-product,
+                .preview-corners-rounded .store-preview-product-image { border-radius: 10px; }
+                .preview-corners-sharp,
+                .preview-corners-sharp .store-preview-media,
+                .preview-corners-sharp .store-preview-product,
+                .preview-corners-sharp .store-preview-product-image { border-radius: 0; }
+                .preview-density-compact .store-preview-products { padding: 8px; }
+                .preview-density-compact .store-preview-product-grid { gap: 3px; }
+                .preview-density-spacious .store-preview-products { padding: 16px 12px 18px; }
+                .preview-density-spacious .store-preview-product-grid { gap: 9px; }
+                .preview-ratio-square .store-preview-product-image { height: auto; aspect-ratio: 1; }
+                .preview-ratio-portrait .store-preview-product-image { height: auto; aspect-ratio: .76; }
+                .preview-ratio-landscape .store-preview-product-image { height: auto; aspect-ratio: 1.45; }
+                .preview-pattern-dots { background-image: radial-gradient(color-mix(in srgb, var(--preview-accent) 18%, transparent) 1px, transparent 1px); background-size: 10px 10px; }
+                .preview-pattern-grid { background-image: linear-gradient(color-mix(in srgb, var(--preview-ink) 7%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--preview-ink) 7%, transparent) 1px, transparent 1px); background-size: 14px 14px; }
+                .preview-pattern-waves { background-image: radial-gradient(ellipse at 50% 100%, transparent 58%, color-mix(in srgb, var(--preview-accent) 12%, transparent) 60%, transparent 64%); background-size: 28px 14px; }
+                .preview-motion-none *,
+                .preview-motion-none *::before,
+                .preview-motion-none *::after { animation: none !important; transition: none !important; }
+                .preview-motion-subtle .store-preview-media { animation-duration: 10s; }
+                .preview-motion-subtle .store-preview-topline,
+                .preview-motion-subtle .store-preview-marquee { animation-duration: 18s; }
+                @keyframes store-preview-marquee { to { text-indent: -45%; } }
                 .store-preview-open {
                     min-height: 36px;
                     margin-top: 9px;
@@ -1126,6 +1396,87 @@ export default function StoreSettingsPage() {
                     grid-template-columns: 1fr 1fr;
                     gap: 18px;
                 }
+                .store-choice-stack {
+                    display: grid;
+                    gap: 20px;
+                }
+                .store-style-choice-group {
+                    display: grid;
+                    gap: 9px;
+                }
+                .store-style-choice-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+                    gap: 8px;
+                }
+                .store-style-choice-grid > button {
+                    position: relative;
+                    min-height: 78px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 13px;
+                    padding: 13px;
+                    color: var(--text-primary);
+                    background: var(--bg-card);
+                    text-align: left;
+                    cursor: pointer;
+                    transition: .2s ease;
+                }
+                .store-style-choice-grid > button:hover {
+                    border-color: rgba(108,92,231,.4);
+                    transform: translateY(-1px);
+                }
+                .store-style-choice-grid > button.selected {
+                    border-color: var(--accent-primary);
+                    background: rgba(108,92,231,.09);
+                    box-shadow: inset 0 -3px 0 var(--accent-primary);
+                }
+                .store-style-choice-grid > button > i {
+                    position: absolute;
+                    top: 9px;
+                    right: 9px;
+                    width: 19px;
+                    height: 19px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 999px;
+                    display: grid;
+                    place-items: center;
+                    color: white;
+                    background: var(--bg-secondary);
+                    font-size: 10px;
+                    font-style: normal;
+                }
+                .store-style-choice-grid > button.selected > i { border-color: var(--accent-primary); background: var(--accent-primary); }
+                .store-style-choice-grid strong,
+                .store-style-choice-grid span { display: block; padding-right: 18px; }
+                .store-style-choice-grid strong { margin-bottom: 5px; font-size: 12px; }
+                .store-style-choice-grid span { color: var(--text-muted); font-size: 10px; line-height: 1.35; }
+                .store-visibility-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 9px;
+                }
+                .store-visibility-toggle {
+                    min-height: 64px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 13px;
+                    padding: 10px 12px;
+                    display: grid;
+                    grid-template-columns: 34px 1fr 24px;
+                    align-items: center;
+                    gap: 9px;
+                    color: var(--text-primary);
+                    background: var(--bg-card);
+                    text-align: left;
+                    cursor: pointer;
+                }
+                .store-visibility-toggle.active { border-color: rgba(0,184,148,.38); background: rgba(0,184,148,.07); }
+                .store-visibility-toggle > span { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--accent-primary); background: rgba(108,92,231,.1); }
+                .store-visibility-toggle strong,
+                .store-visibility-toggle small { display: block; }
+                .store-visibility-toggle strong { margin-bottom: 3px; font-size: 11px; }
+                .store-visibility-toggle small { color: var(--text-muted); font-size: 9px; line-height: 1.3; }
+                .store-visibility-toggle > i { color: var(--text-muted); font-style: normal; }
+                .store-visibility-toggle.active > i { color: #00b894; }
                 .store-color-row {
                     display: flex;
                     gap: 8px;
@@ -1313,7 +1664,8 @@ export default function StoreSettingsPage() {
                     }
                     .store-form-grid.two,
                     .store-template-grid,
-                    .store-visual-grid {
+                    .store-visual-grid,
+                    .store-visibility-grid {
                         grid-template-columns: 1fr;
                     }
                     .store-form-field.wide,
@@ -1355,17 +1707,21 @@ function StoreLivePreview({ form, products }: { form: StoreForm; products: Store
         studio: { bg: '#f4efe8', surface: '#fffdf8', ink: '#4c3526', muted: '#817268', secondary: '#d77b58', tertiary: '#8da05e' }
     };
     const palette = palettes[form.store_template] || palettes.creator;
+    const visual = form.store_style_config;
     const backgroundColor = form.store_background_config.mode === 'color'
         ? form.store_background_config.color
         : palette.bg;
+    const secondary = visual.color_intensity === 'monochrome' ? form.store_accent_color : palette.secondary;
+    const tertiary = visual.color_intensity === 'vibrant' ? palette.tertiary : form.store_accent_color;
     const previewStyle = {
         '--preview-bg': backgroundColor,
         '--preview-surface': palette.surface,
         '--preview-ink': palette.ink,
         '--preview-muted': palette.muted,
         '--preview-accent': form.store_accent_color,
-        '--preview-secondary': palette.secondary,
-        '--preview-tertiary': palette.tertiary
+        '--preview-secondary': secondary,
+        '--preview-tertiary': tertiary,
+        '--preview-columns': Math.min(visual.catalog_columns, 3)
     } as CSSProperties;
     const initials = (form.store_name || 'Minha Loja')
         .split(/\s+/)
@@ -1381,13 +1737,29 @@ function StoreLivePreview({ form, products }: { form: StoreForm; products: Store
     ];
 
     return (
-        <div className="store-live-preview" style={previewStyle}>
+        <div
+            className={[
+                'store-live-preview',
+                `preview-font-${visual.font_style}`,
+                `preview-hero-${visual.hero_layout}`,
+                `preview-image-${visual.hero_image_style}`,
+                `preview-header-${visual.header_style}`,
+                `preview-button-${visual.button_style}`,
+                `preview-card-${visual.card_style}`,
+                `preview-corners-${visual.corner_style}`,
+                `preview-density-${visual.catalog_density}`,
+                `preview-ratio-${visual.image_ratio}`,
+                `preview-motion-${visual.animation_level}`,
+                `preview-pattern-${visual.background_pattern}`
+            ].join(' ')}
+            style={previewStyle}
+        >
             <div className="store-preview-browser-bar"><i /><i /><i /></div>
-            <div className="store-preview-topline">{form.store_badge_text || 'Uma seleção feita para você'}</div>
+            {visual.show_announcement && <div className="store-preview-topline">{form.store_badge_text || 'Uma seleção feita para você'}</div>}
             <div className="store-preview-header">
                 <span className="store-preview-logo">{initials || 'ML'}</span>
                 <strong>{form.store_name || 'Minha Loja'}</strong>
-                <span />
+                <span>{visual.show_search ? '⌕' : ''}{visual.show_account ? ' ○' : ''}</span>
             </div>
             <div className="store-preview-hero">
                 <div className="store-preview-copy">
@@ -1401,6 +1773,8 @@ function StoreLivePreview({ form, products }: { form: StoreForm; products: Store
                     style={form.store_banner_url ? { backgroundImage: `url("${form.store_banner_url}")` } : undefined}
                 />
             </div>
+            {visual.show_service_bar && <div className="store-preview-service"><span>Compra segura</span><span>Pagamento protegido</span><span>Suporte da loja</span></div>}
+            {visual.show_marquee && <div className="store-preview-marquee">DESCUBRA · ESCOLHA · APROVEITE ·</div>}
             <div className="store-preview-products">
                 <span>Escolhas da loja</span>
                 <div className="store-preview-product-grid">
@@ -1455,6 +1829,62 @@ function Field({ label, wide = false, children }: { label: string; wide?: boolea
     );
 }
 
+type StyleChoiceValue = string | number;
+
+function StyleChoiceGroup<T extends StyleChoiceValue>({
+    label,
+    value,
+    options,
+    onChange
+}: {
+    label: string;
+    value: T;
+    options: Array<{ value: T; label: string; description: string }>;
+    onChange: (value: T) => void;
+}) {
+    return (
+        <div className="store-style-choice-group">
+            <label className="store-field-label">{label}</label>
+            <div className="store-style-choice-grid">
+                {options.map(option => (
+                    <button
+                        key={String(option.value)}
+                        type="button"
+                        className={value === option.value ? 'selected' : ''}
+                        onClick={() => onChange(option.value)}
+                    >
+                        <i>{value === option.value && <FiCheck />}</i>
+                        <strong>{option.label}</strong>
+                        <span>{option.description}</span>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function VisibilityToggle({
+    icon,
+    label,
+    description,
+    enabled,
+    onChange
+}: {
+    icon: React.ReactNode;
+    label: string;
+    description: string;
+    enabled: boolean;
+    onChange: (enabled: boolean) => void;
+}) {
+    return (
+        <button type="button" className={`store-visibility-toggle ${enabled ? 'active' : ''}`} onClick={() => onChange(!enabled)}>
+            <span>{icon}</span>
+            <div><strong>{label}</strong><small>{description}</small></div>
+            <i>{enabled ? <FiEye /> : <FiEyeOff />}</i>
+        </button>
+    );
+}
+
 function ImageUploader({
     imageUrl,
     uploading,
@@ -1493,7 +1923,7 @@ function FooterEditor({ value, onChange }: { value: StoreFooterConfig; onChange:
         <section className="glass-card store-editor-section">
             <SectionHeader
                 icon={<FiLink />}
-                kicker="ETAPA 4"
+                kicker="ETAPA 6"
                 title="Rodapé e contatos"
                 description="Edite apresentação, contatos e links úteis exibidos no final da página."
                 action={(

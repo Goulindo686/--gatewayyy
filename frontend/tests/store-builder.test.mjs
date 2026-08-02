@@ -6,6 +6,7 @@ import {
     normalizeStoreBackground,
     normalizeStoreFooter,
     normalizeStoreLayoutSections,
+    normalizeStoreStyle,
     StoreBuilderValidationError
 } from '../src/lib/store-builder.ts';
 
@@ -92,30 +93,61 @@ test('store builder API requires authentication and validates product ownership'
     assert.doesNotMatch(source, /SUPABASE_SERVICE_KEY.*jsonSuccess/s);
 });
 
-test('public store API keeps a legacy fallback until migration 029 is applied', async () => {
+test('public store API keeps builder and legacy fallbacks until migrations are applied', async () => {
     const source = await readFile(new URL('../src/app/api/store/[slug]/route.ts', import.meta.url), 'utf8');
     assert.match(source, /LEGACY_PUBLIC_STORE_FIELDS/);
+    assert.match(source, /BUILDER_PUBLIC_STORE_FIELDS/);
     assert.match(source, /normalizeStoreLayoutSections/);
     assert.match(source, /normalizeStoreFooter/);
     assert.match(source, /normalizeStoreBackground/);
+    assert.match(source, /normalizeStoreStyle/);
 });
 
-test('store settings use an organized four-step editor with a live preview', async () => {
+test('store settings use an organized six-part editor with visual controls and a live preview', async () => {
     const source = await readFile(new URL('../src/app/dashboard/store/settings/page.tsx', import.meta.url), 'utf8');
     const layout = await readFile(new URL('../src/app/dashboard/store/layout.tsx', import.meta.url), 'utf8');
 
     assert.match(source, /store-setup-navigation/);
     assert.match(source, /activeEditor === 'identity'/);
     assert.match(source, /activeEditor === 'appearance'/);
+    assert.match(source, /activeEditor === 'layout'/);
+    assert.match(source, /activeEditor === 'experience'/);
     assert.match(source, /activeEditor === 'structure'/);
     assert.match(source, /activeEditor === 'footer'/);
     assert.match(source, /store-save-bar/);
     assert.match(source, /StoreLivePreview/);
     assert.match(source, /store-live-preview-column/);
+    assert.match(source, /StyleChoiceGroup/);
+    assert.match(source, /VisibilityToggle/);
+    assert.match(source, /store_style_config/);
     assert.match(layout, /Personalização/);
     assert.match(layout, /Marca, visual e estrutura/);
     assert.match(layout, /Organizar/);
     assert.match(layout, /Publicar/);
+});
+
+test('store style persists a broad visual profile and rejects invalid choices', () => {
+    const style = normalizeStoreStyle({
+        font_style: 'friendly',
+        hero_layout: 'immersive',
+        card_style: 'outlined',
+        catalog_columns: 2,
+        animation_level: 'subtle',
+        background_pattern: 'waves',
+        show_marquee: false,
+        show_search: false
+    }, { strict: true });
+
+    assert.equal(style.font_style, 'friendly');
+    assert.equal(style.hero_layout, 'immersive');
+    assert.equal(style.card_style, 'outlined');
+    assert.equal(style.catalog_columns, 2);
+    assert.equal(style.show_marquee, false);
+    assert.equal(style.show_search, false);
+    assert.throws(
+        () => normalizeStoreStyle({ hero_layout: 'impossible' }, { strict: true }),
+        StoreBuilderValidationError
+    );
 });
 
 test('default storefront includes the editorial brand, discovery and trust structure', async () => {
@@ -128,6 +160,12 @@ test('default storefront includes the editorial brand, discovery and trust struc
     assert.match(source, /styles\.serviceBar/);
     assert.match(source, /StoreBannerCarousel/);
     assert.match(source, /buildRenderableStoreSections/);
+    assert.match(source, /normalizeStoreStyle/);
+    assert.match(source, /visual\.show_announcement/);
+    assert.match(source, /visual\.show_search/);
+    assert.match(css, /\.heroImmersive/);
+    assert.match(css, /\.cardsMinimal/);
+    assert.match(css, /\.patternWaves/);
     assert.match(css, /Iowan Old Style/);
     assert.match(css, /border-radius: 4px 90px 4px 4px/);
     assert.doesNotMatch(source, /className="featured-card"/);

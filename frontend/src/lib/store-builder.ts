@@ -54,10 +54,33 @@ export type StoreBackgroundConfig = {
     overlay: number;
 };
 
+export type StoreStyleConfig = {
+    font_style: 'modern' | 'editorial' | 'friendly' | 'bold';
+    hero_layout: 'split' | 'centered' | 'immersive';
+    hero_image_style: 'arched' | 'rounded' | 'framed';
+    header_style: 'glass' | 'solid' | 'minimal';
+    button_style: 'soft' | 'pill' | 'square';
+    card_style: 'colorful' | 'elevated' | 'outlined' | 'minimal';
+    corner_style: 'soft' | 'rounded' | 'sharp';
+    catalog_density: 'compact' | 'comfortable' | 'spacious';
+    image_ratio: 'square' | 'portrait' | 'landscape';
+    animation_level: 'none' | 'subtle' | 'expressive';
+    color_intensity: 'monochrome' | 'balanced' | 'vibrant';
+    background_pattern: 'none' | 'dots' | 'grid' | 'waves';
+    catalog_columns: 2 | 3 | 4;
+    show_announcement: boolean;
+    show_service_bar: boolean;
+    show_marquee: boolean;
+    show_categories: boolean;
+    show_search: boolean;
+    show_account: boolean;
+};
+
 export type StoreBuilderConfig = {
     sections: StoreLayoutSection[];
     footer: StoreFooterConfig;
     background: StoreBackgroundConfig;
+    style: StoreStyleConfig;
 };
 
 export class StoreBuilderValidationError extends Error {
@@ -82,6 +105,28 @@ export const DEFAULT_STORE_BACKGROUND: StoreBackgroundConfig = {
     color: '#09090b',
     image_url: '',
     overlay: 82
+};
+
+export const DEFAULT_STORE_STYLE: StoreStyleConfig = {
+    font_style: 'editorial',
+    hero_layout: 'split',
+    hero_image_style: 'arched',
+    header_style: 'glass',
+    button_style: 'soft',
+    card_style: 'colorful',
+    corner_style: 'soft',
+    catalog_density: 'comfortable',
+    image_ratio: 'landscape',
+    animation_level: 'expressive',
+    color_intensity: 'vibrant',
+    background_pattern: 'none',
+    catalog_columns: 4,
+    show_announcement: true,
+    show_service_bar: true,
+    show_marquee: true,
+    show_categories: true,
+    show_search: true,
+    show_account: true
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -279,6 +324,61 @@ export function normalizeStoreBackground(value: unknown, options: { strict?: boo
     };
 }
 
+function enumValue<T extends string>(
+    value: unknown,
+    allowed: readonly T[],
+    fallback: T,
+    fieldLabel: string,
+    strict = false
+): T {
+    const normalized = text(value, 40) as T;
+    if (allowed.includes(normalized)) return normalized;
+    if (strict && normalized) throw new StoreBuilderValidationError(`${fieldLabel} inválido.`);
+    return fallback;
+}
+
+function booleanValue(value: unknown, fallback: boolean, fieldLabel: string, strict = false): boolean {
+    if (typeof value === 'boolean') return value;
+    if (value == null) return fallback;
+    if (strict) throw new StoreBuilderValidationError(`${fieldLabel} inválido.`);
+    return fallback;
+}
+
+export function normalizeStoreStyle(value: unknown, options: { strict?: boolean } = {}): StoreStyleConfig {
+    if (value == null) return { ...DEFAULT_STORE_STYLE };
+    if (!isRecord(value)) {
+        if (options.strict) throw new StoreBuilderValidationError('A configuração visual da loja é inválida.');
+        return { ...DEFAULT_STORE_STYLE };
+    }
+
+    const columns = Number(value.catalog_columns);
+    if (options.strict && Number.isFinite(columns) && ![2, 3, 4].includes(columns)) {
+        throw new StoreBuilderValidationError('A quantidade de colunas do catálogo é inválida.');
+    }
+
+    return {
+        font_style: enumValue(value.font_style, ['modern', 'editorial', 'friendly', 'bold'] as const, DEFAULT_STORE_STYLE.font_style, 'Estilo de fonte', options.strict),
+        hero_layout: enumValue(value.hero_layout, ['split', 'centered', 'immersive'] as const, DEFAULT_STORE_STYLE.hero_layout, 'Formato da capa', options.strict),
+        hero_image_style: enumValue(value.hero_image_style, ['arched', 'rounded', 'framed'] as const, DEFAULT_STORE_STYLE.hero_image_style, 'Estilo da imagem principal', options.strict),
+        header_style: enumValue(value.header_style, ['glass', 'solid', 'minimal'] as const, DEFAULT_STORE_STYLE.header_style, 'Estilo do cabeçalho', options.strict),
+        button_style: enumValue(value.button_style, ['soft', 'pill', 'square'] as const, DEFAULT_STORE_STYLE.button_style, 'Estilo dos botões', options.strict),
+        card_style: enumValue(value.card_style, ['colorful', 'elevated', 'outlined', 'minimal'] as const, DEFAULT_STORE_STYLE.card_style, 'Estilo dos produtos', options.strict),
+        corner_style: enumValue(value.corner_style, ['soft', 'rounded', 'sharp'] as const, DEFAULT_STORE_STYLE.corner_style, 'Formato dos cantos', options.strict),
+        catalog_density: enumValue(value.catalog_density, ['compact', 'comfortable', 'spacious'] as const, DEFAULT_STORE_STYLE.catalog_density, 'Espaçamento do catálogo', options.strict),
+        image_ratio: enumValue(value.image_ratio, ['square', 'portrait', 'landscape'] as const, DEFAULT_STORE_STYLE.image_ratio, 'Proporção das imagens', options.strict),
+        animation_level: enumValue(value.animation_level, ['none', 'subtle', 'expressive'] as const, DEFAULT_STORE_STYLE.animation_level, 'Intensidade das animações', options.strict),
+        color_intensity: enumValue(value.color_intensity, ['monochrome', 'balanced', 'vibrant'] as const, DEFAULT_STORE_STYLE.color_intensity, 'Intensidade das cores', options.strict),
+        background_pattern: enumValue(value.background_pattern, ['none', 'dots', 'grid', 'waves'] as const, DEFAULT_STORE_STYLE.background_pattern, 'Textura de fundo', options.strict),
+        catalog_columns: ([2, 3, 4].includes(columns) ? columns : DEFAULT_STORE_STYLE.catalog_columns) as 2 | 3 | 4,
+        show_announcement: booleanValue(value.show_announcement, DEFAULT_STORE_STYLE.show_announcement, 'Visibilidade do aviso', options.strict),
+        show_service_bar: booleanValue(value.show_service_bar, DEFAULT_STORE_STYLE.show_service_bar, 'Visibilidade dos benefícios', options.strict),
+        show_marquee: booleanValue(value.show_marquee, DEFAULT_STORE_STYLE.show_marquee, 'Visibilidade da faixa animada', options.strict),
+        show_categories: booleanValue(value.show_categories, DEFAULT_STORE_STYLE.show_categories, 'Visibilidade das categorias', options.strict),
+        show_search: booleanValue(value.show_search, DEFAULT_STORE_STYLE.show_search, 'Visibilidade da busca', options.strict),
+        show_account: booleanValue(value.show_account, DEFAULT_STORE_STYLE.show_account, 'Visibilidade da conta', options.strict)
+    };
+}
+
 export function normalizeStoreBuilder(
     value: Partial<StoreBuilderConfig> | null | undefined,
     options: { strict?: boolean } = {}
@@ -286,7 +386,8 @@ export function normalizeStoreBuilder(
     return {
         sections: normalizeStoreLayoutSections(value?.sections, options),
         footer: normalizeStoreFooter(value?.footer, options),
-        background: normalizeStoreBackground(value?.background, options)
+        background: normalizeStoreBackground(value?.background, options),
+        style: normalizeStoreStyle(value?.style, options)
     };
 }
 
