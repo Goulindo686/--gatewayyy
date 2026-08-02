@@ -120,6 +120,9 @@ test('store settings use an organized six-part editor with visual controls and a
     assert.match(source, /StyleChoiceGroup/);
     assert.match(source, /VisibilityToggle/);
     assert.match(source, /store_style_config/);
+    assert.match(source, /COLOR_PALETTE_OPTIONS/);
+    assert.match(source, /CUSTOM_COLOR_FIELDS/);
+    assert.match(source, /Minha paleta/);
     assert.match(layout, /Personalização/);
     assert.match(layout, /Marca, visual e estrutura/);
     assert.match(layout, /Organizar/);
@@ -128,6 +131,10 @@ test('store settings use an organized six-part editor with visual controls and a
 
 test('store style persists a broad visual profile and rejects invalid choices', () => {
     const style = normalizeStoreStyle({
+        visual_version: 2,
+        color_mode: 'custom',
+        palette_preset: 'ocean',
+        custom_colors: { bg: '#01040a', surface: '#10151f', accent: '#00b8ff' },
         font_style: 'friendly',
         hero_layout: 'immersive',
         card_style: 'outlined',
@@ -139,6 +146,10 @@ test('store style persists a broad visual profile and rejects invalid choices', 
     }, { strict: true });
 
     assert.equal(style.font_style, 'friendly');
+    assert.equal(style.color_mode, 'custom');
+    assert.equal(style.palette_preset, 'ocean');
+    assert.equal(style.custom_colors.bg, '#01040a');
+    assert.equal(style.custom_colors.accent, '#00b8ff');
     assert.equal(style.hero_layout, 'immersive');
     assert.equal(style.card_style, 'outlined');
     assert.equal(style.catalog_columns, 2);
@@ -148,6 +159,37 @@ test('store style persists a broad visual profile and rejects invalid choices', 
         () => normalizeStoreStyle({ hero_layout: 'impossible' }, { strict: true }),
         StoreBuilderValidationError
     );
+    assert.throws(
+        () => normalizeStoreStyle({ visual_version: 2, color_mode: 'custom', custom_colors: { bg: 'red' } }, { strict: true }),
+        StoreBuilderValidationError
+    );
+});
+
+test('store style modernizes the previous default while preserving intentional choices', () => {
+    const modernDefault = normalizeStoreStyle(null);
+    assert.equal(modernDefault.palette_preset, 'midnight');
+    assert.equal(modernDefault.font_style, 'modern');
+    assert.equal(modernDefault.card_style, 'elevated');
+
+    const migrated = normalizeStoreStyle({
+        font_style: 'editorial',
+        hero_image_style: 'arched',
+        button_style: 'soft',
+        card_style: 'colorful',
+        corner_style: 'soft',
+        background_pattern: 'none'
+    });
+    assert.equal(migrated.visual_version, 2);
+    assert.equal(migrated.font_style, 'modern');
+    assert.equal(migrated.hero_image_style, 'rounded');
+    assert.equal(migrated.button_style, 'pill');
+    assert.equal(migrated.card_style, 'elevated');
+    assert.equal(migrated.corner_style, 'rounded');
+    assert.equal(migrated.background_pattern, 'grid');
+
+    const intentional = normalizeStoreStyle({ font_style: 'bold', card_style: 'minimal' });
+    assert.equal(intentional.font_style, 'bold');
+    assert.equal(intentional.card_style, 'minimal');
 });
 
 test('default storefront includes the editorial brand, discovery and trust structure', async () => {
@@ -161,11 +203,14 @@ test('default storefront includes the editorial brand, discovery and trust struc
     assert.match(source, /StoreBannerCarousel/);
     assert.match(source, /buildRenderableStoreSections/);
     assert.match(source, /normalizeStoreStyle/);
+    assert.match(source, /STORE_COLOR_PALETTES/);
     assert.match(source, /visual\.show_announcement/);
     assert.match(source, /visual\.show_search/);
     assert.match(css, /\.heroImmersive/);
     assert.match(css, /\.cardsMinimal/);
     assert.match(css, /\.patternWaves/);
+    assert.match(css, /\.headerGlass \.header > div/);
+    assert.match(css, /\.fontModern/);
     assert.match(css, /Iowan Old Style/);
     assert.match(css, /border-radius: 4px 90px 4px 4px/);
     assert.doesNotMatch(source, /className="featured-card"/);

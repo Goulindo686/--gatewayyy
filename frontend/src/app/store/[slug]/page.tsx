@@ -29,11 +29,10 @@ import {
     normalizeStoreFooter,
     normalizeStoreLayoutSections,
     normalizeStoreStyle,
+    STORE_COLOR_PALETTES,
     StoreLayoutSection
 } from '@/lib/store-builder';
 import styles from './storefront.module.css';
-
-type TemplateKey = 'creator' | 'academy' | 'studio';
 
 type ProductPlan = {
     id: string;
@@ -65,7 +64,7 @@ type StoreData = {
     name: string;
     description?: string | null;
     banner_url?: string | null;
-    template?: TemplateKey;
+    template?: string;
     accent_color?: string | null;
     headline?: string | null;
     cta_text?: string | null;
@@ -76,62 +75,6 @@ type StoreData = {
     style?: unknown;
 };
 
-type Palette = {
-    bg: string;
-    surface: string;
-    soft: string;
-    ink: string;
-    muted: string;
-    line: string;
-    deep: string;
-    overlay: string;
-    secondary: string;
-    tertiary: string;
-    glow: string;
-};
-
-const palettes: Record<TemplateKey, Palette> = {
-    creator: {
-        bg: '#f5f2ec',
-        surface: '#fffdf9',
-        soft: '#ebe6dd',
-        ink: '#252826',
-        muted: '#6d716b',
-        line: '#dcd7ce',
-        deep: '#202522',
-        overlay: '245,242,236',
-        secondary: '#f2aa5b',
-        tertiary: '#5f9f8c',
-        glow: '#ef7f61'
-    },
-    academy: {
-        bg: '#f2f6f4',
-        surface: '#ffffff',
-        soft: '#e3ece8',
-        ink: '#193b34',
-        muted: '#60736d',
-        line: '#d2dfda',
-        deep: '#17352f',
-        overlay: '242,246,244',
-        secondary: '#e3a652',
-        tertiary: '#62a6b4',
-        glow: '#7cc49d'
-    },
-    studio: {
-        bg: '#f4efe8',
-        surface: '#fffaf3',
-        soft: '#e9ded1',
-        ink: '#4a3528',
-        muted: '#7d6e64',
-        line: '#ddcfc0',
-        deep: '#3d2c22',
-        overlay: '244,239,232',
-        secondary: '#d77b58',
-        tertiary: '#8da05e',
-        glow: '#e5aa64'
-    }
-};
-
 function getPlans(product: StoreProduct): ProductPlan[] {
     if (Array.isArray(product.plans) && product.plans.length > 0) return product.plans;
     return [{
@@ -140,6 +83,13 @@ function getPlans(product: StoreProduct): ProductPlan[] {
         price: Math.round((product.price || 0) * 100),
         price_display: product.price_display
     }];
+}
+
+function hexToRgb(value: string): string {
+    const normalized = value.replace('#', '');
+    const number = Number.parseInt(normalized, 16);
+    if (!Number.isFinite(number)) return '7,10,18';
+    return `${(number >> 16) & 255},${(number >> 8) & 255},${number & 255}`;
 }
 
 function initials(value: string) {
@@ -225,15 +175,18 @@ export default function StorePage() {
     if (loading && !store) return <StoreLoading />;
     if (!store) return <StoreUnavailable />;
 
-    const template = store.template || 'creator';
-    const palette = palettes[template] || palettes.creator;
-    const accent = store.accent_color || '#c45c3e';
     const slug = store.slug || String(params.slug);
     const storeHomePath = String(params.slug).includes('.') ? '/' : `/store/${slug}`;
     const storeInitials = initials(store.name || slug);
     const footer = normalizeStoreFooter(store.footer);
     const background = normalizeStoreBackground(store.background);
     const visual = normalizeStoreStyle(store.style);
+    const palette = visual.color_mode === 'custom'
+        ? visual.custom_colors
+        : STORE_COLOR_PALETTES[visual.palette_preset];
+    const accent = visual.color_mode === 'custom'
+        ? palette.accent
+        : store.accent_color || palette.accent;
     const supportUrl = footer.instagram
         ? `https://instagram.com/${footer.instagram}`
         : footer.whatsapp
@@ -267,7 +220,7 @@ export default function StorePage() {
         '--store-glow': visual.color_intensity === 'monochrome' ? accent : palette.glow,
         '--catalog-columns': visual.catalog_columns,
         ...(background.mode === 'image' && background.image_url ? {
-            backgroundImage: `linear-gradient(rgba(${palette.overlay},${background.overlay / 100}),rgba(${palette.overlay},${background.overlay / 100})),url("${background.image_url}")`
+            backgroundImage: `linear-gradient(rgba(${hexToRgb(palette.bg)},${background.overlay / 100}),rgba(${hexToRgb(palette.bg)},${background.overlay / 100})),url("${background.image_url}")`
         } : {})
     } as CSSProperties;
     const rootClasses = [

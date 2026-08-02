@@ -30,37 +30,71 @@ import {
     DEFAULT_STORE_BACKGROUND,
     DEFAULT_STORE_FOOTER,
     DEFAULT_STORE_STYLE,
+    STORE_COLOR_PALETTES,
     StoreBackgroundConfig,
     StoreFooterConfig,
     StoreLayoutSection,
+    StorePaletteColors,
+    StorePaletteKey,
     StoreStyleConfig
 } from '@/lib/store-builder';
 
 const STORE_TEMPLATES = [
     {
         key: 'creator',
-        name: 'Essencial',
-        description: 'Leve, claro e versátil para diferentes tipos de catálogo.',
-        preview: 'Uma base equilibrada que valoriza produto e marca.',
-        gradient: 'linear-gradient(135deg,#f5f2ec 0 48%,#252826 48% 68%,#c45c3e 68%)'
+        name: 'Nexus',
+        description: 'Interface escura, bento cards e transparências modernas.',
+        preview: 'Versátil, tecnológica e focada em conversão.',
+        gradient: 'linear-gradient(145deg,#070a12 0 44%,#171e2e 44% 72%,#7c5cff 72%)',
+        palette: 'midnight' as StorePaletteKey,
+        accent: '#7c5cff',
+        style: { font_style: 'modern', hero_layout: 'split', hero_image_style: 'rounded', header_style: 'glass', button_style: 'pill', card_style: 'elevated', corner_style: 'rounded', background_pattern: 'grid' } as Partial<StoreStyleConfig>
     },
     {
         key: 'academy',
-        name: 'Editorial',
-        description: 'Mais respiro, tipografia marcante e sensação de curadoria.',
-        preview: 'Apresentação refinada sem perder simplicidade.',
-        gradient: 'linear-gradient(135deg,#f3f7f5 0 52%,#193b34 52% 72%,#d0a86e 72%)'
+        name: 'Mono Grid',
+        description: 'Geometria limpa, contraste alto e poucos excessos.',
+        preview: 'Ideal para marcas minimalistas e produtos premium.',
+        gradient: 'linear-gradient(145deg,#080808 0 48%,#1d1d1d 48% 76%,#ff5a36 76%)',
+        palette: 'carbon' as StorePaletteKey,
+        accent: '#ff5a36',
+        style: { font_style: 'modern', hero_layout: 'centered', hero_image_style: 'framed', header_style: 'minimal', button_style: 'square', card_style: 'minimal', corner_style: 'sharp', background_pattern: 'none' } as Partial<StoreStyleConfig>
     },
     {
         key: 'studio',
-        name: 'Boutique',
-        description: 'Imagens em primeiro plano e acabamento mais expressivo.',
-        preview: 'Personalidade forte, mantendo o catálogo acolhedor.',
-        gradient: 'linear-gradient(135deg,#f4efe8 0 45%,#4c3526 45% 70%,#b1842f 70%)'
+        name: 'Pulse',
+        description: 'Capa imersiva, cores luminosas e movimento expressivo.',
+        preview: 'Uma experiência ousada para marcas cheias de atitude.',
+        gradient: 'linear-gradient(145deg,#051019 0 42%,#102533 42% 68%,#00b8ff 68% 84%,#00e5c3 84%)',
+        palette: 'ocean' as StorePaletteKey,
+        accent: '#00b8ff',
+        style: { font_style: 'bold', hero_layout: 'immersive', hero_image_style: 'rounded', header_style: 'solid', button_style: 'pill', card_style: 'colorful', corner_style: 'rounded', background_pattern: 'dots' } as Partial<StoreStyleConfig>
     }
 ];
 
-const ACCENT_COLORS = ['#c45c3e', '#1f6b5c', '#3658a7', '#7c4d79', '#b1842f', '#252826'];
+const ACCENT_COLORS = ['#7c5cff', '#00b8ff', '#00e5c3', '#a3e635', '#ff5a36', '#ff426d'];
+
+const COLOR_PALETTE_OPTIONS: Array<{ key: StorePaletteKey; name: string; description: string }> = [
+    { key: 'midnight', name: 'Midnight', description: 'Azul profundo e violeta elétrico' },
+    { key: 'graphite', name: 'Graphite', description: 'Grafite com verde luminoso' },
+    { key: 'carbon', name: 'Carbon', description: 'Preto puro com laranja intenso' },
+    { key: 'ocean', name: 'Deep Ocean', description: 'Azul escuro, ciano e turquesa' },
+    { key: 'pearl', name: 'Pearl', description: 'Alternativa clara e contemporânea' }
+];
+
+const CUSTOM_COLOR_FIELDS: Array<{ key: keyof StorePaletteColors; label: string }> = [
+    { key: 'bg', label: 'Fundo geral' },
+    { key: 'surface', label: 'Cards e menu' },
+    { key: 'soft', label: 'Superfície auxiliar' },
+    { key: 'ink', label: 'Texto principal' },
+    { key: 'muted', label: 'Texto secundário' },
+    { key: 'line', label: 'Bordas' },
+    { key: 'deep', label: 'Contraste profundo' },
+    { key: 'accent', label: 'Destaque principal' },
+    { key: 'secondary', label: 'Cor secundária' },
+    { key: 'tertiary', label: 'Cor terciária' },
+    { key: 'glow', label: 'Brilho e efeitos' }
+];
 
 type StoreProduct = {
     id: string;
@@ -96,7 +130,7 @@ const initialForm: StoreForm = {
     store_theme: 'light',
     store_banner_url: '',
     store_template: 'creator',
-    store_accent_color: '#c45c3e',
+    store_accent_color: STORE_COLOR_PALETTES.midnight.accent,
     store_headline: '',
     store_cta_text: 'Ver produtos',
     store_badge_text: 'Uma seleção feita para você',
@@ -148,7 +182,11 @@ export default function StoreSettingsPage() {
                     store_layout_sections: Array.isArray(store.store_layout_sections) ? store.store_layout_sections : [],
                     store_footer_config: { ...DEFAULT_STORE_FOOTER, ...(store.store_footer_config || {}), links: store.store_footer_config?.links || [] },
                     store_background_config: { ...DEFAULT_STORE_BACKGROUND, ...(store.store_background_config || {}) },
-                    store_style_config: { ...DEFAULT_STORE_STYLE, ...(store.store_style_config || {}) }
+                    store_style_config: {
+                        ...DEFAULT_STORE_STYLE,
+                        ...(store.store_style_config || {}),
+                        custom_colors: { ...DEFAULT_STORE_STYLE.custom_colors, ...(store.store_style_config?.custom_colors || {}) }
+                    }
                 });
             } catch (error: unknown) {
                 toast.error(errorMessage(error, 'Erro ao carregar configurações da loja'));
@@ -167,6 +205,71 @@ export default function StoreSettingsPage() {
         setForm(previous => ({
             ...previous,
             store_style_config: { ...previous.store_style_config, [field]: value }
+        }));
+    };
+
+    const applyVisualTemplate = (template: typeof STORE_TEMPLATES[number]) => {
+        setForm(previous => ({
+            ...previous,
+            store_template: template.key,
+            store_accent_color: template.accent,
+            store_style_config: {
+                ...previous.store_style_config,
+                ...template.style,
+                color_mode: 'preset',
+                palette_preset: template.palette
+            }
+        }));
+    };
+
+    const applyPalette = (paletteKey: StorePaletteKey) => {
+        const palette = STORE_COLOR_PALETTES[paletteKey];
+        setForm(previous => ({
+            ...previous,
+            store_accent_color: palette.accent,
+            store_style_config: {
+                ...previous.store_style_config,
+                color_mode: 'preset',
+                palette_preset: paletteKey
+            }
+        }));
+    };
+
+    const updateCustomColor = (field: keyof StorePaletteColors, color: string) => {
+        setForm(previous => ({
+            ...previous,
+            store_accent_color: field === 'accent' ? color : previous.store_accent_color,
+            store_style_config: {
+                ...previous.store_style_config,
+                color_mode: 'custom',
+                custom_colors: { ...previous.store_style_config.custom_colors, [field]: color }
+            }
+        }));
+    };
+
+    const enableCustomColors = () => {
+        setForm(previous => {
+            const base = previous.store_style_config.color_mode === 'custom'
+                ? previous.store_style_config.custom_colors
+                : STORE_COLOR_PALETTES[previous.store_style_config.palette_preset];
+            return {
+                ...previous,
+                store_style_config: {
+                    ...previous.store_style_config,
+                    color_mode: 'custom',
+                    custom_colors: { ...base, accent: previous.store_accent_color }
+                }
+            };
+        });
+    };
+
+    const updateAccentColor = (color: string) => {
+        setForm(previous => ({
+            ...previous,
+            store_accent_color: color,
+            store_style_config: previous.store_style_config.color_mode === 'custom'
+                ? { ...previous.store_style_config, custom_colors: { ...previous.store_style_config.custom_colors, accent: color } }
+                : previous.store_style_config
         }));
     };
 
@@ -402,7 +505,7 @@ export default function StoreSettingsPage() {
                                     {STORE_TEMPLATES.map(template => {
                                         const selected = form.store_template === template.key;
                                         return (
-                                            <button key={template.key} type="button" className={selected ? 'selected' : ''} onClick={() => update('store_template', template.key)}>
+                                            <button key={template.key} type="button" className={selected ? 'selected' : ''} onClick={() => applyVisualTemplate(template)}>
                                                 <div className="store-template-swatch" style={{ background: template.gradient }}>
                                                     {selected && <span><FiCheck /></span>}
                                                 </div>
@@ -417,8 +520,43 @@ export default function StoreSettingsPage() {
                             <div className="store-form-group">
                                 <div className="store-form-group-heading">
                                     <strong>Paleta e atmosfera</strong>
-                                    <span>Escolha a cor de destaque e o acabamento de fundo.</span>
+                                    <span>Use uma combinação pronta ou controle individualmente cada cor da loja.</span>
                                 </div>
+                                <div className="store-palette-grid">
+                                    {COLOR_PALETTE_OPTIONS.map(option => {
+                                        const colors = STORE_COLOR_PALETTES[option.key];
+                                        const selected = form.store_style_config.color_mode === 'preset' && form.store_style_config.palette_preset === option.key;
+                                        return (
+                                            <button key={option.key} type="button" className={selected ? 'selected' : ''} onClick={() => applyPalette(option.key)}>
+                                                <span className="store-palette-swatches">
+                                                    {[colors.bg, colors.surface, colors.accent, colors.secondary, colors.tertiary].map((color, index) => <i key={`${color}-${index}`} style={{ background: color }} />)}
+                                                </span>
+                                                <strong>{option.name}</strong>
+                                                <small>{option.description}</small>
+                                                {selected && <em><FiCheck /></em>}
+                                            </button>
+                                        );
+                                    })}
+                                    <button type="button" className={`store-custom-palette-card ${form.store_style_config.color_mode === 'custom' ? 'selected' : ''}`} onClick={enableCustomColors}>
+                                        <span className="store-custom-palette-icon"><FiSliders /></span>
+                                        <strong>Minha paleta</strong>
+                                        <small>Personalize todas as cores</small>
+                                        {form.store_style_config.color_mode === 'custom' && <em><FiCheck /></em>}
+                                    </button>
+                                </div>
+                                {form.store_style_config.color_mode === 'custom' && (
+                                    <div className="store-custom-colors">
+                                        {CUSTOM_COLOR_FIELDS.map(field => (
+                                            <label key={field.key}>
+                                                <span>{field.label}</span>
+                                                <div>
+                                                    <input type="color" value={form.store_style_config.custom_colors[field.key]} onChange={event => updateCustomColor(field.key, event.target.value)} />
+                                                    <code>{form.store_style_config.custom_colors[field.key]}</code>
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
                                 <div className="store-visual-grid">
                                     <div>
                                         <label className="store-field-label">Cor da marca</label>
@@ -429,11 +567,11 @@ export default function StoreSettingsPage() {
                                                     type="button"
                                                     className={form.store_accent_color === color ? 'selected' : ''}
                                                     style={{ background: color }}
-                                                    onClick={() => update('store_accent_color', color)}
+                                                    onClick={() => updateAccentColor(color)}
                                                     aria-label={`Usar cor ${color}`}
                                                 />
                                             ))}
-                                            <input type="color" value={form.store_accent_color} onChange={event => update('store_accent_color', event.target.value)} aria-label="Escolher cor personalizada" />
+                                            <input type="color" value={form.store_accent_color} onChange={event => updateAccentColor(event.target.value)} aria-label="Escolher cor personalizada" />
                                         </div>
                                     </div>
                                     <div>
@@ -942,13 +1080,13 @@ export default function StoreSettingsPage() {
                     display: flex;
                     align-items: center;
                     gap: 4px;
-                    background: rgba(255,255,255,.72);
+                    background: color-mix(in srgb, var(--preview-surface) 92%, var(--preview-ink));
                 }
                 .store-preview-browser-bar i {
                     width: 5px;
                     height: 5px;
                     border-radius: 999px;
-                    background: rgba(15,23,42,.2);
+                    background: color-mix(in srgb, var(--preview-ink) 24%, transparent);
                 }
                 .store-preview-topline {
                     min-height: 19px;
@@ -993,7 +1131,8 @@ export default function StoreSettingsPage() {
                     height: 12px;
                     border-radius: 99px;
                     margin-left: auto;
-                    background: rgba(15,23,42,.06);
+                    color: var(--preview-muted);
+                    background: color-mix(in srgb, var(--preview-ink) 7%, transparent);
                 }
                 .store-preview-hero {
                     min-height: 152px;
@@ -1391,6 +1530,81 @@ export default function StoreSettingsPage() {
                     margin-top: 7px;
                     font-size: 10px;
                 }
+                .store-palette-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 9px;
+                    margin-bottom: 18px;
+                }
+                .store-palette-grid > button {
+                    position: relative;
+                    min-height: 96px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 14px;
+                    padding: 11px;
+                    color: var(--text-primary);
+                    background: var(--bg-card);
+                    text-align: left;
+                    cursor: pointer;
+                    transition: .2s ease;
+                }
+                .store-palette-grid > button:hover { border-color: rgba(108,92,231,.4); transform: translateY(-1px); }
+                .store-palette-grid > button.selected { border-color: var(--accent-primary); box-shadow: inset 0 -3px 0 var(--accent-primary); }
+                .store-palette-grid strong,
+                .store-palette-grid small { display: block; }
+                .store-palette-grid strong { margin-top: 9px; font-size: 11px; }
+                .store-palette-grid small { margin-top: 3px; padding-right: 16px; color: var(--text-muted); font-size: 9px; line-height: 1.3; }
+                .store-palette-grid em {
+                    position: absolute;
+                    top: 8px;
+                    right: 8px;
+                    width: 19px;
+                    height: 19px;
+                    border-radius: 999px;
+                    display: grid;
+                    place-items: center;
+                    color: white;
+                    background: var(--accent-primary);
+                    font-size: 10px;
+                    font-style: normal;
+                }
+                .store-palette-swatches {
+                    height: 28px;
+                    display: flex;
+                    overflow: hidden;
+                    border: 1px solid rgba(255,255,255,.12);
+                    border-radius: 8px;
+                }
+                .store-palette-swatches i { flex: 1; }
+                .store-custom-palette-icon {
+                    width: 32px;
+                    height: 28px;
+                    border-radius: 8px;
+                    display: grid;
+                    place-items: center;
+                    color: white;
+                    background: linear-gradient(135deg,#7c5cff,#00b8ff,#ff426d);
+                }
+                .store-custom-colors {
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 8px;
+                    margin-bottom: 20px;
+                    border: 1px solid rgba(108,92,231,.25);
+                    border-radius: 14px;
+                    padding: 12px;
+                    background: rgba(108,92,231,.055);
+                }
+                .store-custom-colors > label {
+                    border: 1px solid var(--border-color);
+                    border-radius: 11px;
+                    padding: 9px;
+                    background: var(--bg-card);
+                }
+                .store-custom-colors > label > span { display: block; margin-bottom: 7px; color: var(--text-secondary); font-size: 9px; font-weight: 750; }
+                .store-custom-colors > label > div { display: flex; align-items: center; gap: 7px; }
+                .store-custom-colors input { width: 28px; height: 28px; border: 0; border-radius: 7px; padding: 0; overflow: hidden; cursor: pointer; }
+                .store-custom-colors code { color: var(--text-muted); font-size: 9px; }
                 .store-visual-grid {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
@@ -1664,6 +1878,8 @@ export default function StoreSettingsPage() {
                     }
                     .store-form-grid.two,
                     .store-template-grid,
+                    .store-palette-grid,
+                    .store-custom-colors,
                     .store-visual-grid,
                     .store-visibility-grid {
                         grid-template-columns: 1fr;
@@ -1701,24 +1917,22 @@ export default function StoreSettingsPage() {
 }
 
 function StoreLivePreview({ form, products }: { form: StoreForm; products: StoreProduct[] }) {
-    const palettes: Record<string, { bg: string; surface: string; ink: string; muted: string; secondary: string; tertiary: string }> = {
-        creator: { bg: '#f5f2ec', surface: '#ffffff', ink: '#252826', muted: '#74766f', secondary: '#f2aa5b', tertiary: '#5f9f8c' },
-        academy: { bg: '#f3f7f5', surface: '#ffffff', ink: '#193b34', muted: '#64756f', secondary: '#e3a652', tertiary: '#62a6b4' },
-        studio: { bg: '#f4efe8', surface: '#fffdf8', ink: '#4c3526', muted: '#817268', secondary: '#d77b58', tertiary: '#8da05e' }
-    };
-    const palette = palettes[form.store_template] || palettes.creator;
     const visual = form.store_style_config;
+    const palette = visual.color_mode === 'custom'
+        ? visual.custom_colors
+        : STORE_COLOR_PALETTES[visual.palette_preset];
+    const accent = visual.color_mode === 'custom' ? palette.accent : form.store_accent_color;
     const backgroundColor = form.store_background_config.mode === 'color'
         ? form.store_background_config.color
         : palette.bg;
-    const secondary = visual.color_intensity === 'monochrome' ? form.store_accent_color : palette.secondary;
-    const tertiary = visual.color_intensity === 'vibrant' ? palette.tertiary : form.store_accent_color;
+    const secondary = visual.color_intensity === 'monochrome' ? accent : palette.secondary;
+    const tertiary = visual.color_intensity === 'vibrant' ? palette.tertiary : accent;
     const previewStyle = {
         '--preview-bg': backgroundColor,
         '--preview-surface': palette.surface,
         '--preview-ink': palette.ink,
         '--preview-muted': palette.muted,
-        '--preview-accent': form.store_accent_color,
+        '--preview-accent': accent,
         '--preview-secondary': secondary,
         '--preview-tertiary': tertiary,
         '--preview-columns': Math.min(visual.catalog_columns, 3)

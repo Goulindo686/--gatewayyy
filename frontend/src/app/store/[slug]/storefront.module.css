@@ -7,7 +7,7 @@
     background-position: center;
     background-size: cover;
     background-attachment: fixed;
-    font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+    font-family: Inter, "Manrope", "Avenir Next", "Segoe UI", sans-serif;
     isolation: isolate;
 }
 
@@ -1555,8 +1555,9 @@
     min-height: 100vh;
     display: grid;
     place-items: center;
-    color: #252826;
-    background: #f5f2ec;
+    color: #f5f7ff;
+    background: radial-gradient(circle at 50% 20%, #171e2e, #070a12 58%);
+    font-family: Inter, "Segoe UI", sans-serif;
 }
 
 .loadingPage {
@@ -1568,8 +1569,8 @@
 .loadingPage > span {
     width: 35px;
     height: 35px;
-    border: 2px solid #dcd7ce;
-    border-top-color: #c45c3e;
+    border: 2px solid #283249;
+    border-top-color: #7c5cff;
     border-radius: 999px;
     animation: spin .8s linear infinite;
 }
@@ -1589,13 +1590,13 @@
 
 .unavailablePage svg {
     margin-bottom: 18px;
-    color: #c45c3e;
+    color: #7c5cff;
     font-size: 36px;
 }
 
 .unavailablePage span {
     display: block;
-    color: #c45c3e;
+    color: #7c5cff;
     font-size: 9px;
     font-weight: 900;
     letter-spacing: .16em;
@@ -1603,14 +1604,14 @@
 
 .unavailablePage h1 {
     margin: 13px 0;
-    font-family: Georgia, serif;
+    font-family: Inter, "Segoe UI", sans-serif;
     font-size: clamp(34px, 6vw, 55px);
     font-weight: 500;
     line-height: 1.02;
 }
 
 .unavailablePage p {
-    color: #6d716b;
+    color: #929caf;
     font-size: 12px;
     line-height: 1.65;
 }
@@ -1755,6 +1756,130 @@
     --visual-option-enabled: 1;
 }
 
+.fontModern,
+.fontModern * {
+    font-family: Inter, "Manrope", "Segoe UI", Arial, sans-serif !important;
+}
+
+.headerGlass .header {
+    border-bottom: 0;
+    padding: 12px 0 0;
+    background: transparent;
+    backdrop-filter: none;
+}
+
+.headerGlass .header > div {
+    min-height: 64px;
+    border: 1px solid color-mix(in srgb, var(--store-line) 78%, transparent);
+    border-radius: 20px;
+    padding: 0 18px;
+    background: color-mix(in srgb, var(--store-surface) 82%, transparent);
+    box-shadow: 0 18px 52px rgba(0,0,0,.22), inset 0 1px 0 color-mix(in srgb, var(--store-ink) 7%, transparent);
+    backdrop-filter: blur(22px) saturate(1.18);
+}
+
+.headerGlass .headerSearch {
+    border-color: color-mix(in srgb, var(--store-line) 72%, transparent);
+    background: color-mix(in srgb, var(--store-soft) 72%, transparent);
+}
+
+.headerGlass .headerActions > button {
+    background: color-mix(in srgb, var(--store-soft) 78%, transparent);
+}
+
+.fontModern .eyebrow {
+    border: 1px solid color-mix(in srgb, var(--store-accent) 32%, transparent);
+    border-radius: 999px;
+    padding: 7px 11px;
+    display: inline-flex;
+    width: fit-content;
+    background: color-mix(in srgb, var(--store-accent) 9%, transparent);
+    letter-spacing: .13em;
+}
+
+.fontModern .hero h1 {
+    max-width: 780px;
+    font-size: clamp(48px, 6vw, 86px);
+    font-weight: 760;
+    line-height: .96;
+    letter-spacing: -.07em;
+}
+
+.fontModern .heroCopy > p {
+    max-width: 620px;
+    font-size: 16px;
+    line-height: 1.7;
+}
+
+.fontModern .heroCopy::after {
+    height: 1px;
+    background: linear-gradient(90deg, var(--store-accent), var(--store-secondary), transparent);
+}
+
+.fontModern .heroComposition::before {
+    border-radius: 40px;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--store-accent) 28%, transparent), color-mix(in srgb, var(--store-secondary) 10%, transparent));
+    filter: blur(1px);
+}
+
+.fontModern .heroFloatingNote,
+.fontModern .heroColorCard,
+.fontModern .heroCaption,
+.fontModern .heroStamp {
+    border: 1px solid color-mix(in srgb, var(--store-line) 78%, transparent);
+    color: var(--store-ink);
+    background: color-mix(in srgb, var(--store-surface) 82%, transparent);
+    box-shadow: 0 20px 48px rgba(0,0,0,.24);
+    backdrop-filter: blur(18px);
+}
+
+.fontModern .serviceBar {
+    border: 0;
+    background: transparent;
+}
+
+.fontModern .serviceBar > div {
+    gap: 12px;
+}
+
+.fontModern .serviceBar > div > div {
+    border: 1px solid var(--store-line);
+    border-radius: 18px;
+    padding: 20px;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--store-surface) 92%, transparent), color-mix(in srgb, var(--store-soft) 82%, transparent));
+}
+
+.fontModern .serviceBar > div > div + div {
+    border-left: 1px solid var(--store-line);
+}
+
+.fontModern .categoryGrid > button {
+    border-color: color-mix(in srgb, var(--product-color, var(--store-accent)) 25%, var(--store-line));
+    background: linear-gradient(145deg, var(--store-surface), color-mix(in srgb, var(--store-soft) 72%, var(--store-surface)));
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--store-ink) 6%, transparent);
+}
+
+.fontModern .categoriesSection,
+.fontModern .catalog {
+    position: relative;
+}
+
+.cardsElevated .productCard {
+    border-color: color-mix(in srgb, var(--product-color) 24%, var(--store-line));
+    background: linear-gradient(155deg, color-mix(in srgb, var(--store-surface) 96%, var(--product-color)), var(--store-surface));
+    box-shadow: 0 24px 64px rgba(0,0,0,.24), inset 0 1px 0 color-mix(in srgb, var(--store-ink) 7%, transparent);
+}
+
+.cardsElevated .productImage {
+    margin: 8px;
+    width: calc(100% - 16px);
+    border-radius: 16px;
+}
+
+.cardsElevated .productCard::before {
+    display: none;
+}
+
 .heroCentered .hero {
     grid-template-columns: 1fr;
     padding-top: 88px;
@@ -1878,9 +2003,9 @@
 }
 
 .cardsElevated .productCard {
-    border-color: transparent;
-    background: var(--store-surface);
-    box-shadow: 0 22px 52px rgba(15,23,42,.14);
+    border-color: color-mix(in srgb, var(--product-color) 24%, var(--store-line));
+    background: linear-gradient(155deg, color-mix(in srgb, var(--store-surface) 96%, var(--product-color)), var(--store-surface));
+    box-shadow: 0 24px 64px rgba(0,0,0,.24), inset 0 1px 0 color-mix(in srgb, var(--store-ink) 7%, transparent);
 }
 
 .cardsElevated .productCard::before,
