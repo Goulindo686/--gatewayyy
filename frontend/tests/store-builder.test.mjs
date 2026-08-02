@@ -192,14 +192,17 @@ test('store style modernizes the previous default while preserving intentional c
     assert.equal(intentional.card_style, 'minimal');
 });
 
-test('default storefront includes the editorial brand, discovery and trust structure', async () => {
+test('default storefront uses the new bento commerce architecture and keeps customization modes', async () => {
     const source = await readFile(new URL('../src/app/store/[slug]/page.tsx', import.meta.url), 'utf8');
-    const css = await readFile(new URL('../src/app/store/[slug]/storefront.module.css', import.meta.url), 'utf8');
+    const css = await readFile(new URL('../src/app/store/[slug]/storefront-v3.module.css', import.meta.url), 'utf8');
     assert.match(source, /styles\.header/);
-    assert.match(source, /styles\.heroComposition/);
-    assert.match(source, /styles\.heroNotes/);
-    assert.match(source, /styles\.categoriesSection/);
-    assert.match(source, /styles\.serviceBar/);
+    assert.match(source, /styles\.heroLead/);
+    assert.match(source, /styles\.heroVisual/);
+    assert.match(source, /styles\.heroRail/);
+    assert.match(source, /styles\.collectionDeck/);
+    assert.match(source, /styles\.trustDock/);
+    assert.match(source, /styles\.brandStatement/);
+    assert.match(source, /styles\.productVisual/);
     assert.match(source, /StoreBannerCarousel/);
     assert.match(source, /buildRenderableStoreSections/);
     assert.match(source, /normalizeStoreStyle/);
@@ -209,9 +212,11 @@ test('default storefront includes the editorial brand, discovery and trust struc
     assert.match(css, /\.heroImmersive/);
     assert.match(css, /\.cardsMinimal/);
     assert.match(css, /\.patternWaves/);
-    assert.match(css, /\.headerGlass \.header > div/);
+    assert.match(css, /\.headerGlass/);
     assert.match(css, /\.fontModern/);
-    assert.match(css, /Iowan Old Style/);
-    assert.match(css, /border-radius: 4px 90px 4px 4px/);
-    assert.doesNotMatch(source, /className="featured-card"/);
+    assert.match(css, /\.collectionGrid > button:first-child/);
+    assert.match(css, /\.statementWord/);
+    assert.doesNotMatch(source, /styles\.heroComposition/);
+    assert.doesNotMatch(source, /styles\.heroFloatingNote/);
+    assert.doesNotMatch(source, /styles\.motionMarquee/);
 });

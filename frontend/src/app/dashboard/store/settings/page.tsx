@@ -1135,16 +1135,22 @@ export default function StoreSettingsPage() {
                     background: color-mix(in srgb, var(--preview-ink) 7%, transparent);
                 }
                 .store-preview-hero {
-                    min-height: 152px;
-                    padding: 18px 12px;
+                    min-height: 160px;
+                    padding: 7px;
                     display: grid;
-                    grid-template-columns: 1.08fr .92fr;
-                    align-items: center;
-                    gap: 10px;
-                    background:
-                        radial-gradient(circle at 80% 5%, color-mix(in srgb, var(--preview-secondary) 28%, transparent), transparent 36%),
-                        radial-gradient(circle at 5% 90%, color-mix(in srgb, var(--preview-tertiary) 20%, transparent), transparent 34%),
-                        var(--preview-bg);
+                    grid-template-columns: 1.05fr .72fr .3fr;
+                    align-items: stretch;
+                    gap: 5px;
+                    background: var(--preview-bg);
+                }
+                .store-preview-copy {
+                    border: 1px solid color-mix(in srgb, var(--preview-ink) 10%, transparent);
+                    border-radius: 11px;
+                    padding: 12px 9px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    background: radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--preview-accent) 18%, transparent), transparent 35%), var(--preview-surface);
                 }
                 .store-preview-copy small {
                     display: block;
@@ -1156,10 +1162,10 @@ export default function StoreSettingsPage() {
                 }
                 .store-preview-copy h4 {
                     margin: 0 0 7px;
-                    font-family: Georgia, serif;
                     font-size: 15px;
+                    font-weight: 760;
                     line-height: 1.02;
-                    letter-spacing: -.03em;
+                    letter-spacing: -.06em;
                 }
                 .store-preview-copy p {
                     margin: 0 0 8px;
@@ -1176,29 +1182,39 @@ export default function StoreSettingsPage() {
                     border: none;
                     border-radius: 4px;
                     padding: 0 7px;
-                    color: white;
+                    color: color-mix(in srgb, var(--preview-ink) 8%, black);
                     background: var(--preview-accent);
                     font-size: 5px;
                     font-weight: 900;
                 }
                 .store-preview-media {
                     position: relative;
-                    min-height: 112px;
-                    border-radius: 4px 18px 4px 4px;
+                    min-height: 146px;
+                    border: 1px solid color-mix(in srgb, var(--preview-ink) 10%, transparent);
+                    border-radius: 11px;
                     background: radial-gradient(circle at 72% 18%, var(--preview-secondary), transparent 30%), linear-gradient(145deg, var(--preview-accent), var(--preview-ink));
                     background-position: center;
                     background-size: cover;
-                    box-shadow: 5px 5px 0 color-mix(in srgb, var(--preview-tertiary) 32%, transparent);
+                    box-shadow: none;
                     animation: store-preview-float 5s ease-in-out infinite;
                 }
                 .store-preview-media:after {
                     content: '';
                     position: absolute;
-                    right: -5px;
-                    bottom: -5px;
-                    width: 40%;
-                    height: 35%;
-                    border: 2px solid var(--preview-bg);
+                    inset: 50% 0 0;
+                    border-radius: 0 0 11px 11px;
+                    background: linear-gradient(transparent, rgba(0,0,0,.5));
+                }
+                .store-preview-rail {
+                    display: grid;
+                    grid-template-rows: 1.2fr .8fr;
+                    gap: 5px;
+                }
+                .store-preview-rail span {
+                    border-radius: 9px;
+                    background: var(--preview-accent);
+                }
+                .store-preview-rail span:last-child {
                     background: var(--preview-surface);
                 }
                 .store-preview-products {
@@ -1285,12 +1301,13 @@ export default function StoreSettingsPage() {
                 .preview-font-bold { font-family: Impact, "Arial Black", sans-serif; }
                 .preview-font-bold .store-preview-copy p,
                 .preview-font-bold .store-preview-product { font-family: Arial, sans-serif; }
-                .preview-hero-centered .store-preview-hero { grid-template-columns: 1fr; text-align: center; }
-                .preview-hero-centered .store-preview-media { display: none; }
-                .preview-hero-centered .store-preview-copy { max-width: 80%; margin: auto; }
+                .preview-hero-centered .store-preview-hero { grid-template-columns: 1fr 1fr; text-align: center; }
+                .preview-hero-centered .store-preview-copy { grid-column: 1 / -1; }
+                .preview-hero-centered .store-preview-rail { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
                 .preview-hero-immersive .store-preview-hero { position: relative; grid-template-columns: 1fr; min-height: 174px; }
                 .preview-hero-immersive .store-preview-media { position: absolute; inset: 0; opacity: .32; border-radius: 0; box-shadow: none; }
                 .preview-hero-immersive .store-preview-copy { position: relative; z-index: 1; max-width: 72%; }
+                .preview-hero-immersive .store-preview-rail { display: none; }
                 .preview-image-rounded .store-preview-media { border-radius: 16px; box-shadow: none; }
                 .preview-image-framed .store-preview-media { border: 5px solid var(--preview-surface); border-radius: 2px; box-shadow: 0 0 0 1px var(--preview-ink); }
                 .preview-header-solid .store-preview-header { color: white; background: var(--preview-ink); }
@@ -1986,6 +2003,7 @@ function StoreLivePreview({ form, products }: { form: StoreForm; products: Store
                     className="store-preview-media"
                     style={form.store_banner_url ? { backgroundImage: `url("${form.store_banner_url}")` } : undefined}
                 />
+                <div className="store-preview-rail" aria-hidden="true"><span /><span /></div>
             </div>
             {visual.show_service_bar && <div className="store-preview-service"><span>Compra segura</span><span>Pagamento protegido</span><span>Suporte da loja</span></div>}
             {visual.show_marquee && <div className="store-preview-marquee">DESCUBRA · ESCOLHA · APROVEITE ·</div>}

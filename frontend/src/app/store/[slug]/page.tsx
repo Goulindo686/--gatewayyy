@@ -32,7 +32,7 @@ import {
     STORE_COLOR_PALETTES,
     StoreLayoutSection
 } from '@/lib/store-builder';
-import styles from './storefront.module.css';
+import styles from './storefront-v3.module.css';
 
 type ProductPlan = {
     id: string;
@@ -324,12 +324,16 @@ export default function StorePage() {
 
             <main>
                 <section className={`${styles.hero} ${styles.shell}`}>
-                    <div className={styles.heroAuraOne} aria-hidden="true" />
-                    <div className={styles.heroAuraTwo} aria-hidden="true" />
-                    <div className={styles.heroCopy}>
-                        <span className={styles.eyebrow}>BEM-VINDO À {store.name || slug}</span>
-                        <h1>{store.headline || `Escolhas com a identidade da ${store.name || 'nossa loja'}.`}</h1>
-                        <p>{store.description || 'Conheça uma seleção pensada para tornar sua escolha simples, segura e especial.'}</p>
+                    <div className={styles.heroLead}>
+                        <div className={styles.heroMeta}>
+                            <span><i /> EDIÇÃO ATUAL</span>
+                            <small>{String(products.length).padStart(2, '0')} PRODUTOS</small>
+                        </div>
+                        <div className={styles.heroCopy}>
+                            <span className={styles.eyebrow}>SELEÇÃO DA {store.name || slug}</span>
+                            <h1>{store.headline || `Uma vitrine feita para descobrir o seu próximo favorito.`}</h1>
+                            <p>{store.description || 'Produtos escolhidos com personalidade, apresentados de um jeito direto e atual.'}</p>
+                        </div>
                         <div className={styles.heroActions}>
                             <button className={styles.primaryButton} onClick={() => document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' })}>
                                 {store.cta_text || 'Explorar a coleção'} <FiArrowRight />
@@ -340,16 +344,9 @@ export default function StorePage() {
                                 </button>
                             )}
                         </div>
-                        <div className={styles.heroNotes}>
-                            <span><FiShield /> Compra protegida</span>
-                            <span><FiCreditCard /> PIX e cartão</span>
-                            {supportUrl && <span><FiHeadphones /> Atendimento disponível</span>}
-                        </div>
                     </div>
 
-                    <div className={styles.heroComposition}>
-                        <div className={styles.heroFloatingNote} aria-hidden="true"><i /><span>novidades<br /><strong>toda semana</strong></span></div>
-                        <div className={styles.heroColorCard} aria-hidden="true"><span>feito para</span><strong>surpreender</strong></div>
+                    <div className={styles.heroVisual}>
                         <div
                             className={`${styles.heroImage} ${heroImage ? styles.hasImage : ''}`}
                             style={heroImage ? { backgroundImage: `url("${heroImage}")` } : undefined}
@@ -358,61 +355,68 @@ export default function StorePage() {
                         >
                             {!heroImage && <span>{storeInitials}</span>}
                         </div>
-                        <div className={styles.heroCaption}>
-                            <small>CURADORIA DA LOJA</small>
-                            <strong>{featuredProduct?.name || 'Escolhas que combinam com você'}</strong>
-                            {featuredProduct && <button onClick={() => openQuickView(featuredProduct)}>Ver detalhes <FiArrowRight /></button>}
+                        <div className={styles.heroVisualTop}>
+                            <span>FEATURED / {new Date().getFullYear()}</span>
+                            <i><FiArrowRight /></i>
                         </div>
-                        <div className={styles.heroStamp}>
-                            <span>{String(products.length).padStart(2, '0')}</span>
-                            <small>itens na seleção</small>
+                        <div className={styles.heroVisualBottom}>
+                            <div><small>EM DESTAQUE</small><strong>{featuredProduct?.name || 'Nova seleção'}</strong></div>
+                            {featuredProduct && <button onClick={() => openQuickView(featuredProduct)}>Descobrir <FiArrowRight /></button>}
                         </div>
                     </div>
+
+                    <aside className={styles.heroRail}>
+                        <button className={styles.heroRailPrimary} onClick={() => document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' })}>
+                            <span>NOVA<br />CURADORIA</span>
+                            <FiArrowRight />
+                            <small>Explore a seleção completa</small>
+                        </button>
+                        <div className={styles.heroRailBrand}>
+                            <span>{storeInitials}</span>
+                            <div><small>IDENTIDADE</small><strong>{store.name || slug}</strong></div>
+                        </div>
+                    </aside>
                 </section>
 
-                {visual.show_service_bar && <section className={styles.serviceBar}>
-                    <div className={styles.shell}>
-                        <div><span>01</span><p><strong>Escolha com calma</strong><small>Informações claras em cada produto</small></p></div>
-                        <div><span>02</span><p><strong>Finalize com segurança</strong><small>Pagamento em ambiente protegido</small></p></div>
-                        <div><span>03</span><p><strong>Conte com a loja</strong><small>Canais de contato sempre à vista</small></p></div>
-                    </div>
+                {visual.show_service_bar && <section className={`${styles.trustDock} ${styles.shell}`}>
+                    <div><FiShield /><span><strong>Proteção</strong><small>Compra processada com segurança</small></span></div>
+                    <div><FiCreditCard /><span><strong>Flexibilidade</strong><small>PIX e cartão para escolher</small></span></div>
+                    <div><FiHeadphones /><span><strong>Presença</strong><small>Suporte direto com a loja</small></span></div>
+                    <div className={styles.trustDockStatus}><i /> AMBIENTE SEGURO</div>
                 </section>}
 
-                {visual.show_marquee && <div className={styles.motionMarquee} aria-hidden="true">
+                {visual.show_marquee && <div className={styles.signalRail} aria-hidden="true">
                     <div>
                         {[0, 1].map(copy => (
                             <span key={copy}>
-                                <b>DESCUBRA</b><i />
-                                <b>ESCOLHA</b><i />
-                                <b>APROVEITE</b><i />
-                                <b>VOLTE SEMPRE</b><i />
+                                <b>NOVO AGORA</b><i />
+                                <b>ESCOLHAS AUTORAIS</b><i />
+                                <b>COMPRA SEGURA</b><i />
+                                <b>FEITO PARA VOCÊ</b><i />
                             </span>
                         ))}
                     </div>
                 </div>}
 
                 {visual.show_categories && categories.length > 0 && !searchTerm && !activeCategory && (
-                    <section className={`${styles.categoriesSection} ${styles.shell}`} id="categorias">
-                        <div className={styles.sectionHeading}>
+                    <section className={`${styles.collectionDeck} ${styles.shell}`} id="categorias">
+                        <div className={styles.sectionIntro}>
                             <div>
-                                <span className={styles.eyebrow}>NAVEGUE DO SEU JEITO</span>
-                                <h2>Encontre pela categoria</h2>
+                                <span className={styles.eyebrow}>COLEÇÕES / {String(categories.length).padStart(2, '0')}</span>
+                                <h2>Escolha uma direção.</h2>
                             </div>
-                            <p>Uma forma simples de chegar mais rápido ao que você procura.</p>
+                            <p>Navegue por universos diferentes e encontre mais rápido o que combina com você.</p>
                         </div>
-                        <div className={styles.categoryGrid}>
+                        <div className={styles.collectionGrid}>
                             {categoryStats.slice(0, 6).map((category, index) => (
                                 <button
                                     key={category.id}
-                                    className={[styles.categoryToneA, styles.categoryToneB, styles.categoryToneC][index % 3]}
+                                    className={[styles.collectionToneA, styles.collectionToneB, styles.collectionToneC][index % 3]}
                                     onClick={() => handleCategoryClick(category.slug)}
                                 >
-                                    <span>{String(index + 1).padStart(2, '0')}</span>
-                                    <div>
-                                        <strong>{category.name}</strong>
-                                        <small>{category.productCount} {category.productCount === 1 ? 'item' : 'itens'}</small>
-                                    </div>
-                                    <FiArrowRight />
+                                    <span className={styles.collectionIndex}>{String(index + 1).padStart(2, '0')}</span>
+                                    <div><strong>{category.name}</strong><small>{category.productCount} {category.productCount === 1 ? 'item' : 'itens'}</small></div>
+                                    <span className={styles.collectionArrow}><FiArrowRight /></span>
                                 </button>
                             ))}
                         </div>
@@ -420,17 +424,20 @@ export default function StorePage() {
                 )}
 
                 <section className={`${styles.catalog} ${styles.shell}`} id="catalogo">
-                    <div className={styles.catalogIntro}>
-                        <div>
-                            <span className={styles.eyebrow}>{activeCategory ? 'CATEGORIA SELECIONADA' : 'CATÁLOGO'}</span>
-                            <h2>{activeCategory ? categories.find(category => category.slug === activeCategory)?.name || 'Sua seleção' : 'Escolhas da loja'}</h2>
-                            <p>{filteredProducts.length} {filteredProducts.length === 1 ? 'produto disponível' : 'produtos disponíveis'}</p>
+                    <div className={styles.catalogHead}>
+                        <div className={styles.catalogTitle}>
+                            <span>SHOP / {String(filteredProducts.length).padStart(2, '0')}</span>
+                            <h2>{activeCategory ? categories.find(category => category.slug === activeCategory)?.name || 'Sua seleção' : 'O que está em cena.'}</h2>
+                            <p>{activeCategory ? 'Uma curadoria filtrada para você.' : 'Descubra produtos que merecem espaço na sua rotina.'}</p>
                         </div>
-                        {visual.show_search && <label className={styles.catalogSearch}>
-                            <FiSearch />
-                            <input value={searchTerm} onChange={event => setSearchTerm(event.target.value)} placeholder="O que você procura?" />
-                            {searchTerm && <button type="button" onClick={() => setSearchTerm('')} aria-label="Limpar busca"><FiX /></button>}
-                        </label>}
+                        <div className={styles.catalogControls}>
+                            <small>{filteredProducts.length} {filteredProducts.length === 1 ? 'RESULTADO' : 'RESULTADOS'}</small>
+                            {visual.show_search && <label className={styles.catalogSearch}>
+                                <FiSearch />
+                                <input value={searchTerm} onChange={event => setSearchTerm(event.target.value)} placeholder="Buscar produto" />
+                                {searchTerm && <button type="button" onClick={() => setSearchTerm('')} aria-label="Limpar busca"><FiX /></button>}
+                            </label>}
+                        </div>
                     </div>
 
                     {visual.show_categories && <div className={styles.categoryPills} aria-label="Filtrar por categoria">
@@ -468,10 +475,10 @@ export default function StorePage() {
                                 <section className={styles.productSection} key={section.id}>
                                     <div className={styles.productSectionHeading}>
                                         <div>
-                                            <span>{section.title || 'Produtos em destaque'}</span>
+                                            <span>{section.title || 'Seleção em destaque'}</span>
                                             {section.subtitle && <p>{section.subtitle}</p>}
                                         </div>
-                                        <small>{section.product_ids.length} {section.product_ids.length === 1 ? 'escolha' : 'escolhas'}</small>
+                                        <small>EDIÇÃO {String(section.product_ids.length).padStart(2, '0')}</small>
                                     </div>
                                     <div className={styles.productGrid}>
                                         {section.product_ids
@@ -483,21 +490,27 @@ export default function StorePage() {
                                                     key={product.id}
                                                 >
                                                     <button
-                                                        className={`${styles.productImage} ${product.image_url ? styles.hasImage : ''}`}
+                                                        className={`${styles.productVisual} ${product.image_url ? styles.hasImage : ''}`}
                                                         style={product.image_url ? { backgroundImage: `url("${product.image_url}")` } : undefined}
                                                         onClick={() => openQuickView(product)}
                                                         aria-label={`Ver detalhes de ${product.name}`}
                                                     >
                                                         {!product.image_url && <span>{initials(product.name)}</span>}
-                                                        <i>Ver detalhes</i>
+                                                        <div className={styles.productFlags}>
+                                                            <span>{product.has_plans ? 'COM OPÇÕES' : 'EM DESTAQUE'}</span>
+                                                            <small>{String(productIndex + 1).padStart(2, '0')}</small>
+                                                        </div>
+                                                        <i className={styles.productQuick}>Abrir <FiArrowRight /></i>
                                                     </button>
-                                                    <div className={styles.productBody}>
-                                                        <small className={styles.productOverline}>{product.has_plans ? 'OPÇÕES DISPONÍVEIS' : 'SELEÇÃO DA LOJA'}</small>
-                                                        <h3>{product.name}</h3>
+                                                    <div className={styles.productInfo}>
+                                                        <div className={styles.productNameRow}>
+                                                            <h3>{product.name}</h3>
+                                                            <button onClick={() => openQuickView(product)} aria-label={`Ver ${product.name}`}><FiArrowRight /></button>
+                                                        </div>
                                                         <p>{product.description || 'Confira os detalhes desta escolha e encontre a opção ideal para você.'}</p>
-                                                        <div className={styles.productFooter}>
-                                                            <div><small>{product.has_plans ? 'A partir de' : 'Por'}</small><strong>R$ {product.price_display}</strong></div>
-                                                            <button onClick={() => openQuickView(product)} aria-label={`Comprar ${product.name}`}><FiArrowRight /></button>
+                                                        <div className={styles.productPrice}>
+                                                            <small>{product.has_plans ? 'A PARTIR DE' : 'VALOR'}</small>
+                                                            <strong>R$ {product.price_display}</strong>
                                                         </div>
                                                     </div>
                                                 </article>
@@ -509,16 +522,19 @@ export default function StorePage() {
                     )}
                 </section>
 
-                <section className={`${styles.closing} ${styles.shell}`}>
-                    <div>
-                        <span className={styles.eyebrow}>DA NOSSA LOJA PARA VOCÊ</span>
-                        <h2>Boas escolhas começam com uma experiência simples.</h2>
-                    </div>
-                    <div>
-                        <p>Explore no seu ritmo, compare os detalhes e finalize sua compra com tranquilidade.</p>
+                <section className={`${styles.brandStatement} ${styles.shell}`}>
+                    <div className={styles.statementWord} aria-hidden="true">ESCOLHA</div>
+                    <div className={styles.statementContent}>
+                        <span className={styles.eyebrow}>UMA EXPERIÊNCIA DA {store.name || slug}</span>
+                        <h2>Menos excesso.<br />Mais do que faz sentido.</h2>
+                        <p>Explore no seu ritmo, veja cada detalhe e finalize sua compra em um ambiente protegido.</p>
                         <button className={styles.primaryButton} onClick={() => document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' })}>
-                            Voltar ao catálogo <FiArrowRight />
+                            Rever a seleção <FiArrowRight />
                         </button>
+                    </div>
+                    <div className={styles.statementStats}>
+                        <div><strong>{String(products.length).padStart(2, '0')}</strong><span>produtos escolhidos</span></div>
+                        <div><strong>100%</strong><span>compra protegida</span></div>
                     </div>
                 </section>
             </main>
