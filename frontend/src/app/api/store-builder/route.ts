@@ -69,13 +69,13 @@ function formatStore(row: any, migrationRequired = false) {
         store_name: row?.store_name || '',
         store_slug: row?.store_slug || '',
         store_description: row?.store_description || '',
-        store_theme: row?.store_theme || 'dark',
+        store_theme: row?.store_theme || 'light',
         store_banner_url: row?.store_banner_url || '',
         store_template: row?.store_template || 'creator',
         store_accent_color: row?.store_accent_color || '#6c5ce7',
         store_headline: row?.store_headline || '',
-        store_cta_text: row?.store_cta_text || 'Explorar a loja',
-        store_badge_text: row?.store_badge_text || 'Curadoria, confiança e compra segura',
+        store_cta_text: row?.store_cta_text || 'Ver produtos',
+        store_badge_text: row?.store_badge_text || 'Produtos digitais com acesso online',
         store_layout_sections: normalizeStoreLayoutSections(row?.store_layout_sections),
         store_footer_config: normalizeStoreFooter(row?.store_footer_config || DEFAULT_STORE_FOOTER),
         store_background_config: normalizeStoreBackground(row?.store_background_config || DEFAULT_STORE_BACKGROUND),
@@ -148,10 +148,7 @@ export async function PUT(req: NextRequest) {
         const sections = normalizeStoreLayoutSections(body.store_layout_sections, { strict: true });
         const footer = normalizeStoreFooter(body.store_footer_config, { strict: true });
         const background = normalizeStoreBackground(body.store_background_config, { strict: true });
-        const selectedProductIds = Array.from(new Set([
-            ...collectStoreProductIds(sections),
-            ...background.hero_product_ids
-        ]));
+        const selectedProductIds = collectStoreProductIds(sections);
 
         if (selectedProductIds.length > 0) {
             const { data: ownedProducts, error: productsError } = await supabase
@@ -198,8 +195,8 @@ export async function PUT(req: NextRequest) {
             store_template: template,
             store_accent_color: cleanColor(body.store_accent_color),
             store_headline: cleanText(body.store_headline, 140) || storeName,
-            store_cta_text: cleanText(body.store_cta_text, 40) || 'Explorar a loja',
-            store_badge_text: cleanText(body.store_badge_text, 60) || 'Curadoria, confiança e compra segura',
+            store_cta_text: cleanText(body.store_cta_text, 40) || 'Ver produtos',
+            store_badge_text: cleanText(body.store_badge_text, 60) || 'Produtos digitais com acesso online',
             store_layout_sections: sections,
             store_footer_config: footer,
             store_background_config: background

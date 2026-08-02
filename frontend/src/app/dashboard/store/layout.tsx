@@ -9,8 +9,8 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
     const tabs = [
         {
             href: '/dashboard/store/settings',
-            label: 'Personalizar',
-            description: 'Marca, visual e conteúdo',
+            label: 'Design e estrutura',
+            description: 'Aparência e organização',
             icon: <FiLayout />
         },
         {
@@ -21,8 +21,8 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
         },
         {
             href: '/dashboard/store/products',
-            label: 'Catálogo',
-            description: 'Escolha os produtos exibidos',
+            label: 'Produtos da loja',
+            description: 'Escolha o que será exibido',
             icon: <FiPackage />
         },
         {
@@ -103,27 +103,22 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
                     font-size: 13px;
                 }
                 .store-tabs {
-                    display: flex;
-                    gap: 5px;
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 10px;
                     margin-bottom: 24px;
-                    padding: 6px;
-                    border: 1px solid var(--border-color);
-                    border-radius: 17px;
-                    background: var(--bg-card);
-                    box-shadow: 0 10px 32px rgba(15,23,42,.04);
                 }
                 .store-tab-link {
-                    flex: 1 1 0;
                     min-width: 0;
-                    min-height: 58px;
-                    border: 1px solid transparent;
-                    border-radius: 12px;
-                    padding: 9px 12px;
+                    min-height: 68px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 15px;
+                    padding: 12px 14px;
                     display: flex;
                     align-items: center;
                     gap: 11px;
                     color: var(--text-secondary);
-                    background: transparent;
+                    background: var(--bg-card);
                     text-decoration: none;
                     transition: border-color .2s, background .2s, transform .2s;
                 }
@@ -138,9 +133,9 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
                     box-shadow: inset 0 0 0 1px rgba(108,92,231,.06);
                 }
                 .store-tab-icon {
-                    width: 34px;
-                    height: 34px;
-                    border-radius: 10px;
+                    width: 38px;
+                    height: 38px;
+                    border-radius: 12px;
                     display: grid;
                     place-items: center;
                     flex: 0 0 auto;
