@@ -214,7 +214,12 @@ test('default storefront includes the renewed brand, discovery and trust structu
     assert.match(source, /store-main-header/);
     assert.match(source, /store-header-category-nav/);
     assert.match(source, /store-opening-shell/);
+    assert.match(source, /store-showcase-stage/);
     assert.match(source, /is-showcase/);
+    assert.match(source, /store-premium-hero/);
+    assert.match(source, /store-premium-gallery/);
+    assert.match(source, /store-premium-dock/);
+    assert.match(source, /store-premium-product/);
     assert.match(source, /store-hero-grid/);
     assert.match(source, /store-hero-spotlight/);
     assert.match(source, /store-spotlight-media/);
