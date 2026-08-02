@@ -4379,22 +4379,23 @@ export default function StorePage() {
 
                 /* Cinematic storefront — immersive editorial direction. */
                 .store-showcase-stage {
-                    padding: clamp(14px, 2vw, 26px);
-                    background:
-                        radial-gradient(circle at 18% 8%, rgba(255,255,255,.9), transparent 25%),
-                        linear-gradient(145deg, #dededb, #f0efeb);
+                    width: 100%;
+                    padding: 0;
+                    overflow: hidden;
+                    background: #090a0d;
                 }
                 .store-opening-shell.is-showcase {
-                    width: min(1520px, 100%);
-                    height: min(840px, calc(100dvh - 36px));
+                    width: 100%;
+                    max-width: none;
+                    height: 100dvh;
                     min-height: 690px;
-                    margin: 0 auto;
+                    margin: 0;
                     overflow: hidden;
                     color: #fff;
                     background: #090a0d;
-                    border: 1px solid rgba(255,255,255,.08);
-                    border-radius: 42px;
-                    box-shadow: 0 32px 70px rgba(5,8,15,.30), 0 7px 0 rgba(5,8,15,.13);
+                    border: 0;
+                    border-radius: 0;
+                    box-shadow: none;
                 }
                 .store-opening-shell.is-showcase .store-main-header,
                 .store-opening-shell.is-showcase .store-main-header-inner {
@@ -4807,13 +4808,13 @@ export default function StorePage() {
                 }
                 @media (max-width: 820px) {
                     .store-showcase-stage {
-                        padding: 10px;
+                        padding: 0;
                     }
                     .store-opening-shell.is-showcase {
                         width: 100%;
-                        height: min(790px, calc(100dvh - 20px));
+                        height: 100dvh;
                         min-height: 700px;
-                        border-radius: 28px;
+                        border-radius: 0;
                     }
                     .store-opening-shell.is-showcase .store-main-header-inner {
                         grid-template-columns: minmax(0, 1fr) auto;
@@ -4858,7 +4859,7 @@ export default function StorePage() {
                         height: auto;
                         min-height: 920px;
                         border: 0;
-                        border-radius: 0 0 28px 28px;
+                        border-radius: 0;
                         box-shadow: none;
                     }
                     .store-opening-shell.is-showcase .store-main-header,
