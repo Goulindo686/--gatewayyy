@@ -444,7 +444,13 @@ export default function StorePage() {
                 fontFamily,
                 '--store-shell-width': shellWidth,
                 '--store-card-radius': cardRadius,
-                '--store-accent': accent
+                '--store-accent': accent,
+                '--sf-page': isLightScheme ? '#f3f2ee' : '#0a0b0e',
+                '--sf-surface': isLightScheme ? '#ffffff' : '#14161b',
+                '--sf-surface-alt': isLightScheme ? '#eae9e4' : '#1c1f26',
+                '--sf-text': isLightScheme ? '#151619' : '#f7f8fa',
+                '--sf-muted': isLightScheme ? '#707278' : '#9ca1ad',
+                '--sf-line': isLightScheme ? 'rgba(21,22,25,.10)' : 'rgba(255,255,255,.10)'
             } as React.CSSProperties}
         >
             <div className={isShowcaseHero ? 'store-showcase-stage' : ''}>
@@ -757,6 +763,22 @@ export default function StorePage() {
                     ))}
                 </div>
             </section>}
+
+            <section className="store-shell store-signature-intro" aria-label="Apresentação da loja">
+                <div className="store-signature-index" style={{ color: accent }}>01</div>
+                <div className="store-signature-copy">
+                    <span style={{ color: accent }}>EXPERIÊNCIA {store.name || slug}</span>
+                    <h2>Escolhas que transformam uma simples compra em descoberta.</h2>
+                    <p>Explore uma curadoria organizada para você encontrar rápido, decidir com confiança e comprar em poucos passos.</p>
+                </div>
+                <div className="store-signature-meta">
+                    <div><strong>{products.length}</strong><small>produtos selecionados</small></div>
+                    <div><strong>{categories.length}</strong><small>categorias disponíveis</small></div>
+                    <button type="button" onClick={() => document.getElementById('store-products')?.scrollIntoView({ behavior: 'smooth' })} style={{ background: accent }}>
+                        Explorar coleção <FiArrowRight />
+                    </button>
+                </div>
+            </section>
 
             {background.show_categories && categories.length > 0 && !searchTerm && !activeCategory && (
                 <section id="store-categories" className="store-shell store-featured-categories">
