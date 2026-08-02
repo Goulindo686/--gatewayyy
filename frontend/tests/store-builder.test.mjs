@@ -135,6 +135,7 @@ test('store builder supports professional multi-niche content blocks safely', ()
 
 test('store visual configuration is backward compatible and clamps unsupported choices', () => {
     const defaults = normalizeStoreBackground({ mode: 'theme' });
+    assert.equal(defaults.color_scheme, 'dark');
     assert.equal(defaults.hero_layout, 'split');
     assert.equal(defaults.header_style, 'floating');
     assert.equal(defaults.show_categories, true);
@@ -144,6 +145,7 @@ test('store visual configuration is backward compatible and clamps unsupported c
 
     const customized = normalizeStoreBackground({
         mode: 'theme',
+        color_scheme: 'light',
         hero_layout: 'compact',
         font_style: 'editorial',
         card_style: 'minimal',
@@ -153,6 +155,7 @@ test('store visual configuration is backward compatible and clamps unsupported c
         show_benefit_strip: false
     }, { strict: true });
     assert.equal(customized.hero_layout, 'compact');
+    assert.equal(customized.color_scheme, 'light');
     assert.equal(customized.font_style, 'editorial');
     assert.equal(customized.card_style, 'minimal');
     assert.equal(customized.product_image_ratio, 'portrait');
@@ -168,6 +171,7 @@ test('store visual configuration is backward compatible and clamps unsupported c
     const unsupported = normalizeStoreBackground({ hero_layout: 'unknown', card_style: 'neon' });
     assert.equal(unsupported.hero_layout, 'split');
     assert.equal(unsupported.card_style, 'elevated');
+    assert.equal(normalizeStoreBackground({ color_scheme: 'sepia' }).color_scheme, 'dark');
 });
 
 test('store builder API requires authentication and validates product ownership', async () => {
@@ -216,6 +220,8 @@ test('default storefront includes the renewed brand, discovery and trust structu
     assert.match(source, /store-spotlight-media/);
     assert.match(source, /store-showcase-rail/);
     assert.match(source, /store-hero-discovery-dock/);
+    assert.match(source, /store-showcase-arrow/);
+    assert.match(source, /store-scheme-/);
     assert.match(source, /store-trust-badges/);
     assert.match(source, /store-featured-categories/);
     assert.match(source, /store-benefit-strip/);

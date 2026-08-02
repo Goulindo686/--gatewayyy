@@ -87,7 +87,7 @@ const initialForm: StoreForm = {
     store_name: '',
     store_slug: '',
     store_description: '',
-    store_theme: 'light',
+    store_theme: 'dark',
     store_banner_url: '',
     store_template: 'creator',
     store_accent_color: '#6c5ce7',
@@ -422,6 +422,12 @@ export default function StoreSettingsPage() {
                             <span>Controle a personalidade, proporção e ritmo visual da página.</span>
                         </div>
                         <div className="store-design-grid">
+                            <ChoiceField
+                                label="Modo do site"
+                                value={form.store_background_config.color_scheme}
+                                options={[['dark', 'Escuro'], ['light', 'Claro']]}
+                                onChange={value => update('store_background_config', { ...form.store_background_config, color_scheme: value as StoreBackgroundConfig['color_scheme'] })}
+                            />
                             <ChoiceField
                                 label="Cabeçalho"
                                 value={form.store_background_config.header_style}

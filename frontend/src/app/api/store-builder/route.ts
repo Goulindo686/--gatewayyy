@@ -69,7 +69,7 @@ function formatStore(row: any, migrationRequired = false) {
         store_name: row?.store_name || '',
         store_slug: row?.store_slug || '',
         store_description: row?.store_description || '',
-        store_theme: row?.store_theme || 'light',
+        store_theme: row?.store_theme || 'dark',
         store_banner_url: row?.store_banner_url || '',
         store_template: row?.store_template || 'creator',
         store_accent_color: row?.store_accent_color || '#6c5ce7',

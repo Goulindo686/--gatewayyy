@@ -114,6 +114,7 @@ export type StoreFooterConfig = {
 };
 
 export type StoreBackgroundConfig = {
+    color_scheme: 'dark' | 'light';
     mode: 'theme' | 'color' | 'image';
     color: string;
     image_url: string;
@@ -162,6 +163,7 @@ export const DEFAULT_STORE_FOOTER: StoreFooterConfig = {
 };
 
 export const DEFAULT_STORE_BACKGROUND: StoreBackgroundConfig = {
+    color_scheme: 'dark',
     mode: 'theme',
     color: '#09090b',
     image_url: '',
@@ -486,6 +488,7 @@ export function normalizeStoreBackground(value: unknown, options: { strict?: boo
 
     return {
         mode,
+        color_scheme: choice(value.color_scheme, ['dark', 'light'] as const, DEFAULT_STORE_BACKGROUND.color_scheme),
         color: normalizeHexColor(value.color, DEFAULT_STORE_BACKGROUND.color),
         image_url: normalizeStoreUrl(value.image_url, { strict: options.strict && mode === 'image' }),
         overlay: Number.isFinite(overlayNumber) ? Math.min(95, Math.max(20, Math.round(overlayNumber))) : DEFAULT_STORE_BACKGROUND.overlay,

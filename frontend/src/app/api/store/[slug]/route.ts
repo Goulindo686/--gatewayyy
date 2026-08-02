@@ -148,7 +148,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
                 slug: user.store_slug,
                 name: user.store_name,
                 description: user.store_description,
-                theme: user.store_theme || 'light',
+                theme: user.store_theme || 'dark',
                 banner_url: user.store_banner_url,
                 template: user.store_template || 'creator',
                 accent_color: user.store_accent_color || '#6c5ce7',
