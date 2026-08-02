@@ -209,8 +209,12 @@ test('default storefront includes the renewed brand, discovery and trust structu
     const source = await readFile(new URL('../src/app/store/[slug]/page.tsx', import.meta.url), 'utf8');
     assert.match(source, /store-main-header/);
     assert.match(source, /store-header-category-nav/);
+    assert.match(source, /store-opening-shell/);
+    assert.match(source, /is-showcase/);
     assert.match(source, /store-hero-grid/);
     assert.match(source, /store-hero-spotlight/);
+    assert.match(source, /store-spotlight-media/);
+    assert.match(source, /store-showcase-rail/);
     assert.match(source, /store-hero-discovery-dock/);
     assert.match(source, /store-trust-badges/);
     assert.match(source, /store-featured-categories/);

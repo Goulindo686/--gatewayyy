@@ -203,10 +203,11 @@ export default function StorePage() {
         );
     }
 
+    const background = normalizeStoreBackground(store.background);
+    const isShowcaseHero = background.hero_layout === 'split';
     const heroBg = store.banner_url
         ? `linear-gradient(90deg, ${theme.heroMode === 'light' ? 'rgba(248,250,252,0.96)' : 'rgba(9,9,11,0.92)'} 0%, ${theme.heroMode === 'light' ? 'rgba(248,250,252,0.78)' : 'rgba(9,9,11,0.54)'} 52%, rgba(9,9,11,0.15) 100%), url(${store.banner_url}) center/cover`
         : `radial-gradient(circle at top right, ${accent}44, transparent 34%), linear-gradient(135deg, ${theme.bg}, ${theme.surfaceAlt})`;
-    const background = normalizeStoreBackground(store.background);
     const footer = normalizeStoreFooter(store.footer);
     const storeInitials = String(store.name || slug)
         .split(/\s+/)
@@ -232,7 +233,9 @@ export default function StorePage() {
     const pageBackground = background.mode === 'image' && background.image_url
         ? `linear-gradient(rgba(9,9,11,${background.overlay / 100}), rgba(9,9,11,${background.overlay / 100})), url("${background.image_url}") center/cover fixed`
         : undefined;
-    const pageBackgroundColor = background.mode === 'color' ? background.color : theme.bg;
+    const pageBackgroundColor = background.mode === 'color'
+        ? background.color
+        : isShowcaseHero ? '#e7e8ea' : theme.bg;
     const shellWidth = background.content_width === 'compact'
         ? '1080px'
         : background.content_width === 'standard' ? '1240px' : '1380px';
@@ -245,6 +248,7 @@ export default function StorePage() {
         ? '8px'
         : background.card_radius === 'rounded' ? '28px' : '16px';
     const storefrontClass = [
+        `store-hero-mode-${background.hero_layout}`,
         `store-font-${background.font_style}`,
         `store-header-${background.header_style}`,
         `store-spacing-${background.section_spacing}`,
@@ -412,23 +416,24 @@ export default function StorePage() {
             className={storefrontClass}
             style={{
                 minHeight: '100vh',
-                background: pageBackground || pageBackgroundColor,
+                background: isShowcaseHero ? '#e7e8ea' : pageBackground || pageBackgroundColor,
                 color: theme.text,
                 fontFamily,
                 '--store-shell-width': shellWidth,
                 '--store-card-radius': cardRadius
             } as React.CSSProperties}
         >
+            <div className={`store-opening-shell ${isShowcaseHero ? 'is-showcase' : ''}`}>
             <header
                 className="store-main-header"
                 style={{
-                    color: theme.text,
-                    background: template === 'academy' ? 'rgba(255,255,255,.90)' : 'rgba(7,9,14,.88)',
-                    borderColor: theme.border
+                    color: isShowcaseHero ? '#171717' : theme.text,
+                    background: isShowcaseHero ? '#fbfbfa' : template === 'academy' ? 'rgba(255,255,255,.90)' : 'rgba(7,9,14,.88)',
+                    borderColor: isShowcaseHero ? 'rgba(20,20,20,.08)' : theme.border
                 }}
             >
                 <div className="store-main-header-inner">
-                    <button className="store-brand" onClick={() => router.push(storeHomePath)} style={{ color: theme.text }}>
+                    <button className="store-brand" onClick={() => router.push(storeHomePath)} style={{ color: isShowcaseHero ? '#171717' : theme.text }}>
                         <span className="store-brand-mark" style={{ background: `linear-gradient(145deg, ${accent}, ${accent}99)` }}>{storeInitials}</span>
                         <span className="store-brand-name">{store.name || slug}</span>
                         <FiCheckCircle className="store-brand-check" style={{ color: accent }} />
@@ -446,16 +451,16 @@ export default function StorePage() {
                             </nav>
                         )}
                         {background.show_header_search && (
-                            <label className="store-header-search" style={{ background: theme.surface, borderColor: theme.border }}>
-                                <FiSearch size={17} style={{ color: theme.muted }} />
+                            <label className="store-header-search" style={{ background: isShowcaseHero ? '#f3f3f1' : theme.surface, borderColor: isShowcaseHero ? 'rgba(20,20,20,.10)' : theme.border }}>
+                                <FiSearch size={17} style={{ color: isShowcaseHero ? '#6b6b6b' : theme.muted }} />
                                 <input
                                     placeholder="Buscar na loja"
                                     value={searchTerm}
                                     onChange={event => setSearchTerm(event.target.value)}
-                                    style={{ color: theme.text }}
+                                    style={{ color: isShowcaseHero ? '#171717' : theme.text }}
                                 />
                                 {searchTerm && (
-                                    <button type="button" onClick={() => setSearchTerm('')} style={{ color: theme.muted }} aria-label="Limpar busca">×</button>
+                                    <button type="button" onClick={() => setSearchTerm('')} style={{ color: isShowcaseHero ? '#6b6b6b' : theme.muted }} aria-label="Limpar busca">×</button>
                                 )}
                             </label>
                         )}
@@ -463,11 +468,11 @@ export default function StorePage() {
 
                     <div className="store-header-actions">
                         {supportUrl && (
-                            <button className="store-support-button" onClick={() => handleNavClick(supportUrl)} style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}>
+                            <button className="store-support-button" onClick={() => handleNavClick(supportUrl)} style={{ color: isShowcaseHero ? '#171717' : theme.text, borderColor: isShowcaseHero ? 'rgba(20,20,20,.10)' : theme.border, background: isShowcaseHero ? '#f5f5f3' : theme.surface }}>
                                 <FiHeadphones /> <span>Atendimento</span>
                             </button>
                         )}
-                        <button className="store-cart-button" onClick={() => router.push(`/store/${slug}/cart`)} style={{ color: theme.text, borderColor: theme.border, background: theme.surface }} aria-label="Abrir carrinho">
+                        <button className="store-cart-button" onClick={() => router.push(`/store/${slug}/cart`)} style={{ color: isShowcaseHero ? '#171717' : theme.text, borderColor: isShowcaseHero ? 'rgba(20,20,20,.10)' : theme.border, background: isShowcaseHero ? '#f5f5f3' : theme.surface }} aria-label="Abrir carrinho">
                             <FiShoppingBag />
                             {totalItems > 0 && <span style={{ background: accent }}>{totalItems}</span>}
                         </button>
@@ -478,10 +483,17 @@ export default function StorePage() {
                 </div>
             </header>
 
-            <section className={`store-hero hero-${template} hero-layout-${background.hero_layout}`} style={{ background: heroBg, borderBottomColor: theme.border }}>
+            <section className={`store-hero hero-${template} hero-layout-${background.hero_layout}`} style={{ background: isShowcaseHero ? '#fbfbfa' : heroBg, borderBottomColor: isShowcaseHero ? 'transparent' : theme.border }}>
                 <div className="store-hero-grid" style={{ opacity: template === 'academy' ? .18 : .32 }} />
                 <div className="store-hero-orb store-hero-orb-one" style={{ background: accent }} />
                 <div className="store-hero-orb store-hero-orb-two" style={{ background: accent }} />
+                {isShowcaseHero && (
+                    <div className="store-showcase-rail" aria-label="Atalhos da loja">
+                        <button type="button" onClick={() => router.push('/login')} aria-label="Minha conta"><FiUser /></button>
+                        <button type="button" onClick={() => document.getElementById('store-categories')?.scrollIntoView({ behavior: 'smooth' })} aria-label="Categorias"><FiGrid /></button>
+                        {supportUrl && <button type="button" onClick={() => handleNavClick(supportUrl)} aria-label="Atendimento"><FiMessageCircle /></button>}
+                    </div>
+                )}
                 <div className="store-shell store-hero-inner">
                     <div className="store-hero-copy">
                         <div className="store-trust-badges">
@@ -492,8 +504,8 @@ export default function StorePage() {
                         <div className="store-welcome-label" style={{ color: theme.muted }}>
                             Bem-vindo à <strong style={{ color: accent }}>{store.name || slug}</strong>
                         </div>
-                        <h1>{store.headline || `Encontre o que combina com o seu momento`}</h1>
-                        <p style={{ color: theme.muted }}>
+                        <h1>{store.headline || store.name || `Encontre o que combina com o seu momento`}</h1>
+                        <p style={{ color: isShowcaseHero ? '#737373' : theme.muted }}>
                             {store.description || 'Explore soluções, experiências e produtos reunidos em uma loja feita para facilitar sua escolha.'}
                         </p>
                         <div className="store-hero-actions">
@@ -525,6 +537,10 @@ export default function StorePage() {
                                 <i style={{ color: accent, background: `${accent}14` }}><FiZap /></i>
                                 <strong>{background.hero_info_title}</strong>
                                 <p style={{ color: theme.muted }}>{background.hero_info_text}</p>
+                                <div className="store-spotlight-secondary-note">
+                                    <strong>Compra protegida</strong>
+                                    <p>Pagamento seguro e entrega organizada pela loja.</p>
+                                </div>
                             </aside>
 
                             <div className={`store-spotlight-products count-${heroProducts.length}`}>
@@ -535,15 +551,17 @@ export default function StorePage() {
                                         className={`store-spotlight-product product-${index + 1}`}
                                         onClick={() => openQuick(product)}
                                         style={{
-                                            background: product.image_url
-                                                ? `url("${product.image_url}") center/cover`
-                                                : `radial-gradient(circle at 70% 12%, rgba(255,255,255,.30), transparent 32%), linear-gradient(145deg, ${accent}, ${theme.surfaceAlt})`,
                                             borderColor: theme.border,
-                                            boxShadow: index === 0 ? `0 30px 70px ${accent}32` : '0 20px 45px rgba(0,0,0,.16)'
-                                        }}
+                                            boxShadow: index === 0 ? `0 30px 70px ${accent}24` : '0 20px 45px rgba(0,0,0,.12)',
+                                            '--spotlight-placeholder': `linear-gradient(145deg, ${accent}22, ${accent}08)`
+                                        } as React.CSSProperties}
                                         aria-label={`Conhecer ${product.name}`}
                                     >
-                                        <span className="store-spotlight-shade" />
+                                        <span className="store-spotlight-media">
+                                            {product.image_url
+                                                ? <img src={product.image_url} alt="" />
+                                                : <FiPackage />}
+                                        </span>
                                         <span className="store-spotlight-product-copy">
                                             <small>{index === 0 ? 'DESTAQUE PRINCIPAL' : 'SELEÇÃO DA LOJA'}</small>
                                             <strong>{product.name}</strong>
@@ -587,6 +605,7 @@ export default function StorePage() {
                     )}
                 </div>
             </section>
+            </div>
 
             {background.show_benefit_strip && <section className="store-benefit-strip" style={{ background: theme.surfaceAlt, borderColor: theme.border }}>
                 <div className="store-shell store-benefit-strip-inner">
@@ -2507,6 +2526,377 @@ export default function StorePage() {
                     }
                     .product-modal-grid > div:first-child {
                         min-height: 190px !important;
+                    }
+                }
+
+                /* Vitrine editorial: estrutura clara inspirada em catálogo de produto. */
+                .store-opening-shell.is-showcase {
+                    position: relative;
+                    width: min(calc(100% - 36px), calc(var(--store-shell-width) + 72px));
+                    margin: 22px auto 38px;
+                    overflow: hidden;
+                    color: #171717;
+                    background: #fbfbfa;
+                    border: 1px solid rgba(20,20,20,.08);
+                    border-radius: 38px;
+                    box-shadow: 0 22px 55px rgba(15,23,42,.24), 0 5px 0 rgba(15,23,42,.13);
+                }
+                .store-opening-shell.is-showcase .store-main-header {
+                    position: relative;
+                    top: auto;
+                    min-height: 78px;
+                    border-bottom: 0;
+                    backdrop-filter: none;
+                }
+                .store-opening-shell.is-showcase .store-main-header-inner {
+                    width: 100%;
+                    min-height: 78px;
+                    padding: 10px 30px;
+                    background: #fbfbfa !important;
+                    border-color: transparent !important;
+                    box-shadow: none !important;
+                }
+                .store-opening-shell.is-showcase .store-brand-name,
+                .store-opening-shell.is-showcase .store-header-category-nav button {
+                    color: #171717;
+                }
+                .store-opening-shell.is-showcase .store-header-category-nav button {
+                    opacity: .58;
+                }
+                .store-opening-shell.is-showcase .store-header-category-nav button:hover,
+                .store-opening-shell.is-showcase .store-header-category-nav button.active {
+                    color: #171717;
+                    opacity: 1;
+                }
+                .store-opening-shell.is-showcase .store-header-discovery {
+                    justify-content: center;
+                }
+                .store-opening-shell.is-showcase .store-header-search {
+                    display: none;
+                }
+                .store-opening-shell.is-showcase .store-hero {
+                    min-height: 590px;
+                    overflow: visible;
+                    padding: 0 0 18px;
+                    color: #171717;
+                    isolation: isolate;
+                }
+                .store-opening-shell.is-showcase .store-hero-grid,
+                .store-opening-shell.is-showcase .store-hero-orb {
+                    display: none;
+                }
+                .store-opening-shell.is-showcase .store-hero-inner {
+                    width: 100%;
+                    padding: 8px 26px 0;
+                    gap: 0;
+                }
+                .store-opening-shell.is-showcase .store-hero-copy {
+                    width: min(100%, 840px);
+                    min-height: 76px;
+                    display: grid;
+                    place-items: center;
+                }
+                .store-opening-shell.is-showcase .store-hero-copy > :not(h1) {
+                    display: none;
+                }
+                .store-opening-shell.is-showcase .store-hero-copy h1 {
+                    max-width: 820px;
+                    margin: 0;
+                    color: #171717;
+                    font-size: clamp(30px, 3.3vw, 46px);
+                    line-height: 1.02;
+                    font-weight: 900;
+                    letter-spacing: .07em;
+                    text-align: center;
+                    text-transform: uppercase;
+                }
+                .store-opening-shell.is-showcase .store-hero-spotlight {
+                    width: 100%;
+                    min-height: 350px;
+                    margin: -2px auto 0;
+                    grid-template-columns: minmax(170px, .55fr) minmax(520px, 1.8fr) minmax(170px, .55fr);
+                    gap: 14px;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-note {
+                    min-height: 230px;
+                    padding: 22px 18px;
+                    color: #272727;
+                    background: transparent !important;
+                    border: 0 !important;
+                    border-radius: 0;
+                    backdrop-filter: none;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-note > i {
+                    display: none;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-note > strong {
+                    max-width: 180px;
+                    color: #292929;
+                    font-size: 15px;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-note > p {
+                    max-width: 190px;
+                    color: #929292 !important;
+                    font-size: 10px;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-secondary-note {
+                    max-width: 190px;
+                    margin-top: 30px;
+                    padding-top: 22px;
+                    border-top: 1px solid rgba(20,20,20,.08);
+                }
+                .store-opening-shell.is-showcase .store-spotlight-secondary-note strong {
+                    display: block;
+                    margin-bottom: 6px;
+                    font-size: 13px;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-secondary-note p {
+                    color: #a0a0a0;
+                    font-size: 9px;
+                    line-height: 1.5;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-note.promo {
+                    align-items: flex-end;
+                    text-align: right;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-note.promo > strong,
+                .store-opening-shell.is-showcase .store-spotlight-note.promo > p {
+                    margin-left: auto;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-products {
+                    position: relative;
+                    min-height: 350px;
+                    align-items: center;
+                    overflow: visible;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-products::before {
+                    content: '';
+                    position: absolute;
+                    inset: auto 8% 6px;
+                    height: 116px;
+                    z-index: -1;
+                    background: #ffffff;
+                    border: 1px solid rgba(20,20,20,.06);
+                    border-radius: 0 0 90px 90px;
+                    box-shadow: 0 18px 35px rgba(15,23,42,.10);
+                }
+                .store-opening-shell.is-showcase .store-spotlight-product {
+                    width: 190px;
+                    height: 284px;
+                    overflow: visible;
+                    color: #171717;
+                    background: transparent;
+                    border: 0 !important;
+                    border-radius: 24px;
+                    box-shadow: none !important;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-product.product-1 {
+                    width: 250px;
+                    height: 342px;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-product.product-2 {
+                    margin-right: -22px;
+                    transform: rotate(-2deg) translateY(10px);
+                }
+                .store-opening-shell.is-showcase .store-spotlight-product.product-3 {
+                    margin-left: -22px;
+                    transform: rotate(2deg) translateY(10px);
+                }
+                .store-opening-shell.is-showcase .store-spotlight-product.product-2:hover {
+                    transform: rotate(-1deg) translateY(2px);
+                }
+                .store-opening-shell.is-showcase .store-spotlight-product.product-3:hover {
+                    transform: rotate(1deg) translateY(2px);
+                }
+                .store-spotlight-media {
+                    position: absolute;
+                    inset: 0 0 54px;
+                    overflow: hidden;
+                    display: grid;
+                    place-items: center;
+                    background: var(--spotlight-placeholder, #f0f0ee);
+                    border: 1px solid rgba(20,20,20,.06);
+                    border-radius: 25px;
+                }
+                .store-spotlight-media img {
+                    width: 100%;
+                    height: 100%;
+                    display: block;
+                    object-fit: contain;
+                }
+                .store-spotlight-media > svg {
+                    color: rgba(20,20,20,.22);
+                    font-size: 52px;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-product-copy {
+                    inset: auto 9px 0;
+                    padding: 9px 12px;
+                    gap: 2px;
+                    color: #171717;
+                    background: rgba(255,255,255,.96);
+                    border: 1px solid rgba(20,20,20,.07);
+                    border-radius: 13px;
+                    box-shadow: 0 10px 22px rgba(15,23,42,.08);
+                }
+                .store-opening-shell.is-showcase .store-spotlight-product-copy small {
+                    color: #858585;
+                    font-size: 6px;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-product-copy strong {
+                    color: #171717;
+                    font-size: 11px;
+                }
+                .store-opening-shell.is-showcase .store-spotlight-product-copy em {
+                    color: #171717;
+                    font-size: 10px;
+                }
+                .store-opening-shell.is-showcase .store-hero-discovery-dock {
+                    position: relative;
+                    z-index: 6;
+                    width: calc(100% - 28px);
+                    min-height: 104px;
+                    margin: -42px auto 0;
+                    padding: 13px 22px;
+                    color: #fff;
+                    background: #272727 !important;
+                    border: 0 !important;
+                    border-radius: 28px;
+                    box-shadow: 0 18px 35px rgba(15,23,42,.20) !important;
+                }
+                .store-opening-shell.is-showcase .store-dock-categories button {
+                    color: #fff !important;
+                }
+                .store-opening-shell.is-showcase .store-dock-categories button > span {
+                    color: #171717 !important;
+                    background: #fff !important;
+                }
+                .store-opening-shell.is-showcase .store-dock-search {
+                    color: #fff;
+                    background: ${accent} !important;
+                    border-color: transparent !important;
+                }
+                .store-opening-shell.is-showcase .store-dock-search svg,
+                .store-opening-shell.is-showcase .store-dock-search input,
+                .store-opening-shell.is-showcase .store-dock-search input::placeholder {
+                    color: #fff !important;
+                }
+                .store-opening-shell.is-showcase .store-dock-summary strong {
+                    color: #fff;
+                }
+                .store-opening-shell.is-showcase .store-dock-summary small {
+                    color: #aaa !important;
+                }
+                .store-showcase-rail {
+                    position: absolute;
+                    top: 50%;
+                    left: 0;
+                    z-index: 8;
+                    padding: 9px 7px;
+                    display: grid;
+                    gap: 5px;
+                    color: #fff;
+                    background: #292929;
+                    border-radius: 0 16px 16px 0;
+                    transform: translateY(-50%);
+                    box-shadow: 0 12px 24px rgba(15,23,42,.16);
+                }
+                .store-showcase-rail button {
+                    width: 28px;
+                    height: 28px;
+                    display: grid;
+                    place-items: center;
+                    color: inherit;
+                    background: transparent;
+                    border: 0;
+                    border-radius: 8px;
+                    cursor: pointer;
+                }
+                .store-showcase-rail button:hover {
+                    background: rgba(255,255,255,.12);
+                }
+                @media (max-width: 900px) {
+                    .store-opening-shell.is-showcase {
+                        width: calc(100% - 20px);
+                        border-radius: 28px;
+                    }
+                    .store-opening-shell.is-showcase .store-main-header-inner {
+                        padding-left: 18px;
+                        padding-right: 18px;
+                    }
+                    .store-opening-shell.is-showcase .store-hero {
+                        min-height: 570px;
+                    }
+                    .store-opening-shell.is-showcase .store-hero-spotlight {
+                        grid-template-columns: minmax(0, 1fr);
+                    }
+                    .store-opening-shell.is-showcase .store-spotlight-note,
+                    .store-showcase-rail {
+                        display: none;
+                    }
+                }
+                @media (max-width: 620px) {
+                    .store-opening-shell.is-showcase {
+                        width: 100%;
+                        margin: 0 0 26px;
+                        border-width: 0;
+                        border-radius: 0 0 28px 28px;
+                    }
+                    .store-opening-shell.is-showcase .store-main-header,
+                    .store-opening-shell.is-showcase .store-main-header-inner {
+                        min-height: 64px;
+                    }
+                    .store-opening-shell.is-showcase .store-main-header-inner {
+                        grid-template-rows: 44px;
+                        grid-template-columns: minmax(0, 1fr) auto;
+                        padding: 8px 14px;
+                    }
+                    .store-opening-shell.is-showcase .store-header-discovery,
+                    .store-opening-shell.is-showcase .store-support-button {
+                        display: none;
+                    }
+                    .store-opening-shell.is-showcase .store-hero {
+                        min-height: 540px;
+                        padding-bottom: 12px;
+                    }
+                    .store-opening-shell.is-showcase .store-hero-inner {
+                        padding: 10px 10px 0 !important;
+                    }
+                    .store-opening-shell.is-showcase .store-hero-copy {
+                        min-height: 62px;
+                    }
+                    .store-opening-shell.is-showcase .store-hero-copy h1 {
+                        font-size: 27px !important;
+                        letter-spacing: .035em;
+                    }
+                    .store-opening-shell.is-showcase .store-hero-spotlight,
+                    .store-opening-shell.is-showcase .store-spotlight-products {
+                        min-height: 298px;
+                    }
+                    .store-opening-shell.is-showcase .store-spotlight-product {
+                        width: 108px;
+                        height: 205px;
+                    }
+                    .store-opening-shell.is-showcase .store-spotlight-product.product-1 {
+                        width: 154px;
+                        height: 270px;
+                    }
+                    .store-opening-shell.is-showcase .store-spotlight-product.product-2 {
+                        margin-right: -16px;
+                    }
+                    .store-opening-shell.is-showcase .store-spotlight-product.product-3 {
+                        margin-left: -16px;
+                    }
+                    .store-opening-shell.is-showcase .store-spotlight-product-copy {
+                        inset: auto 3px 0;
+                        padding: 7px;
+                    }
+                    .store-opening-shell.is-showcase .store-hero-discovery-dock {
+                        width: calc(100% - 18px);
+                        margin-top: -32px;
+                        border-radius: 22px;
+                    }
+                    .store-opening-shell.is-showcase .store-dock-summary {
+                        display: none;
                     }
                 }
             `}</style>
