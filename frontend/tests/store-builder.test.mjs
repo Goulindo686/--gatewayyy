@@ -100,30 +100,35 @@ test('public store API keeps a legacy fallback until migration 029 is applied', 
     assert.match(source, /normalizeStoreBackground/);
 });
 
-test('store settings use an organized four-step editor without an embedded preview', async () => {
+test('store settings use an organized four-step editor with a live preview', async () => {
     const source = await readFile(new URL('../src/app/dashboard/store/settings/page.tsx', import.meta.url), 'utf8');
     const layout = await readFile(new URL('../src/app/dashboard/store/layout.tsx', import.meta.url), 'utf8');
 
     assert.match(source, /store-setup-navigation/);
-    assert.match(source, /id="store-identity"/);
-    assert.match(source, /id="store-appearance"/);
-    assert.match(source, /id="store-structure"/);
-    assert.match(source, /id="store-footer"/);
+    assert.match(source, /activeEditor === 'identity'/);
+    assert.match(source, /activeEditor === 'appearance'/);
+    assert.match(source, /activeEditor === 'structure'/);
+    assert.match(source, /activeEditor === 'footer'/);
     assert.match(source, /store-save-bar/);
-    assert.doesNotMatch(source, /StoreMiniPreview/);
-    assert.doesNotMatch(source, /store-preview-column/);
-    assert.match(layout, /Aparência e organização/);
-    assert.match(layout, /Escolha o que será exibido/);
+    assert.match(source, /StoreLivePreview/);
+    assert.match(source, /store-live-preview-column/);
+    assert.match(layout, /Personalização/);
+    assert.match(layout, /Marca, visual e estrutura/);
+    assert.match(layout, /Organizar/);
+    assert.match(layout, /Publicar/);
 });
 
-test('default storefront includes the renewed brand, discovery and trust structure', async () => {
+test('default storefront includes the editorial brand, discovery and trust structure', async () => {
     const source = await readFile(new URL('../src/app/store/[slug]/page.tsx', import.meta.url), 'utf8');
-    assert.match(source, /store-main-header/);
-    assert.match(source, /store-hero-grid/);
-    assert.match(source, /store-trust-badges/);
-    assert.match(source, /store-featured-categories/);
-    assert.match(source, /store-benefit-strip/);
+    const css = await readFile(new URL('../src/app/store/[slug]/storefront.module.css', import.meta.url), 'utf8');
+    assert.match(source, /styles\.header/);
+    assert.match(source, /styles\.heroComposition/);
+    assert.match(source, /styles\.heroNotes/);
+    assert.match(source, /styles\.categoriesSection/);
+    assert.match(source, /styles\.serviceBar/);
     assert.match(source, /StoreBannerCarousel/);
     assert.match(source, /buildRenderableStoreSections/);
+    assert.match(css, /Iowan Old Style/);
+    assert.match(css, /border-radius: 4px 90px 4px 4px/);
     assert.doesNotMatch(source, /className="featured-card"/);
 });

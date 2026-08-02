@@ -1,10 +1,11 @@
 'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element */
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { productsAPI, storeCategoriesAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiCheck, FiX, FiRefreshCw, FiPlus, FiImage, FiEdit2 } from 'react-icons/fi';
+import { FiCheck, FiX, FiRefreshCw, FiPlus, FiImage, FiEdit2, FiEye, FiEyeOff, FiLayers, FiPackage } from 'react-icons/fi';
 import axios from 'axios';
 
 export default function StoreProductsPage() {
@@ -21,7 +22,27 @@ export default function StoreProductsPage() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-    useEffect(() => { loadData(); }, []);
+    useEffect(() => {
+        let cancelled = false;
+        Promise.all([
+            productsAPI.list({ limit: 100 }),
+            storeCategoriesAPI.list()
+        ])
+            .then(([prodRes, catRes]) => {
+                if (cancelled) return;
+                setProducts(prodRes.data.products || []);
+                setCategories(catRes.data.categories || []);
+            })
+            .catch(() => {
+                if (!cancelled) toast.error('Erro ao carregar dados');
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const loadData = async () => {
         try {
@@ -161,25 +182,35 @@ export default function StoreProductsPage() {
 
     if (loading) return <div>Carregando...</div>;
 
+    const visibleCount = products.filter(product => product.show_in_store).length;
+    const hiddenCount = products.length - visibleCount;
+
     return (
         <div className="store-products-page">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }} className="store-products-header">
-                <h2 style={{ fontSize: 18, fontWeight: 600 }} className="store-products-title">Produtos da Vitrine</h2>
-                <div style={{ display: 'flex', gap: 12 }} className="store-products-actions">
-                    <button onClick={loadData} className="btn-secondary" style={{ padding: '8px 12px' }}>
-                        <FiRefreshCw size={14} /> Atualizar
-                    </button>
-                    <button onClick={openCreate} className="btn-primary" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <FiPlus size={16} /> Novo Produto
-                    </button>
+            <section className="store-products-overview">
+                <div className="store-products-overview-icon"><FiPackage /></div>
+                <div className="store-products-overview-copy">
+                    <span>CATÁLOGO DA LOJA</span>
+                    <h2>Produtos da vitrine</h2>
+                    <p>Escolha o que aparece para o público, organize por categoria e mantenha as informações em dia.</p>
                 </div>
+                <div className="store-products-metrics">
+                    <span><FiEye /><strong>{visibleCount}</strong> visíveis</span>
+                    <span><FiEyeOff /><strong>{hiddenCount}</strong> ocultos</span>
+                    <span><FiLayers /><strong>{categories.length}</strong> categorias</span>
+                </div>
+                <div className="store-products-actions">
+                    <button onClick={loadData} className="store-products-refresh" aria-label="Atualizar produtos"><FiRefreshCw /></button>
+                    <button onClick={openCreate} className="btn-primary"><FiPlus /> Novo produto</button>
+                </div>
+            </section>
+
+            <div className="store-products-list-heading">
+                <div><span>INVENTÁRIO</span><h3>Todos os produtos</h3></div>
+                <p>Use o status “Na vitrine” para controlar o que seus clientes encontram.</p>
             </div>
 
-            <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: 14 }} className="store-products-desc">
-                Crie novos produtos ou gerencie a visibilidade dos produtos existentes na sua loja pública.
-            </p>
-
-            <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="glass-card store-products-table-card" style={{ padding: 0, overflow: 'hidden' }}>
                 <div style={{ overflowX: 'auto' }}>
                     <table className="data-table" style={{ minWidth: 640 }}>
                         <thead>
@@ -236,6 +267,7 @@ export default function StoreProductsPage() {
                                             </button>
                                             <button
                                                 onClick={() => openEdit(product)}
+                                                aria-label={`Editar ${product.name}`}
                                                 style={{
                                                     background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
                                                     color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 8,
@@ -262,14 +294,35 @@ export default function StoreProductsPage() {
             </div>
 
             <style jsx global>{`
+                .store-products-page { display: grid; gap: 18px; padding-bottom: 36px; }
+                .store-products-overview { min-height: 142px; border: 1px solid var(--border-color); border-radius: 22px; padding: 22px 24px; display: grid; grid-template-columns: auto minmax(0,1fr) auto auto; align-items: center; gap: 16px; background: linear-gradient(125deg, var(--bg-card) 58%, rgba(108,92,231,.09)); }
+                .store-products-overview-icon { width: 54px; height: 54px; border-radius: 17px; display: grid; place-items: center; color: var(--accent-primary); background: rgba(108,92,231,.11); font-size: 21px; }
+                .store-products-overview-copy > span, .store-products-list-heading span { color: var(--accent-primary); font-size: 9px; font-weight: 900; letter-spacing: .12em; }
+                .store-products-overview-copy h2 { margin: 4px 0 6px; color: var(--text-primary); font-size: 23px; }
+                .store-products-overview-copy p { max-width: 600px; margin: 0; color: var(--text-secondary); font-size: 11px; line-height: 1.55; }
+                .store-products-metrics { display: flex; gap: 6px; }
+                .store-products-metrics > span { min-height: 34px; border: 1px solid var(--border-color); border-radius: 11px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); background: var(--bg-secondary); font-size: 8px; white-space: nowrap; }
+                .store-products-metrics svg { color: var(--accent-primary); }
+                .store-products-metrics strong { color: var(--text-primary); font-size: 10px; }
+                .store-products-actions { display: flex; gap: 8px; }
+                .store-products-actions .btn-primary { min-height: 42px; padding: 0 14px; display: inline-flex; align-items: center; gap: 7px; font-size: 11px; }
+                .store-products-refresh { width: 42px; height: 42px; border: 1px solid var(--border-color); border-radius: 12px; display: grid; place-items: center; color: var(--text-secondary); background: var(--bg-card); cursor: pointer; }
+                .store-products-list-heading { padding: 4px 3px 0; display: flex; align-items: end; justify-content: space-between; gap: 18px; }
+                .store-products-list-heading h3 { margin: 4px 0 0; color: var(--text-primary); font-size: 17px; }
+                .store-products-list-heading p { margin: 0; color: var(--text-muted); font-size: 9px; }
+                .store-products-table-card { border-radius: 18px !important; }
+                .store-products-table-card .data-table thead { background: var(--bg-secondary); }
+                .store-products-table-card .data-table th { color: var(--text-muted); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
+                .store-products-table-card .data-table td { padding-top: 14px; padding-bottom: 14px; }
                 @media (max-width: 768px) {
-                    .store-products-header { flex-direction: column !important; align-items: stretch !important; gap: 12px; }
-                    .store-products-title { width: 100%; text-align: center !important; }
-                    .store-products-actions { width: 100%; display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px !important; }
-                    .store-products-actions button { width: 100% !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 8px !important; }
-                    .store-products-desc { text-align: center; }
+                    .store-products-overview { grid-template-columns: auto 1fr auto; align-items: start; padding: 20px; }
+                    .store-products-metrics { grid-column: 1 / -1; overflow-x: auto; }
+                    .store-products-actions { grid-column: 3; grid-row: 1 / 3; }
+                    .store-products-actions .btn-primary { width: 42px; padding: 0; font-size: 0; justify-content: center; }
+                    .store-products-actions .btn-primary svg { font-size: 16px; }
+                    .store-products-list-heading p { display: none; }
                 }
-                @media (max-width: 420px) { .store-products-actions { grid-template-columns: 1fr; } }
+                @media (max-width: 520px) { .store-products-overview { grid-template-columns: auto 1fr; } .store-products-overview-icon { width: 44px; height: 44px; border-radius: 14px; } .store-products-overview-copy h2 { font-size: 19px; } .store-products-actions { grid-column: 1 / -1; grid-row: auto; } .store-products-actions .btn-primary { width: auto; padding: 0 14px; font-size: 10px; } }
             `}</style>
 
             {showModal && createPortal(

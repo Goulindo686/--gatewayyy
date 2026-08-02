@@ -60,7 +60,7 @@ function cleanSlug(value: unknown): string {
 
 function cleanColor(value: unknown): string {
     const normalized = cleanText(value, 20);
-    return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized.toLowerCase() : '#6c5ce7';
+    return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized.toLowerCase() : '#c45c3e';
 }
 
 function formatStore(row: any, migrationRequired = false) {
@@ -72,10 +72,10 @@ function formatStore(row: any, migrationRequired = false) {
         store_theme: row?.store_theme || 'light',
         store_banner_url: row?.store_banner_url || '',
         store_template: row?.store_template || 'creator',
-        store_accent_color: row?.store_accent_color || '#6c5ce7',
+        store_accent_color: row?.store_accent_color || '#c45c3e',
         store_headline: row?.store_headline || '',
         store_cta_text: row?.store_cta_text || 'Ver produtos',
-        store_badge_text: row?.store_badge_text || 'Produtos digitais com acesso online',
+        store_badge_text: row?.store_badge_text || 'Uma seleção feita para você',
         store_layout_sections: normalizeStoreLayoutSections(row?.store_layout_sections),
         store_footer_config: normalizeStoreFooter(row?.store_footer_config || DEFAULT_STORE_FOOTER),
         store_background_config: normalizeStoreBackground(row?.store_background_config || DEFAULT_STORE_BACKGROUND),
@@ -196,7 +196,7 @@ export async function PUT(req: NextRequest) {
             store_accent_color: cleanColor(body.store_accent_color),
             store_headline: cleanText(body.store_headline, 140) || storeName,
             store_cta_text: cleanText(body.store_cta_text, 40) || 'Ver produtos',
-            store_badge_text: cleanText(body.store_badge_text, 60) || 'Produtos digitais com acesso online',
+            store_badge_text: cleanText(body.store_badge_text, 60) || 'Uma seleção feita para você',
             store_layout_sections: sections,
             store_footer_config: footer,
             store_background_config: background
