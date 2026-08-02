@@ -756,11 +756,13 @@ export default function StoreSettingsPage() {
                     min-height: 19px;
                     padding: 4px 10px;
                     color: white;
-                    background: var(--preview-accent);
+                    background: linear-gradient(90deg, var(--preview-accent), var(--preview-secondary), var(--preview-tertiary));
+                    background-size: 200% 100%;
                     text-align: center;
                     font-size: 5px;
                     font-weight: 800;
                     letter-spacing: .04em;
+                    animation: store-preview-color 8s linear infinite;
                 }
                 .store-preview-header {
                     height: 36px;
@@ -802,7 +804,10 @@ export default function StoreSettingsPage() {
                     grid-template-columns: 1.08fr .92fr;
                     align-items: center;
                     gap: 10px;
-                    background: var(--preview-bg);
+                    background:
+                        radial-gradient(circle at 80% 5%, color-mix(in srgb, var(--preview-secondary) 28%, transparent), transparent 36%),
+                        radial-gradient(circle at 5% 90%, color-mix(in srgb, var(--preview-tertiary) 20%, transparent), transparent 34%),
+                        var(--preview-bg);
                 }
                 .store-preview-copy small {
                     display: block;
@@ -843,9 +848,11 @@ export default function StoreSettingsPage() {
                     position: relative;
                     min-height: 112px;
                     border-radius: 4px 18px 4px 4px;
-                    background: linear-gradient(145deg, var(--preview-accent), var(--preview-ink));
+                    background: radial-gradient(circle at 72% 18%, var(--preview-secondary), transparent 30%), linear-gradient(145deg, var(--preview-accent), var(--preview-ink));
                     background-position: center;
                     background-size: cover;
+                    box-shadow: 5px 5px 0 color-mix(in srgb, var(--preview-tertiary) 32%, transparent);
+                    animation: store-preview-float 5s ease-in-out infinite;
                 }
                 .store-preview-media:after {
                     content: '';
@@ -879,9 +886,21 @@ export default function StoreSettingsPage() {
                 .store-preview-product-image {
                     height: 38px;
                     margin-bottom: 4px;
-                    background: linear-gradient(135deg, color-mix(in srgb, var(--preview-accent) 28%, white), var(--preview-bg));
+                    background: linear-gradient(135deg, color-mix(in srgb, var(--preview-accent) 38%, white), color-mix(in srgb, var(--preview-secondary) 26%, var(--preview-bg)));
                     background-position: center;
                     background-size: cover;
+                }
+                .store-preview-product:nth-child(2) .store-preview-product-image {
+                    background: linear-gradient(135deg, color-mix(in srgb, var(--preview-secondary) 44%, white), var(--preview-bg));
+                }
+                .store-preview-product:nth-child(3) .store-preview-product-image {
+                    background: linear-gradient(135deg, color-mix(in srgb, var(--preview-tertiary) 44%, white), var(--preview-bg));
+                }
+                @keyframes store-preview-color { to { background-position: 200% 0; } }
+                @keyframes store-preview-float { 50% { transform: translateY(-3px) rotate(.5deg); } }
+                @media (prefers-reduced-motion: reduce) {
+                    .store-preview-topline,
+                    .store-preview-media { animation: none; }
                 }
                 .store-preview-product strong {
                     display: block;
@@ -1330,10 +1349,10 @@ export default function StoreSettingsPage() {
 }
 
 function StoreLivePreview({ form, products }: { form: StoreForm; products: StoreProduct[] }) {
-    const palettes: Record<string, { bg: string; surface: string; ink: string; muted: string }> = {
-        creator: { bg: '#f5f2ec', surface: '#ffffff', ink: '#252826', muted: '#74766f' },
-        academy: { bg: '#f3f7f5', surface: '#ffffff', ink: '#193b34', muted: '#64756f' },
-        studio: { bg: '#f4efe8', surface: '#fffdf8', ink: '#4c3526', muted: '#817268' }
+    const palettes: Record<string, { bg: string; surface: string; ink: string; muted: string; secondary: string; tertiary: string }> = {
+        creator: { bg: '#f5f2ec', surface: '#ffffff', ink: '#252826', muted: '#74766f', secondary: '#f2aa5b', tertiary: '#5f9f8c' },
+        academy: { bg: '#f3f7f5', surface: '#ffffff', ink: '#193b34', muted: '#64756f', secondary: '#e3a652', tertiary: '#62a6b4' },
+        studio: { bg: '#f4efe8', surface: '#fffdf8', ink: '#4c3526', muted: '#817268', secondary: '#d77b58', tertiary: '#8da05e' }
     };
     const palette = palettes[form.store_template] || palettes.creator;
     const backgroundColor = form.store_background_config.mode === 'color'
@@ -1344,7 +1363,9 @@ function StoreLivePreview({ form, products }: { form: StoreForm; products: Store
         '--preview-surface': palette.surface,
         '--preview-ink': palette.ink,
         '--preview-muted': palette.muted,
-        '--preview-accent': form.store_accent_color
+        '--preview-accent': form.store_accent_color,
+        '--preview-secondary': palette.secondary,
+        '--preview-tertiary': palette.tertiary
     } as CSSProperties;
     const initials = (form.store_name || 'Minha Loja')
         .split(/\s+/)

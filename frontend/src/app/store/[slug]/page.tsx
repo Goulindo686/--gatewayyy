@@ -83,6 +83,9 @@ type Palette = {
     line: string;
     deep: string;
     overlay: string;
+    secondary: string;
+    tertiary: string;
+    glow: string;
 };
 
 const palettes: Record<TemplateKey, Palette> = {
@@ -94,7 +97,10 @@ const palettes: Record<TemplateKey, Palette> = {
         muted: '#6d716b',
         line: '#dcd7ce',
         deep: '#202522',
-        overlay: '245,242,236'
+        overlay: '245,242,236',
+        secondary: '#f2aa5b',
+        tertiary: '#5f9f8c',
+        glow: '#ef7f61'
     },
     academy: {
         bg: '#f2f6f4',
@@ -104,7 +110,10 @@ const palettes: Record<TemplateKey, Palette> = {
         muted: '#60736d',
         line: '#d2dfda',
         deep: '#17352f',
-        overlay: '242,246,244'
+        overlay: '242,246,244',
+        secondary: '#e3a652',
+        tertiary: '#62a6b4',
+        glow: '#7cc49d'
     },
     studio: {
         bg: '#f4efe8',
@@ -114,7 +123,10 @@ const palettes: Record<TemplateKey, Palette> = {
         muted: '#7d6e64',
         line: '#ddcfc0',
         deep: '#3d2c22',
-        overlay: '244,239,232'
+        overlay: '244,239,232',
+        secondary: '#d77b58',
+        tertiary: '#8da05e',
+        glow: '#e5aa64'
     }
 };
 
@@ -241,6 +253,9 @@ export default function StorePage() {
         '--store-line': palette.line,
         '--store-deep': palette.deep,
         '--store-accent': accent,
+        '--store-secondary': palette.secondary,
+        '--store-tertiary': palette.tertiary,
+        '--store-glow': palette.glow,
         ...(background.mode === 'image' && background.image_url ? {
             backgroundImage: `linear-gradient(rgba(${palette.overlay},${background.overlay / 100}),rgba(${palette.overlay},${background.overlay / 100})),url("${background.image_url}")`
         } : {})
@@ -330,6 +345,8 @@ export default function StorePage() {
 
             <main>
                 <section className={`${styles.hero} ${styles.shell}`}>
+                    <div className={styles.heroAuraOne} aria-hidden="true" />
+                    <div className={styles.heroAuraTwo} aria-hidden="true" />
                     <div className={styles.heroCopy}>
                         <span className={styles.eyebrow}>BEM-VINDO À {store.name || slug}</span>
                         <h1>{store.headline || `Escolhas com a identidade da ${store.name || 'nossa loja'}.`}</h1>
@@ -352,6 +369,8 @@ export default function StorePage() {
                     </div>
 
                     <div className={styles.heroComposition}>
+                        <div className={styles.heroFloatingNote} aria-hidden="true"><i /><span>novidades<br /><strong>toda semana</strong></span></div>
+                        <div className={styles.heroColorCard} aria-hidden="true"><span>feito para</span><strong>surpreender</strong></div>
                         <div
                             className={`${styles.heroImage} ${heroImage ? styles.hasImage : ''}`}
                             style={heroImage ? { backgroundImage: `url("${heroImage}")` } : undefined}
@@ -380,6 +399,19 @@ export default function StorePage() {
                     </div>
                 </section>
 
+                <div className={styles.motionMarquee} aria-hidden="true">
+                    <div>
+                        {[0, 1].map(copy => (
+                            <span key={copy}>
+                                <b>DESCUBRA</b><i />
+                                <b>ESCOLHA</b><i />
+                                <b>APROVEITE</b><i />
+                                <b>VOLTE SEMPRE</b><i />
+                            </span>
+                        ))}
+                    </div>
+                </div>
+
                 {categories.length > 0 && !searchTerm && !activeCategory && (
                     <section className={`${styles.categoriesSection} ${styles.shell}`} id="categorias">
                         <div className={styles.sectionHeading}>
@@ -391,7 +423,11 @@ export default function StorePage() {
                         </div>
                         <div className={styles.categoryGrid}>
                             {categoryStats.slice(0, 6).map((category, index) => (
-                                <button key={category.id} onClick={() => handleCategoryClick(category.slug)}>
+                                <button
+                                    key={category.id}
+                                    className={[styles.categoryToneA, styles.categoryToneB, styles.categoryToneC][index % 3]}
+                                    onClick={() => handleCategoryClick(category.slug)}
+                                >
                                     <span>{String(index + 1).padStart(2, '0')}</span>
                                     <div>
                                         <strong>{category.name}</strong>
@@ -462,8 +498,11 @@ export default function StorePage() {
                                         {section.product_ids
                                             .map(productId => productsById.get(productId))
                                             .filter((product): product is StoreProduct => Boolean(product))
-                                            .map(product => (
-                                                <article className={styles.productCard} key={product.id}>
+                                            .map((product, productIndex) => (
+                                                <article
+                                                    className={`${styles.productCard} ${[styles.productToneA, styles.productToneB, styles.productToneC, styles.productToneD][productIndex % 4]}`}
+                                                    key={product.id}
+                                                >
                                                     <button
                                                         className={`${styles.productImage} ${product.image_url ? styles.hasImage : ''}`}
                                                         style={product.image_url ? { backgroundImage: `url("${product.image_url}")` } : undefined}
