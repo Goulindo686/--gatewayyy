@@ -1,6 +1,7 @@
 export const STORE_BUILDER_LIMITS = {
     sections: 24,
     productsPerSection: 4,
+    heroProducts: 3,
     bannersPerSection: 8,
     featuresPerSection: 6,
     testimonialsPerSection: 6,
@@ -125,6 +126,13 @@ export type StoreBackgroundConfig = {
     card_style: 'elevated' | 'outlined' | 'minimal';
     card_radius: 'square' | 'soft' | 'rounded';
     product_image_ratio: 'landscape' | 'square' | 'portrait';
+    hero_product_ids: string[];
+    hero_info_title: string;
+    hero_info_text: string;
+    hero_promo_title: string;
+    hero_promo_text: string;
+    show_header_categories: boolean;
+    show_header_search: boolean;
     show_categories: boolean;
     show_benefit_strip: boolean;
     show_closing_cta: boolean;
@@ -166,6 +174,13 @@ export const DEFAULT_STORE_BACKGROUND: StoreBackgroundConfig = {
     card_style: 'elevated',
     card_radius: 'soft',
     product_image_ratio: 'landscape',
+    hero_product_ids: [],
+    hero_info_title: 'Compra simples e segura',
+    hero_info_text: 'Escolha sua oferta e finalize a compra em poucos passos.',
+    hero_promo_title: 'Seleção da loja',
+    hero_promo_text: 'Descubra os produtos escolhidos para receber mais destaque.',
+    show_header_categories: true,
+    show_header_search: true,
     show_categories: true,
     show_benefit_strip: true,
     show_closing_cta: true
@@ -457,6 +472,17 @@ export function normalizeStoreBackground(value: unknown, options: { strict?: boo
     }
     const mode = (allowedModes.has(rawMode) ? rawMode : 'theme') as StoreBackgroundConfig['mode'];
     const overlayNumber = Number(value.overlay);
+    const rawHeroProductIds = value.hero_product_ids;
+    if (options.strict && rawHeroProductIds != null && !Array.isArray(rawHeroProductIds)) {
+        throw new StoreBuilderValidationError('A seleção de produtos da abertura é inválida.');
+    }
+    if (options.strict && Array.isArray(rawHeroProductIds) && rawHeroProductIds.length > STORE_BUILDER_LIMITS.heroProducts) {
+        throw new StoreBuilderValidationError(`A abertura pode destacar no máximo ${STORE_BUILDER_LIMITS.heroProducts} produtos.`);
+    }
+    const heroProductIds = Array.isArray(rawHeroProductIds)
+        ? Array.from(new Set(rawHeroProductIds.map(productId => text(productId, 100)).filter(Boolean)))
+            .slice(0, STORE_BUILDER_LIMITS.heroProducts)
+        : [];
 
     return {
         mode,
@@ -471,6 +497,13 @@ export function normalizeStoreBackground(value: unknown, options: { strict?: boo
         card_style: choice(value.card_style, ['elevated', 'outlined', 'minimal'] as const, DEFAULT_STORE_BACKGROUND.card_style),
         card_radius: choice(value.card_radius, ['square', 'soft', 'rounded'] as const, DEFAULT_STORE_BACKGROUND.card_radius),
         product_image_ratio: choice(value.product_image_ratio, ['landscape', 'square', 'portrait'] as const, DEFAULT_STORE_BACKGROUND.product_image_ratio),
+        hero_product_ids: heroProductIds,
+        hero_info_title: text(value.hero_info_title, 80) || DEFAULT_STORE_BACKGROUND.hero_info_title,
+        hero_info_text: text(value.hero_info_text, 240) || DEFAULT_STORE_BACKGROUND.hero_info_text,
+        hero_promo_title: text(value.hero_promo_title, 80) || DEFAULT_STORE_BACKGROUND.hero_promo_title,
+        hero_promo_text: text(value.hero_promo_text, 240) || DEFAULT_STORE_BACKGROUND.hero_promo_text,
+        show_header_categories: value.show_header_categories !== false,
+        show_header_search: value.show_header_search !== false,
         show_categories: value.show_categories !== false,
         show_benefit_strip: value.show_benefit_strip !== false,
         show_closing_cta: value.show_closing_cta !== false

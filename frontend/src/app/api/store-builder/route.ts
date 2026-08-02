@@ -148,7 +148,10 @@ export async function PUT(req: NextRequest) {
         const sections = normalizeStoreLayoutSections(body.store_layout_sections, { strict: true });
         const footer = normalizeStoreFooter(body.store_footer_config, { strict: true });
         const background = normalizeStoreBackground(body.store_background_config, { strict: true });
-        const selectedProductIds = collectStoreProductIds(sections);
+        const selectedProductIds = Array.from(new Set([
+            ...collectStoreProductIds(sections),
+            ...background.hero_product_ids
+        ]));
 
         if (selectedProductIds.length > 0) {
             const { data: ownedProducts, error: productsError } = await supabase

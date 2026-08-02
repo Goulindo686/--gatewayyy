@@ -138,6 +138,9 @@ test('store visual configuration is backward compatible and clamps unsupported c
     assert.equal(defaults.hero_layout, 'split');
     assert.equal(defaults.header_style, 'floating');
     assert.equal(defaults.show_categories, true);
+    assert.equal(defaults.show_header_categories, true);
+    assert.equal(defaults.show_header_search, true);
+    assert.deepEqual(defaults.hero_product_ids, []);
 
     const customized = normalizeStoreBackground({
         mode: 'theme',
@@ -145,13 +148,22 @@ test('store visual configuration is backward compatible and clamps unsupported c
         font_style: 'editorial',
         card_style: 'minimal',
         product_image_ratio: 'portrait',
+        hero_product_ids: ['product-3', 'product-1'],
+        hero_info_title: 'Entrega imediata',
         show_benefit_strip: false
     }, { strict: true });
     assert.equal(customized.hero_layout, 'compact');
     assert.equal(customized.font_style, 'editorial');
     assert.equal(customized.card_style, 'minimal');
     assert.equal(customized.product_image_ratio, 'portrait');
+    assert.deepEqual(customized.hero_product_ids, ['product-3', 'product-1']);
+    assert.equal(customized.hero_info_title, 'Entrega imediata');
     assert.equal(customized.show_benefit_strip, false);
+
+    assert.throws(
+        () => normalizeStoreBackground({ hero_product_ids: ['1', '2', '3', '4'] }, { strict: true }),
+        StoreBuilderValidationError
+    );
 
     const unsupported = normalizeStoreBackground({ hero_layout: 'unknown', card_style: 'neon' });
     assert.equal(unsupported.hero_layout, 'split');
@@ -162,6 +174,7 @@ test('store builder API requires authentication and validates product ownership'
     const source = await readFile(new URL('../src/app/api/store-builder/route.ts', import.meta.url), 'utf8');
     assert.match(source, /getAuthUser\(req\)/);
     assert.match(source, /\.eq\('user_id', auth\.user\.id\)/);
+    assert.match(source, /background\.hero_product_ids/);
     assert.match(source, /não pertencem à sua conta/);
     assert.doesNotMatch(source, /SUPABASE_SERVICE_KEY.*jsonSuccess/s);
 });
@@ -174,11 +187,13 @@ test('public store API keeps a legacy fallback until migration 029 is applied', 
     assert.match(source, /normalizeStoreBackground/);
 });
 
-test('store settings use an organized four-step editor without an embedded preview', async () => {
+test('store settings use an organized panel editor without an embedded preview', async () => {
     const source = await readFile(new URL('../src/app/dashboard/store/settings/page.tsx', import.meta.url), 'utf8');
     const layout = await readFile(new URL('../src/app/dashboard/store/layout.tsx', import.meta.url), 'utf8');
 
     assert.match(source, /store-setup-navigation/);
+    assert.match(source, /activeEditor/);
+    assert.match(source, /HeroProductPicker/);
     assert.match(source, /id="store-identity"/);
     assert.match(source, /id="store-appearance"/);
     assert.match(source, /id="store-structure"/);
@@ -186,14 +201,17 @@ test('store settings use an organized four-step editor without an embedded previ
     assert.match(source, /store-save-bar/);
     assert.doesNotMatch(source, /StoreMiniPreview/);
     assert.doesNotMatch(source, /store-preview-column/);
-    assert.match(layout, /Aparência e organização/);
-    assert.match(layout, /Escolha o que será exibido/);
+    assert.match(layout, /Marca, visual e conteúdo/);
+    assert.match(layout, /Escolha os produtos exibidos/);
 });
 
 test('default storefront includes the renewed brand, discovery and trust structure', async () => {
     const source = await readFile(new URL('../src/app/store/[slug]/page.tsx', import.meta.url), 'utf8');
     assert.match(source, /store-main-header/);
+    assert.match(source, /store-header-category-nav/);
     assert.match(source, /store-hero-grid/);
+    assert.match(source, /store-hero-spotlight/);
+    assert.match(source, /store-hero-discovery-dock/);
     assert.match(source, /store-trust-badges/);
     assert.match(source, /store-featured-categories/);
     assert.match(source, /store-benefit-strip/);

@@ -130,6 +130,10 @@ export default function StorePage() {
         () => new Map(filteredProducts.map(product => [String(product.id), product])),
         [filteredProducts]
     );
+    const catalogProductsById = useMemo(
+        () => new Map(products.map(product => [String(product.id), product])),
+        [products]
+    );
 
     const handleCategoryClick = (catSlug: string) => {
         router.push(catSlug === activeCategory ? storeHomePath : `${storeHomePath}?category=${catSlug}`);
@@ -221,6 +225,10 @@ export default function StorePage() {
         ...category,
         productCount: products.filter(product => product.store_category_id === category.id).length
     }));
+    const selectedHeroProducts = background.hero_product_ids
+        .map(productId => catalogProductsById.get(productId))
+        .filter(Boolean);
+    const heroProducts = (selectedHeroProducts.length > 0 ? selectedHeroProducts : products).slice(0, 3);
     const pageBackground = background.mode === 'image' && background.image_url
         ? `linear-gradient(rgba(9,9,11,${background.overlay / 100}), rgba(9,9,11,${background.overlay / 100})), url("${background.image_url}") center/cover fixed`
         : undefined;
@@ -426,18 +434,32 @@ export default function StorePage() {
                         <FiCheckCircle className="store-brand-check" style={{ color: accent }} />
                     </button>
 
-                    <label className="store-header-search" style={{ background: theme.surface, borderColor: theme.border }}>
-                        <FiSearch size={18} style={{ color: theme.muted }} />
-                        <input
-                            placeholder="Encontre o produto ideal para você"
-                            value={searchTerm}
-                            onChange={event => setSearchTerm(event.target.value)}
-                            style={{ color: theme.text }}
-                        />
-                        {searchTerm && (
-                            <button type="button" onClick={() => setSearchTerm('')} style={{ color: theme.muted }} aria-label="Limpar busca">×</button>
+                    <div className="store-header-discovery">
+                        {background.show_header_categories && categories.length > 0 && (
+                            <nav className="store-header-category-nav" aria-label="Categorias da loja">
+                                <button type="button" className={!activeCategory ? 'active' : ''} onClick={() => handleCategoryClick('')}>Início</button>
+                                {categories.slice(0, 4).map(category => (
+                                    <button type="button" key={category.id} className={activeCategory === category.slug ? 'active' : ''} onClick={() => handleCategoryClick(category.slug)}>
+                                        {category.name}
+                                    </button>
+                                ))}
+                            </nav>
                         )}
-                    </label>
+                        {background.show_header_search && (
+                            <label className="store-header-search" style={{ background: theme.surface, borderColor: theme.border }}>
+                                <FiSearch size={17} style={{ color: theme.muted }} />
+                                <input
+                                    placeholder="Buscar na loja"
+                                    value={searchTerm}
+                                    onChange={event => setSearchTerm(event.target.value)}
+                                    style={{ color: theme.text }}
+                                />
+                                {searchTerm && (
+                                    <button type="button" onClick={() => setSearchTerm('')} style={{ color: theme.muted }} aria-label="Limpar busca">×</button>
+                                )}
+                            </label>
+                        )}
+                    </div>
 
                     <div className="store-header-actions">
                         {supportUrl && (
@@ -497,19 +519,72 @@ export default function StorePage() {
                             <span><i style={{ color: '#35b6ff', background: 'rgba(53,182,255,.10)' }}><FiCreditCard /></i> PIX e cartão</span>
                         </div>
                     </div>
-                    <div className="store-hero-showcase" style={{ background: `${theme.surface}e8`, borderColor: theme.border, boxShadow: `0 28px 80px ${accent}22` }}>
-                        <span className="store-showcase-label" style={{ color: accent }}>{store.badge_text || 'CURADORIA DA MARCA'}</span>
-                        <div className="store-hero-logo" style={{ borderColor: `${accent}55`, background: `linear-gradient(145deg, ${accent}, ${theme.surfaceAlt})`, boxShadow: `0 20px 55px ${accent}35` }}>
-                            <span>{storeInitials}</span>
+                    {background.hero_layout === 'split' && heroProducts.length > 0 && (
+                        <div className="store-hero-spotlight">
+                            <aside className="store-spotlight-note" style={{ background: `${theme.surface}e8`, borderColor: theme.border }}>
+                                <i style={{ color: accent, background: `${accent}14` }}><FiZap /></i>
+                                <strong>{background.hero_info_title}</strong>
+                                <p style={{ color: theme.muted }}>{background.hero_info_text}</p>
+                            </aside>
+
+                            <div className={`store-spotlight-products count-${heroProducts.length}`}>
+                                {heroProducts.map((product, index) => (
+                                    <button
+                                        type="button"
+                                        key={product.id}
+                                        className={`store-spotlight-product product-${index + 1}`}
+                                        onClick={() => openQuick(product)}
+                                        style={{
+                                            background: product.image_url
+                                                ? `url("${product.image_url}") center/cover`
+                                                : `radial-gradient(circle at 70% 12%, rgba(255,255,255,.30), transparent 32%), linear-gradient(145deg, ${accent}, ${theme.surfaceAlt})`,
+                                            borderColor: theme.border,
+                                            boxShadow: index === 0 ? `0 30px 70px ${accent}32` : '0 20px 45px rgba(0,0,0,.16)'
+                                        }}
+                                        aria-label={`Conhecer ${product.name}`}
+                                    >
+                                        <span className="store-spotlight-shade" />
+                                        <span className="store-spotlight-product-copy">
+                                            <small>{index === 0 ? 'DESTAQUE PRINCIPAL' : 'SELEÇÃO DA LOJA'}</small>
+                                            <strong>{product.name}</strong>
+                                            <em>R$ {product.price_display}</em>
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            <aside className="store-spotlight-note promo" style={{ background: `${theme.surface}e8`, borderColor: theme.border }}>
+                                <span style={{ color: accent }}>{store.badge_text || 'DESTAQUE DA MARCA'}</span>
+                                <strong>{background.hero_promo_title}</strong>
+                                <p style={{ color: theme.muted }}>{background.hero_promo_text}</p>
+                                <button type="button" onClick={() => openQuick(heroProducts[0])} style={{ background: accent }}>
+                                    Descobrir <FiArrowRight />
+                                </button>
+                            </aside>
                         </div>
-                        <strong>{store.name || slug}</strong>
-                        <p style={{ color: theme.muted }}>Uma vitrine pensada para apresentar escolhas relevantes com clareza e confiança.</p>
-                        <div className="store-showcase-stats">
-                            <span><strong>{products.length}</strong><small style={{ color: theme.muted }}>oferta{products.length === 1 ? '' : 's'}</small></span>
-                            <span><strong>{categories.length || 1}</strong><small style={{ color: theme.muted }}>categoria{categories.length === 1 ? '' : 's'}</small></span>
-                            <span><FiShield style={{ color: accent }} /><small style={{ color: theme.muted }}>ambiente seguro</small></span>
+                    )}
+
+                    {background.hero_layout === 'split' && (
+                        <div className="store-hero-discovery-dock" style={{ background: theme.surface, borderColor: theme.border, boxShadow: `0 24px 70px ${accent}18` }}>
+                            <div className="store-dock-categories">
+                                {(categoryStats.length > 0 ? categoryStats.slice(0, 4) : [{ id: 'all', name: 'Catálogo', slug: '', productCount: products.length }]).map((category, index) => (
+                                    <button type="button" key={category.id} onClick={() => handleCategoryClick(category.slug)} style={{ color: theme.text }}>
+                                        <span style={{ background: `${accent}${index % 2 === 0 ? '22' : '10'}`, color: accent }}>{String(category.name).slice(0, 1).toUpperCase()}</span>
+                                        <small>{category.name}</small>
+                                    </button>
+                                ))}
+                            </div>
+                            <label className="store-dock-search" style={{ background: theme.surfaceAlt, borderColor: theme.border }}>
+                                <FiSearch style={{ color: accent }} />
+                                <input value={searchTerm} onChange={event => setSearchTerm(event.target.value)} placeholder="O que você procura?" style={{ color: theme.text }} />
+                            </label>
+                            <div className="store-dock-summary">
+                                <span style={{ color: accent }}>{products.length} produtos</span>
+                                <strong>{store.name || slug}</strong>
+                                <small style={{ color: theme.muted }}>Compra protegida pela GouPay</small>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </section>
 
@@ -1706,10 +1781,331 @@ export default function StorePage() {
                     gap: 16px;
                     font-size: 10px;
                 }
+                .store-main-header-inner {
+                    grid-template-columns: minmax(170px, .62fr) minmax(420px, 1.8fr) auto;
+                }
+                .store-header-discovery {
+                    min-width: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 14px;
+                }
+                .store-header-category-nav {
+                    min-width: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 4px;
+                }
+                .store-header-category-nav button {
+                    min-height: 34px;
+                    border: 0;
+                    border-bottom: 2px solid transparent;
+                    padding: 0 9px;
+                    overflow: hidden;
+                    color: ${theme.muted};
+                    background: transparent;
+                    font-size: 10px;
+                    font-weight: 800;
+                    white-space: nowrap;
+                    text-overflow: ellipsis;
+                    cursor: pointer;
+                }
+                .store-header-category-nav button:hover,
+                .store-header-category-nav button.active {
+                    border-bottom-color: ${accent};
+                    color: ${theme.text};
+                }
+                .store-header-discovery .store-header-search {
+                    width: min(290px, 38%);
+                    min-width: 190px;
+                    flex: 0 1 290px;
+                }
+                .store-hero {
+                    min-height: 780px;
+                    padding-bottom: 34px;
+                }
+                .store-hero-inner {
+                    position: relative;
+                    padding: 64px 24px 42px;
+                    display: grid;
+                    grid-template-columns: minmax(0, 1fr);
+                    align-content: center;
+                    gap: 34px;
+                    text-align: center;
+                }
+                .store-hero-copy {
+                    width: min(100%, 900px);
+                    margin: 0 auto;
+                }
+                .store-hero.hero-layout-split .store-hero-inner {
+                    padding-top: 36px;
+                    gap: 18px;
+                }
+                .store-hero.hero-layout-split h1 {
+                    max-width: 760px;
+                    margin-bottom: 14px;
+                    font-size: clamp(42px, 4.4vw, 58px);
+                }
+                .store-hero.hero-layout-split .store-hero-copy > p {
+                    margin-bottom: 20px;
+                    line-height: 1.6;
+                }
+                .store-hero.hero-layout-split .store-hero-assurances {
+                    display: none;
+                }
+                .store-hero-copy > p {
+                    margin-left: auto;
+                    margin-right: auto;
+                }
+                .store-trust-badges,
+                .store-hero-actions,
+                .store-hero-assurances {
+                    justify-content: center;
+                }
+                .store-hero-spotlight {
+                    width: min(100%, 1240px);
+                    min-height: 330px;
+                    margin: -4px auto 0;
+                    display: grid;
+                    grid-template-columns: minmax(170px, .55fr) minmax(520px, 1.9fr) minmax(170px, .55fr);
+                    align-items: center;
+                    gap: 22px;
+                }
+                .store-spotlight-note {
+                    min-height: 178px;
+                    border: 1px solid;
+                    border-radius: calc(var(--store-card-radius) + 4px);
+                    padding: 22px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: flex-start;
+                    justify-content: center;
+                    text-align: left;
+                    backdrop-filter: blur(20px);
+                }
+                .store-spotlight-note > i {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 12px;
+                    display: grid;
+                    place-items: center;
+                    font-style: normal;
+                    margin-bottom: 14px;
+                }
+                .store-spotlight-note > span {
+                    font-size: 9px;
+                    font-weight: 950;
+                    letter-spacing: .11em;
+                    margin-bottom: 8px;
+                }
+                .store-spotlight-note > strong {
+                    font-size: 16px;
+                    line-height: 1.25;
+                    margin-bottom: 8px;
+                }
+                .store-spotlight-note > p {
+                    font-size: 11px;
+                    line-height: 1.55;
+                }
+                .store-spotlight-note > button {
+                    min-height: 36px;
+                    border: 0;
+                    border-radius: 999px;
+                    padding: 0 14px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 7px;
+                    color: white;
+                    font-size: 10px;
+                    font-weight: 900;
+                    margin-top: 15px;
+                    cursor: pointer;
+                }
+                .store-spotlight-products {
+                    min-width: 0;
+                    min-height: 330px;
+                    display: flex;
+                    align-items: flex-end;
+                    justify-content: center;
+                    gap: 0;
+                    isolation: isolate;
+                }
+                .store-spotlight-product {
+                    position: relative;
+                    width: 190px;
+                    height: 260px;
+                    border: 1px solid;
+                    border-radius: calc(var(--store-card-radius) + 9px);
+                    padding: 0;
+                    overflow: hidden;
+                    flex: 0 0 auto;
+                    color: white;
+                    cursor: pointer;
+                    transition: transform .25s ease, filter .25s ease;
+                }
+                .store-spotlight-product:hover {
+                    filter: brightness(1.06);
+                }
+                .store-spotlight-product.product-1 {
+                    width: 250px;
+                    height: 330px;
+                    z-index: 3;
+                    order: 2;
+                }
+                .store-spotlight-product.product-2 {
+                    z-index: 1;
+                    order: 1;
+                    margin-right: -24px;
+                    transform: rotate(-4deg) translateY(-8px);
+                }
+                .store-spotlight-product.product-3 {
+                    z-index: 1;
+                    order: 3;
+                    margin-left: -24px;
+                    transform: rotate(4deg) translateY(-8px);
+                }
+                .store-spotlight-product.product-2:hover {
+                    transform: rotate(-2deg) translateY(-14px);
+                }
+                .store-spotlight-product.product-3:hover {
+                    transform: rotate(2deg) translateY(-14px);
+                }
+                .store-spotlight-shade {
+                    position: absolute;
+                    inset: 35% 0 0;
+                    background: linear-gradient(transparent, rgba(4,6,12,.92));
+                }
+                .store-spotlight-product-copy {
+                    position: absolute;
+                    inset: auto 0 0;
+                    z-index: 1;
+                    padding: 18px;
+                    display: grid;
+                    gap: 5px;
+                    text-align: left;
+                }
+                .store-spotlight-product-copy small {
+                    font-size: 7px;
+                    font-weight: 950;
+                    letter-spacing: .1em;
+                    opacity: .72;
+                }
+                .store-spotlight-product-copy strong {
+                    overflow: hidden;
+                    font-size: 14px;
+                    line-height: 1.2;
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                }
+                .store-spotlight-product-copy em {
+                    color: white;
+                    font-size: 12px;
+                    font-style: normal;
+                    font-weight: 900;
+                }
+                .store-hero-discovery-dock {
+                    width: min(100%, 1240px);
+                    min-height: 100px;
+                    border: 1px solid;
+                    border-radius: calc(var(--store-card-radius) + 12px);
+                    padding: 13px 18px;
+                    display: grid;
+                    grid-template-columns: minmax(260px, 1fr) minmax(260px, 1.15fr) minmax(190px, .7fr);
+                    align-items: center;
+                    gap: 22px;
+                }
+                .store-dock-categories {
+                    min-width: 0;
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 13px;
+                    overflow-x: auto;
+                    scrollbar-width: none;
+                }
+                .store-dock-categories::-webkit-scrollbar { display: none; }
+                .store-dock-categories button {
+                    min-width: 52px;
+                    border: 0;
+                    padding: 0;
+                    display: grid;
+                    justify-items: center;
+                    gap: 5px;
+                    background: transparent;
+                    cursor: pointer;
+                }
+                .store-dock-categories button > span {
+                    width: 42px;
+                    height: 42px;
+                    border-radius: 999px;
+                    display: grid;
+                    place-items: center;
+                    font-size: 12px;
+                    font-weight: 950;
+                }
+                .store-dock-categories button > small {
+                    width: 64px;
+                    overflow: hidden;
+                    font-size: 8px;
+                    font-weight: 800;
+                    white-space: nowrap;
+                    text-overflow: ellipsis;
+                }
+                .store-dock-search {
+                    height: 44px;
+                    border: 1px solid;
+                    border-radius: 999px;
+                    padding: 0 14px;
+                    display: flex;
+                    align-items: center;
+                    gap: 9px;
+                }
+                .store-dock-search input {
+                    width: 100%;
+                    min-width: 0;
+                    border: 0;
+                    outline: 0;
+                    background: transparent;
+                    font-size: 11px;
+                    font-weight: 700;
+                }
+                .store-dock-summary {
+                    min-width: 0;
+                    display: grid;
+                    justify-items: end;
+                    text-align: right;
+                }
+                .store-dock-summary span {
+                    font-size: 8px;
+                    font-weight: 950;
+                    letter-spacing: .08em;
+                    text-transform: uppercase;
+                }
+                .store-dock-summary strong {
+                    max-width: 100%;
+                    overflow: hidden;
+                    font-size: 13px;
+                    white-space: nowrap;
+                    text-overflow: ellipsis;
+                    margin: 3px 0;
+                }
+                .store-dock-summary small {
+                    font-size: 8px;
+                }
                 @media (max-width: 900px) {
                     .store-main-header-inner {
                         grid-template-columns: minmax(150px, .7fr) minmax(220px, 1.2fr) auto;
                         gap: 12px;
+                    }
+                    .store-header-category-nav {
+                        display: none;
+                    }
+                    .store-header-discovery .store-header-search {
+                        width: 100%;
+                        min-width: 0;
+                        flex-basis: auto;
                     }
                     .store-support-button span {
                         display: none;
@@ -1736,6 +2132,18 @@ export default function StorePage() {
                     }
                     .store-hero h1 {
                         font-size: clamp(40px, 8vw, 62px);
+                    }
+                    .store-hero-spotlight {
+                        grid-template-columns: minmax(0, 1fr);
+                    }
+                    .store-spotlight-note {
+                        display: none;
+                    }
+                    .store-hero-discovery-dock {
+                        grid-template-columns: minmax(220px, 1fr) minmax(240px, 1fr);
+                    }
+                    .store-dock-summary {
+                        display: none;
                     }
                     .store-category-cards {
                         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1789,6 +2197,11 @@ export default function StorePage() {
                         grid-template-rows: 38px 38px;
                         gap: 7px 8px;
                     }
+                    .store-header-discovery {
+                        grid-column: 1 / -1;
+                        grid-row: 2;
+                        width: 100%;
+                    }
                     .store-brand-mark {
                         width: 34px;
                         height: 34px;
@@ -1824,7 +2237,8 @@ export default function StorePage() {
                         display: none;
                     }
                     .store-hero {
-                        min-height: 600px;
+                        min-height: 0;
+                        padding-bottom: 12px;
                     }
                     .store-hero-inner {
                         padding-top: 54px !important;
@@ -1860,6 +2274,41 @@ export default function StorePage() {
                         font-size: 13px;
                         line-height: 1.65;
                         margin-bottom: 22px;
+                    }
+                    .store-hero-spotlight {
+                        min-height: 245px;
+                        margin-top: -8px;
+                    }
+                    .store-spotlight-products {
+                        min-height: 245px;
+                    }
+                    .store-spotlight-product {
+                        width: 118px;
+                        height: 180px;
+                    }
+                    .store-spotlight-product.product-1 {
+                        width: 158px;
+                        height: 230px;
+                    }
+                    .store-spotlight-product.product-2 {
+                        margin-right: -18px;
+                    }
+                    .store-spotlight-product.product-3 {
+                        margin-left: -18px;
+                    }
+                    .store-spotlight-product-copy {
+                        padding: 12px;
+                    }
+                    .store-spotlight-product-copy strong {
+                        font-size: 11px;
+                    }
+                    .store-hero-discovery-dock {
+                        grid-template-columns: 1fr;
+                        gap: 11px;
+                        padding: 12px;
+                    }
+                    .store-dock-categories {
+                        justify-content: flex-start;
                     }
                     .store-hero-actions {
                         width: 100%;
