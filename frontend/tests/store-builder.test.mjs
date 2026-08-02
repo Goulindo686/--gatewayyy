@@ -6,7 +6,6 @@ import {
     normalizeStoreBackground,
     normalizeStoreFooter,
     normalizeStoreLayoutSections,
-    normalizeStoreStyle,
     StoreBuilderValidationError
 } from '../src/lib/store-builder.ts';
 
@@ -93,130 +92,38 @@ test('store builder API requires authentication and validates product ownership'
     assert.doesNotMatch(source, /SUPABASE_SERVICE_KEY.*jsonSuccess/s);
 });
 
-test('public store API keeps builder and legacy fallbacks until migrations are applied', async () => {
+test('public store API keeps a legacy fallback until migration 029 is applied', async () => {
     const source = await readFile(new URL('../src/app/api/store/[slug]/route.ts', import.meta.url), 'utf8');
     assert.match(source, /LEGACY_PUBLIC_STORE_FIELDS/);
-    assert.match(source, /BUILDER_PUBLIC_STORE_FIELDS/);
     assert.match(source, /normalizeStoreLayoutSections/);
     assert.match(source, /normalizeStoreFooter/);
     assert.match(source, /normalizeStoreBackground/);
-    assert.match(source, /normalizeStoreStyle/);
 });
 
-test('store settings use an organized six-part editor with visual controls and a live preview', async () => {
+test('store settings use an organized four-step editor without an embedded preview', async () => {
     const source = await readFile(new URL('../src/app/dashboard/store/settings/page.tsx', import.meta.url), 'utf8');
     const layout = await readFile(new URL('../src/app/dashboard/store/layout.tsx', import.meta.url), 'utf8');
 
     assert.match(source, /store-setup-navigation/);
-    assert.match(source, /activeEditor === 'identity'/);
-    assert.match(source, /activeEditor === 'appearance'/);
-    assert.match(source, /activeEditor === 'layout'/);
-    assert.match(source, /activeEditor === 'experience'/);
-    assert.match(source, /activeEditor === 'structure'/);
-    assert.match(source, /activeEditor === 'footer'/);
+    assert.match(source, /id="store-identity"/);
+    assert.match(source, /id="store-appearance"/);
+    assert.match(source, /id="store-structure"/);
+    assert.match(source, /id="store-footer"/);
     assert.match(source, /store-save-bar/);
-    assert.match(source, /StoreLivePreview/);
-    assert.match(source, /store-live-preview-column/);
-    assert.match(source, /StyleChoiceGroup/);
-    assert.match(source, /VisibilityToggle/);
-    assert.match(source, /store_style_config/);
-    assert.match(source, /COLOR_PALETTE_OPTIONS/);
-    assert.match(source, /CUSTOM_COLOR_FIELDS/);
-    assert.match(source, /Minha paleta/);
-    assert.match(layout, /Personalização/);
-    assert.match(layout, /Marca, visual e estrutura/);
-    assert.match(layout, /Organizar/);
-    assert.match(layout, /Publicar/);
+    assert.doesNotMatch(source, /StoreMiniPreview/);
+    assert.doesNotMatch(source, /store-preview-column/);
+    assert.match(layout, /Aparência e organização/);
+    assert.match(layout, /Escolha o que será exibido/);
 });
 
-test('store style persists a broad visual profile and rejects invalid choices', () => {
-    const style = normalizeStoreStyle({
-        visual_version: 2,
-        color_mode: 'custom',
-        palette_preset: 'ocean',
-        custom_colors: { bg: '#01040a', surface: '#10151f', accent: '#00b8ff' },
-        font_style: 'friendly',
-        hero_layout: 'immersive',
-        card_style: 'outlined',
-        catalog_columns: 2,
-        animation_level: 'subtle',
-        background_pattern: 'waves',
-        show_marquee: false,
-        show_search: false
-    }, { strict: true });
-
-    assert.equal(style.font_style, 'friendly');
-    assert.equal(style.color_mode, 'custom');
-    assert.equal(style.palette_preset, 'ocean');
-    assert.equal(style.custom_colors.bg, '#01040a');
-    assert.equal(style.custom_colors.accent, '#00b8ff');
-    assert.equal(style.hero_layout, 'immersive');
-    assert.equal(style.card_style, 'outlined');
-    assert.equal(style.catalog_columns, 2);
-    assert.equal(style.show_marquee, false);
-    assert.equal(style.show_search, false);
-    assert.throws(
-        () => normalizeStoreStyle({ hero_layout: 'impossible' }, { strict: true }),
-        StoreBuilderValidationError
-    );
-    assert.throws(
-        () => normalizeStoreStyle({ visual_version: 2, color_mode: 'custom', custom_colors: { bg: 'red' } }, { strict: true }),
-        StoreBuilderValidationError
-    );
-});
-
-test('store style modernizes the previous default while preserving intentional choices', () => {
-    const modernDefault = normalizeStoreStyle(null);
-    assert.equal(modernDefault.palette_preset, 'midnight');
-    assert.equal(modernDefault.font_style, 'modern');
-    assert.equal(modernDefault.card_style, 'elevated');
-
-    const migrated = normalizeStoreStyle({
-        font_style: 'editorial',
-        hero_image_style: 'arched',
-        button_style: 'soft',
-        card_style: 'colorful',
-        corner_style: 'soft',
-        background_pattern: 'none'
-    });
-    assert.equal(migrated.visual_version, 2);
-    assert.equal(migrated.font_style, 'modern');
-    assert.equal(migrated.hero_image_style, 'rounded');
-    assert.equal(migrated.button_style, 'pill');
-    assert.equal(migrated.card_style, 'elevated');
-    assert.equal(migrated.corner_style, 'rounded');
-    assert.equal(migrated.background_pattern, 'grid');
-
-    const intentional = normalizeStoreStyle({ font_style: 'bold', card_style: 'minimal' });
-    assert.equal(intentional.font_style, 'bold');
-    assert.equal(intentional.card_style, 'minimal');
-});
-
-test('default storefront uses the new bento commerce architecture and keeps customization modes', async () => {
+test('default storefront includes the renewed brand, discovery and trust structure', async () => {
     const source = await readFile(new URL('../src/app/store/[slug]/page.tsx', import.meta.url), 'utf8');
-    const css = await readFile(new URL('../src/app/store/[slug]/storefront-v3.module.css', import.meta.url), 'utf8');
-    assert.match(source, /styles\.header/);
-    assert.match(source, /styles\.heroLead/);
-    assert.match(source, /styles\.heroVisual/);
-    assert.match(source, /styles\.heroRail/);
-    assert.match(source, /styles\.collectionDeck/);
-    assert.match(source, /styles\.trustDock/);
-    assert.match(source, /styles\.brandStatement/);
-    assert.match(source, /styles\.productVisual/);
+    assert.match(source, /store-main-header/);
+    assert.match(source, /store-hero-grid/);
+    assert.match(source, /store-trust-badges/);
+    assert.match(source, /store-featured-categories/);
+    assert.match(source, /store-benefit-strip/);
     assert.match(source, /StoreBannerCarousel/);
     assert.match(source, /buildRenderableStoreSections/);
-    assert.match(source, /normalizeStoreStyle/);
-    assert.match(source, /STORE_COLOR_PALETTES/);
-    assert.match(source, /visual\.show_announcement/);
-    assert.match(source, /visual\.show_search/);
-    assert.match(css, /\.heroImmersive/);
-    assert.match(css, /\.cardsMinimal/);
-    assert.match(css, /\.patternWaves/);
-    assert.match(css, /\.headerGlass/);
-    assert.match(css, /\.fontModern/);
-    assert.match(css, /\.collectionGrid > button:first-child/);
-    assert.match(css, /\.statementWord/);
-    assert.doesNotMatch(source, /styles\.heroComposition/);
-    assert.doesNotMatch(source, /styles\.heroFloatingNote/);
-    assert.doesNotMatch(source, /styles\.motionMarquee/);
+    assert.doesNotMatch(source, /className="featured-card"/);
 });

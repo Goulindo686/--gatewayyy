@@ -7,15 +7,12 @@ import { jsonError, jsonSuccess } from '@/lib/auth';
 import {
     DEFAULT_STORE_BACKGROUND,
     DEFAULT_STORE_FOOTER,
-    DEFAULT_STORE_STYLE,
     normalizeStoreBackground,
     normalizeStoreFooter,
-    normalizeStoreLayoutSections,
-    normalizeStoreStyle
+    normalizeStoreLayoutSections
 } from '@/lib/store-builder';
 
-const PUBLIC_STORE_FIELDS = 'id, name, store_name, store_slug, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text, store_layout_sections, store_footer_config, store_background_config, store_style_config';
-const BUILDER_PUBLIC_STORE_FIELDS = 'id, name, store_name, store_slug, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text, store_layout_sections, store_footer_config, store_background_config';
+const PUBLIC_STORE_FIELDS = 'id, name, store_name, store_slug, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text, store_layout_sections, store_footer_config, store_background_config';
 const LEGACY_PUBLIC_STORE_FIELDS = 'id, name, store_name, store_slug, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text';
 
 function isMissingCustomDomainTable(error: { code?: string; message?: string } | null): boolean {
@@ -59,17 +56,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
         let users: any[] | null = fullStoreResult.data as any[] | null;
         let userError = fullStoreResult.error;
 
-        // The public storefront remains available while migrations 029 or 032 are pending.
-        if (userError) {
-            let builderStoreQuery = supabase.from('users').select(BUILDER_PUBLIC_STORE_FIELDS);
-            builderStoreQuery = customDomainOwnerId
-                ? builderStoreQuery.eq('id', customDomainOwnerId)
-                : builderStoreQuery.ilike('store_slug', identifier);
-            const builderResult = await builderStoreQuery;
-            users = builderResult.data;
-            userError = builderResult.error;
-        }
-
+        // The public storefront remains available while migration 029 is pending.
         if (userError) {
             let legacyStoreQuery = supabase.from('users').select(LEGACY_PUBLIC_STORE_FIELDS);
             legacyStoreQuery = customDomainOwnerId
@@ -164,14 +151,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
                 theme: user.store_theme || 'light',
                 banner_url: user.store_banner_url,
                 template: user.store_template || 'creator',
-                accent_color: user.store_accent_color || '#c45c3e',
+                accent_color: user.store_accent_color || '#6c5ce7',
                 headline: user.store_headline || user.store_name,
                 cta_text: user.store_cta_text || 'Ver produtos',
-                badge_text: user.store_badge_text || 'Uma seleção feita para você',
+                badge_text: user.store_badge_text || 'Produtos digitais com acesso online',
                 layout_sections: normalizeStoreLayoutSections(user.store_layout_sections),
                 footer: normalizeStoreFooter(user.store_footer_config || DEFAULT_STORE_FOOTER),
-                background: normalizeStoreBackground(user.store_background_config || DEFAULT_STORE_BACKGROUND),
-                style: normalizeStoreStyle(user.store_style_config || DEFAULT_STORE_STYLE)
+                background: normalizeStoreBackground(user.store_background_config || DEFAULT_STORE_BACKGROUND)
             },
             categories: categories || [],
             products: formattedProducts

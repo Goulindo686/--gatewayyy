@@ -1,4 +1,4 @@
 ALTER TABLE users ADD COLUMN IF NOT EXISTS store_template TEXT DEFAULT 'creator';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS store_accent_color TEXT DEFAULT '#c45c3e';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS store_accent_color TEXT DEFAULT '#6c5ce7';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS store_headline TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS store_cta_text TEXT DEFAULT 'Ver produtos';
