@@ -6,6 +6,7 @@ import {
     normalizeStoreBackground,
     normalizeStoreFooter,
     normalizeStoreLayoutSections,
+    normalizeStoreStyle,
     StoreBuilderValidationError
 } from '../src/lib/store-builder.ts';
 
@@ -84,6 +85,33 @@ test('store background clamps overlay and rejects unsafe image URLs', () => {
     );
 });
 
+test('store style keeps the original storefront as default and validates custom choices', () => {
+    const defaults = normalizeStoreStyle(undefined);
+    assert.equal(defaults.color_mode, 'theme');
+    assert.equal(defaults.font_style, 'modern');
+    assert.equal(defaults.hero_style, 'classic');
+    assert.equal(defaults.catalog_columns, 4);
+    assert.equal(defaults.show_search, true);
+
+    const customized = normalizeStoreStyle({
+        color_mode: 'custom',
+        custom_colors: { background: '#101114', accent: '#ff3366' },
+        font_style: 'editorial',
+        catalog_columns: 3,
+        show_categories: false
+    });
+    assert.equal(customized.custom_colors.background, '#101114');
+    assert.equal(customized.custom_colors.accent, '#ff3366');
+    assert.equal(customized.font_style, 'editorial');
+    assert.equal(customized.catalog_columns, 3);
+    assert.equal(customized.show_categories, false);
+
+    assert.throws(
+        () => normalizeStoreStyle({ color_mode: 'custom', custom_colors: { accent: 'red' } }, { strict: true }),
+        StoreBuilderValidationError
+    );
+});
+
 test('store builder API requires authentication and validates product ownership', async () => {
     const source = await readFile(new URL('../src/app/api/store-builder/route.ts', import.meta.url), 'utf8');
     assert.match(source, /getAuthUser\(req\)/);
@@ -92,12 +120,14 @@ test('store builder API requires authentication and validates product ownership'
     assert.doesNotMatch(source, /SUPABASE_SERVICE_KEY.*jsonSuccess/s);
 });
 
-test('public store API keeps a legacy fallback until migration 029 is applied', async () => {
+test('public store API keeps fallbacks while style and builder migrations are pending', async () => {
     const source = await readFile(new URL('../src/app/api/store/[slug]/route.ts', import.meta.url), 'utf8');
+    assert.match(source, /BUILDER_PUBLIC_STORE_FIELDS/);
     assert.match(source, /LEGACY_PUBLIC_STORE_FIELDS/);
     assert.match(source, /normalizeStoreLayoutSections/);
     assert.match(source, /normalizeStoreFooter/);
     assert.match(source, /normalizeStoreBackground/);
+    assert.match(source, /normalizeStoreStyle/);
 });
 
 test('store settings use an organized four-step editor without an embedded preview', async () => {
@@ -110,6 +140,10 @@ test('store settings use an organized four-step editor without an embedded previ
     assert.match(source, /id="store-structure"/);
     assert.match(source, /id="store-footer"/);
     assert.match(source, /store-save-bar/);
+    assert.match(source, /store_style_config/);
+    assert.match(source, /StyleChoiceGroup/);
+    assert.match(source, /Paleta personalizada/);
+    assert.match(source, /Barra de benefícios/);
     assert.doesNotMatch(source, /StoreMiniPreview/);
     assert.doesNotMatch(source, /store-preview-column/);
     assert.match(layout, /Aparência e organização/);
@@ -125,5 +159,9 @@ test('default storefront includes the renewed brand, discovery and trust structu
     assert.match(source, /store-benefit-strip/);
     assert.match(source, /StoreBannerCarousel/);
     assert.match(source, /buildRenderableStoreSections/);
+    assert.match(source, /normalizeStoreStyle/);
+    assert.match(source, /store-font-/);
+    assert.match(source, /visual\.show_search/);
+    assert.match(source, /visual\.show_categories/);
     assert.doesNotMatch(source, /className="featured-card"/);
 });

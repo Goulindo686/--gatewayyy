@@ -54,10 +54,41 @@ export type StoreBackgroundConfig = {
     overlay: number;
 };
 
+export type StoreStyleColors = {
+    background: string;
+    surface: string;
+    surface_alt: string;
+    text: string;
+    muted: string;
+    border: string;
+    accent: string;
+};
+
+export type StoreStyleConfig = {
+    color_mode: 'theme' | 'custom';
+    custom_colors: StoreStyleColors;
+    font_style: 'modern' | 'editorial' | 'friendly' | 'bold';
+    hero_style: 'classic' | 'compact' | 'centered';
+    header_style: 'standard' | 'glass' | 'solid';
+    button_style: 'soft' | 'pill' | 'square';
+    card_style: 'standard' | 'elevated' | 'outlined' | 'minimal';
+    corner_style: 'soft' | 'rounded' | 'sharp';
+    catalog_density: 'compact' | 'comfortable' | 'spacious';
+    image_ratio: 'square' | 'portrait' | 'landscape';
+    animation_level: 'none' | 'subtle' | 'expressive';
+    background_pattern: 'none' | 'dots' | 'grid';
+    catalog_columns: 2 | 3 | 4;
+    show_benefit_bar: boolean;
+    show_categories: boolean;
+    show_search: boolean;
+    show_account: boolean;
+};
+
 export type StoreBuilderConfig = {
     sections: StoreLayoutSection[];
     footer: StoreFooterConfig;
     background: StoreBackgroundConfig;
+    style: StoreStyleConfig;
 };
 
 export class StoreBuilderValidationError extends Error {
@@ -82,6 +113,34 @@ export const DEFAULT_STORE_BACKGROUND: StoreBackgroundConfig = {
     color: '#09090b',
     image_url: '',
     overlay: 82
+};
+
+export const DEFAULT_STORE_STYLE: StoreStyleConfig = {
+    color_mode: 'theme',
+    custom_colors: {
+        background: '#09090b',
+        surface: '#141417',
+        surface_alt: '#0f1117',
+        text: '#ffffff',
+        muted: '#94a3b8',
+        border: '#24242a',
+        accent: '#6c5ce7'
+    },
+    font_style: 'modern',
+    hero_style: 'classic',
+    header_style: 'standard',
+    button_style: 'soft',
+    card_style: 'standard',
+    corner_style: 'soft',
+    catalog_density: 'comfortable',
+    image_ratio: 'landscape',
+    animation_level: 'expressive',
+    background_pattern: 'none',
+    catalog_columns: 4,
+    show_benefit_bar: true,
+    show_categories: true,
+    show_search: true,
+    show_account: true
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -279,6 +338,78 @@ export function normalizeStoreBackground(value: unknown, options: { strict?: boo
     };
 }
 
+function enumValue<T extends string>(value: unknown, allowed: readonly T[], fallback: T, label: string, strict = false): T {
+    const normalized = text(value, 40) as T;
+    if (allowed.includes(normalized)) return normalized;
+    if (strict && normalized) throw new StoreBuilderValidationError(`${label} inválido.`);
+    return fallback;
+}
+
+function booleanValue(value: unknown, fallback: boolean, label: string, strict = false): boolean {
+    if (typeof value === 'boolean') return value;
+    if (value == null) return fallback;
+    if (strict) throw new StoreBuilderValidationError(`${label} inválido.`);
+    return fallback;
+}
+
+function styleColor(value: unknown, fallback: string, label: string, strict = false): string {
+    if (value == null || value === '') return fallback;
+    const normalized = text(value, 20);
+    if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return normalized.toLowerCase();
+    if (strict) throw new StoreBuilderValidationError(`${label} inválida.`);
+    return fallback;
+}
+
+function normalizeStoreStyleColors(value: unknown, strict = false): StoreStyleColors {
+    const source = isRecord(value) ? value : {};
+    if (strict && value != null && !isRecord(value)) {
+        throw new StoreBuilderValidationError('A paleta personalizada é inválida.');
+    }
+    const fallback = DEFAULT_STORE_STYLE.custom_colors;
+    return {
+        background: styleColor(source.background, fallback.background, 'Cor de fundo', strict),
+        surface: styleColor(source.surface, fallback.surface, 'Cor dos cards', strict),
+        surface_alt: styleColor(source.surface_alt, fallback.surface_alt, 'Cor da superfície auxiliar', strict),
+        text: styleColor(source.text, fallback.text, 'Cor do texto', strict),
+        muted: styleColor(source.muted, fallback.muted, 'Cor do texto secundário', strict),
+        border: styleColor(source.border, fallback.border, 'Cor das bordas', strict),
+        accent: styleColor(source.accent, fallback.accent, 'Cor de destaque', strict)
+    };
+}
+
+export function normalizeStoreStyle(value: unknown, options: { strict?: boolean } = {}): StoreStyleConfig {
+    if (value == null) return { ...DEFAULT_STORE_STYLE, custom_colors: { ...DEFAULT_STORE_STYLE.custom_colors } };
+    if (!isRecord(value)) {
+        if (options.strict) throw new StoreBuilderValidationError('A configuração visual da loja é inválida.');
+        return { ...DEFAULT_STORE_STYLE, custom_colors: { ...DEFAULT_STORE_STYLE.custom_colors } };
+    }
+
+    const columns = Number(value.catalog_columns);
+    if (options.strict && Number.isFinite(columns) && ![2, 3, 4].includes(columns)) {
+        throw new StoreBuilderValidationError('A quantidade de colunas do catálogo é inválida.');
+    }
+
+    return {
+        color_mode: enumValue(value.color_mode, ['theme', 'custom'] as const, DEFAULT_STORE_STYLE.color_mode, 'Modo de cores', options.strict),
+        custom_colors: normalizeStoreStyleColors(value.custom_colors, options.strict),
+        font_style: enumValue(value.font_style, ['modern', 'editorial', 'friendly', 'bold'] as const, DEFAULT_STORE_STYLE.font_style, 'Estilo de fonte', options.strict),
+        hero_style: enumValue(value.hero_style, ['classic', 'compact', 'centered'] as const, DEFAULT_STORE_STYLE.hero_style, 'Estilo da capa', options.strict),
+        header_style: enumValue(value.header_style, ['standard', 'glass', 'solid'] as const, DEFAULT_STORE_STYLE.header_style, 'Estilo do cabeçalho', options.strict),
+        button_style: enumValue(value.button_style, ['soft', 'pill', 'square'] as const, DEFAULT_STORE_STYLE.button_style, 'Estilo dos botões', options.strict),
+        card_style: enumValue(value.card_style, ['standard', 'elevated', 'outlined', 'minimal'] as const, DEFAULT_STORE_STYLE.card_style, 'Estilo dos produtos', options.strict),
+        corner_style: enumValue(value.corner_style, ['soft', 'rounded', 'sharp'] as const, DEFAULT_STORE_STYLE.corner_style, 'Formato dos cantos', options.strict),
+        catalog_density: enumValue(value.catalog_density, ['compact', 'comfortable', 'spacious'] as const, DEFAULT_STORE_STYLE.catalog_density, 'Espaçamento do catálogo', options.strict),
+        image_ratio: enumValue(value.image_ratio, ['square', 'portrait', 'landscape'] as const, DEFAULT_STORE_STYLE.image_ratio, 'Proporção das imagens', options.strict),
+        animation_level: enumValue(value.animation_level, ['none', 'subtle', 'expressive'] as const, DEFAULT_STORE_STYLE.animation_level, 'Intensidade das animações', options.strict),
+        background_pattern: enumValue(value.background_pattern, ['none', 'dots', 'grid'] as const, DEFAULT_STORE_STYLE.background_pattern, 'Textura do fundo', options.strict),
+        catalog_columns: ([2, 3, 4].includes(columns) ? columns : DEFAULT_STORE_STYLE.catalog_columns) as 2 | 3 | 4,
+        show_benefit_bar: booleanValue(value.show_benefit_bar, DEFAULT_STORE_STYLE.show_benefit_bar, 'Visibilidade dos benefícios', options.strict),
+        show_categories: booleanValue(value.show_categories, DEFAULT_STORE_STYLE.show_categories, 'Visibilidade das categorias', options.strict),
+        show_search: booleanValue(value.show_search, DEFAULT_STORE_STYLE.show_search, 'Visibilidade da busca', options.strict),
+        show_account: booleanValue(value.show_account, DEFAULT_STORE_STYLE.show_account, 'Visibilidade da conta', options.strict)
+    };
+}
+
 export function normalizeStoreBuilder(
     value: Partial<StoreBuilderConfig> | null | undefined,
     options: { strict?: boolean } = {}
@@ -286,7 +417,8 @@ export function normalizeStoreBuilder(
     return {
         sections: normalizeStoreLayoutSections(value?.sections, options),
         footer: normalizeStoreFooter(value?.footer, options),
-        background: normalizeStoreBackground(value?.background, options)
+        background: normalizeStoreBackground(value?.background, options),
+        style: normalizeStoreStyle(value?.style, options)
     };
 }
 

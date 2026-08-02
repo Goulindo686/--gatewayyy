@@ -25,9 +25,12 @@ import {
     createStoreBuilderId,
     DEFAULT_STORE_BACKGROUND,
     DEFAULT_STORE_FOOTER,
+    DEFAULT_STORE_STYLE,
     StoreBackgroundConfig,
     StoreFooterConfig,
-    StoreLayoutSection
+    StoreLayoutSection,
+    StoreStyleColors,
+    StoreStyleConfig
 } from '@/lib/store-builder';
 
 const STORE_TEMPLATES = [
@@ -79,6 +82,7 @@ type StoreForm = {
     store_layout_sections: StoreLayoutSection[];
     store_footer_config: StoreFooterConfig;
     store_background_config: StoreBackgroundConfig;
+    store_style_config: StoreStyleConfig;
 };
 
 const initialForm: StoreForm = {
@@ -95,7 +99,8 @@ const initialForm: StoreForm = {
     store_badge_text: 'Produtos digitais com acesso online',
     store_layout_sections: [],
     store_footer_config: { ...DEFAULT_STORE_FOOTER, links: [] },
-    store_background_config: { ...DEFAULT_STORE_BACKGROUND }
+    store_background_config: { ...DEFAULT_STORE_BACKGROUND },
+    store_style_config: { ...DEFAULT_STORE_STYLE, custom_colors: { ...DEFAULT_STORE_STYLE.custom_colors } }
 };
 
 function slugify(value: string) {
@@ -110,6 +115,7 @@ export default function StoreSettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [migrationRequired, setMigrationRequired] = useState(false);
+    const [migrationFile, setMigrationFile] = useState('');
     const [uploading, setUploading] = useState<string | null>(null);
     const [form, setForm] = useState<StoreForm>(initialForm);
     const [products, setProducts] = useState<StoreProduct[]>([]);
@@ -130,13 +136,22 @@ export default function StoreSettingsPage() {
 
                 const store = data.store || {};
                 setMigrationRequired(Boolean(store.migration_required));
+                setMigrationFile(store.migration_file || '');
                 setProducts(data.products || []);
                 setForm({
                     ...initialForm,
                     ...store,
                     store_layout_sections: Array.isArray(store.store_layout_sections) ? store.store_layout_sections : [],
                     store_footer_config: { ...DEFAULT_STORE_FOOTER, ...(store.store_footer_config || {}), links: store.store_footer_config?.links || [] },
-                    store_background_config: { ...DEFAULT_STORE_BACKGROUND, ...(store.store_background_config || {}) }
+                    store_background_config: { ...DEFAULT_STORE_BACKGROUND, ...(store.store_background_config || {}) },
+                    store_style_config: {
+                        ...DEFAULT_STORE_STYLE,
+                        ...(store.store_style_config || {}),
+                        custom_colors: {
+                            ...DEFAULT_STORE_STYLE.custom_colors,
+                            ...(store.store_style_config?.custom_colors || {})
+                        }
+                    }
                 });
             } catch (error: unknown) {
                 toast.error(errorMessage(error, 'Erro ao carregar configurações da loja'));
@@ -149,6 +164,35 @@ export default function StoreSettingsPage() {
 
     const update = <K extends keyof StoreForm>(field: K, value: StoreForm[K]) => {
         setForm(previous => ({ ...previous, [field]: value }));
+    };
+
+    const updateStyle = <K extends keyof StoreStyleConfig>(field: K, value: StoreStyleConfig[K]) => {
+        setForm(previous => ({
+            ...previous,
+            store_style_config: { ...previous.store_style_config, [field]: value }
+        }));
+    };
+
+    const updateCustomColor = (field: keyof StoreStyleColors, value: string) => {
+        setForm(previous => ({
+            ...previous,
+            store_accent_color: field === 'accent' ? value : previous.store_accent_color,
+            store_style_config: {
+                ...previous.store_style_config,
+                custom_colors: { ...previous.store_style_config.custom_colors, [field]: value }
+            }
+        }));
+    };
+
+    const updateAccentColor = (value: string) => {
+        setForm(previous => ({
+            ...previous,
+            store_accent_color: value,
+            store_style_config: {
+                ...previous.store_style_config,
+                custom_colors: { ...previous.store_style_config.custom_colors, accent: value }
+            }
+        }));
     };
 
     const uploadImage = async (file: File): Promise<string> => {
@@ -209,7 +253,7 @@ export default function StoreSettingsPage() {
         if (!form.store_name.trim()) return toast.error('Informe o nome da loja');
         if (!form.store_slug.trim()) return toast.error('Informe o link da loja');
         if (migrationRequired) {
-            return toast.error('Execute primeiro a migration 029 no Supabase.');
+            return toast.error(`Execute primeiro a migration ${migrationFile || 'pendente'} no Supabase.`);
         }
 
         setSaving(true);
@@ -254,7 +298,7 @@ export default function StoreSettingsPage() {
             {migrationRequired && (
                 <div className="store-migration-alert">
                     <strong>Uma atualização do banco está pendente.</strong>
-                    <span>Execute o arquivo <code>029_add_storefront_builder.sql</code> no Supabase para ativar e salvar o novo construtor.</span>
+                    <span>Execute o arquivo <code>{migrationFile || 'indicado pela API'}</code> no Supabase para ativar e salvar todas as opções.</span>
                 </div>
             )}
 
@@ -368,7 +412,73 @@ export default function StoreSettingsPage() {
                         title="Aparência da loja"
                         description="Escolha uma base visual e aplique as cores da sua marca."
                     />
-                    <div className="store-form-group">
+                    <div className="store-form-group store-appearance-palette">
+                        <div className="store-form-group-heading">
+                            <strong>Paleta completa</strong>
+                            <span>Mantenha as cores do modelo ou defina cada parte da loja.</span>
+                        </div>
+                        <StyleChoiceGroup
+                            label="Modo de cores"
+                            value={form.store_style_config.color_mode}
+                            options={[{ value: 'theme', label: 'Cores do modelo' }, { value: 'custom', label: 'Paleta personalizada' }]}
+                            onChange={value => updateStyle('color_mode', value as StoreStyleConfig['color_mode'])}
+                        />
+                        {form.store_style_config.color_mode === 'custom' && (
+                            <div className="store-custom-colors">
+                                {([
+                                    ['background', 'Fundo da página'],
+                                    ['surface', 'Cards e cabeçalho'],
+                                    ['surface_alt', 'Superfície auxiliar'],
+                                    ['text', 'Texto principal'],
+                                    ['muted', 'Texto secundário'],
+                                    ['border', 'Bordas'],
+                                    ['accent', 'Destaque e botões']
+                                ] as Array<[keyof StoreStyleColors, string]>).map(([field, label]) => (
+                                    <label key={field} className="store-custom-color">
+                                        <span>{label}</span>
+                                        <div>
+                                            <input type="color" value={form.store_style_config.custom_colors[field]} onChange={event => updateCustomColor(field, event.target.value)} />
+                                            <code>{form.store_style_config.custom_colors[field]}</code>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div className="store-form-group store-appearance-finish">
+                        <div className="store-form-group-heading">
+                            <strong>Tipografia e acabamento</strong>
+                            <span>As escolhas alteram o estilo, sem trocar a estrutura original.</span>
+                        </div>
+                        <div className="store-style-groups">
+                            <StyleChoiceGroup label="Estilo das letras" value={form.store_style_config.font_style} options={[{ value: 'modern', label: 'Moderna' }, { value: 'editorial', label: 'Editorial' }, { value: 'friendly', label: 'Amigável' }, { value: 'bold', label: 'Marcante' }]} onChange={value => updateStyle('font_style', value as StoreStyleConfig['font_style'])} />
+                            <StyleChoiceGroup label="Capa da loja" value={form.store_style_config.hero_style} options={[{ value: 'classic', label: 'Clássica' }, { value: 'compact', label: 'Compacta' }, { value: 'centered', label: 'Centralizada' }]} onChange={value => updateStyle('hero_style', value as StoreStyleConfig['hero_style'])} />
+                            <StyleChoiceGroup label="Cabeçalho" value={form.store_style_config.header_style} options={[{ value: 'standard', label: 'Padrão' }, { value: 'glass', label: 'Transparente' }, { value: 'solid', label: 'Sólido' }]} onChange={value => updateStyle('header_style', value as StoreStyleConfig['header_style'])} />
+                            <StyleChoiceGroup label="Botões" value={form.store_style_config.button_style} options={[{ value: 'soft', label: 'Suaves' }, { value: 'pill', label: 'Cápsula' }, { value: 'square', label: 'Retos' }]} onChange={value => updateStyle('button_style', value as StoreStyleConfig['button_style'])} />
+                            <StyleChoiceGroup label="Cantos" value={form.store_style_config.corner_style} options={[{ value: 'soft', label: 'Suaves' }, { value: 'rounded', label: 'Arredondados' }, { value: 'sharp', label: 'Retos' }]} onChange={value => updateStyle('corner_style', value as StoreStyleConfig['corner_style'])} />
+                            <StyleChoiceGroup label="Animações" value={form.store_style_config.animation_level} options={[{ value: 'none', label: 'Nenhuma' }, { value: 'subtle', label: 'Discretas' }, { value: 'expressive', label: 'Expressivas' }]} onChange={value => updateStyle('animation_level', value as StoreStyleConfig['animation_level'])} />
+                        </div>
+                    </div>
+                    <div className="store-form-group store-appearance-catalog">
+                        <div className="store-form-group-heading">
+                            <strong>Catálogo e elementos visíveis</strong>
+                            <span>Controle a densidade dos produtos e o que aparece para o cliente.</span>
+                        </div>
+                        <div className="store-style-groups">
+                            <StyleChoiceGroup label="Cards de produto" value={form.store_style_config.card_style} options={[{ value: 'standard', label: 'Padrão' }, { value: 'elevated', label: 'Elevados' }, { value: 'outlined', label: 'Contornados' }, { value: 'minimal', label: 'Minimalistas' }]} onChange={value => updateStyle('card_style', value as StoreStyleConfig['card_style'])} />
+                            <StyleChoiceGroup label="Espaçamento" value={form.store_style_config.catalog_density} options={[{ value: 'compact', label: 'Compacto' }, { value: 'comfortable', label: 'Confortável' }, { value: 'spacious', label: 'Amplo' }]} onChange={value => updateStyle('catalog_density', value as StoreStyleConfig['catalog_density'])} />
+                            <StyleChoiceGroup label="Formato das imagens" value={form.store_style_config.image_ratio} options={[{ value: 'square', label: 'Quadrada' }, { value: 'portrait', label: 'Vertical' }, { value: 'landscape', label: 'Horizontal' }]} onChange={value => updateStyle('image_ratio', value as StoreStyleConfig['image_ratio'])} />
+                            <StyleChoiceGroup label="Colunas no computador" value={String(form.store_style_config.catalog_columns)} options={[{ value: '2', label: '2 colunas' }, { value: '3', label: '3 colunas' }, { value: '4', label: '4 colunas' }]} onChange={value => updateStyle('catalog_columns', Number(value) as StoreStyleConfig['catalog_columns'])} />
+                            <StyleChoiceGroup label="Textura de fundo" value={form.store_style_config.background_pattern} options={[{ value: 'none', label: 'Sem textura' }, { value: 'dots', label: 'Pontos' }, { value: 'grid', label: 'Grade' }]} onChange={value => updateStyle('background_pattern', value as StoreStyleConfig['background_pattern'])} />
+                        </div>
+                        <div className="store-visibility-grid">
+                            <VisibilityToggle label="Barra de benefícios" checked={form.store_style_config.show_benefit_bar} onChange={value => updateStyle('show_benefit_bar', value)} />
+                            <VisibilityToggle label="Categorias" checked={form.store_style_config.show_categories} onChange={value => updateStyle('show_categories', value)} />
+                            <VisibilityToggle label="Busca" checked={form.store_style_config.show_search} onChange={value => updateStyle('show_search', value)} />
+                            <VisibilityToggle label="Área do cliente" checked={form.store_style_config.show_account} onChange={value => updateStyle('show_account', value)} />
+                        </div>
+                    </div>
+                    <div className="store-form-group store-appearance-base">
                         <div className="store-form-group-heading">
                             <strong>Estilo principal</strong>
                             <span>Escolha o acabamento que melhor combina com seus produtos.</span>
@@ -389,7 +499,7 @@ export default function StoreSettingsPage() {
                             })}
                         </div>
                     </div>
-                    <div className="store-form-group">
+                    <div className="store-form-group store-appearance-background">
                         <div className="store-form-group-heading">
                             <strong>Cores e plano de fundo</strong>
                             <span>Use uma cor sólida, o fundo do tema ou uma imagem personalizada.</span>
@@ -404,11 +514,11 @@ export default function StoreSettingsPage() {
                                             type="button"
                                             className={form.store_accent_color === color ? 'selected' : ''}
                                             style={{ background: color }}
-                                            onClick={() => update('store_accent_color', color)}
+                                            onClick={() => updateAccentColor(color)}
                                             aria-label={`Usar cor ${color}`}
                                         />
                                     ))}
-                                    <input type="color" value={form.store_accent_color} onChange={event => update('store_accent_color', event.target.value)} aria-label="Escolher cor personalizada" />
+                                    <input type="color" value={form.store_accent_color} onChange={event => updateAccentColor(event.target.value)} aria-label="Escolher cor personalizada" />
                                 </div>
                             </div>
                             <div>
@@ -668,6 +778,17 @@ export default function StoreSettingsPage() {
                 .store-editor-section {
                     padding: 26px;
                 }
+                #store-appearance {
+                    display: flex;
+                    flex-direction: column;
+                }
+                #store-appearance .store-section-header { order: 0; }
+                #store-appearance .store-appearance-base { order: 1; margin-top: 0; }
+                #store-appearance .store-appearance-background { order: 2; }
+                #store-appearance .store-appearance-palette { order: 3; }
+                #store-appearance .store-appearance-finish { order: 4; }
+                #store-appearance .store-appearance-catalog { order: 5; }
+                #store-appearance .store-form-group { margin-top: 14px; }
                 .store-section-header {
                     display: flex;
                     align-items: flex-start;
@@ -913,6 +1034,125 @@ export default function StoreSettingsPage() {
                     padding: 3px;
                     background: var(--bg-secondary);
                 }
+                .store-style-groups {
+                    display: grid;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 16px;
+                }
+                .store-style-choice-label {
+                    display: block;
+                    color: var(--text-secondary);
+                    font-size: 12px;
+                    font-weight: 750;
+                    margin-bottom: 7px;
+                }
+                .store-style-choice-options {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 6px;
+                }
+                .store-style-choice-options button {
+                    min-height: 35px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 10px;
+                    padding: 0 11px;
+                    background: var(--bg-card);
+                    color: var(--text-secondary);
+                    font-size: 11px;
+                    font-weight: 750;
+                    cursor: pointer;
+                    transition: border-color .2s, color .2s, background .2s;
+                }
+                .store-style-choice-options button.selected {
+                    border-color: var(--accent-primary);
+                    color: var(--accent-primary);
+                    background: rgba(108,92,231,.09);
+                }
+                .store-custom-colors {
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 10px;
+                    margin-top: 16px;
+                }
+                .store-custom-color {
+                    border: 1px solid var(--border-color);
+                    border-radius: 12px;
+                    padding: 10px;
+                    background: var(--bg-card);
+                }
+                .store-custom-color > span {
+                    display: block;
+                    color: var(--text-secondary);
+                    font-size: 10px;
+                    font-weight: 750;
+                    margin-bottom: 8px;
+                }
+                .store-custom-color > div {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .store-custom-color input {
+                    width: 34px;
+                    height: 34px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 9px;
+                    padding: 2px;
+                    background: transparent;
+                    cursor: pointer;
+                }
+                .store-custom-color code {
+                    color: var(--text-muted);
+                    font-size: 10px;
+                }
+                .store-visibility-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 8px;
+                    border-top: 1px solid var(--border-color);
+                    padding-top: 16px;
+                    margin-top: 17px;
+                }
+                .store-visibility-toggle {
+                    min-height: 44px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 12px;
+                    padding: 0 11px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 8px;
+                    background: var(--bg-card);
+                    color: var(--text-secondary);
+                    font-size: 11px;
+                    font-weight: 750;
+                    cursor: pointer;
+                }
+                .store-visibility-toggle span:last-child {
+                    width: 30px;
+                    height: 18px;
+                    border-radius: 999px;
+                    padding: 2px;
+                    display: flex;
+                    justify-content: flex-start;
+                    background: var(--border-color);
+                }
+                .store-visibility-toggle span:last-child::after {
+                    content: '';
+                    width: 14px;
+                    height: 14px;
+                    border-radius: 50%;
+                    background: white;
+                    box-shadow: 0 1px 4px rgba(0,0,0,.22);
+                }
+                .store-visibility-toggle.active {
+                    border-color: rgba(108,92,231,.35);
+                    color: var(--text-primary);
+                }
+                .store-visibility-toggle.active span:last-child {
+                    justify-content: flex-end;
+                    background: var(--accent-primary);
+                }
                 .store-footer-toggle {
                     margin-left: auto;
                     border: 1px solid var(--border-color);
@@ -1000,6 +1240,10 @@ export default function StoreSettingsPage() {
                     .store-setup-navigation {
                         grid-template-columns: repeat(2, minmax(0, 1fr));
                     }
+                    .store-custom-colors,
+                    .store-visibility-grid {
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                    }
                 }
                 @media (max-width: 720px) {
                     .store-publish-card,
@@ -1042,7 +1286,8 @@ export default function StoreSettingsPage() {
                     }
                     .store-form-grid.two,
                     .store-template-grid,
-                    .store-visual-grid {
+                    .store-visual-grid,
+                    .store-style-groups {
                         grid-template-columns: 1fr;
                     }
                     .store-form-field.wide,
@@ -1109,6 +1354,40 @@ function Field({ label, wide = false, children }: { label: string; wide?: boolea
             <label className="store-field-label">{label}</label>
             {children}
         </div>
+    );
+}
+
+function StyleChoiceGroup({
+    label,
+    value,
+    options,
+    onChange
+}: {
+    label: string;
+    value: string;
+    options: Array<{ value: string; label: string }>;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <div className="store-style-choice-group">
+            <span className="store-style-choice-label">{label}</span>
+            <div className="store-style-choice-options">
+                {options.map(option => (
+                    <button key={option.value} type="button" className={value === option.value ? 'selected' : ''} onClick={() => onChange(option.value)}>
+                        {option.label}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function VisibilityToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+    return (
+        <button type="button" className={`store-visibility-toggle ${checked ? 'active' : ''}`} onClick={() => onChange(!checked)} aria-pressed={checked}>
+            <span>{label}</span>
+            <span aria-hidden="true" />
+        </button>
     );
 }
 

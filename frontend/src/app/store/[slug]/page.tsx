@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useMemo, useState } from 'react';
+import { CSSProperties, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { storeAPI } from '@/lib/api';
 import { FiArrowRight, FiBookOpen, FiCheckCircle, FiCreditCard, FiGrid, FiHeadphones, FiInstagram, FiLock, FiMail, FiPackage, FiSearch, FiShield, FiShoppingBag, FiUser, FiZap } from 'react-icons/fi';
@@ -14,7 +14,9 @@ import {
     normalizeStoreBackground,
     normalizeStoreFooter,
     normalizeStoreLayoutSections,
-    StoreLayoutSection
+    normalizeStoreStyle,
+    StoreLayoutSection,
+    StoreStyleConfig
 } from '@/lib/store-builder';
 
 type TemplateKey = 'creator' | 'academy' | 'studio';
@@ -102,8 +104,20 @@ export default function StorePage() {
     }, [params.slug, activeCategory]);
 
     const template = (store?.template || 'creator') as TemplateKey;
-    const theme = templateStyles[template] || templateStyles.creator;
-    const accent = store?.accent_color || '#6c5ce7';
+    const templateTheme = templateStyles[template] || templateStyles.creator;
+    const visual = normalizeStoreStyle(store?.style);
+    const theme = visual.color_mode === 'custom'
+        ? {
+            bg: visual.custom_colors.background,
+            surface: visual.custom_colors.surface,
+            surfaceAlt: visual.custom_colors.surface_alt,
+            text: visual.custom_colors.text,
+            muted: visual.custom_colors.muted,
+            border: visual.custom_colors.border,
+            heroMode: templateTheme.heroMode
+        }
+        : templateTheme;
+    const accent = visual.color_mode === 'custom' ? visual.custom_colors.accent : (store?.accent_color || '#6c5ce7');
     // A custom hostname is used only to resolve the store. Internal navigation
     // keeps the canonical slug so checkout/cart APIs remain fully compatible.
     const slug = store?.slug || (params.slug as string);
@@ -225,9 +239,52 @@ export default function StorePage() {
         ? `linear-gradient(rgba(9,9,11,${background.overlay / 100}), rgba(9,9,11,${background.overlay / 100})), url("${background.image_url}") center/cover fixed`
         : undefined;
     const pageBackgroundColor = background.mode === 'color' ? background.color : theme.bg;
+    const backgroundPattern = visual.background_pattern === 'dots'
+        ? `radial-gradient(${theme.muted}22 1px, transparent 1px)`
+        : visual.background_pattern === 'grid'
+            ? `linear-gradient(${theme.muted}14 1px, transparent 1px), linear-gradient(90deg, ${theme.muted}14 1px, transparent 1px)`
+            : '';
+    const resolvedPageBackground = backgroundPattern
+        ? `${backgroundPattern}, ${pageBackground || pageBackgroundColor}`
+        : (pageBackground || pageBackgroundColor);
+    const resolvedBackgroundSize = visual.background_pattern === 'dots'
+        ? (pageBackground ? '22px 22px, auto, cover' : '22px 22px, auto')
+        : visual.background_pattern === 'grid'
+            ? (pageBackground ? '22px 22px, 22px 22px, auto, cover' : '22px 22px, 22px 22px, auto')
+            : undefined;
+    const fontFamilies: Record<StoreStyleConfig['font_style'], string> = {
+        modern: 'Inter, Outfit, sans-serif',
+        editorial: 'Georgia, Times New Roman, serif',
+        friendly: 'Nunito, Inter, sans-serif',
+        bold: 'Outfit, Arial Black, sans-serif'
+    };
+    const visualClasses = [
+        `store-font-${visual.font_style}`,
+        `store-hero-style-${visual.hero_style}`,
+        `store-header-style-${visual.header_style}`,
+        `store-button-style-${visual.button_style}`,
+        `store-card-style-${visual.card_style}`,
+        `store-corner-style-${visual.corner_style}`,
+        `store-density-${visual.catalog_density}`,
+        `store-image-${visual.image_ratio}`,
+        `store-animation-${visual.animation_level}`,
+        visual.show_search ? '' : 'store-search-hidden'
+    ].filter(Boolean).join(' ');
+    const cardRadius = visual.corner_style === 'sharp' ? 0 : visual.corner_style === 'rounded' ? 28 : (template === 'studio' ? 10 : 18);
 
     return (
-        <div id="top" style={{ minHeight: '100vh', background: pageBackground || pageBackgroundColor, color: theme.text, fontFamily: 'Inter, Outfit, sans-serif' }}>
+        <div
+            id="top"
+            className={visualClasses}
+            style={{
+                minHeight: '100vh',
+                background: resolvedPageBackground,
+                backgroundSize: resolvedBackgroundSize,
+                color: theme.text,
+                fontFamily: fontFamilies[visual.font_style],
+                '--store-columns': visual.catalog_columns
+            } as CSSProperties}
+        >
             <header
                 className="store-main-header"
                 style={{
@@ -243,7 +300,7 @@ export default function StorePage() {
                         <FiCheckCircle className="store-brand-check" style={{ color: accent }} />
                     </button>
 
-                    <label className="store-header-search" style={{ background: theme.surface, borderColor: theme.border }}>
+                    {visual.show_search && <label className="store-header-search" style={{ background: theme.surface, borderColor: theme.border }}>
                         <FiSearch size={18} style={{ color: theme.muted }} />
                         <input
                             placeholder="Encontre o produto ideal para você"
@@ -254,7 +311,7 @@ export default function StorePage() {
                         {searchTerm && (
                             <button type="button" onClick={() => setSearchTerm('')} style={{ color: theme.muted }} aria-label="Limpar busca">×</button>
                         )}
-                    </label>
+                    </label>}
 
                     <div className="store-header-actions">
                         {supportUrl && (
@@ -266,9 +323,9 @@ export default function StorePage() {
                             <FiShoppingBag />
                             {totalItems > 0 && <span style={{ background: accent }}>{totalItems}</span>}
                         </button>
-                        <button className="store-account-button" onClick={() => router.push('/login')} style={{ background: accent }}>
+                        {visual.show_account && <button className="store-account-button" onClick={() => router.push('/login')} style={{ background: accent }}>
                             <FiUser /> <span>Minha conta</span>
-                        </button>
+                        </button>}
                     </div>
                 </div>
             </header>
@@ -300,7 +357,7 @@ export default function StorePage() {
                         <button className="store-hero-primary" onClick={() => document.getElementById('store-products')?.scrollIntoView({ behavior: 'smooth' })} style={{ background: accent, boxShadow: `0 14px 34px ${accent}42` }}>
                             {store.cta_text || 'Ver produtos'} <FiArrowRight />
                         </button>
-                        {categories.length > 0 && (
+                        {visual.show_categories && categories.length > 0 && (
                             <button className="store-hero-secondary" onClick={() => document.getElementById('store-categories')?.scrollIntoView({ behavior: 'smooth' })} style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}>
                                 <FiGrid /> Ver categorias
                             </button>
@@ -322,7 +379,7 @@ export default function StorePage() {
                 </div>
             </section>
 
-            <section className="store-benefit-strip" style={{ background: theme.surfaceAlt, borderColor: theme.border }}>
+            {visual.show_benefit_bar && <section className="store-benefit-strip" style={{ background: theme.surfaceAlt, borderColor: theme.border }}>
                 <div className="store-shell store-benefit-strip-inner">
                     {[
                         { icon: <FiShield />, title: 'Pagamento protegido', text: 'Ambiente seguro do início ao fim' },
@@ -335,9 +392,9 @@ export default function StorePage() {
                         </div>
                     ))}
                 </div>
-            </section>
+            </section>}
 
-            {categories.length > 0 && !searchTerm && !activeCategory && (
+            {visual.show_categories && categories.length > 0 && !searchTerm && !activeCategory && (
                 <section id="store-categories" className="store-shell store-featured-categories">
                     <div className="store-categories-heading">
                         <div>
@@ -377,7 +434,7 @@ export default function StorePage() {
                         <h2>Explore a loja</h2>
                         <p style={{ color: theme.muted }}>{filteredProducts.length} produto{filteredProducts.length === 1 ? '' : 's'} disponíve{filteredProducts.length === 1 ? 'l' : 'is'}</p>
                     </div>
-                    <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }} className="category-row">
+                    {visual.show_categories && <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }} className="category-row">
                         <button className="category-button" onClick={() => handleCategoryClick('')} style={{ ...categoryButtonStyle(!activeCategory, accent, theme) }}>
                             <FiGrid size={14} /> Todos
                         </button>
@@ -386,7 +443,7 @@ export default function StorePage() {
                                 {cat.name}
                             </button>
                         ))}
-                    </div>
+                    </div>}
                 </div>
 
                 {filteredProducts.length === 0 ? (
@@ -420,7 +477,7 @@ export default function StorePage() {
                                 </div>
                                 <div className={`products-grid template-${template}`}>
                                     {section.product_ids.map(productId => productsById.get(productId)).filter(Boolean).map(product => (
-                                        <article key={product.id} className="store-product-card" style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: template === 'studio' ? 10 : 18 }}>
+                                        <article key={product.id} className="store-product-card" style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: cardRadius }}>
                                             <button
                                                 className="store-product-media"
                                                 onClick={() => openQuick(product)}
@@ -1058,7 +1115,7 @@ export default function StorePage() {
                 }
                 .products-grid {
                     display: grid;
-                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    grid-template-columns: repeat(var(--store-columns, 4), minmax(0, 1fr));
                     gap: 15px;
                 }
                 .store-product-card {
@@ -1282,6 +1339,170 @@ export default function StorePage() {
                     justify-content: space-between;
                     gap: 16px;
                     font-size: 10px;
+                }
+                .store-search-hidden .store-main-header-inner {
+                    grid-template-columns: minmax(190px, 1fr) auto;
+                }
+                .store-header-style-glass .store-main-header {
+                    background: color-mix(in srgb, ${theme.surface} 68%, transparent) !important;
+                    backdrop-filter: blur(28px) saturate(1.35);
+                }
+                .store-header-style-solid .store-main-header {
+                    background: ${theme.surface} !important;
+                    backdrop-filter: none;
+                }
+                .store-hero-style-compact .store-hero {
+                    min-height: 470px;
+                }
+                .store-hero-style-compact .store-hero-inner {
+                    padding-top: 52px;
+                    padding-bottom: 58px;
+                }
+                .store-hero-style-compact .store-trust-badges,
+                .store-hero-style-compact .store-hero-logo,
+                .store-hero-style-compact .store-hero-assurances {
+                    display: none;
+                }
+                .store-hero-style-compact .store-hero h1 {
+                    max-width: 760px;
+                    font-size: clamp(36px, 5vw, 58px);
+                }
+                .store-hero-style-centered .store-hero-inner {
+                    max-width: 860px;
+                }
+                .store-hero-style-centered .store-hero-logo {
+                    width: 96px;
+                    height: 96px;
+                }
+                .store-font-editorial h1,
+                .store-font-editorial h2,
+                .store-font-editorial h3,
+                .store-font-editorial .store-brand-name {
+                    font-family: Georgia, 'Times New Roman', serif;
+                    letter-spacing: -.025em;
+                }
+                .store-font-friendly h1,
+                .store-font-friendly h2,
+                .store-font-friendly h3 {
+                    letter-spacing: -.025em;
+                }
+                .store-font-bold h1,
+                .store-font-bold h2,
+                .store-font-bold h3,
+                .store-font-bold .store-brand-name {
+                    font-family: Outfit, 'Arial Black', sans-serif;
+                    letter-spacing: -.055em;
+                    font-weight: 950;
+                }
+                .store-button-style-pill .store-hero-actions button,
+                .store-button-style-pill .store-categories-heading > button,
+                .store-button-style-pill .store-product-purchase button,
+                .store-button-style-pill .store-closing-card button,
+                .store-button-style-pill .category-button,
+                .store-button-style-pill .product-modal button {
+                    border-radius: 999px !important;
+                }
+                .store-button-style-square .store-hero-actions button,
+                .store-button-style-square .store-support-button,
+                .store-button-style-square .store-cart-button,
+                .store-button-style-square .store-account-button,
+                .store-button-style-square .store-categories-heading > button,
+                .store-button-style-square .store-product-purchase button,
+                .store-button-style-square .store-closing-card button,
+                .store-button-style-square .category-button,
+                .store-button-style-square .product-modal button {
+                    border-radius: 4px !important;
+                }
+                .store-card-style-elevated .store-product-card {
+                    border-color: transparent !important;
+                    box-shadow: 0 18px 46px rgba(0,0,0,.22);
+                }
+                .store-card-style-outlined .store-product-card {
+                    border-width: 2px !important;
+                    box-shadow: none !important;
+                }
+                .store-card-style-minimal .store-product-card {
+                    border-color: transparent !important;
+                    background: transparent !important;
+                    box-shadow: none !important;
+                }
+                .store-card-style-minimal .store-product-card:hover {
+                    transform: translateY(-2px);
+                }
+                .store-corner-style-rounded .store-brand-mark,
+                .store-corner-style-rounded .store-hero-logo,
+                .store-corner-style-rounded .store-hero-logo span,
+                .store-corner-style-rounded .store-category-cards > button,
+                .store-corner-style-rounded .store-category-icon,
+                .store-corner-style-rounded .store-catalog-toolbar,
+                .store-corner-style-rounded .store-closing-card,
+                .store-corner-style-rounded .product-modal {
+                    border-radius: 28px !important;
+                }
+                .store-corner-style-sharp .store-brand-mark,
+                .store-corner-style-sharp .store-hero-logo,
+                .store-corner-style-sharp .store-hero-logo span,
+                .store-corner-style-sharp .store-category-cards > button,
+                .store-corner-style-sharp .store-category-icon,
+                .store-corner-style-sharp .store-catalog-toolbar,
+                .store-corner-style-sharp .store-closing-card,
+                .store-corner-style-sharp .product-modal {
+                    border-radius: 0 !important;
+                }
+                .store-density-compact .storefront-content {
+                    padding-top: 24px !important;
+                    padding-bottom: 52px !important;
+                }
+                .store-density-compact .products-grid {
+                    gap: 9px;
+                }
+                .store-density-compact .storefront-sections {
+                    gap: 32px;
+                }
+                .store-density-compact .store-product-body {
+                    padding: 11px;
+                    gap: 7px;
+                }
+                .store-density-spacious .storefront-content {
+                    padding-top: 54px !important;
+                    padding-bottom: 96px !important;
+                }
+                .store-density-spacious .products-grid {
+                    gap: 26px;
+                }
+                .store-density-spacious .storefront-sections {
+                    gap: 68px;
+                }
+                .store-density-spacious .store-product-body {
+                    padding: 21px;
+                    gap: 14px;
+                }
+                .store-image-square .store-product-media {
+                    height: auto;
+                    aspect-ratio: 1 / 1;
+                }
+                .store-image-portrait .store-product-media {
+                    height: auto;
+                    aspect-ratio: 4 / 5;
+                }
+                .store-animation-none *,
+                .store-animation-none *::before,
+                .store-animation-none *::after {
+                    scroll-behavior: auto !important;
+                    animation: none !important;
+                    transition: none !important;
+                }
+                .store-animation-none .store-product-card:hover,
+                .store-animation-none .store-category-cards > button:hover {
+                    transform: none;
+                }
+                .store-animation-subtle .store-hero-orb,
+                .store-animation-subtle .store-hero-grid {
+                    opacity: .07 !important;
+                }
+                .store-animation-subtle .store-product-card:hover,
+                .store-animation-subtle .store-category-cards > button:hover {
+                    transform: translateY(-2px);
                 }
                 @media (max-width: 900px) {
                     .store-main-header-inner {

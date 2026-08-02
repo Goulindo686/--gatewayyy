@@ -8,14 +8,34 @@ import {
     collectStoreProductIds,
     DEFAULT_STORE_BACKGROUND,
     DEFAULT_STORE_FOOTER,
+    DEFAULT_STORE_STYLE,
     normalizeStoreBackground,
     normalizeStoreFooter,
     normalizeStoreLayoutSections,
+    normalizeStoreStyle,
     normalizeStoreUrl,
     StoreBuilderValidationError
 } from '@/lib/store-builder';
 
 const STORE_FIELDS = [
+    'store_active',
+    'store_name',
+    'store_slug',
+    'store_description',
+    'store_theme',
+    'store_banner_url',
+    'store_template',
+    'store_accent_color',
+    'store_headline',
+    'store_cta_text',
+    'store_badge_text',
+    'store_layout_sections',
+    'store_footer_config',
+    'store_background_config',
+    'store_style_config'
+].join(', ');
+
+const BUILDER_STORE_FIELDS = [
     'store_active',
     'store_name',
     'store_slug',
@@ -63,7 +83,7 @@ function cleanColor(value: unknown): string {
     return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized.toLowerCase() : '#6c5ce7';
 }
 
-function formatStore(row: any, migrationRequired = false) {
+function formatStore(row: any, migrationFile = '') {
     return {
         store_active: Boolean(row?.store_active),
         store_name: row?.store_name || '',
@@ -79,7 +99,9 @@ function formatStore(row: any, migrationRequired = false) {
         store_layout_sections: normalizeStoreLayoutSections(row?.store_layout_sections),
         store_footer_config: normalizeStoreFooter(row?.store_footer_config || DEFAULT_STORE_FOOTER),
         store_background_config: normalizeStoreBackground(row?.store_background_config || DEFAULT_STORE_BACKGROUND),
-        migration_required: migrationRequired
+        store_style_config: normalizeStoreStyle(row?.store_style_config || DEFAULT_STORE_STYLE),
+        migration_required: Boolean(migrationFile),
+        migration_file: migrationFile
     };
 }
 
@@ -90,7 +112,20 @@ async function getStoreRow(userId: string) {
         .eq('id', userId);
 
     if (!fullQuery.error) {
-        return { row: fullQuery.data?.[0], migrationRequired: false, error: null };
+        return { row: fullQuery.data?.[0], migrationFile: '', error: null };
+    }
+
+    const builderQuery = await supabase
+        .from('users')
+        .select(BUILDER_STORE_FIELDS)
+        .eq('id', userId);
+
+    if (!builderQuery.error) {
+        return {
+            row: builderQuery.data?.[0],
+            migrationFile: '032_add_store_style_config.sql',
+            error: null
+        };
     }
 
     const legacyQuery = await supabase
@@ -100,7 +135,7 @@ async function getStoreRow(userId: string) {
 
     return {
         row: legacyQuery.data?.[0],
-        migrationRequired: true,
+        migrationFile: '029_add_storefront_builder.sql',
         error: legacyQuery.error
     };
 }
@@ -109,7 +144,7 @@ export async function GET(req: NextRequest) {
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Não autorizado', 401);
 
-    const [{ row, migrationRequired, error }, productsQuery] = await Promise.all([
+    const [{ row, migrationFile, error }, productsQuery] = await Promise.all([
         getStoreRow(auth.user.id),
         supabase
             .from('products')
@@ -129,7 +164,7 @@ export async function GET(req: NextRequest) {
     }
 
     return jsonSuccess({
-        store: formatStore(row, migrationRequired),
+        store: formatStore(row, migrationFile),
         products: productsQuery.data || []
     });
 }
@@ -148,6 +183,7 @@ export async function PUT(req: NextRequest) {
         const sections = normalizeStoreLayoutSections(body.store_layout_sections, { strict: true });
         const footer = normalizeStoreFooter(body.store_footer_config, { strict: true });
         const background = normalizeStoreBackground(body.store_background_config, { strict: true });
+        const style = normalizeStoreStyle(body.store_style_config, { strict: true });
         const selectedProductIds = collectStoreProductIds(sections);
 
         if (selectedProductIds.length > 0) {
@@ -199,7 +235,8 @@ export async function PUT(req: NextRequest) {
             store_badge_text: cleanText(body.store_badge_text, 60) || 'Produtos digitais com acesso online',
             store_layout_sections: sections,
             store_footer_config: footer,
-            store_background_config: background
+            store_background_config: background,
+            store_style_config: style
         };
 
         const { error: updateError } = await supabase
@@ -209,6 +246,10 @@ export async function PUT(req: NextRequest) {
 
         if (updateError) {
             console.error('Store builder save error:', updateError);
+            const missingStyleMigration = /store_style_config/i.test(updateError.message || '');
+            if (missingStyleMigration) {
+                return jsonError('Execute a migration 032_add_store_style_config.sql no Supabase antes de salvar.', 503);
+            }
             const missingMigration = /store_(layout_sections|footer_config|background_config)/i.test(updateError.message || '');
             if (missingMigration) {
                 return jsonError('Execute a migration 029_add_storefront_builder.sql no Supabase antes de salvar.', 503);
