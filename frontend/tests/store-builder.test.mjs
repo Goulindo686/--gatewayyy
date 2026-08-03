@@ -167,6 +167,24 @@ test('store settings use an organized four-step editor without an embedded previ
     assert.doesNotMatch(source, /store-preview-column/);
     assert.match(layout, /Aparência e organização/);
     assert.match(layout, /Escolha o que será exibido/);
+    assert.match(layout, /store-navigation-shell/);
+    assert.match(layout, /Personalização/);
+    assert.match(source, /store-builder-workspace/);
+    assert.match(source, /store-setup-navigation-title/);
+});
+
+test('store catalog subpages share an organized visual hierarchy without replacing actions', async () => {
+    const products = await readFile(new URL('../src/app/dashboard/store/products/page.tsx', import.meta.url), 'utf8');
+    const categories = await readFile(new URL('../src/app/dashboard/store/categories/page.tsx', import.meta.url), 'utf8');
+
+    assert.match(products, /store-products-intro/);
+    assert.match(products, /store-products-panel/);
+    assert.match(products, /toggleVisibility\(product\)/);
+    assert.match(products, /changeCategory\(product\.id/);
+    assert.match(categories, /store-subpage-intro/);
+    assert.match(categories, /store-categories-list-panel/);
+    assert.match(categories, /editCategory\(cat\)/);
+    assert.match(categories, /handleDelete\(cat\.id\)/);
 });
 
 test('default storefront includes the renewed brand, discovery and trust structure', async () => {

@@ -364,7 +364,13 @@ export default function StoreSettingsPage() {
                 </div>
             </section>
 
+            <div className="store-builder-workspace">
             <nav className="store-setup-navigation" aria-label="Etapas de configuração">
+                <div className="store-setup-navigation-title">
+                    <span>NESTA PÁGINA</span>
+                    <strong>Configuração da loja</strong>
+                    <p>Avance pelas quatro áreas abaixo.</p>
+                </div>
                 <a href="#store-identity">
                     <span><FiType /></span>
                     <div><small>ETAPA 1</small><strong>Identidade</strong><p>Nome, textos e banner</p></div>
@@ -705,6 +711,7 @@ export default function StoreSettingsPage() {
                     </button>
                 </div>
             </div>
+            </div>
 
             <style jsx global>{`
                 .store-builder-page {
@@ -715,6 +722,12 @@ export default function StoreSettingsPage() {
                     display: grid;
                     gap: 18px;
                     min-width: 0;
+                }
+                .store-builder-workspace {
+                    display: grid;
+                    grid-template-columns: 220px minmax(0, 1fr);
+                    align-items: start;
+                    gap: 16px;
                 }
                 .store-scroll-section {
                     scroll-margin-top: 92px;
@@ -824,15 +837,50 @@ export default function StoreSettingsPage() {
                     color: #00b894;
                 }
                 .store-setup-navigation {
-                    display: grid;
-                    grid-template-columns: repeat(4, minmax(0, 1fr));
-                    gap: 10px;
+                    position: sticky;
+                    top: 86px;
+                    z-index: 7;
+                    border: 1px solid var(--border-color);
+                    border-radius: 17px;
+                    padding: 11px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 7px;
+                    background: var(--bg-card);
+                    box-shadow: 0 12px 30px rgba(15,23,42,.07);
+                }
+                .store-setup-navigation-title {
+                    border-bottom: 1px solid var(--border-color);
+                    padding: 7px 7px 13px;
+                    margin-bottom: 2px;
+                }
+                .store-setup-navigation-title span,
+                .store-setup-navigation-title strong,
+                .store-setup-navigation-title p {
+                    display: block;
+                }
+                .store-setup-navigation-title span {
+                    color: var(--accent-primary);
+                    font-size: 8px;
+                    font-weight: 900;
+                    letter-spacing: .12em;
+                    margin-bottom: 4px;
+                }
+                .store-setup-navigation-title strong {
+                    color: var(--text-primary);
+                    font-size: 12px;
+                    margin-bottom: 3px;
+                }
+                .store-setup-navigation-title p {
+                    color: var(--text-muted);
+                    font-size: 9px;
+                    line-height: 1.4;
                 }
                 .store-setup-navigation > a {
                     min-width: 0;
                     border: 1px solid var(--border-color);
-                    border-radius: 15px;
-                    padding: 13px;
+                    border-radius: 12px;
+                    padding: 10px;
                     display: flex;
                     align-items: center;
                     gap: 11px;
@@ -847,9 +895,9 @@ export default function StoreSettingsPage() {
                     transform: translateY(-1px);
                 }
                 .store-setup-navigation > a > span {
-                    width: 38px;
-                    height: 38px;
-                    border-radius: 12px;
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 10px;
                     display: grid;
                     place-items: center;
                     flex: 0 0 auto;
@@ -1186,7 +1234,7 @@ export default function StoreSettingsPage() {
                     border: 1px solid var(--border-color);
                     border-radius: 10px;
                     padding: 0 11px;
-                    background: var(--bg-card);
+                    background: var(--bg-secondary);
                     color: var(--text-secondary);
                     font-size: 11px;
                     font-weight: 750;
@@ -1367,8 +1415,8 @@ export default function StoreSettingsPage() {
                     font-size: 10px;
                 }
                 @media (max-width: 980px) {
-                    .store-setup-navigation {
-                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                    .store-builder-workspace {
+                        grid-template-columns: 190px minmax(0, 1fr);
                     }
                     .store-custom-colors,
                     .store-visibility-grid {
@@ -1391,11 +1439,27 @@ export default function StoreSettingsPage() {
                         width: 44px;
                         height: 44px;
                     }
+                    .store-builder-workspace {
+                        display: block;
+                    }
                     .store-setup-navigation {
-                        grid-template-columns: 1fr 1fr;
+                        position: sticky;
+                        top: 8px;
+                        display: flex;
+                        flex-direction: row;
+                        overflow-x: auto;
+                        margin-bottom: 14px;
+                        scrollbar-width: none;
+                    }
+                    .store-setup-navigation::-webkit-scrollbar {
+                        display: none;
+                    }
+                    .store-setup-navigation-title {
+                        display: none;
                     }
                     .store-setup-navigation > a {
                         align-items: flex-start;
+                        min-width: 165px;
                     }
                     .store-setup-navigation p {
                         display: none;
