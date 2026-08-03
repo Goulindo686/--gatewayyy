@@ -64,6 +64,22 @@ export type StoreStyleColors = {
     accent: string;
 };
 
+export type StoreHeroContentConfig = {
+    logo_url: string;
+    welcome_text: string;
+    description: string;
+    top_badges: {
+        delivery: string;
+        security: string;
+        protected: string;
+    };
+    bottom_badges: {
+        access: string;
+        checkout: string;
+        payment: string;
+    };
+};
+
 export type StoreStyleConfig = {
     color_mode: 'theme' | 'custom';
     custom_colors: StoreStyleColors;
@@ -82,6 +98,7 @@ export type StoreStyleConfig = {
     show_categories: boolean;
     show_search: boolean;
     show_account: boolean;
+    hero_content: StoreHeroContentConfig;
 };
 
 export type StoreBuilderConfig = {
@@ -140,7 +157,22 @@ export const DEFAULT_STORE_STYLE: StoreStyleConfig = {
     show_benefit_bar: true,
     show_categories: true,
     show_search: true,
-    show_account: true
+    show_account: true,
+    hero_content: {
+        logo_url: '',
+        welcome_text: 'Bem-vindo à',
+        description: '',
+        top_badges: {
+            delivery: 'Entrega digital',
+            security: 'Compra segura',
+            protected: 'Loja protegida'
+        },
+        bottom_badges: {
+            access: 'Acesso online',
+            checkout: 'Checkout protegido',
+            payment: 'PIX e cartão'
+        }
+    }
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -377,11 +409,65 @@ function normalizeStoreStyleColors(value: unknown, strict = false): StoreStyleCo
     };
 }
 
+function heroText(value: unknown, fallback: string, maxLength: number, label: string, strict = false): string {
+    if (value == null) return fallback;
+    if (typeof value !== 'string') {
+        if (strict) throw new StoreBuilderValidationError(`${label} inválido.`);
+        return fallback;
+    }
+    return value.trim().slice(0, maxLength);
+}
+
+function normalizeStoreHeroContent(value: unknown, strict = false): StoreHeroContentConfig {
+    const source = isRecord(value) ? value : {};
+    if (strict && value != null && !isRecord(value)) {
+        throw new StoreBuilderValidationError('O conteúdo da capa é inválido.');
+    }
+
+    const topSource = isRecord(source.top_badges) ? source.top_badges : {};
+    const bottomSource = isRecord(source.bottom_badges) ? source.bottom_badges : {};
+    if (strict && source.top_badges != null && !isRecord(source.top_badges)) {
+        throw new StoreBuilderValidationError('Os selos superiores da capa são inválidos.');
+    }
+    if (strict && source.bottom_badges != null && !isRecord(source.bottom_badges)) {
+        throw new StoreBuilderValidationError('As garantias inferiores da capa são inválidas.');
+    }
+
+    const fallback = DEFAULT_STORE_STYLE.hero_content;
+    return {
+        logo_url: normalizeStoreUrl(source.logo_url, { strict: strict && Boolean(source.logo_url) }),
+        welcome_text: heroText(source.welcome_text, fallback.welcome_text, 50, 'Texto de boas-vindas', strict),
+        description: heroText(source.description, fallback.description, 240, 'Descrição da capa', strict),
+        top_badges: {
+            delivery: heroText(topSource.delivery, fallback.top_badges.delivery, 35, 'Primeiro selo superior', strict),
+            security: heroText(topSource.security, fallback.top_badges.security, 35, 'Segundo selo superior', strict),
+            protected: heroText(topSource.protected, fallback.top_badges.protected, 35, 'Terceiro selo superior', strict)
+        },
+        bottom_badges: {
+            access: heroText(bottomSource.access, fallback.bottom_badges.access, 40, 'Primeira garantia inferior', strict),
+            checkout: heroText(bottomSource.checkout, fallback.bottom_badges.checkout, 40, 'Segunda garantia inferior', strict),
+            payment: heroText(bottomSource.payment, fallback.bottom_badges.payment, 40, 'Terceira garantia inferior', strict)
+        }
+    };
+}
+
+function cloneDefaultStoreStyle(): StoreStyleConfig {
+    return {
+        ...DEFAULT_STORE_STYLE,
+        custom_colors: { ...DEFAULT_STORE_STYLE.custom_colors },
+        hero_content: {
+            ...DEFAULT_STORE_STYLE.hero_content,
+            top_badges: { ...DEFAULT_STORE_STYLE.hero_content.top_badges },
+            bottom_badges: { ...DEFAULT_STORE_STYLE.hero_content.bottom_badges }
+        }
+    };
+}
+
 export function normalizeStoreStyle(value: unknown, options: { strict?: boolean } = {}): StoreStyleConfig {
-    if (value == null) return { ...DEFAULT_STORE_STYLE, custom_colors: { ...DEFAULT_STORE_STYLE.custom_colors } };
+    if (value == null) return cloneDefaultStoreStyle();
     if (!isRecord(value)) {
         if (options.strict) throw new StoreBuilderValidationError('A configuração visual da loja é inválida.');
-        return { ...DEFAULT_STORE_STYLE, custom_colors: { ...DEFAULT_STORE_STYLE.custom_colors } };
+        return cloneDefaultStoreStyle();
     }
 
     const columns = Number(value.catalog_columns);
@@ -406,7 +492,8 @@ export function normalizeStoreStyle(value: unknown, options: { strict?: boolean 
         show_benefit_bar: booleanValue(value.show_benefit_bar, DEFAULT_STORE_STYLE.show_benefit_bar, 'Visibilidade dos benefícios', options.strict),
         show_categories: booleanValue(value.show_categories, DEFAULT_STORE_STYLE.show_categories, 'Visibilidade das categorias', options.strict),
         show_search: booleanValue(value.show_search, DEFAULT_STORE_STYLE.show_search, 'Visibilidade da busca', options.strict),
-        show_account: booleanValue(value.show_account, DEFAULT_STORE_STYLE.show_account, 'Visibilidade da conta', options.strict)
+        show_account: booleanValue(value.show_account, DEFAULT_STORE_STYLE.show_account, 'Visibilidade da conta', options.strict),
+        hero_content: normalizeStoreHeroContent(value.hero_content, options.strict)
     };
 }
 

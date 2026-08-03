@@ -28,6 +28,7 @@ import {
     DEFAULT_STORE_STYLE,
     StoreBackgroundConfig,
     StoreFooterConfig,
+    StoreHeroContentConfig,
     StoreLayoutSection,
     StoreStyleColors,
     StoreStyleConfig
@@ -100,7 +101,15 @@ const initialForm: StoreForm = {
     store_layout_sections: [],
     store_footer_config: { ...DEFAULT_STORE_FOOTER, links: [] },
     store_background_config: { ...DEFAULT_STORE_BACKGROUND },
-    store_style_config: { ...DEFAULT_STORE_STYLE, custom_colors: { ...DEFAULT_STORE_STYLE.custom_colors } }
+    store_style_config: {
+        ...DEFAULT_STORE_STYLE,
+        custom_colors: { ...DEFAULT_STORE_STYLE.custom_colors },
+        hero_content: {
+            ...DEFAULT_STORE_STYLE.hero_content,
+            top_badges: { ...DEFAULT_STORE_STYLE.hero_content.top_badges },
+            bottom_badges: { ...DEFAULT_STORE_STYLE.hero_content.bottom_badges }
+        }
+    }
 };
 
 function slugify(value: string) {
@@ -150,6 +159,18 @@ export default function StoreSettingsPage() {
                         custom_colors: {
                             ...DEFAULT_STORE_STYLE.custom_colors,
                             ...(store.store_style_config?.custom_colors || {})
+                        },
+                        hero_content: {
+                            ...DEFAULT_STORE_STYLE.hero_content,
+                            ...(store.store_style_config?.hero_content || {}),
+                            top_badges: {
+                                ...DEFAULT_STORE_STYLE.hero_content.top_badges,
+                                ...(store.store_style_config?.hero_content?.top_badges || {})
+                            },
+                            bottom_badges: {
+                                ...DEFAULT_STORE_STYLE.hero_content.bottom_badges,
+                                ...(store.store_style_config?.hero_content?.bottom_badges || {})
+                            }
                         }
                     }
                 });
@@ -195,6 +216,16 @@ export default function StoreSettingsPage() {
         }));
     };
 
+    const updateHeroContent = <K extends keyof StoreHeroContentConfig>(field: K, value: StoreHeroContentConfig[K]) => {
+        setForm(previous => ({
+            ...previous,
+            store_style_config: {
+                ...previous.store_style_config,
+                hero_content: { ...previous.store_style_config.hero_content, [field]: value }
+            }
+        }));
+    };
+
     const uploadImage = async (file: File): Promise<string> => {
         const data = new FormData();
         data.append('file', file);
@@ -208,13 +239,15 @@ export default function StoreSettingsPage() {
         return result.url;
     };
 
-    const handleSimpleUpload = async (target: 'hero' | 'background', file: File) => {
+    const handleSimpleUpload = async (target: 'hero' | 'background' | 'hero-logo', file: File) => {
         setUploading(target);
         const loadingToast = toast.loading('Enviando imagem...');
         try {
             const url = await uploadImage(file);
             if (target === 'hero') {
                 update('store_banner_url', url);
+            } else if (target === 'hero-logo') {
+                updateHeroContent('logo_url', url);
             } else {
                 update('store_background_config', { ...form.store_background_config, mode: 'image', image_url: url });
             }
@@ -401,6 +434,77 @@ export default function StoreSettingsPage() {
                                     onRemove={() => update('store_banner_url', '')}
                                 />
                             </Field>
+                        </div>
+                    </div>
+                    <div className="store-form-group">
+                        <div className="store-form-group-heading">
+                            <strong>Conteúdo da primeira parte da loja</strong>
+                            <span>Personalize o logo central, os selos e as garantias da capa.</span>
+                        </div>
+                        <div className="store-form-grid two">
+                            <Field label="Imagem no lugar da letra">
+                                <ImageUploader
+                                    imageUrl={form.store_style_config.hero_content.logo_url}
+                                    uploading={uploading === 'hero-logo'}
+                                    onFile={file => handleSimpleUpload('hero-logo', file)}
+                                    onRemove={() => updateHeroContent('logo_url', '')}
+                                />
+                            </Field>
+                            <Field label="Texto de boas-vindas">
+                                <input
+                                    className="input-field"
+                                    maxLength={50}
+                                    value={form.store_style_config.hero_content.welcome_text}
+                                    onChange={event => updateHeroContent('welcome_text', event.target.value)}
+                                    placeholder="Bem-vindo à"
+                                />
+                            </Field>
+                            <Field label="Descrição exibida na capa" wide>
+                                <textarea
+                                    className="input-field"
+                                    rows={3}
+                                    maxLength={240}
+                                    value={form.store_style_config.hero_content.description}
+                                    onChange={event => updateHeroContent('description', event.target.value)}
+                                    placeholder="Se ficar vazio, será usada a descrição geral da loja."
+                                />
+                            </Field>
+                        </div>
+
+                        <div className="store-hero-copy-section">
+                            <div>
+                                <strong>Selos acima da imagem</strong>
+                                <span>Deixe um campo vazio para ocultar aquele selo.</span>
+                            </div>
+                            <div className="store-hero-copy-grid">
+                                <Field label="Primeiro selo">
+                                    <input className="input-field" maxLength={35} value={form.store_style_config.hero_content.top_badges.delivery} onChange={event => updateHeroContent('top_badges', { ...form.store_style_config.hero_content.top_badges, delivery: event.target.value })} />
+                                </Field>
+                                <Field label="Segundo selo">
+                                    <input className="input-field" maxLength={35} value={form.store_style_config.hero_content.top_badges.security} onChange={event => updateHeroContent('top_badges', { ...form.store_style_config.hero_content.top_badges, security: event.target.value })} />
+                                </Field>
+                                <Field label="Terceiro selo">
+                                    <input className="input-field" maxLength={35} value={form.store_style_config.hero_content.top_badges.protected} onChange={event => updateHeroContent('top_badges', { ...form.store_style_config.hero_content.top_badges, protected: event.target.value })} />
+                                </Field>
+                            </div>
+                        </div>
+
+                        <div className="store-hero-copy-section">
+                            <div>
+                                <strong>Garantias abaixo dos botões</strong>
+                                <span>Edite os três textos ou deixe vazio para ocultar.</span>
+                            </div>
+                            <div className="store-hero-copy-grid">
+                                <Field label="Primeira garantia">
+                                    <input className="input-field" maxLength={40} value={form.store_style_config.hero_content.bottom_badges.access} onChange={event => updateHeroContent('bottom_badges', { ...form.store_style_config.hero_content.bottom_badges, access: event.target.value })} />
+                                </Field>
+                                <Field label="Segunda garantia">
+                                    <input className="input-field" maxLength={40} value={form.store_style_config.hero_content.bottom_badges.checkout} onChange={event => updateHeroContent('bottom_badges', { ...form.store_style_config.hero_content.bottom_badges, checkout: event.target.value })} />
+                                </Field>
+                                <Field label="Terceira garantia">
+                                    <input className="input-field" maxLength={40} value={form.store_style_config.hero_content.bottom_badges.payment} onChange={event => updateHeroContent('bottom_badges', { ...form.store_style_config.hero_content.bottom_badges, payment: event.target.value })} />
+                                </Field>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -858,6 +962,32 @@ export default function StoreSettingsPage() {
                 .store-form-field.wide {
                     grid-column: 1 / -1;
                 }
+                .store-hero-copy-section {
+                    border-top: 1px solid var(--border-color);
+                    padding-top: 16px;
+                    margin-top: 18px;
+                }
+                .store-hero-copy-section > div:first-child {
+                    display: flex;
+                    align-items: baseline;
+                    justify-content: space-between;
+                    gap: 14px;
+                    margin-bottom: 12px;
+                }
+                .store-hero-copy-section > div:first-child strong {
+                    color: var(--text-primary);
+                    font-size: 12px;
+                }
+                .store-hero-copy-section > div:first-child span {
+                    color: var(--text-muted);
+                    font-size: 10px;
+                    text-align: right;
+                }
+                .store-hero-copy-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 10px;
+                }
                 .store-field-label {
                     display: block;
                     color: var(--text-secondary);
@@ -1287,8 +1417,17 @@ export default function StoreSettingsPage() {
                     .store-form-grid.two,
                     .store-template-grid,
                     .store-visual-grid,
-                    .store-style-groups {
+                    .store-style-groups,
+                    .store-hero-copy-grid {
                         grid-template-columns: 1fr;
+                    }
+                    .store-hero-copy-section > div:first-child {
+                        display: block;
+                    }
+                    .store-hero-copy-section > div:first-child span {
+                        display: block;
+                        margin-top: 4px;
+                        text-align: left;
                     }
                     .store-form-field.wide,
                     .store-footer-links {

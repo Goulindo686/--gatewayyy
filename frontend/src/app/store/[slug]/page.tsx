@@ -106,6 +106,7 @@ export default function StorePage() {
     const template = (store?.template || 'creator') as TemplateKey;
     const templateTheme = templateStyles[template] || templateStyles.creator;
     const visual = normalizeStoreStyle(store?.style);
+    const heroContent = visual.hero_content;
     const theme = visual.color_mode === 'custom'
         ? {
             bg: visual.custom_colors.background,
@@ -271,6 +272,16 @@ export default function StorePage() {
         visual.show_search ? '' : 'store-search-hidden'
     ].filter(Boolean).join(' ');
     const cardRadius = visual.corner_style === 'sharp' ? 0 : visual.corner_style === 'rounded' ? 28 : (template === 'studio' ? 10 : 18);
+    const topHeroBadges = [
+        { key: 'delivery', text: heroContent.top_badges.delivery, icon: <FiZap />, color: accent, border: `${accent}55`, background: `${accent}10` },
+        { key: 'security', text: heroContent.top_badges.security, icon: <FiShield />, color: '#21c77a', border: 'rgba(33,199,122,.30)', background: 'rgba(33,199,122,.08)' },
+        { key: 'protected', text: heroContent.top_badges.protected, icon: <FiCheckCircle />, color: theme.text, border: theme.border, background: theme.surface }
+    ].filter(item => item.text);
+    const bottomHeroBadges = [
+        { key: 'access', text: heroContent.bottom_badges.access, icon: <FiZap />, color: accent, background: `${accent}18` },
+        { key: 'checkout', text: heroContent.bottom_badges.checkout, icon: <FiLock />, color: '#21c77a', background: 'rgba(33,199,122,.10)' },
+        { key: 'payment', text: heroContent.bottom_badges.payment, icon: <FiCreditCard />, color: '#35b6ff', background: 'rgba(53,182,255,.10)' }
+    ].filter(item => item.text);
 
     return (
         <div
@@ -335,22 +346,24 @@ export default function StorePage() {
                 <div className="store-hero-orb store-hero-orb-one" style={{ background: accent }} />
                 <div className="store-hero-orb store-hero-orb-two" style={{ background: accent }} />
                 <div className="store-shell store-hero-inner">
-                    <div className="store-trust-badges">
-                        <span style={{ color: accent, borderColor: `${accent}55`, background: `${accent}10` }}><FiZap /> Entrega digital</span>
-                        <span style={{ color: '#21c77a', borderColor: 'rgba(33,199,122,.30)', background: 'rgba(33,199,122,.08)' }}><FiShield /> Compra segura</span>
-                        <span style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}><FiCheckCircle /> Loja protegida</span>
-                    </div>
+                    {topHeroBadges.length > 0 && <div className="store-trust-badges">
+                        {topHeroBadges.map(item => (
+                            <span key={item.key} style={{ color: item.color, borderColor: item.border, background: item.background }}>{item.icon} {item.text}</span>
+                        ))}
+                    </div>}
 
                     <div className="store-hero-logo" style={{ borderColor: `${accent}55`, background: `linear-gradient(145deg, ${accent}, ${theme.surfaceAlt})`, boxShadow: `0 20px 55px ${accent}35` }}>
-                        <span>{storeInitials}</span>
+                        {heroContent.logo_url
+                            ? <img src={heroContent.logo_url} alt={`Logo da ${store.name || slug}`} />
+                            : <span>{storeInitials}</span>}
                     </div>
 
-                    <div className="store-welcome-label" style={{ color: theme.muted }}>
-                        Bem-vindo à <strong style={{ color: accent }}>{store.name || slug}</strong>
-                    </div>
+                    {heroContent.welcome_text && <div className="store-welcome-label" style={{ color: theme.muted }}>
+                        {heroContent.welcome_text} <strong style={{ color: accent }}>{store.name || slug}</strong>
+                    </div>}
                     <h1>{store.headline || `Descubra o melhor da ${store.name || 'nossa loja'}`}</h1>
                     <p style={{ color: theme.muted }}>
-                        {store.description || 'Produtos digitais selecionados, compra protegida e acesso online em poucos passos.'}
+                        {heroContent.description || store.description || 'Produtos digitais selecionados, compra protegida e acesso online em poucos passos.'}
                     </p>
 
                     <div className="store-hero-actions">
@@ -369,13 +382,14 @@ export default function StorePage() {
                         )}
                     </div>
 
-                    <div className="store-hero-assurances" style={{ color: theme.muted }}>
-                        <span><i style={{ color: accent, background: `${accent}18` }}><FiZap /></i> Acesso online</span>
-                        <span className="assurance-divider" style={{ background: theme.border }} />
-                        <span><i style={{ color: '#21c77a', background: 'rgba(33,199,122,.10)' }}><FiLock /></i> Checkout protegido</span>
-                        <span className="assurance-divider" style={{ background: theme.border }} />
-                        <span><i style={{ color: '#35b6ff', background: 'rgba(53,182,255,.10)' }}><FiCreditCard /></i> PIX e cartão</span>
-                    </div>
+                    {bottomHeroBadges.length > 0 && <div className="store-hero-assurances" style={{ color: theme.muted }}>
+                        {bottomHeroBadges.map((item, index) => (
+                            <span className="store-hero-assurance-item" key={item.key}>
+                                {index > 0 && <span className="assurance-divider" style={{ background: theme.border }} />}
+                                <span><i style={{ color: item.color, background: item.background }}>{item.icon}</i> {item.text}</span>
+                            </span>
+                        ))}
+                    </div>}
                 </div>
             </section>
 
@@ -831,17 +845,26 @@ export default function StorePage() {
                     margin-bottom: 22px;
                     transform: rotate(-3deg);
                 }
-                .store-hero-logo span {
+                .store-hero-logo span,
+                .store-hero-logo img {
                     width: 100%;
                     height: 100%;
                     border: 1px solid rgba(255,255,255,.18);
                     border-radius: 18px;
+                }
+                .store-hero-logo span {
                     display: grid;
                     place-items: center;
                     color: white;
                     font-size: 23px;
                     font-weight: 950;
                     letter-spacing: -.05em;
+                    background: rgba(4,6,12,.30);
+                    transform: rotate(3deg);
+                }
+                .store-hero-logo img {
+                    display: block;
+                    object-fit: cover;
                     background: rgba(4,6,12,.30);
                     transform: rotate(3deg);
                 }
@@ -903,6 +926,14 @@ export default function StorePage() {
                     font-weight: 750;
                 }
                 .store-hero-assurances > span:not(.assurance-divider) {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 7px;
+                }
+                .store-hero-assurance-item {
+                    gap: 16px !important;
+                }
+                .store-hero-assurance-item > span:last-child {
                     display: inline-flex;
                     align-items: center;
                     gap: 7px;
@@ -1432,6 +1463,7 @@ export default function StorePage() {
                 .store-corner-style-rounded .store-brand-mark,
                 .store-corner-style-rounded .store-hero-logo,
                 .store-corner-style-rounded .store-hero-logo span,
+                .store-corner-style-rounded .store-hero-logo img,
                 .store-corner-style-rounded .store-category-cards > button,
                 .store-corner-style-rounded .store-category-icon,
                 .store-corner-style-rounded .store-catalog-toolbar,
@@ -1442,6 +1474,7 @@ export default function StorePage() {
                 .store-corner-style-sharp .store-brand-mark,
                 .store-corner-style-sharp .store-hero-logo,
                 .store-corner-style-sharp .store-hero-logo span,
+                .store-corner-style-sharp .store-hero-logo img,
                 .store-corner-style-sharp .store-category-cards > button,
                 .store-corner-style-sharp .store-category-icon,
                 .store-corner-style-sharp .store-catalog-toolbar,
@@ -1617,8 +1650,11 @@ export default function StorePage() {
                         border-radius: 20px;
                         margin-bottom: 18px;
                     }
-                    .store-hero-logo span {
+                    .store-hero-logo span,
+                    .store-hero-logo img {
                         border-radius: 15px;
+                    }
+                    .store-hero-logo span {
                         font-size: 19px;
                     }
                     .store-welcome-label {

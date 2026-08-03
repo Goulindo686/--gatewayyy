@@ -92,22 +92,38 @@ test('store style keeps the original storefront as default and validates custom 
     assert.equal(defaults.hero_style, 'classic');
     assert.equal(defaults.catalog_columns, 4);
     assert.equal(defaults.show_search, true);
+    assert.equal(defaults.hero_content.top_badges.delivery, 'Entrega digital');
+    assert.equal(defaults.hero_content.bottom_badges.payment, 'PIX e cartão');
 
     const customized = normalizeStoreStyle({
         color_mode: 'custom',
         custom_colors: { background: '#101114', accent: '#ff3366' },
         font_style: 'editorial',
         catalog_columns: 3,
-        show_categories: false
+        show_categories: false,
+        hero_content: {
+            logo_url: 'https://cdn.example.com/logo.png',
+            welcome_text: 'Você está na',
+            description: 'Uma descrição exclusiva para a capa.',
+            top_badges: { delivery: 'Envio imediato', security: '', protected: 'Compra garantida' },
+            bottom_badges: { access: 'Acesso vitalício', checkout: 'Pagamento seguro', payment: 'PIX disponível' }
+        }
     });
     assert.equal(customized.custom_colors.background, '#101114');
     assert.equal(customized.custom_colors.accent, '#ff3366');
     assert.equal(customized.font_style, 'editorial');
     assert.equal(customized.catalog_columns, 3);
     assert.equal(customized.show_categories, false);
+    assert.equal(customized.hero_content.logo_url, 'https://cdn.example.com/logo.png');
+    assert.equal(customized.hero_content.top_badges.security, '');
+    assert.equal(customized.hero_content.bottom_badges.access, 'Acesso vitalício');
 
     assert.throws(
         () => normalizeStoreStyle({ color_mode: 'custom', custom_colors: { accent: 'red' } }, { strict: true }),
+        StoreBuilderValidationError
+    );
+    assert.throws(
+        () => normalizeStoreStyle({ hero_content: { logo_url: 'javascript:alert(1)' } }, { strict: true }),
         StoreBuilderValidationError
     );
 });
@@ -144,6 +160,9 @@ test('store settings use an organized four-step editor without an embedded previ
     assert.match(source, /StyleChoiceGroup/);
     assert.match(source, /Paleta personalizada/);
     assert.match(source, /Barra de benefícios/);
+    assert.match(source, /Imagem no lugar da letra/);
+    assert.match(source, /Selos acima da imagem/);
+    assert.match(source, /Garantias abaixo dos botões/);
     assert.doesNotMatch(source, /StoreMiniPreview/);
     assert.doesNotMatch(source, /store-preview-column/);
     assert.match(layout, /Aparência e organização/);
@@ -163,5 +182,8 @@ test('default storefront includes the renewed brand, discovery and trust structu
     assert.match(source, /store-font-/);
     assert.match(source, /visual\.show_search/);
     assert.match(source, /visual\.show_categories/);
+    assert.match(source, /heroContent\.logo_url/);
+    assert.match(source, /topHeroBadges/);
+    assert.match(source, /bottomHeroBadges/);
     assert.doesNotMatch(source, /className="featured-card"/);
 });
