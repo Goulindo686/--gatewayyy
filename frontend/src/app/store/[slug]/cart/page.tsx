@@ -83,7 +83,8 @@ export default function CartPage() {
     const [details, setDetails] = useState<Record<string, any>>({});
     const isOverlay = searchParams.get('overlay') === '1';
     useEffect(() => {
-        fetch('/api/checkout/config', { cache: 'no-store' })
+        const storeSlug = encodeURIComponent(String(params.slug || ''));
+        fetch(`/api/checkout/config?store_slug=${storeSlug}`, { cache: 'no-store' })
             .then(response => response.ok ? response.json() : null)
             .then(config => {
                 const creditCard = config?.credit_card;
@@ -93,7 +94,10 @@ export default function CartPage() {
                 });
             })
             .catch(() => setCardConfig({ enabled: false, publicKey: '' }));
-    }, []);
+    }, [params.slug]);
+    useEffect(() => {
+        if (!enableCreditCard && paymentMethod !== 'pix') setPaymentMethod('pix');
+    }, [enableCreditCard, paymentMethod]);
     useEffect(() => {
         const addId = searchParams.get('add');
         const run = async () => {

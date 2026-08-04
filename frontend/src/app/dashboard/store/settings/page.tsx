@@ -588,6 +588,19 @@ export default function StoreSettingsPage() {
                             <VisibilityToggle label="Área do cliente" checked={form.store_style_config.show_account} onChange={value => updateStyle('show_account', value)} />
                         </div>
                     </div>
+                    <div className="store-form-group">
+                        <div className="store-form-group-heading">
+                            <strong>Métodos de pagamento</strong>
+                            <span>Escolha se o cliente poderá pagar com cartão no carrinho da sua loja. O PIX continuará disponível.</span>
+                        </div>
+                        <div className="store-visibility-grid">
+                            <VisibilityToggle
+                                label="Aceitar cartão de crédito"
+                                checked={form.store_style_config.show_credit_card}
+                                onChange={value => updateStyle('show_credit_card', value)}
+                            />
+                        </div>
+                    </div>
                     <div className="store-form-group store-appearance-base">
                         <div className="store-form-group-heading">
                             <strong>Estilo principal</strong>

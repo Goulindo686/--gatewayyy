@@ -92,6 +92,7 @@ test('store style keeps the original storefront as default and validates custom 
     assert.equal(defaults.hero_style, 'classic');
     assert.equal(defaults.catalog_columns, 4);
     assert.equal(defaults.show_search, true);
+    assert.equal(defaults.show_credit_card, true);
     assert.equal(defaults.hero_content.top_badges.delivery, 'Entrega digital');
     assert.equal(defaults.hero_content.bottom_badges.payment, 'PIX e cartão');
 
@@ -101,6 +102,7 @@ test('store style keeps the original storefront as default and validates custom 
         font_style: 'editorial',
         catalog_columns: 3,
         show_categories: false,
+        show_credit_card: false,
         hero_content: {
             logo_url: 'https://cdn.example.com/logo.png',
             welcome_text: 'Você está na',
@@ -114,6 +116,7 @@ test('store style keeps the original storefront as default and validates custom 
     assert.equal(customized.font_style, 'editorial');
     assert.equal(customized.catalog_columns, 3);
     assert.equal(customized.show_categories, false);
+    assert.equal(customized.show_credit_card, false);
     assert.equal(customized.hero_content.logo_url, 'https://cdn.example.com/logo.png');
     assert.equal(customized.hero_content.top_badges.security, '');
     assert.equal(customized.hero_content.bottom_badges.access, 'Acesso vitalício');
@@ -124,6 +127,10 @@ test('store style keeps the original storefront as default and validates custom 
     );
     assert.throws(
         () => normalizeStoreStyle({ hero_content: { logo_url: 'javascript:alert(1)' } }, { strict: true }),
+        StoreBuilderValidationError
+    );
+    assert.throws(
+        () => normalizeStoreStyle({ show_credit_card: 'false' }, { strict: true }),
         StoreBuilderValidationError
     );
 });
@@ -157,6 +164,7 @@ test('store settings use an organized four-step editor without an embedded previ
     assert.match(source, /id="store-footer"/);
     assert.match(source, /store-save-bar/);
     assert.match(source, /store_style_config/);
+    assert.match(source, /Aceitar cartão de crédito/);
     assert.match(source, /StyleChoiceGroup/);
     assert.match(source, /Paleta personalizada/);
     assert.match(source, /Barra de benefícios/);

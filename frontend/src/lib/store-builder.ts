@@ -98,6 +98,7 @@ export type StoreStyleConfig = {
     show_categories: boolean;
     show_search: boolean;
     show_account: boolean;
+    show_credit_card: boolean;
     hero_content: StoreHeroContentConfig;
 };
 
@@ -158,6 +159,7 @@ export const DEFAULT_STORE_STYLE: StoreStyleConfig = {
     show_categories: true,
     show_search: true,
     show_account: true,
+    show_credit_card: true,
     hero_content: {
         logo_url: '',
         welcome_text: 'Bem-vindo à',
@@ -493,6 +495,7 @@ export function normalizeStoreStyle(value: unknown, options: { strict?: boolean 
         show_categories: booleanValue(value.show_categories, DEFAULT_STORE_STYLE.show_categories, 'Visibilidade das categorias', options.strict),
         show_search: booleanValue(value.show_search, DEFAULT_STORE_STYLE.show_search, 'Visibilidade da busca', options.strict),
         show_account: booleanValue(value.show_account, DEFAULT_STORE_STYLE.show_account, 'Visibilidade da conta', options.strict),
+        show_credit_card: booleanValue(value.show_credit_card, DEFAULT_STORE_STYLE.show_credit_card, 'Disponibilidade do cartão de crédito', options.strict),
         hero_content: normalizeStoreHeroContent(value.hero_content, options.strict)
     };
 }

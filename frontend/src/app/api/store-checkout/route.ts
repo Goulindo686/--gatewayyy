@@ -24,6 +24,7 @@ import {
 import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
 import { grantPaidOrderMemberEntitlement } from '@/lib/member-entitlements';
 import { getUniqueDeliveryStock } from '@/lib/unique-deliveries';
+import { normalizeStoreStyle } from '@/lib/store-builder';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -130,7 +131,7 @@ export async function POST(req: NextRequest) {
 
         const { data: sellerUser, error: sellerUserErr } = await supabase
             .from('users')
-            .select('role, status, store_slug, store_active')
+            .select('role, status, store_slug, store_active, store_style_config')
             .eq('id', sellerId)
             .single();
 
@@ -150,6 +151,11 @@ export async function POST(req: NextRequest) {
             || String(sellerUser.store_slug || '').trim().toLowerCase() !== normalizedStoreSlug
         ) {
             return NextResponse.json({ error: 'Este carrinho nao pertence a loja informada.' }, { status: 409 });
+        }
+
+        const storeAllowsCreditCard = normalizeStoreStyle(sellerUser.store_style_config).show_credit_card !== false;
+        if (normalizedPaymentMethod === 'credit_card' && (!enableCreditCard || !storeAllowsCreditCard)) {
+            return NextResponse.json({ error: 'Pagamento por cartão está desativado no momento.' }, { status: 400 });
         }
 
         // 2. Get seller's recipient ID (Matching standalone system: remove status filter)
@@ -307,10 +313,6 @@ export async function POST(req: NextRequest) {
             platform_fee_rule: appliedFeeLabel,
             affiliate_commission_amount: affiliateAttribution?.commissionAmount || 0,
         });
-
-        if (method === 'credit_card' && !enableCreditCard) {
-            return NextResponse.json({ error: 'Pagamento por cartão está desativado no momento.' }, { status: 400 });
-        }
 
         let cardInstallments: number | null = null;
         if (method === 'credit_card') {
