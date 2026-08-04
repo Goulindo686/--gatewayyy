@@ -207,6 +207,9 @@ test('default storefront includes the renewed brand, discovery and trust structu
     assert.match(source, /storeThemePresets/);
     assert.match(source, /background\.mode === 'color' && visual\.color_mode === 'custom'/);
     assert.match(source, /store-product-badge/);
+    assert.match(source, /store-section-kicker/);
+    assert.match(source, /store-section-title-icon/);
+    assert.match(source, /store-section-accent-line/);
     assert.match(source, /Eu quero/);
     assert.match(source, /store-hero-grid/);
     assert.match(source, /store-trust-badges/);

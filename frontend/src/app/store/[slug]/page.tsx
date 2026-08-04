@@ -501,9 +501,17 @@ export default function StorePage() {
                         ) : (
                             <section className="store-product-section" key={section.id}>
                                 <div className="store-product-section-heading">
-                                    <div>
-                                        <span style={{ color: accent }}>SELEÇÃO DA LOJA</span>
-                                        <h2>{section.title || 'Produtos em destaque'}</h2>
+                                    <div className="store-section-heading-copy">
+                                        <span className="store-section-kicker" style={{ color: accent, borderColor: `${accent}30`, background: `${accent}0b` }}>
+                                            <FiShoppingBag /> Categoria
+                                        </span>
+                                        <div className="store-section-title-line">
+                                            <i className="store-section-title-icon" style={{ color: accent, borderColor: `${accent}25`, background: theme.surface }}>
+                                                <FiShoppingBag />
+                                            </i>
+                                            <h2>{section.title || 'Produtos em destaque'}</h2>
+                                        </div>
+                                        <span className="store-section-accent-line" style={{ background: accent }} />
                                         {section.subtitle && <p style={{ color: theme.muted }}>{section.subtitle}</p>}
                                     </div>
                                     <div className="store-section-count" style={{ color: theme.muted, borderColor: theme.border }}>
@@ -1120,8 +1128,7 @@ export default function StorePage() {
                     margin-bottom: 38px;
                     backdrop-filter: blur(16px);
                 }
-                .store-catalog-toolbar > div:first-child > span,
-                .store-product-section-heading > div:first-child > span {
+                .store-catalog-toolbar > div:first-child > span {
                     display: block;
                     font-size: 10px;
                     font-weight: 950;
@@ -2065,9 +2072,78 @@ export default function StorePage() {
                 }
                 .store-product-section-heading {
                     margin-bottom: 26px;
+                    align-items: flex-start;
                 }
-                .store-product-section-heading h2 {
+                .store-section-heading-copy {
+                    min-width: 0;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+                .store-product-section-heading .store-section-kicker {
+                    min-height: 25px;
+                    border: 1px solid;
+                    border-radius: 999px;
+                    padding: 0 11px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 7px;
+                    font-size: 9px;
+                    font-weight: 900;
+                    line-height: 1;
+                    letter-spacing: .10em;
+                    text-transform: uppercase;
+                }
+                .store-section-kicker svg {
+                    width: 12px;
+                    height: 12px;
+                    stroke-width: 2.4;
+                }
+                .store-section-title-line {
+                    margin-top: 11px;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+                .store-section-title-icon {
+                    width: 40px;
+                    height: 40px;
+                    border: 1px solid;
+                    border-radius: 13px;
+                    display: grid;
+                    place-items: center;
+                    flex: 0 0 auto;
+                    font-style: normal;
+                    box-shadow: 0 7px 20px rgba(39,57,86,${themeMode === 'light' ? '.08' : '.22'});
+                }
+                .store-section-title-icon svg {
+                    width: 18px;
+                    height: 18px;
+                    stroke-width: 2.1;
+                }
+                .store-product-section-heading .store-section-title-line h2 {
                     font-size: clamp(24px, 3vw, 31px);
+                    margin: 0;
+                    line-height: 1.08;
+                }
+                .store-product-section-heading .store-section-accent-line {
+                    width: 48px;
+                    height: 4px;
+                    min-height: 4px;
+                    margin-top: 11px;
+                    border: 0;
+                    border-radius: 999px;
+                    padding: 0;
+                    display: block;
+                }
+                .store-section-heading-copy > p {
+                    margin-top: 10px;
+                }
+                .store-theme-light .store-product-section {
+                    border-color: transparent;
+                    padding: 6px 0 12px;
+                    background: transparent;
+                    box-shadow: none;
                 }
                 .products-grid {
                     gap: 22px;
@@ -2295,6 +2371,18 @@ export default function StorePage() {
                     }
                     .store-product-section-heading {
                         padding-inline: 4px;
+                    }
+                    .store-section-title-line {
+                        gap: 10px;
+                    }
+                    .store-section-title-icon {
+                        width: 36px;
+                        height: 36px;
+                        border-radius: 12px;
+                    }
+                    .store-theme-light .store-product-section {
+                        margin-inline: 0;
+                        padding: 6px 0 12px;
                     }
                     .products-grid {
                         display: flex !important;
