@@ -75,3 +75,27 @@ test('known incident account is denied and product deletion proves ownership', (
     assert.match(productRoute, /\.eq\('id', id\)[\s\S]*\.eq\('user_id', auth\.user\.id\)[\s\S]*\.limit\(1\)/);
     assert.match(productRoute, /delete\(\)[\s\S]*select\('id'\)/);
 });
+
+test('database hardening removes browser access to privileged internals', () => {
+    const migration = read('../migrations/034_harden_database_security.sql');
+
+    assert.match(migration, /ALTER VIEW public\.user_profiles SET \(security_invoker = true\)/);
+    assert.match(migration, /REVOKE ALL PRIVILEGES ON TABLE public\.user_profiles[\s\S]*FROM PUBLIC, anon, authenticated/);
+    assert.match(migration, /ALTER FUNCTION public\.get_all_tables\(\) SECURITY INVOKER/);
+    assert.match(migration, /ALTER FUNCTION public\.increment_rate_limit\(TEXT, TIMESTAMPTZ, INTEGER\)[\s\S]*SECURITY INVOKER/);
+    assert.match(migration, /REVOKE ALL PRIVILEGES ON FUNCTION public\.goupay_assign_unique_deliveries_on_paid\(\)[\s\S]*FROM PUBLIC, anon, authenticated/);
+    assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.claim_outgoing_webhook_deliveries\(INTEGER, UUID, TEXT\)[\s\S]*TO service_role/);
+    assert.match(migration, /REVOKE ALL PRIVILEGES ON TABLE[\s\S]*public\.unique_delivery_items[\s\S]*FROM PUBLIC, anon, authenticated/);
+});
+
+test('admin webhook settings stay on the internal API and tolerate legacy duplicate rows', () => {
+    const api = read('../src/lib/api.ts');
+    const route = read('../src/app/api/admin/settings/route.ts');
+
+    assert.match(api, /getSettings:\s*\(\) => internalApi\.get\('\/admin\/settings'\)/);
+    assert.match(api, /updateSettings:\s*\(data: any\) => internalApi\.put\('\/admin\/settings', data\)/);
+    assert.match(route, /\.order\('updated_at', \{ ascending: false, nullsFirst: false \}\)/);
+    assert.match(route, /normalizeDiscordWebhookUrl\(row\.discord_webhook_url\)/);
+    assert.match(route, /existingRows\?\.find/);
+    assert.doesNotMatch(route, /from\('platform_settings'\)\.select\('id'\)\.limit\(1\)\.single\(\)/);
+});

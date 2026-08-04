@@ -184,8 +184,8 @@ export const adminAPI = {
         api.put(`/admin/sellers/${id}/pix-fee`, data),
     impersonate: (id: string, reason: string) => api.post(`/admin/sellers/${id}/impersonate`, { reason }),
     listTransactions: (params?: any) => api.get('/admin/transactions', { params }),
-    getSettings: () => api.get('/admin/settings'),
-    updateSettings: (data: any) => api.put('/admin/settings', data),
+    getSettings: () => internalApi.get('/admin/settings'),
+    updateSettings: (data: any) => internalApi.put('/admin/settings', data),
     updateFees: (fee_percentage: number) => api.put('/admin/settings/fees', { fee_percentage }),
     getAffiliates: () => internalApi.get('/admin/affiliates'),
 };

@@ -18,12 +18,24 @@ export async function GET(req: NextRequest) {
     const rl = await checkRateLimit({ key: `admin:settings:get:${auth.user.id}:${ip}`, limit: 60, windowSecs: 60, failOpen: true });
     if (!rl.allowed) return rateLimitResponse(rl.resetAt);
 
-    const { data: settings } = await supabase
-        .from('platform_settings').select('*').limit(1).single();
+    const { data: settingsRows, error } = await supabase
+        .from('platform_settings')
+        .select('*')
+        .order('updated_at', { ascending: false, nullsFirst: false });
+
+    if (error) return jsonError('Erro ao carregar configurações', 500);
+
+    const primarySettings = settingsRows?.[0];
+    const configuredWebhook = settingsRows
+        ?.map(row => normalizeDiscordWebhookUrl(row.discord_webhook_url))
+        .find((value): value is string => Boolean(value));
 
     return jsonSuccess({
-        settings: settings || {
-            fee_percentage: parseFloat(process.env.PLATFORM_FEE_PERCENTAGE || '2')
+        settings: {
+            ...(primarySettings || {
+                fee_percentage: parseFloat(process.env.PLATFORM_FEE_PERCENTAGE || '2')
+            }),
+            discord_webhook_url: configuredWebhook || null
         }
     });
 }
@@ -51,24 +63,44 @@ export async function PUT(req: NextRequest) {
             return jsonError('Use uma URL oficial de webhook do Discord', 400);
         }
 
-        // Verifica se já existe um registro
-        const { data: existing } = await supabase.from('platform_settings').select('id').limit(1).single();
+        // Preserva as taxas das linhas legadas: o webhook permanece na linha
+        // que já o contém; se não houver uma, usamos a configuração mais recente.
+        const { data: existingRows, error: existingError } = await supabase
+            .from('platform_settings')
+            .select('id, discord_webhook_url, updated_at')
+            .order('updated_at', { ascending: false, nullsFirst: false });
+
+        if (existingError) throw existingError;
+
+        const existing = existingRows?.find(row =>
+            Boolean(normalizeDiscordWebhookUrl(row.discord_webhook_url))
+        ) || existingRows?.[0];
 
         let result;
         if (existing) {
             result = await supabase
                 .from('platform_settings')
-                .update({ discord_webhook_url: discordWebhookUrl })
-                .eq('id', existing.id);
+                .update({
+                    discord_webhook_url: discordWebhookUrl,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', existing.id)
+                .select('id, discord_webhook_url')
+                .single();
         } else {
             result = await supabase
                 .from('platform_settings')
-                .insert([{ discord_webhook_url: discordWebhookUrl }]);
+                .insert([{ discord_webhook_url: discordWebhookUrl }])
+                .select('id, discord_webhook_url')
+                .single();
         }
 
         if (result.error) throw result.error;
 
-        return jsonSuccess({ message: 'Configurações salvas com sucesso' });
+        return jsonSuccess({
+            message: 'Configurações salvas com sucesso',
+            settings: result.data
+        });
     } catch (error: any) {
         return jsonError('Erro ao salvar configurações', 500);
     }
