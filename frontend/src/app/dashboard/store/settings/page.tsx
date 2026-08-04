@@ -194,6 +194,17 @@ export default function StoreSettingsPage() {
         }));
     };
 
+    const updateStoreTheme = (value: string) => {
+        setForm(previous => ({
+            ...previous,
+            store_theme: value,
+            store_style_config: {
+                ...previous.store_style_config,
+                color_mode: 'theme'
+            }
+        }));
+    };
+
     const updateCustomColor = (field: keyof StoreStyleColors, value: string) => {
         setForm(previous => ({
             ...previous,
@@ -522,6 +533,18 @@ export default function StoreSettingsPage() {
                         title="Aparência da loja"
                         description="Escolha uma base visual e aplique as cores da sua marca."
                     />
+                    <div className="store-form-group store-theme-mode-group">
+                        <div className="store-form-group-heading">
+                            <strong>Tema claro ou escuro</strong>
+                            <span>Escolha o contraste principal da vitrine. A opção será aplicada ao cabeçalho, produtos, categorias e rodapé.</span>
+                        </div>
+                        <StyleChoiceGroup
+                            label="Tema da loja"
+                            value={form.store_theme}
+                            options={[{ value: 'light', label: 'Claro' }, { value: 'dark', label: 'Escuro' }]}
+                            onChange={updateStoreTheme}
+                        />
+                    </div>
                     <div className="store-form-group store-appearance-palette">
                         <div className="store-form-group-heading">
                             <strong>Paleta completa</strong>

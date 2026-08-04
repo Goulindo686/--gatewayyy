@@ -164,6 +164,9 @@ test('store settings use an organized four-step editor without an embedded previ
     assert.match(source, /id="store-footer"/);
     assert.match(source, /store-save-bar/);
     assert.match(source, /store_style_config/);
+    assert.match(source, /Tema claro ou escuro/);
+    assert.match(source, /updateStoreTheme/);
+    assert.match(source, /store_theme/);
     assert.match(source, /Aceitar cartão de crédito/);
     assert.match(source, /StyleChoiceGroup/);
     assert.match(source, /Paleta personalizada/);
@@ -198,6 +201,11 @@ test('store catalog subpages share an organized visual hierarchy without replaci
 test('default storefront includes the renewed brand, discovery and trust structure', async () => {
     const source = await readFile(new URL('../src/app/store/[slug]/page.tsx', import.meta.url), 'utf8');
     assert.match(source, /store-main-header/);
+    assert.match(source, /store-main-nav/);
+    assert.match(source, /store-theme-/);
+    assert.match(source, /storeThemePresets/);
+    assert.match(source, /store-product-badge/);
+    assert.match(source, /Eu quero/);
     assert.match(source, /store-hero-grid/);
     assert.match(source, /store-trust-badges/);
     assert.match(source, /store-featured-categories/);

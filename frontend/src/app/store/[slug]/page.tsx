@@ -20,42 +20,34 @@ import {
 } from '@/lib/store-builder';
 
 type TemplateKey = 'creator' | 'academy' | 'studio';
+type StoreThemeMode = 'light' | 'dark';
 
-const templateStyles: Record<TemplateKey, {
+const storeThemePresets: Record<StoreThemeMode, {
     bg: string;
     surface: string;
     surfaceAlt: string;
     text: string;
     muted: string;
     border: string;
-    heroMode: 'dark' | 'light' | 'editorial';
+    heroMode: 'dark' | 'light';
 }> = {
-    creator: {
-        bg: '#09090b',
-        surface: '#141417',
-        surfaceAlt: '#0f1117',
-        text: '#ffffff',
-        muted: '#94a3b8',
-        border: 'rgba(255,255,255,0.08)',
-        heroMode: 'dark'
-    },
-    academy: {
-        bg: '#f8fafc',
+    light: {
+        bg: '#f4f7fb',
         surface: '#ffffff',
-        surfaceAlt: '#eef2ff',
-        text: '#0f172a',
-        muted: '#64748b',
-        border: 'rgba(15,23,42,0.10)',
+        surfaceAlt: '#edf3fc',
+        text: '#0e1526',
+        muted: '#5a6577',
+        border: '#d3dbe8',
         heroMode: 'light'
     },
-    studio: {
-        bg: '#11100f',
-        surface: '#1b1917',
-        surfaceAlt: '#241f1a',
-        text: '#fffaf0',
-        muted: '#c7b9a1',
-        border: 'rgba(255,250,240,0.10)',
-        heroMode: 'editorial'
+    dark: {
+        bg: '#080d18',
+        surface: '#111827',
+        surfaceAlt: '#172033',
+        text: '#f8fafc',
+        muted: '#94a3b8',
+        border: '#29354a',
+        heroMode: 'dark'
     }
 };
 
@@ -104,7 +96,8 @@ export default function StorePage() {
     }, [params.slug, activeCategory]);
 
     const template = (store?.template || 'creator') as TemplateKey;
-    const templateTheme = templateStyles[template] || templateStyles.creator;
+    const themeMode: StoreThemeMode = store?.theme === 'dark' ? 'dark' : 'light';
+    const presetTheme = storeThemePresets[themeMode];
     const visual = normalizeStoreStyle(store?.style);
     const heroContent = visual.hero_content;
     const theme = visual.color_mode === 'custom'
@@ -115,9 +108,9 @@ export default function StorePage() {
             text: visual.custom_colors.text,
             muted: visual.custom_colors.muted,
             border: visual.custom_colors.border,
-            heroMode: templateTheme.heroMode
+            heroMode: presetTheme.heroMode
         }
-        : templateTheme;
+        : presetTheme;
     const accent = visual.color_mode === 'custom' ? visual.custom_colors.accent : (store?.accent_color || '#6c5ce7');
     // A custom hostname is used only to resolve the store. Internal navigation
     // keeps the canonical slug so checkout/cart APIs remain fully compatible.
@@ -236,8 +229,9 @@ export default function StorePage() {
         ...category,
         productCount: products.filter(product => product.store_category_id === category.id).length
     }));
+    const backgroundOverlay = themeMode === 'dark' ? '8,13,24' : '244,247,251';
     const pageBackground = background.mode === 'image' && background.image_url
-        ? `linear-gradient(rgba(9,9,11,${background.overlay / 100}), rgba(9,9,11,${background.overlay / 100})), url("${background.image_url}") center/cover fixed`
+        ? `linear-gradient(rgba(${backgroundOverlay},${background.overlay / 100}), rgba(${backgroundOverlay},${background.overlay / 100})), url("${background.image_url}") center/cover fixed`
         : undefined;
     const pageBackgroundColor = background.mode === 'color' ? background.color : theme.bg;
     const backgroundPattern = visual.background_pattern === 'dots'
@@ -260,6 +254,7 @@ export default function StorePage() {
         bold: 'Outfit, Arial Black, sans-serif'
     };
     const visualClasses = [
+        `store-theme-${themeMode}`,
         `store-font-${visual.font_style}`,
         `store-hero-style-${visual.hero_style}`,
         `store-header-style-${visual.header_style}`,
@@ -293,14 +288,21 @@ export default function StorePage() {
                 backgroundSize: resolvedBackgroundSize,
                 color: theme.text,
                 fontFamily: fontFamilies[visual.font_style],
-                '--store-columns': visual.catalog_columns
+                '--store-columns': visual.catalog_columns,
+                '--store-bg': theme.bg,
+                '--store-surface': theme.surface,
+                '--store-surface-alt': theme.surfaceAlt,
+                '--store-text': theme.text,
+                '--store-muted': theme.muted,
+                '--store-border': theme.border,
+                '--store-accent': accent
             } as CSSProperties}
         >
             <header
                 className="store-main-header"
                 style={{
                     color: theme.text,
-                    background: template === 'academy' ? 'rgba(255,255,255,.90)' : 'rgba(7,9,14,.88)',
+                    background: themeMode === 'light' ? 'rgba(255,255,255,.88)' : 'rgba(8,13,24,.90)',
                     borderColor: theme.border
                 }}
             >
@@ -339,6 +341,21 @@ export default function StorePage() {
                         </button>}
                     </div>
                 </div>
+                <nav className="store-main-nav" aria-label="Navegação da loja" style={{ borderColor: theme.border }}>
+                    <div className="store-main-nav-inner">
+                        {visual.show_categories && categories.length > 0 && (
+                            <button type="button" onClick={() => document.getElementById('store-categories')?.scrollIntoView({ behavior: 'smooth' })}>
+                                <FiGrid /> Todas as categorias
+                            </button>
+                        )}
+                        <button type="button" onClick={() => router.push(storeHomePath)}><FiPackage /> Início</button>
+                        <button type="button" onClick={() => document.getElementById('store-products')?.scrollIntoView({ behavior: 'smooth' })}><FiShoppingBag /> Produtos</button>
+                        <button type="button" onClick={() => document.getElementById('store-products')?.scrollIntoView({ behavior: 'smooth' })}><FiZap /> Em destaque</button>
+                        {supportUrl && (
+                            <button type="button" className="store-nav-support" onClick={() => handleNavClick(supportUrl)}><FiHeadphones /> Suporte</button>
+                        )}
+                    </div>
+                </nav>
             </header>
 
             <section className={`store-hero hero-${template}`} style={{ background: heroBg, borderBottomColor: theme.border }}>
@@ -502,11 +519,12 @@ export default function StorePage() {
                                                 }}
                                                 aria-label={`Ver ${product.name}`}
                                             >
+                                                <span className="store-product-badge" style={{ background: accent }}>Digital</span>
                                                 <span className="store-product-view">Ver detalhes</span>
                                             </button>
                                             <div className="store-product-body">
                                                 <div className="store-product-meta">
-                                                    <span style={{ color: accent }}><FiBookOpen size={12} /> Produto digital</span>
+                                                    <span style={{ color: accent }}><FiZap size={12} /> Entrega digital</span>
                                                     <small style={{ color: theme.muted }}>{product.has_plans ? 'Planos disponíveis' : 'Acesso online'}</small>
                                                 </div>
                                                 <h3 className="store-product-title">{product.name}</h3>
@@ -514,11 +532,12 @@ export default function StorePage() {
                                                     {product.description || 'Produto digital com compra segura e entrega online.'}
                                                 </p>
                                                 <div className="store-product-purchase">
-                                                    <div>
+                                                    <div className="store-product-price-block">
                                                         <small style={{ color: theme.muted }}>{product.has_plans ? 'A partir de' : 'Por apenas'}</small>
                                                         <strong>R$ {product.price_display}</strong>
+                                                        <span style={{ color: theme.muted }}>à vista no Pix</span>
                                                     </div>
-                                                    <button onClick={() => openQuick(product)} style={{ background: accent }}>Comprar</button>
+                                                    <button onClick={() => openQuick(product)} style={{ background: accent }}><FiShoppingBag /> Eu quero</button>
                                                 </div>
                                             </div>
                                         </article>
@@ -1852,12 +1871,467 @@ export default function StorePage() {
                         min-height: 190px !important;
                     }
                 }
+
+                /* Marketplace storefront: compact navigation, commercial cards and responsive rails. */
+                #top {
+                    position: relative;
+                    isolation: isolate;
+                    overflow-x: clip;
+                }
+                #top::before {
+                    content: '';
+                    position: fixed;
+                    z-index: -1;
+                    inset: 112px 0 0;
+                    pointer-events: none;
+                    opacity: ${themeMode === 'light' ? '.72' : '.28'};
+                    background:
+                        radial-gradient(circle at 18% 18%, ${accent}12, transparent 27%),
+                        radial-gradient(circle at 84% 42%, ${accent}0d, transparent 30%),
+                        repeating-radial-gradient(ellipse at 72% 32%, transparent 0 62px, ${accent}0a 64px 65px, transparent 67px 102px);
+                }
+                .store-main-header {
+                    min-height: 112px;
+                    border-bottom: 1px solid var(--store-border);
+                    box-shadow: 0 12px 30px rgba(38, 55, 82, ${themeMode === 'light' ? '.10' : '.24'});
+                    backdrop-filter: blur(20px);
+                }
+                .store-main-header-inner {
+                    width: min(1192px, calc(100% - 40px));
+                    min-height: 72px;
+                    grid-template-columns: minmax(200px, .72fr) minmax(360px, 1.55fr) minmax(270px, .9fr);
+                    gap: 28px;
+                }
+                .store-brand-mark {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 11px;
+                    box-shadow: 0 8px 22px ${accent}35;
+                }
+                .store-brand-name {
+                    font-size: 18px;
+                    letter-spacing: -.035em;
+                }
+                .store-header-search {
+                    height: 44px;
+                    border-radius: 14px;
+                    background: var(--store-surface-alt) !important;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
+                }
+                .store-account-button {
+                    min-width: 126px;
+                    border-radius: 13px;
+                    text-transform: uppercase;
+                    letter-spacing: .10em;
+                    box-shadow: 0 9px 22px ${accent}35;
+                }
+                .store-main-nav {
+                    min-height: 40px;
+                    border-top: 1px solid;
+                }
+                .store-main-nav-inner {
+                    width: min(1192px, calc(100% - 40px));
+                    min-height: 39px;
+                    margin: 0 auto;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+                .store-main-nav button {
+                    min-height: 32px;
+                    border: 0;
+                    border-radius: 9px;
+                    padding: 0 12px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 7px;
+                    background: transparent;
+                    color: var(--store-muted);
+                    cursor: pointer;
+                    font-size: 11px;
+                    font-weight: 800;
+                    white-space: nowrap;
+                    transition: color .2s ease, background .2s ease;
+                }
+                .store-main-nav button:hover {
+                    color: var(--store-accent);
+                    background: ${accent}0d;
+                }
+                .store-main-nav .store-nav-support {
+                    margin-left: auto;
+                    color: var(--store-accent);
+                }
+                .store-hero {
+                    min-height: 520px;
+                    border-bottom: 1px solid var(--store-border);
+                }
+                .store-hero-inner {
+                    width: min(1192px, calc(100% - 40px));
+                    padding-top: 82px !important;
+                    padding-bottom: 82px !important;
+                }
+                .store-hero h1 {
+                    max-width: 820px;
+                    font-size: clamp(42px, 5vw, 68px);
+                    letter-spacing: -.055em;
+                }
+                .store-hero-inner > p {
+                    max-width: 690px;
+                    font-size: 15px;
+                }
+                .store-hero-actions button {
+                    min-height: 46px;
+                    border-radius: 13px;
+                    text-transform: uppercase;
+                    letter-spacing: .055em;
+                    font-size: 11px;
+                }
+                .store-benefit-strip {
+                    border-bottom: 1px solid var(--store-border);
+                }
+                .store-featured-categories,
+                .storefront-content {
+                    width: min(1192px, calc(100% - 40px));
+                    max-width: 1192px !important;
+                }
+                .store-featured-categories {
+                    padding-top: 62px !important;
+                    padding-bottom: 10px !important;
+                }
+                .store-categories-heading h2,
+                .store-catalog-toolbar h2,
+                .store-product-section-heading h2 {
+                    color: var(--store-text);
+                    letter-spacing: -.035em;
+                }
+                .store-categories-heading h2,
+                .store-product-section-heading h2 {
+                    text-transform: uppercase;
+                }
+                .store-categories-heading > div > span,
+                .store-catalog-toolbar > div > span,
+                .store-product-section-heading > div > span {
+                    display: inline-flex;
+                    align-items: center;
+                    min-height: 25px;
+                    border: 1px solid ${accent}35;
+                    border-radius: 999px;
+                    padding: 0 10px;
+                    background: ${accent}0d;
+                    letter-spacing: .10em;
+                }
+                .store-category-cards {
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 15px;
+                }
+                .store-category-cards > button {
+                    min-height: 112px;
+                    border-radius: 18px;
+                    padding: 16px;
+                    box-shadow: 0 8px 24px rgba(39, 57, 86, ${themeMode === 'light' ? '.05' : '.16'});
+                }
+                .store-category-icon {
+                    width: 66px;
+                    height: 66px;
+                    border-radius: 15px;
+                }
+                .store-category-copy strong {
+                    font-size: 15px;
+                }
+                .storefront-content {
+                    padding: 42px 0 78px !important;
+                }
+                .store-catalog-toolbar {
+                    margin-bottom: 28px;
+                    border: 0 !important;
+                    border-radius: 0;
+                    padding: 0 0 20px;
+                    background: transparent !important;
+                    border-bottom: 1px solid var(--store-border) !important;
+                }
+                .storefront-sections {
+                    gap: 34px;
+                }
+                .store-product-section {
+                    border: 1px solid var(--store-border);
+                    border-radius: 30px;
+                    padding: 30px;
+                    background: color-mix(in srgb, var(--store-surface) 80%, transparent);
+                    box-shadow: 0 20px 60px rgba(39,57,86,${themeMode === 'light' ? '.07' : '.18'});
+                }
+                .store-product-section-heading {
+                    margin-bottom: 26px;
+                }
+                .store-product-section-heading h2 {
+                    font-size: clamp(24px, 3vw, 31px);
+                }
+                .products-grid {
+                    gap: 22px;
+                }
+                .store-product-card {
+                    border-radius: 18px !important;
+                    background: var(--store-surface) !important;
+                    box-shadow: 0 8px 26px rgba(39,57,86,${themeMode === 'light' ? '.06' : '.22'});
+                }
+                .store-product-card:hover {
+                    transform: translateY(-5px);
+                    box-shadow: 0 18px 42px ${accent}1d;
+                }
+                .store-product-media {
+                    height: auto;
+                    aspect-ratio: 16 / 9;
+                    background-color: var(--store-surface-alt) !important;
+                }
+                .store-product-badge {
+                    position: absolute;
+                    left: 11px;
+                    top: 11px;
+                    z-index: 2;
+                    min-height: 22px;
+                    border-radius: 999px;
+                    padding: 0 9px;
+                    display: inline-flex;
+                    align-items: center;
+                    color: #fff;
+                    font-size: 8px;
+                    font-weight: 950;
+                    text-transform: uppercase;
+                    letter-spacing: .07em;
+                    box-shadow: 0 5px 14px rgba(0,0,0,.16);
+                }
+                .store-product-body {
+                    padding: 16px;
+                    gap: 10px;
+                }
+                .store-product-meta {
+                    min-height: 22px;
+                    padding-bottom: 8px;
+                    border-bottom: 1px solid var(--store-border);
+                }
+                .store-product-meta > span {
+                    min-height: 22px;
+                    border-radius: 999px;
+                    padding: 0 8px;
+                    background: ${accent}0d;
+                }
+                .store-product-title {
+                    min-height: 40px;
+                    font-size: 15px;
+                    line-height: 1.3;
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                }
+                .store-product-description {
+                    display: none;
+                }
+                .store-product-purchase {
+                    padding-top: 10px;
+                    align-items: stretch;
+                    flex-direction: column;
+                    gap: 12px;
+                }
+                .store-product-price-block small {
+                    font-size: 9px;
+                    font-weight: 850;
+                    text-transform: uppercase;
+                    letter-spacing: .05em;
+                }
+                .store-product-price-block strong {
+                    font-size: 23px;
+                    letter-spacing: -.035em;
+                }
+                .store-product-price-block > span {
+                    display: block;
+                    margin-top: 2px;
+                    font-size: 9px;
+                }
+                .store-product-purchase button {
+                    width: 100%;
+                    min-height: 40px;
+                    border-radius: 12px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 7px;
+                    text-transform: uppercase;
+                    letter-spacing: .04em;
+                    box-shadow: 0 7px 18px ${accent}32;
+                }
+                .store-closing-card {
+                    border-radius: 30px;
+                    box-shadow: 0 18px 55px rgba(39,57,86,${themeMode === 'light' ? '.08' : '.22'});
+                }
+
+                @media (max-width: 980px) {
+                    .store-main-header-inner {
+                        grid-template-columns: minmax(170px, .65fr) minmax(260px, 1.35fr) auto;
+                        gap: 16px;
+                    }
+                    .store-support-button span,
+                    .store-account-button span {
+                        display: none;
+                    }
+                    .store-account-button {
+                        min-width: 42px;
+                        width: 42px;
+                        padding: 0;
+                    }
+                    .store-main-nav button {
+                        padding-inline: 9px;
+                    }
+                    .store-category-cards {
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                    }
+                    .store-product-section {
+                        padding: 24px;
+                    }
+                }
+
+                @media (max-width: 720px) {
+                    #top::before {
+                        inset: 65px 0 0;
+                    }
+                    .store-main-header {
+                        min-height: 65px;
+                    }
+                    .store-main-header-inner {
+                        width: calc(100% - 24px);
+                        min-height: 65px;
+                        grid-template-columns: auto minmax(120px, 1fr) auto;
+                        gap: 10px;
+                    }
+                    .store-main-nav {
+                        display: none;
+                    }
+                    .store-brand-name,
+                    .store-brand-check {
+                        display: none;
+                    }
+                    .store-brand-mark {
+                        width: 36px;
+                        height: 36px;
+                    }
+                    .store-header-search {
+                        grid-column: auto;
+                        grid-row: auto;
+                        height: 36px;
+                        padding: 0 10px;
+                        border-radius: 999px;
+                    }
+                    .store-header-search svg {
+                        width: 15px;
+                    }
+                    .store-header-search input {
+                        font-size: 10px;
+                    }
+                    .store-support-button,
+                    .store-account-button {
+                        display: none;
+                    }
+                    .store-cart-button {
+                        width: 36px;
+                        height: 36px;
+                    }
+                    .store-hero {
+                        min-height: 0;
+                    }
+                    .store-hero-inner {
+                        width: calc(100% - 28px);
+                        padding: 52px 0 48px !important;
+                    }
+                    .store-hero h1 {
+                        font-size: 38px !important;
+                    }
+                    .store-benefit-strip-inner {
+                        display: flex;
+                        overflow-x: auto;
+                        scroll-snap-type: x mandatory;
+                    }
+                    .store-benefit-strip-inner > div {
+                        min-width: 82%;
+                        scroll-snap-align: center;
+                        border-bottom: 0;
+                        border-right: 1px solid var(--store-border);
+                    }
+                    .store-featured-categories,
+                    .storefront-content {
+                        width: calc(100% - 28px);
+                    }
+                    .store-category-cards {
+                        margin-inline: -14px;
+                        padding: 0 14px 10px;
+                        display: flex;
+                        gap: 14px;
+                        overflow-x: auto;
+                        scroll-snap-type: x mandatory;
+                        scrollbar-width: none;
+                    }
+                    .store-category-cards::-webkit-scrollbar,
+                    .products-grid::-webkit-scrollbar {
+                        display: none;
+                    }
+                    .store-category-cards > button {
+                        flex: 0 0 84%;
+                        min-height: 106px;
+                        scroll-snap-align: center;
+                    }
+                    .storefront-content {
+                        padding-top: 34px !important;
+                    }
+                    .store-catalog-toolbar {
+                        align-items: flex-start;
+                        flex-direction: column;
+                    }
+                    .store-product-section {
+                        margin-inline: -7px;
+                        border-radius: 24px;
+                        padding: 22px 14px;
+                    }
+                    .store-product-section-heading {
+                        padding-inline: 4px;
+                    }
+                    .products-grid {
+                        display: flex !important;
+                        grid-template-columns: none !important;
+                        gap: 14px !important;
+                        overflow-x: auto;
+                        scroll-snap-type: x mandatory;
+                        scrollbar-width: none;
+                        padding: 2px 4px 10px;
+                    }
+                    .store-product-card {
+                        flex: 0 0 min(78vw, 292px);
+                        scroll-snap-align: center;
+                        border-radius: 18px !important;
+                    }
+                    .store-product-media {
+                        height: auto !important;
+                        aspect-ratio: 16 / 9;
+                    }
+                    .store-product-body {
+                        padding: 14px !important;
+                    }
+                    .store-product-title {
+                        font-size: 14px !important;
+                    }
+                    .store-product-description {
+                        display: none !important;
+                    }
+                    .store-product-purchase {
+                        flex-direction: column;
+                    }
+                    .store-product-purchase button {
+                        min-height: 40px;
+                    }
+                }
             `}</style>
         </div>
     );
 }
 
-function categoryButtonStyle(active: boolean, accent: string, theme: typeof templateStyles.creator): React.CSSProperties {
+function categoryButtonStyle(active: boolean, accent: string, theme: typeof storeThemePresets.light): React.CSSProperties {
     return {
         display: 'inline-flex',
         alignItems: 'center',
