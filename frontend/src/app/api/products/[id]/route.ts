@@ -3,6 +3,7 @@ import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { normalizeFacebookSettings } from '@/lib/facebook-capi';
 import { UNIQUE_DELIVERY_BUCKET } from '@/lib/unique-deliveries';
+import { normalizeSafeText, SecurityValidationError } from '@/lib/request-security';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -51,11 +52,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         const body = await req.json();
         const updateData: any = {};
 
-        if (body.name) updateData.name = body.name;
+        if (body.name !== undefined) updateData.name = normalizeSafeText(body.name, { field: 'Nome', maxLength: 200, required: true });
         if (body.description !== undefined) {
-            updateData.description = typeof body.description === 'string' && body.description.trim()
-                ? body.description.trim()
-                : null;
+            updateData.description = normalizeSafeText(body.description, { field: 'Descrição', maxLength: 5_000 });
         }
         if (body.price) {
             updateData.price = Math.round(parseFloat(body.price) * 100);
@@ -81,8 +80,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         if (error || !product) return jsonError('Erro ao atualizar produto');
 
         if (Array.isArray(body.plans)) {
+            if (body.plans.length > 50) return jsonError('Limite de planos excedido', 400);
             const normalizedPlans = body.plans.map((p: any) => ({
-                name: String(p.name || 'Plano'),
+                name: normalizeSafeText(String(p.name || 'Plano'), { field: 'Nome do plano', maxLength: 120, required: true }),
                 price: Math.round(parseFloat(String(p.price)) * 100)
             })).filter((p: any) => p.name && p.price > 0);
             await supabase.from('product_plans').delete().eq('product_id', id);
@@ -106,6 +106,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         response.headers.set('Cache-Control', 'no-store, max-age=0');
         return response;
     } catch (err) {
+        if (err instanceof SecurityValidationError) return jsonError(err.message, 400);
         return jsonError('Erro interno', 500);
     }
 }
@@ -114,6 +115,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const { id } = await params;
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Não autorizado', 401);
+
+    const { data: ownedProducts } = await supabase
+        .from('products')
+        .select('id')
+        .eq('id', id)
+        .eq('user_id', auth.user.id)
+        .limit(1);
+    if (!ownedProducts?.[0]) return jsonError('Produto não encontrado', 404);
 
     const { data: protectedFiles } = await supabase
         .from('unique_delivery_files')
@@ -132,9 +141,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         }
     }
 
-    const { error } = await supabase.from('products')
-        .delete().eq('id', id).eq('user_id', auth.user.id);
+    const { data: deletedProducts, error } = await supabase.from('products')
+        .delete().eq('id', id).eq('user_id', auth.user.id).select('id');
 
-    if (error) return jsonError('Erro ao excluir produto');
+    if (error || !deletedProducts?.[0]) return jsonError('Erro ao excluir produto');
     return jsonSuccess({ message: 'Produto excluído' });
 }

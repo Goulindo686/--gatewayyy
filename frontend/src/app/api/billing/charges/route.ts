@@ -156,10 +156,7 @@ export async function POST(req: NextRequest) {
             });
         } catch (pagarmeErr: any) {
             console.error('[BILLING] Pagar.me API Error:', pagarmeErr.response?.data || pagarmeErr.message);
-            const errorBody = pagarmeErr.response?.data;
-            const errorMsg = errorBody?.message ||
-                (errorBody?.errors ? JSON.stringify(errorBody.errors) : pagarmeErr.message);
-            return jsonError(`Erro na API de Pagamento: ${errorMsg}`, 400);
+            return jsonError('Não foi possível processar o pagamento. Confira os dados e tente novamente.', 400);
         }
 
         // Extract PIX data — SAME extractPix as V1 PIX API
@@ -275,10 +272,6 @@ export async function POST(req: NextRequest) {
         });
     } catch (error: any) {
         console.error('[BILLING CHARGES POST] Error:', error.response?.data || error.message);
-        if (error.response?.data) {
-            const msg = error.response.data?.message || 'Erro no processamento do pagamento';
-            return jsonError(msg, error.response.status || 400);
-        }
-        return jsonError(error.message || 'Erro ao processar cobrança', 500);
+        return jsonError('Erro ao processar cobrança', 500);
     }
 }

@@ -6,8 +6,9 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { PagarmeService } from '@/lib/pagarme';
-import { normalizeWebhookUrls } from '@/lib/webhooks';
+import { normalizeWebhookUrls, WebhookUrlValidationError } from '@/lib/webhooks';
 import { v4 as uuidv4 } from 'uuid';
+import { normalizeSafeText, SecurityValidationError } from '@/lib/request-security';
 
 function safeUser(user: any) {
     if (!user || typeof user !== 'object') return user;
@@ -67,14 +68,29 @@ export async function PUT(req: NextRequest) {
         ];
 
         const updateData: any = {};
+        const publicTextLimits: Record<string, number> = {
+            name: 160,
+            store_name: 100,
+            store_slug: 64,
+            store_description: 600,
+            store_theme: 20,
+            store_template: 30,
+            store_accent_color: 20,
+            store_headline: 140,
+            store_cta_text: 40,
+            store_badge_text: 60,
+        };
         for (const field of allowedFields) {
             if (body[field] !== undefined) {
                 // Handle document strings: trim and convert empty to null
                 if (field === 'cpf_cnpj') {
                     const value = typeof body[field] === 'string' ? body[field].trim() : body[field];
                     updateData[field] = value === '' ? null : value;
-                } else if (field === 'store_badge_text') {
-                    updateData[field] = typeof body[field] === 'string' ? body[field].trim().slice(0, 60) : body[field];
+                } else if (publicTextLimits[field]) {
+                    updateData[field] = normalizeSafeText(body[field], {
+                        field,
+                        maxLength: publicTextLimits[field],
+                    }) || '';
                 } else if (field === 'webhook_urls') {
                     updateData[field] = normalizeWebhookUrls(body[field]);
                     updateData.webhook_url = updateData[field][0] || null;
@@ -89,7 +105,7 @@ export async function PUT(req: NextRequest) {
         }
 
         console.log(`[AUTH API] Attempting to update profile for user ID: ${auth.user.id}`);
-        console.log(`[AUTH API] Data to update:`, JSON.stringify(updateData));
+        console.log(`[AUTH API] Fields to update:`, Object.keys(updateData).join(', '));
 
         if (Object.keys(updateData).length === 0) {
             return jsonError('Nenhum dado para atualizar');
@@ -233,6 +249,8 @@ export async function PUT(req: NextRequest) {
 
         return jsonSuccess({ user: safeUser(user), message: 'Perfil e dados bancários atualizados' });
     } catch (err) {
+        if (err instanceof WebhookUrlValidationError) return jsonError(err.message, 400);
+        if (err instanceof SecurityValidationError) return jsonError(err.message, 400);
         console.error('Update profile error:', err);
         return jsonError('Erro interno do servidor', 500);
     }

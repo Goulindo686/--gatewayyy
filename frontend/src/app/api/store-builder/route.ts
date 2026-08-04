@@ -16,6 +16,7 @@ import {
     normalizeStoreUrl,
     StoreBuilderValidationError
 } from '@/lib/store-builder';
+import { normalizeSafeText, SecurityValidationError } from '@/lib/request-security';
 
 const STORE_FIELDS = [
     'store_active',
@@ -67,7 +68,11 @@ const LEGACY_STORE_FIELDS = [
 ].join(', ');
 
 function cleanText(value: unknown, maxLength: number): string {
-    return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+    if (typeof value !== 'string') return '';
+    return normalizeSafeText(value.trim().slice(0, maxLength), {
+        field: 'Texto da loja',
+        maxLength,
+    }) || '';
 }
 
 function cleanSlug(value: unknown): string {
@@ -260,6 +265,7 @@ export async function PUT(req: NextRequest) {
         return jsonSuccess({ store: formatStore(updateData), message: 'Loja atualizada com sucesso' });
     } catch (error) {
         if (error instanceof StoreBuilderValidationError) return jsonError(error.message);
+        if (error instanceof SecurityValidationError) return jsonError(error.message, 400);
         console.error('Store builder update error:', error);
         return jsonError('Erro interno ao salvar a loja', 500);
     }

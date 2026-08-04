@@ -14,6 +14,12 @@ function getJwtSecret() {
 
 export type AuthTokenPayload = JwtPayload & { impersonated_by?: string; userId?: string; id?: string; role?: string };
 
+const INCIDENT_BLOCKED_USER_IDS = new Set([
+    // Conta identificada no incidente de 04/08/2026.
+    '585ad3a0-b8fa-4d57-84d2-16faf548f50b',
+    ...(process.env.BLOCKED_USER_IDS || '').split(',').map((id) => id.trim()).filter(Boolean),
+]);
+
 export function generateToken(payload: any): string {
     return jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
 }
@@ -39,11 +45,13 @@ export async function getAuthUser(req: NextRequest): Promise<{ user: any; tokenP
     try {
         const token = authHeader.split(' ')[1];
         const decoded = verifyToken(token) as AuthTokenPayload;
+        const userId = decoded.userId || decoded.id;
+        if (!userId || INCIDENT_BLOCKED_USER_IDS.has(userId)) return null;
 
         const { data: users } = await supabase
             .from('users')
             .select('*')
-            .eq('id', decoded.userId || decoded.id);
+            .eq('id', userId);
 
         const user = users?.[0];
 

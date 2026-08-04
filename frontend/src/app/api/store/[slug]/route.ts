@@ -17,6 +17,7 @@ import {
 const PUBLIC_STORE_FIELDS = 'id, name, store_name, store_slug, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text, store_layout_sections, store_footer_config, store_background_config, store_style_config';
 const BUILDER_PUBLIC_STORE_FIELDS = 'id, name, store_name, store_slug, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text, store_layout_sections, store_footer_config, store_background_config';
 const LEGACY_PUBLIC_STORE_FIELDS = 'id, name, store_name, store_slug, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text';
+const PUBLIC_PRODUCT_FIELDS = 'id, name, description, price, price_display, image_url, type, status, show_in_store, store_category_id, created_at, sales_count';
 
 function isMissingCustomDomainTable(error: { code?: string; message?: string } | null): boolean {
     return error?.code === '42P01'
@@ -107,7 +108,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
         // 3. Get products
         let query = supabase
             .from('products')
-            .select('*')
+            .select(PUBLIC_PRODUCT_FIELDS)
             .eq('user_id', user.id)
             .eq('status', 'active')
             .eq('type', 'digital')

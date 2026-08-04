@@ -77,9 +77,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         .eq('id', product.user_id)
         .single();
 
+    const { user_id: _sellerId, ...publicProduct } = product;
+
     const response = jsonSuccess({
         product: {
-            ...product,
+            ...publicProduct,
             price: effectivePrice / 100,
             price_display: (effectivePrice / 100).toFixed(2),
             seller_name: seller?.name || 'Vendedor',

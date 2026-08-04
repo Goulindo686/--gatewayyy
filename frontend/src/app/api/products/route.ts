@@ -5,6 +5,7 @@ import { fetchAll, supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { normalizeFacebookSettings } from '@/lib/facebook-capi';
 import { v4 as uuidv4 } from 'uuid';
+import { normalizeSafeText, SecurityValidationError } from '@/lib/request-security';
 
 export async function GET(req: NextRequest) {
     const auth = await getAuthUser(req);
@@ -101,16 +102,15 @@ export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
         const { name, description, price, image_url, type, status, facebook_pixel_id, facebook_api_token, plans } = body;
-        const cleanDescription = typeof description === 'string' && description.trim()
-            ? description.trim()
-            : null;
+        const cleanName = normalizeSafeText(name, { field: 'Nome', maxLength: 200, required: true });
+        const cleanDescription = normalizeSafeText(description, { field: 'Descrição', maxLength: 5_000 });
         const facebookSettings = normalizeFacebookSettings({ facebook_pixel_id, facebook_api_token });
 
-        if (!name) return jsonError('Nome é obrigatório');
+        if (Array.isArray(plans) && plans.length > 50) return jsonError('Limite de planos excedido', 400);
 
         const normalizedPlans: Array<{ name: string; price: number }> = Array.isArray(plans) && plans.length > 0
             ? plans.map((p: any) => ({
-                name: String(p.name || 'Plano'),
+                name: normalizeSafeText(String(p.name || 'Plano'), { field: 'Nome do plano', maxLength: 120, required: true }) as string,
                 price: Math.round(parseFloat(String(p.price)) * 100)
             })).filter(p => p.name && p.price > 0)
             : (price ? [{ name: 'Padrão', price: Math.round(parseFloat(String(price)) * 100) }] : []);
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
         const { data: product, error } = await supabase.from('products').insert({
             id: uuidv4(),
             user_id: auth.user.id,
-            name,
+            name: cleanName,
             description: cleanDescription,
             price: basePrice,
             price_display: basePriceDisplay,
@@ -153,6 +153,7 @@ export async function POST(req: NextRequest) {
 
         return jsonSuccess({ product }, 201);
     } catch (err) {
+        if (err instanceof SecurityValidationError) return jsonError(err.message, 400);
         console.error('Create product error:', err);
         return jsonError('Erro interno', 500);
     }

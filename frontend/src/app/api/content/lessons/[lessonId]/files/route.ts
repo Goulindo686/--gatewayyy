@@ -1,25 +1,16 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
-
-// Verifica se a aula pertence ao vendedor logado
-async function assertLessonOwnership(lessonId: string, userId: string) {
-    const { data } = await supabase
-        .from('product_lessons')
-        .select('module_id, product_modules(product_id, products(user_id))')
-        .eq('id', lessonId)
-        .single();
-    const owner = (data?.product_modules as any)?.products?.user_id;
-    return owner === userId;
-}
+import { enforceContentRateLimit, getOwnedLesson } from '@/lib/content-access';
+import { normalizeHttpUrl, normalizeSafeText, requestBodyTooLarge, SecurityValidationError } from '@/lib/request-security';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ lessonId: string }> }) {
     const { lessonId } = await params;
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Não autorizado', 401);
-
-    const isOwner = await assertLessonOwnership(lessonId, auth.user.id);
-    if (!isOwner) return jsonError('Acesso negado', 403);
+    const limited = await enforceContentRateLimit(auth.user.id, 'read');
+    if (limited) return limited;
+    if (!await getOwnedLesson(lessonId, auth.user.id)) return jsonError('Aula não encontrada', 404);
 
     const { data, error } = await supabase
         .from('product_files')
@@ -35,23 +26,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ les
     const { lessonId } = await params;
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Não autorizado', 401);
-
-    const isOwner = await assertLessonOwnership(lessonId, auth.user.id);
-    if (!isOwner) return jsonError('Acesso negado', 403);
+    const limited = await enforceContentRateLimit(auth.user.id, 'write');
+    if (limited) return limited;
+    if (requestBodyTooLarge(req, 16_384)) return jsonError('Requisição muito grande', 413);
+    if (!await getOwnedLesson(lessonId, auth.user.id)) return jsonError('Aula não encontrada', 404);
 
     try {
         const { title, file_url, file_type } = await req.json();
-        if (!title || !file_url) return jsonError('Título e URL são obrigatórios');
+        const safeTitle = normalizeSafeText(title, { field: 'Título', maxLength: 200, required: true });
+        const safeUrl = normalizeHttpUrl(file_url, { field: 'URL do arquivo', required: true });
+        const safeType = normalizeSafeText(file_type || 'file', { field: 'Tipo do arquivo', maxLength: 40, required: true });
 
         const { data, error } = await supabase
             .from('product_files')
-            .insert({ lesson_id: lessonId, title, file_url, file_type: file_type || 'file' })
+            .insert({ lesson_id: lessonId, title: safeTitle, file_url: safeUrl, file_type: safeType })
             .select()
             .single();
 
-        if (error) return jsonError('Erro ao adicionar arquivo: ' + error.message);
+        if (error) return jsonError('Erro ao adicionar arquivo');
         return jsonSuccess({ file: data, message: 'Arquivo adicionado!' }, 201);
-    } catch {
+    } catch (err) {
+        if (err instanceof SecurityValidationError) return jsonError(err.message, 400);
         return jsonError('Dados inválidos', 400);
     }
 }
