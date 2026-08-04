@@ -95,7 +95,7 @@ export default function AdminSettingsPage() {
                             Webhook do Discord (Criação de Contas)
                         </label>
                         <input
-                            type="text"
+                            type="url"
                             placeholder="https://discord.com/api/webhooks/..."
                             value={discordWebhookUrl}
                             onChange={e => setDiscordWebhookUrl(e.target.value)}
@@ -115,15 +115,17 @@ export default function AdminSettingsPage() {
                         </p>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <div style={{ display: 'flex' }}>
                         <button
+                            type="button"
                             onClick={handleSaveSettings}
                             disabled={saving}
                             style={{
-                                background: 'var(--accent)',
+                                width: '100%',
+                                background: 'var(--accent-primary)',
                                 color: 'white',
                                 border: 'none',
-                                padding: '10px 20px',
+                                padding: '12px 20px',
                                 borderRadius: 8,
                                 fontWeight: 600,
                                 fontSize: 14,
@@ -131,7 +133,7 @@ export default function AdminSettingsPage() {
                                 opacity: saving ? 0.7 : 1
                             }}
                         >
-                            {saving ? 'Salvando...' : 'Salvar Configurações'}
+                            {saving ? 'Salvando webhook...' : 'Salvar webhook do Discord'}
                         </button>
                     </div>
                 </div>
@@ -183,7 +185,7 @@ export default function AdminSettingsPage() {
                             <button key={tab} onClick={() => setActiveTab(tab)}
                                 style={{
                                     flex: 1, padding: '10px 0', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13,
-                                    background: activeTab === tab ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
+                                    background: activeTab === tab ? 'var(--accent-primary)' : 'rgba(255,255,255,0.05)',
                                     color: activeTab === tab ? 'white' : 'var(--text-secondary)',
                                     transition: 'all 0.2s',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
