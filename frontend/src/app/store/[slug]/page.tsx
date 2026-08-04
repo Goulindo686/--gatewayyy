@@ -233,7 +233,11 @@ export default function StorePage() {
     const pageBackground = background.mode === 'image' && background.image_url
         ? `linear-gradient(rgba(${backgroundOverlay},${background.overlay / 100}), rgba(${backgroundOverlay},${background.overlay / 100})), url("${background.image_url}") center/cover fixed`
         : undefined;
-    const pageBackgroundColor = background.mode === 'color' ? background.color : theme.bg;
+    // A previously customized dark background must not survive a switch back
+    // to the light theme. Custom palettes can still opt into a custom color.
+    const pageBackgroundColor = background.mode === 'color' && visual.color_mode === 'custom'
+        ? background.color
+        : theme.bg;
     const backgroundPattern = visual.background_pattern === 'dots'
         ? `radial-gradient(${theme.muted}22 1px, transparent 1px)`
         : visual.background_pattern === 'grid'

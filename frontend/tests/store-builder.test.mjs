@@ -167,6 +167,7 @@ test('store settings use an organized four-step editor without an embedded previ
     assert.match(source, /Tema claro ou escuro/);
     assert.match(source, /updateStoreTheme/);
     assert.match(source, /store_theme/);
+    assert.match(source, /store_background_config:[\s\S]*mode: 'theme'/);
     assert.match(source, /Aceitar cartão de crédito/);
     assert.match(source, /StyleChoiceGroup/);
     assert.match(source, /Paleta personalizada/);
@@ -204,6 +205,7 @@ test('default storefront includes the renewed brand, discovery and trust structu
     assert.match(source, /store-main-nav/);
     assert.match(source, /store-theme-/);
     assert.match(source, /storeThemePresets/);
+    assert.match(source, /background\.mode === 'color' && visual\.color_mode === 'custom'/);
     assert.match(source, /store-product-badge/);
     assert.match(source, /Eu quero/);
     assert.match(source, /store-hero-grid/);

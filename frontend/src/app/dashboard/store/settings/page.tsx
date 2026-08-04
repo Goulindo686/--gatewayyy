@@ -198,6 +198,10 @@ export default function StoreSettingsPage() {
         setForm(previous => ({
             ...previous,
             store_theme: value,
+            store_background_config: {
+                ...previous.store_background_config,
+                mode: 'theme'
+            },
             store_style_config: {
                 ...previous.store_style_config,
                 color_mode: 'theme'
