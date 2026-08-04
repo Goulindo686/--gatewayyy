@@ -62,6 +62,7 @@ test('public APIs expose allowlisted fields only', () => {
     assert.match(storeRoute, /PUBLIC_PRODUCT_FIELDS/);
     assert.doesNotMatch(storeRoute, /from\('products'\)[\s\S]{0,80}select\('\*'\)/);
     assert.doesNotMatch(storeRoute.match(/PUBLIC_PRODUCT_FIELDS\s*=([^;]+)/)?.[1] || '', /facebook_api_token/);
+    assert.doesNotMatch(storeRoute.match(/PUBLIC_PRODUCT_FIELDS\s*=([^;]+)/)?.[1] || '', /sales_count/);
     assert.match(publicProductRoute, /user_id:\s*_sellerId,\s*\.\.\.publicProduct/);
     assert.match(publicProductRoute, /\.\.\.publicProduct/);
 });
