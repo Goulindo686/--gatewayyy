@@ -6,6 +6,7 @@ import { hashPassword, jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { requestEmailVerification } from '@/lib/email-verification';
 import { v4 as uuidv4 } from 'uuid';
+import { notifyNewAccountOnDiscord } from '@/lib/discord-webhook';
 
 export async function POST(req: NextRequest) {
     try {
@@ -118,6 +119,13 @@ export async function POST(req: NextRequest) {
             role: 'seller',
             email_verified: false,
             email_verification_token: user?.email_verification_token,
+        });
+
+        await notifyNewAccountOnDiscord(req, {
+            name,
+            email: normalizedEmail,
+            phone,
+            cpf_cnpj,
         });
 
         return jsonSuccess({

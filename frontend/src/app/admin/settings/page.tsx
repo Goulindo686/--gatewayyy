@@ -29,14 +29,34 @@ function calcSellerPix(value: number) {
 
 export default function AdminSettingsPage() {
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
     const [activeTab, setActiveTab] = useState<'pix' | 'card'>('pix');
     const [simValue, setSimValue] = useState(100);
+    const [discordWebhookUrl, setDiscordWebhookUrl] = useState('');
 
     useEffect(() => {
         adminAPI.getSettings()
+            .then(res => {
+                if (res.data?.settings?.discord_webhook_url) {
+                    setDiscordWebhookUrl(res.data.settings.discord_webhook_url);
+                }
+            })
             .catch(console.error)
             .finally(() => setLoading(false));
     }, []);
+
+    const handleSaveSettings = async () => {
+        try {
+            setSaving(true);
+            await adminAPI.updateSettings({ discord_webhook_url: discordWebhookUrl });
+            alert('Configurações salvas com sucesso!');
+        } catch (error) {
+            console.error('Erro ao salvar configurações:', error);
+            alert('Erro ao salvar configurações');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -57,6 +77,64 @@ export default function AdminSettingsPage() {
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 640 }}>
+
+                {/* Card: Notificações */}
+                <div className="glass-card" style={{ padding: 28 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                        <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(108,92,231,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6c5ce7' }}>
+                            <FiInfo size={20} />
+                        </div>
+                        <div>
+                            <h3 style={{ fontSize: 16, fontWeight: 600 }}>Notificações do Sistema</h3>
+                            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Configurações de alertas e webhooks</p>
+                        </div>
+                    </div>
+                    
+                    <div style={{ marginBottom: 16 }}>
+                        <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8, color: 'var(--text-primary)' }}>
+                            Webhook do Discord (Criação de Contas)
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="https://discord.com/api/webhooks/..."
+                            value={discordWebhookUrl}
+                            onChange={e => setDiscordWebhookUrl(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '12px 16px',
+                                borderRadius: 10,
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--bg-secondary)',
+                                color: 'var(--text-primary)',
+                                fontSize: 14,
+                                outline: 'none'
+                            }}
+                        />
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
+                            Sempre que uma nova conta for criada, enviaremos um alerta para este canal com o IP informado, dispositivo e dados de cadastro.
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                            onClick={handleSaveSettings}
+                            disabled={saving}
+                            style={{
+                                background: 'var(--accent)',
+                                color: 'white',
+                                border: 'none',
+                                padding: '10px 20px',
+                                borderRadius: 8,
+                                fontWeight: 600,
+                                fontSize: 14,
+                                cursor: saving ? 'not-allowed' : 'pointer',
+                                opacity: saving ? 0.7 : 1
+                            }}
+                        >
+                            {saving ? 'Salvando...' : 'Salvar Configurações'}
+                        </button>
+                    </div>
+                </div>
 
                 {/* Card: Taxa da plataforma */}
                 <div className="glass-card" style={{ padding: 28 }}>

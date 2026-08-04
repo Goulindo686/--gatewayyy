@@ -43,6 +43,41 @@ class AuthController {
 
             console.log(`[AUTH] User created: ${user.id} (${user.email})`);
 
+            // Notificar via Discord Webhook se configurado
+            try {
+                const { data: settings } = await supabase.from('platform_settings').select('discord_webhook_url').limit(1).single();
+                if (settings && settings.discord_webhook_url) {
+                    const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.headers['x-real-ip'] || req.socket.remoteAddress || 'Desconhecido';
+                    const userAgent = req.headers['user-agent'] || 'Desconhecido';
+                    
+                    const discordMessage = {
+                        content: null,
+                        embeds: [
+                            {
+                                title: "🚨 Nova Conta Criada",
+                                description: "Um novo usuário se cadastrou na plataforma.",
+                                color: 5814783,
+                                fields: [
+                                    { name: "Nome", value: user.name, inline: true },
+                                    { name: "Email", value: user.email, inline: true },
+                                    { name: "Telefone", value: user.phone || 'Não informado', inline: true },
+                                    { name: "CPF/CNPJ", value: user.cpf_cnpj || 'Não informado', inline: true },
+                                    { name: "Endereço IP", value: ip, inline: true },
+                                    { name: "User-Agent", value: userAgent, inline: false },
+                                    { name: "Data/Hora", value: new Date().toLocaleString('pt-BR'), inline: false }
+                                ]
+                            }
+                        ]
+                    };
+
+                    const axios = require('axios');
+                    await axios.post(settings.discord_webhook_url, discordMessage)
+                        .catch(err => console.error('[AUTH] Falha ao enviar para o Discord:', err.message));
+                }
+            } catch (webhookError) {
+                console.error('[AUTH] Falha ao processar webhook do Discord:', webhookError.message);
+            }
+
             // --- ORDER LINKING MOVED TO EMAIL VERIFICATION ---
             // This prevents unauthorized users from claiming orders before proving email ownership.
             // -------------------------------------------------
