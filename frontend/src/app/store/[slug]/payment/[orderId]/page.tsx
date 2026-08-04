@@ -15,6 +15,7 @@ export default function PaymentPage() {
     const [loading, setLoading] = useState(true);
     const [paid, setPaid] = useState(false);
     const pollingRef = useRef<any>(null);
+    const pollingInFlightRef = useRef(false);
 
     useEffect(() => {
         const loadOrder = async () => {
@@ -60,9 +61,16 @@ export default function PaymentPage() {
         const isTerminal = ['paid', 'failed', 'refunded', 'chargeback', 'cancelled'].includes(order.status);
         if (isTerminal) return;
 
-        pollingRef.current = setInterval(async () => {
+        let disposed = false;
+
+        const pollOrder = async () => {
+            if (document.visibilityState !== 'visible' || pollingInFlightRef.current) return;
+
+            pollingInFlightRef.current = true;
             try {
                 const { data } = await checkoutAPI.getOrderStatus(params.orderId as string);
+                if (disposed) return;
+
                 if (data.order) setOrder(data.order);
 
                 if (data.order?.status === 'paid') {
@@ -76,11 +84,26 @@ export default function PaymentPage() {
                     toast.error('Pagamento não foi confirmado.');
                 }
             } catch (err) {
+            } finally {
+                pollingInFlightRef.current = false;
             }
+        };
+
+        pollingRef.current = setInterval(() => {
+            void pollOrder();
         }, 3000);
 
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') void pollOrder();
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
         return () => {
+            disposed = true;
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
             if (pollingRef.current) clearInterval(pollingRef.current);
+            pollingRef.current = null;
         };
     }, [params.orderId, order?.status]);
 

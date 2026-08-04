@@ -132,20 +132,22 @@ async function backupTable(supabase: ReturnType<typeof getSupabaseAdmin>, tableN
  * Gerar SQL do backup
  */
 function generateSQL(backupData: any[], totalTables: number) {
-    let sql = `-- ============================================\n`;
-    sql += `-- BACKUP DO BANCO DE DADOS\n`;
-    sql += `-- Data: ${new Date().toISOString()}\n`;
-    sql += `-- Tabelas: ${totalTables}\n`;
-    sql += `-- ============================================\n\n`;
+    const chunks = [
+        `-- ============================================\n`,
+        `-- BACKUP DO BANCO DE DADOS\n`,
+        `-- Data: ${new Date().toISOString()}\n`,
+        `-- Tabelas: ${totalTables}\n`,
+        `-- ============================================\n\n`,
+    ];
     
     backupData.forEach(({ table, data }) => {
         if (!data || data.length === 0) {
-            sql += `-- Tabela ${table}: vazia\n\n`;
+            chunks.push(`-- Tabela ${table}: vazia\n\n`);
             return;
         }
         
-        sql += `-- Tabela: ${table} (${data.length} registros)\n`;
-        sql += `DELETE FROM ${table};\n\n`;
+        chunks.push(`-- Tabela: ${table} (${data.length} registros)\n`);
+        chunks.push(`DELETE FROM ${table};\n\n`);
         
         data.forEach((row: any) => {
             const columns = Object.keys(row).join(', ');
@@ -158,13 +160,13 @@ function generateSQL(backupData: any[], totalTables: number) {
                 return val;
             }).join(', ');
             
-            sql += `INSERT INTO ${table} (${columns}) VALUES (${values});\n`;
+            chunks.push(`INSERT INTO ${table} (${columns}) VALUES (${values});\n`);
         });
         
-        sql += `\n`;
+        chunks.push(`\n`);
     });
     
-    return sql;
+    return chunks.join('');
 }
 
 /**

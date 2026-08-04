@@ -96,17 +96,23 @@ export default function DashboardPage() {
     }, [searchParams]);
 
     useEffect(() => {
+        let disposed = false;
+        let requestInFlight = false;
+
         const refreshConversion = async () => {
-            if (document.visibilityState !== 'visible') return;
+            if (document.visibilityState !== 'visible' || requestInFlight) return;
 
             const start = searchParams.get('start') || undefined;
             const end = searchParams.get('end') || undefined;
 
+            requestInFlight = true;
             try {
                 const { data } = await dashboardAPI.getConversion({ start, end });
-                setConversion(data);
+                if (!disposed) setConversion(data);
             } catch (err) {
-                console.error('Erro ao atualizar taxa de conversao:', err);
+                if (!disposed) console.error('Erro ao atualizar taxa de conversao:', err);
+            } finally {
+                requestInFlight = false;
             }
         };
 
@@ -118,6 +124,7 @@ export default function DashboardPage() {
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
+            disposed = true;
             window.clearInterval(intervalId);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };

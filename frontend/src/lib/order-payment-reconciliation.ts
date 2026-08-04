@@ -24,6 +24,11 @@ export type OrderPaymentReconciliationResult = {
     order: any | null;
 };
 
+// Fluid Compute can serve concurrent requests in the same instance. When two
+// tabs ask for the same order at once, share the reconciliation already in
+// progress instead of querying the database and payment provider twice.
+const reconciliationsInFlight = new Map<string, Promise<OrderPaymentReconciliationResult>>();
+
 function normalizeProviderStatus(providerOrder: any): ReconciliationStatus | 'pending' {
     const charges = Array.isArray(providerOrder?.charges) ? providerOrder.charges : [];
     const statuses = [
@@ -134,7 +139,7 @@ async function ensureMerchantWebhook(
  * O split financeiro ja ocorreu no provedor; aqui apenas sincronizamos o estado
  * local e usamos as mesmas chaves idempotentes do webhook.
  */
-export async function reconcileOrderPayment(
+async function performOrderPaymentReconciliation(
     orderId: string,
 ): Promise<OrderPaymentReconciliationResult> {
     const { data: currentOrder, error: orderError } = await supabase
@@ -282,4 +287,20 @@ export async function reconcileOrderPayment(
         notificationAttempted,
         order: refreshedOrder,
     };
+}
+
+export function reconcileOrderPayment(
+    orderId: string,
+): Promise<OrderPaymentReconciliationResult> {
+    const existing = reconciliationsInFlight.get(orderId);
+    if (existing) return existing;
+
+    const reconciliation = performOrderPaymentReconciliation(orderId).finally(() => {
+        if (reconciliationsInFlight.get(orderId) === reconciliation) {
+            reconciliationsInFlight.delete(orderId);
+        }
+    });
+
+    reconciliationsInFlight.set(orderId, reconciliation);
+    return reconciliation;
 }

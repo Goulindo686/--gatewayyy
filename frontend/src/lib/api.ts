@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type AxiosResponse } from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -11,6 +11,39 @@ const internalApi = axios.create({
     baseURL: '/api',
     headers: { 'Content-Type': 'application/json' },
 });
+
+// The dashboard layout and page can mount at the same time and request the
+// same resource with the same filters. Share only requests that are currently
+// in flight; this is not a cache, so every later refresh still reaches the API.
+const dashboardRequests = new Map<string, Promise<AxiosResponse<any>>>();
+
+function dashboardRequestKey(path: string, params?: Record<string, unknown>) {
+    const normalizedParams = Object.entries(params || {})
+        .filter(([, value]) => value !== undefined && value !== null)
+        .sort(([left], [right]) => left.localeCompare(right));
+
+    return `${path}?${JSON.stringify(normalizedParams)}`;
+}
+
+function getDashboardResource(path: string, params?: Record<string, unknown>): Promise<AxiosResponse<any>> {
+    if (typeof window === 'undefined') {
+        return api.get(path, { params });
+    }
+
+    const authScope = localStorage.getItem('token') || 'anonymous';
+    const key = `${authScope}:${dashboardRequestKey(path, params)}`;
+    const existing = dashboardRequests.get(key);
+    if (existing) return existing;
+
+    const request = api.get(path, { params }).finally(() => {
+        if (dashboardRequests.get(key) === request) {
+            dashboardRequests.delete(key);
+        }
+    });
+
+    dashboardRequests.set(key, request);
+    return request;
+}
 
 api.interceptors.request.use((config) => {
     if (typeof window !== 'undefined') {
@@ -105,9 +138,9 @@ export const myUniqueDeliveryAPI = {
 
 // Dashboard
 export const dashboardAPI = {
-    getStats: (params?: any) => api.get('/dashboard/stats', { params }),
-    getConversion: (params?: Record<string, string | undefined>) => api.get('/dashboard/conversion', { params }),
-    getSales: (params?: any) => api.get('/dashboard/sales', { params }),
+    getStats: (params?: Record<string, unknown>) => getDashboardResource('/dashboard/stats', params),
+    getConversion: (params?: Record<string, string | undefined>) => getDashboardResource('/dashboard/conversion', params),
+    getSales: (params?: Record<string, unknown>) => getDashboardResource('/dashboard/sales', params),
 };
 
 // Affiliates
