@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
             item
             && typeof item.id === 'string'
             && /^[0-9a-f-]{36}$/i.test(item.id)
+            && (item.plan_id === undefined || item.plan_id === null || /^[0-9a-f-]{36}$/i.test(String(item.plan_id)))
             && Number.isInteger(Number(item.quantity))
             && Number(item.quantity) >= 1
             && Number(item.quantity) <= 99
@@ -120,6 +121,7 @@ export async function POST(req: NextRequest) {
             .from('products')
             .select('user_id')
             .eq('id', items_cart[0].id)
+            .eq('sales_channel', 'store')
             .single();
 
         if (productErr || !firstProduct) {
@@ -189,11 +191,12 @@ export async function POST(req: NextRequest) {
         }
 
         // 4. SECURITY: Validate prices from DB — never trust client-side prices
-        const productIds = items_cart.map((item: any) => item.id);
+        const productIds = [...new Set(items_cart.map((item: any) => String(item.id)))] as string[];
         const { data: dbProducts, error: dbProductsErr } = await supabase
             .from('products')
             .select('id, user_id, name, price, status')
             .in('id', productIds)
+            .eq('sales_channel', 'store')
             .eq('status', 'active');
 
         if (dbProductsErr || !dbProducts || dbProducts.length !== productIds.length) {
@@ -208,17 +211,44 @@ export async function POST(req: NextRequest) {
 
         const productMap = Object.fromEntries(dbProducts.map((p: any) => [p.id, p]));
 
+        const requestedPlanIds = [...new Set(
+            items_cart.map((item: any) => item.plan_id).filter(Boolean).map(String),
+        )] as string[];
+        const planMap: Record<string, any> = {};
+        if (requestedPlanIds.length > 0) {
+            const { data: dbPlans, error: dbPlansError } = await supabase
+                .from('product_plans')
+                .select('id, product_id, name, price')
+                .in('id', requestedPlanIds);
+            if (dbPlansError || !dbPlans || dbPlans.length !== requestedPlanIds.length) {
+                return NextResponse.json({ error: 'Um ou mais planos não foram encontrados.' }, { status: 400 });
+            }
+            for (const plan of dbPlans) planMap[plan.id] = plan;
+        }
+        if (items_cart.some((item: any) => (
+            item.plan_id && planMap[String(item.plan_id)]?.product_id !== String(item.id)
+        ))) {
+            return NextResponse.json({ error: 'O plano selecionado não pertence ao produto informado.' }, { status: 400 });
+        }
+
         // Build validated cart with DB prices
         const validatedCart = items_cart.map((item: any) => {
             const dbProduct = productMap[item.id];
+            const dbPlan = item.plan_id ? planMap[String(item.plan_id)] : null;
+            const priceCents = dbPlan ? Number(dbPlan.price) : Number(dbProduct.price);
             return {
                 ...item,
                 quantity: Number(item.quantity),
-                price: dbProduct.price / 100,
-                priceCents: dbProduct.price,
-                name: dbProduct.name,
+                price: priceCents / 100,
+                priceCents,
+                name: dbPlan ? `${dbProduct.name} - ${dbPlan.name}` : dbProduct.name,
+                planId: dbPlan?.id || null,
             };
         });
+
+        if (validatedCart.some((item: any) => !Number.isSafeInteger(item.priceCents) || item.priceCents < 1)) {
+            return NextResponse.json({ error: 'Um ou mais preços são inválidos.' }, { status: 409 });
+        }
 
         const uniqueDeliveryProductIds: string[] = [];
 

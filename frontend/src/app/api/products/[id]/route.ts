@@ -14,7 +14,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!auth) return jsonError('Não autorizado', 401);
 
     const { data: products } = await supabase
-        .from('products').select('*').eq('id', id).eq('user_id', auth.user.id);
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', auth.user.id)
+        .eq('sales_channel', 'checkout');
 
     const product = products?.[0];
 
@@ -73,7 +77,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         if (body.show_in_store !== undefined) updateData.show_in_store = body.show_in_store;
 
         const { data: products, error } = await supabase.from('products')
-            .update(updateData).eq('id', id).eq('user_id', auth.user.id).select();
+            .update(updateData)
+            .eq('id', id)
+            .eq('user_id', auth.user.id)
+            .eq('sales_channel', 'checkout')
+            .select();
 
         const product = products?.[0];
 
@@ -98,7 +106,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
                 await supabase.from('products').update({
                     price: first.price,
                     price_display: (first.price / 100).toFixed(2)
-                }).eq('id', id);
+                }).eq('id', id).eq('sales_channel', 'checkout');
             }
         }
 
@@ -121,6 +129,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         .select('id')
         .eq('id', id)
         .eq('user_id', auth.user.id)
+        .eq('sales_channel', 'checkout')
         .limit(1);
     if (!ownedProducts?.[0]) return jsonError('Produto não encontrado', 404);
 
@@ -142,7 +151,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     }
 
     const { data: deletedProducts, error } = await supabase.from('products')
-        .delete().eq('id', id).eq('user_id', auth.user.id).select('id');
+        .delete()
+        .eq('id', id)
+        .eq('user_id', auth.user.id)
+        .eq('sales_channel', 'checkout')
+        .select('id');
 
     if (error || !deletedProducts?.[0]) return jsonError('Erro ao excluir produto');
     return jsonSuccess({ message: 'Produto excluído' });

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { productsAPI, storeCategoriesAPI } from '@/lib/api';
+import { storeCategoriesAPI, storeProductsAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { FiCheck, FiEdit2, FiEye, FiEyeOff, FiImage, FiLayers, FiPlus, FiRefreshCw, FiX } from 'react-icons/fi';
 import axios from 'axios';
@@ -15,7 +15,15 @@ export default function StoreProductsPage() {
 
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState<any>(null);
-    const [form, setForm] = useState({ name: '', description: '', image_url: '', type: 'digital', status: 'active' });
+    const [form, setForm] = useState({
+        name: '',
+        description: '',
+        image_url: '',
+        type: 'digital',
+        status: 'active',
+        store_category_id: '',
+        store_description_format: 'plain' as 'plain' | 'html',
+    });
     const [plans, setPlans] = useState<Array<{ name: string; price: string }>>([{ name: 'Padrão', price: '' }]);
     const [uploading, setUploading] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -26,7 +34,7 @@ export default function StoreProductsPage() {
     const loadData = async () => {
         try {
             const [prodRes, catRes] = await Promise.all([
-                productsAPI.list({ limit: 100 }),
+                storeProductsAPI.list(),
                 storeCategoriesAPI.list()
             ]);
             setProducts(prodRes.data.products || []);
@@ -42,7 +50,7 @@ export default function StoreProductsPage() {
         setUpdatingParams(product.id);
         try {
             const newStatus = !product.show_in_store;
-            await productsAPI.update(product.id, { show_in_store: newStatus });
+            await storeProductsAPI.update(product.id, { show_in_store: newStatus });
             setProducts(products.map(p => p.id === product.id ? { ...p, show_in_store: newStatus } : p));
             toast.success(newStatus ? 'Produto adicionado à loja' : 'Produto removido da loja');
         } catch {
@@ -56,7 +64,7 @@ export default function StoreProductsPage() {
         setUpdatingParams(productId);
         try {
             const val = categoryId === '' ? null : categoryId;
-            await productsAPI.update(productId, { store_category_id: val });
+            await storeProductsAPI.update(productId, { store_category_id: val });
             setProducts(products.map(p => p.id === productId ? { ...p, store_category_id: val } : p));
             toast.success('Categoria atualizada');
         } catch {
@@ -68,7 +76,15 @@ export default function StoreProductsPage() {
 
     const openCreate = () => {
         setEditing(null);
-        setForm({ name: '', description: '', image_url: '', type: 'digital', status: 'active' });
+        setForm({
+            name: '',
+            description: '',
+            image_url: '',
+            type: 'digital',
+            status: 'active',
+            store_category_id: '',
+            store_description_format: 'plain',
+        });
         setPlans([{ name: 'Padrão', price: '' }]);
         setSelectedFile(null);
         setImagePreview(null);
@@ -82,10 +98,12 @@ export default function StoreProductsPage() {
             description: product.description || '',
             image_url: product.image_url || '',
             type: product.type,
-            status: product.status
+            status: product.status,
+            store_category_id: product.store_category_id || '',
+            store_description_format: product.store_description_format === 'html' ? 'html' : 'plain',
         });
         try {
-            const { data } = await productsAPI.getById(product.id);
+            const { data } = await storeProductsAPI.getById(product.id);
             const p = data.product || product;
             const loadedPlans = Array.isArray(p.plans) && p.plans.length > 0
                 ? p.plans.map((pl: any) => ({ name: pl.name, price: pl.price_display || (pl.price / 100).toFixed(2) }))
@@ -109,7 +127,9 @@ export default function StoreProductsPage() {
         }
     };
 
-    const updateForm = (field: string, value: string) => setForm({ ...form, [field]: value });
+    const updateForm = <K extends keyof typeof form>(field: K, value: (typeof form)[K]) => {
+        setForm(current => ({ ...current, [field]: value }));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -140,14 +160,16 @@ export default function StoreProductsPage() {
                 type: 'digital',
                 image_url: finalImageUrl,
                 plans: normalizedPlans,
-                show_in_store: editing ? undefined : true
+                show_in_store: editing ? undefined : true,
+                store_category_id: form.store_category_id || null,
+                store_description_format: form.store_description_format,
             };
 
             if (editing) {
-                await productsAPI.update(editing.id, productData);
+                await storeProductsAPI.update(editing.id, productData);
                 toast.success('Produto atualizado!');
             } else {
-                await productsAPI.create(productData);
+                await storeProductsAPI.create(productData);
                 toast.success('Produto criado e adicionado à loja!');
             }
             setShowModal(false);
@@ -309,6 +331,12 @@ export default function StoreProductsPage() {
                 .store-products-empty > svg { font-size: 30px; opacity: .55; margin-bottom: 10px; }
                 .store-products-empty strong { color: var(--text-primary); font-size: 13px; margin-bottom: 5px; }
                 .store-products-empty p { font-size: 10px; margin-bottom: 15px; }
+                .store-description-format { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 9px; padding: 4px; border: 1px solid var(--border-color); border-radius: 11px; background: var(--bg-secondary); }
+                .store-description-format button { min-height: 36px; border: 1px solid transparent; border-radius: 8px; color: var(--text-muted); background: transparent; font-size: 11px; font-weight: 750; cursor: pointer; }
+                .store-description-format button.active { border-color: rgba(108,92,231,.28); color: var(--accent-primary); background: rgba(108,92,231,.12); box-shadow: 0 4px 12px rgba(18,24,40,.08); }
+                .store-description-editor { width: 100%; min-height: 118px; resize: vertical; line-height: 1.55; }
+                .store-description-editor.html { min-height: 230px; font-family: Consolas, 'Courier New', monospace; font-size: 12px; tab-size: 2; }
+                .store-description-help { margin-top: 7px; color: var(--text-muted); font-size: 10px; line-height: 1.5; }
                 @media (max-width: 768px) {
                     .store-products-intro { align-items: flex-start; padding: 16px; }
                     .store-products-summary { display: none; }
@@ -338,9 +366,37 @@ export default function StoreProductsPage() {
                             </div>
 
                             <div style={{ marginBottom: 16 }}>
-                                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Descrição do produto</label>
-                                <textarea className="input-field" rows={3} placeholder="Explique os benefícios ou detalhes do produto"
-                                    value={form.description} onChange={e => updateForm('description', e.target.value)} />
+                                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}>Descrição do produto</label>
+                                <div className="store-description-format" role="group" aria-label="Formato da descrição">
+                                    <button
+                                        type="button"
+                                        className={form.store_description_format === 'plain' ? 'active' : ''}
+                                        onClick={() => updateForm('store_description_format', 'plain')}
+                                    >
+                                        Texto normal
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={form.store_description_format === 'html' ? 'active' : ''}
+                                        onClick={() => updateForm('store_description_format', 'html')}
+                                    >
+                                        Código HTML
+                                    </button>
+                                </div>
+                                <textarea
+                                    className={`input-field store-description-editor ${form.store_description_format === 'html' ? 'html' : ''}`}
+                                    rows={form.store_description_format === 'html' ? 10 : 5}
+                                    placeholder={form.store_description_format === 'html'
+                                        ? '<h2>Sobre o produto</h2>\n<p>Descreva os benefícios com <strong>destaque</strong>.</p>\n<ul><li>Benefício 1</li></ul>'
+                                        : 'Explique os benefícios ou detalhes do produto'}
+                                    value={form.description}
+                                    onChange={e => updateForm('description', e.target.value)}
+                                />
+                                <p className="store-description-help">
+                                    {form.store_description_format === 'html'
+                                        ? 'HTML seguro: títulos, parágrafos, listas, links, tabelas e formatação. Scripts, estilos e eventos são removidos automaticamente.'
+                                        : 'O texto será exibido respeitando parágrafos e quebras de linha.'}
+                                </p>
                             </div>
 
                             <div style={{ marginBottom: 16 }}>
@@ -386,6 +442,20 @@ export default function StoreProductsPage() {
                                         + Adicionar plano
                                     </button>
                                 </div>
+                            </div>
+
+                            <div style={{ marginBottom: 16 }}>
+                                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Categoria na loja</label>
+                                <select
+                                    className="input-field"
+                                    value={form.store_category_id}
+                                    onChange={e => updateForm('store_category_id', e.target.value)}
+                                >
+                                    <option value="">Sem categoria</option>
+                                    {categories.map(category => (
+                                        <option key={category.id} value={category.id}>{category.name}</option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>

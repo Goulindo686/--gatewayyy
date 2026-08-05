@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
         .from('products')
         .select('*')
         .eq('user_id', auth.user.id)
+        .eq('sales_channel', 'checkout')
         .order('created_at', { ascending: false });
 
     if (!products?.length) return jsonSuccess({ products: [] });

@@ -110,6 +110,15 @@ export const productsAPI = {
     enroll: (id: string, email: string) => api.post(`/products/${id}/enroll`, { email }),
 };
 
+// Store products have an isolated management API so standalone checkout
+// products can never leak into the seller's storefront catalog.
+export const storeProductsAPI = {
+    list: () => internalApi.get('/store-products'),
+    getById: (id: string) => internalApi.get(`/store-products/${id}`),
+    create: (data: any) => internalApi.post('/store-products', data),
+    update: (id: string, data: any) => internalApi.put(`/store-products/${id}`, data),
+};
+
 // Product management always uses the colocated Next.js API. This keeps the new
 // management shell and protected delivery module independent from the legacy
 // Express API URL that may still exist in development environments.

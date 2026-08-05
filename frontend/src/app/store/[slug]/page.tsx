@@ -6,7 +6,6 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { storeAPI } from '@/lib/api';
 import { FiArrowRight, FiBookOpen, FiCheckCircle, FiCreditCard, FiGrid, FiHeadphones, FiInstagram, FiLock, FiMail, FiPackage, FiSearch, FiShield, FiShoppingBag, FiUser, FiZap } from 'react-icons/fi';
 import { useCart } from '@/contexts/CartContext';
-import toast from 'react-hot-toast';
 import StoreBannerCarousel from '@/components/store/StoreBannerCarousel';
 import {
     buildAutomaticProductSections,
@@ -51,17 +50,11 @@ const storeThemePresets: Record<StoreThemeMode, {
     }
 };
 
-function getPlans(product: any) {
-    return Array.isArray(product?.plans) && product.plans.length > 0
-        ? product.plans
-        : [{ id: '__base__', name: 'Padrao', price: Math.round((product?.price || 0) * 100), price_display: product?.price_display }];
-}
-
 export default function StorePage() {
     const params = useParams();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { addItem, totalItems } = useCart();
+    const { totalItems } = useCart();
 
     const [store, setStore] = useState<any>(null);
     const [categories, setCategories] = useState<any[]>([]);
@@ -69,8 +62,6 @@ export default function StorePage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const activeCategory = searchParams.get('category') || '';
-    const [quickProduct, setQuickProduct] = useState<any>(null);
-    const [quickPlan, setQuickPlan] = useState<any>(null);
 
     useEffect(() => {
         if (!params.slug) return;
@@ -121,7 +112,7 @@ export default function StorePage() {
         if (!term) return products;
         return products.filter(p =>
             p.name?.toLowerCase().includes(term) ||
-            p.description?.toLowerCase().includes(term)
+            p.description_text?.toLowerCase().includes(term)
         );
     }, [products, searchTerm]);
 
@@ -159,31 +150,9 @@ export default function StorePage() {
         window.open(url, '_blank', 'noopener,noreferrer');
     };
 
-    const addProductToCart = (product: any, plan?: any) => {
-        const chosenPlan = plan || getPlans(product)[0];
-        const planId = chosenPlan?.id && chosenPlan.id !== '__base__' ? chosenPlan.id : undefined;
-        addItem({
-            id: product.id,
-            name: product.name,
-            price: chosenPlan ? (chosenPlan.price / 100) : product.price,
-            price_display: chosenPlan ? chosenPlan.price_display : product.price_display,
-            image_url: product.image_url,
-            plan_id: planId,
-            plan_name: chosenPlan ? chosenPlan.name : undefined
-        } as any);
-        toast.success(`${product.name} adicionado!`);
-    };
-
-    const openQuick = (product: any) => {
-        const plans = getPlans(product);
-        setQuickProduct({ ...product, plans });
-        setQuickPlan(plans[0]);
-    };
-
-    const quickBuyNow = () => {
-        if (!quickProduct) return;
-        addProductToCart(quickProduct, quickPlan);
-        router.push(`/store/${slug}/cart?overlay=1`);
+    const openProduct = (product: any) => {
+        const identifier = product.store_product_slug || product.id;
+        router.push(`/store/${encodeURIComponent(slug)}/product/${encodeURIComponent(identifier)}`);
     };
 
     if (loading && !store) {
@@ -523,7 +492,7 @@ export default function StorePage() {
                                         <article key={product.id} className="store-product-card" style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: cardRadius }}>
                                             <button
                                                 className="store-product-media"
-                                                onClick={() => openQuick(product)}
+                                                onClick={() => openProduct(product)}
                                                 style={{
                                                     background: product.image_url
                                                         ? `url("${product.image_url}") center/cover`
@@ -541,7 +510,7 @@ export default function StorePage() {
                                                 </div>
                                                 <h3 className="store-product-title">{product.name}</h3>
                                                 <p className="store-product-description" style={{ color: theme.muted }}>
-                                                    {product.description || 'Produto digital com compra segura e entrega online.'}
+                                                    {product.description_text || 'Produto digital com compra segura e entrega online.'}
                                                 </p>
                                                 <div className="store-product-purchase">
                                                     <div className="store-product-price-block">
@@ -549,7 +518,7 @@ export default function StorePage() {
                                                         <strong>R$ {product.price_display}</strong>
                                                         <span style={{ color: theme.muted }}>à vista no Pix</span>
                                                     </div>
-                                                    <button onClick={() => openQuick(product)} style={{ background: accent }}><FiShoppingBag /> Eu quero</button>
+                                                    <button onClick={() => openProduct(product)} style={{ background: accent }}><FiShoppingBag /> Eu quero</button>
                                                 </div>
                                             </div>
                                         </article>
@@ -607,47 +576,6 @@ export default function StorePage() {
                         <span>Pagamento seguro via GouPay</span>
                     </div>
                 </footer>
-            )}
-
-            {quickProduct && (
-                <div onClick={() => setQuickProduct(null)} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.72)', display: 'grid', placeItems: 'center', padding: 18, overflowY: 'auto' }}>
-                    <div onClick={e => e.stopPropagation()} className="product-modal" style={{ width: 'min(980px, 96vw)', maxHeight: '92vh', overflowY: 'auto', background: theme.surface, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 22, boxShadow: '0 30px 90px rgba(0,0,0,0.45)' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '0.92fr 1.08fr', gap: 0 }} className="product-modal-grid">
-                            <div style={{ minHeight: 420, background: quickProduct.image_url ? `url(${quickProduct.image_url}) center/cover` : `linear-gradient(135deg, ${accent}, ${theme.surfaceAlt})` }} />
-                            <div style={{ padding: 30, display: 'flex', flexDirection: 'column', gap: 18 }}>
-                                <button onClick={() => setQuickProduct(null)} style={{ alignSelf: 'flex-end', width: 34, height: 34, borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surfaceAlt, color: theme.text, cursor: 'pointer', fontWeight: 900 }}>x</button>
-                                <div>
-                                    <span style={{ color: accent, fontSize: 12, fontWeight: 950, textTransform: 'uppercase' }}>Produto digital</span>
-                                    <h2 style={{ fontSize: 32, lineHeight: 1.1, fontWeight: 950, marginTop: 8 }}>{quickProduct.name}</h2>
-                                </div>
-                                <p style={{ color: theme.muted, lineHeight: 1.75, fontSize: 14 }}>{quickProduct.description || 'Produto digital disponivel para compra online.'}</p>
-
-                                <div style={{ display: 'grid', gap: 10 }}>
-                                    <strong style={{ fontSize: 13 }}>Escolha o plano</strong>
-                                    {quickProduct.plans.map((plan: any) => (
-                                        <button key={plan.id} onClick={() => setQuickPlan(plan)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 14, border: `1px solid ${quickPlan?.id === plan.id ? accent : theme.border}`, background: quickPlan?.id === plan.id ? `${accent}18` : theme.surfaceAlt, color: theme.text, padding: 14, cursor: 'pointer', textAlign: 'left' }}>
-                                            <span style={{ fontWeight: 850 }}>{plan.name}</span>
-                                            <span style={{ fontWeight: 950 }}>R$ {plan.price_display}</span>
-                                        </button>
-                                    ))}
-                                </div>
-
-                                <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 18, display: 'grid', gap: 12 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16 }}>
-                                        <span style={{ color: theme.muted, fontWeight: 800 }}>Total</span>
-                                        <strong style={{ fontSize: 30 }}>R$ {quickPlan?.price_display || quickProduct.price_display}</strong>
-                                    </div>
-                                    <button onClick={quickBuyNow} style={{ border: 'none', borderRadius: 14, background: accent, color: 'white', padding: 15, fontWeight: 950, cursor: 'pointer' }}>
-                                        Comprar agora
-                                    </button>
-                                    <button onClick={() => addProductToCart(quickProduct, quickPlan)} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, background: 'transparent', color: theme.text, padding: 14, fontWeight: 900, cursor: 'pointer' }}>
-                                        Adicionar ao carrinho
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             )}
 
             <style jsx global>{`

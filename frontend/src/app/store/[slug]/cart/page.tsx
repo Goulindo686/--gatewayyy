@@ -222,7 +222,11 @@ export default function CartPage() {
                         }
                     } : {})
                 },
-                items: items.map(i => ({ id: i.id, quantity: i.quantity, price: i.price, name: i.name })),
+                items: items.map(i => ({
+                    id: i.id,
+                    quantity: i.quantity,
+                    plan_id: i.plan_id,
+                })),
                 payment_method: methodToSend,
                 card_token: cardToken,
                 installments: methodToSend === 'credit_card' ? installments : undefined,

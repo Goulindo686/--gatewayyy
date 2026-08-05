@@ -13,6 +13,11 @@ import {
     normalizeStoreLayoutSections,
     normalizeStoreStyle
 } from '@/lib/store-builder';
+import {
+    normalizeStoreDescriptionFormat,
+    plainStoreProductDescription,
+    sanitizeStoreProductDescription,
+} from '@/lib/store-product-content';
 
 const PUBLIC_STORE_FIELDS = 'id, name, store_name, store_slug, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text, store_layout_sections, store_footer_config, store_background_config, store_style_config';
 const BUILDER_PUBLIC_STORE_FIELDS = 'id, name, store_name, store_slug, store_description, store_theme, store_banner_url, store_active, store_template, store_accent_color, store_headline, store_cta_text, store_badge_text, store_layout_sections, store_footer_config, store_background_config';
@@ -21,7 +26,7 @@ const LEGACY_PUBLIC_STORE_FIELDS = 'id, name, store_name, store_slug, store_desc
 // and older production schemas may not have that denormalized dashboard field.
 // Keeping the public projection to fields the storefront actually consumes also
 // prevents one optional analytics column from taking every store offline.
-const PUBLIC_PRODUCT_FIELDS = 'id, name, description, price, price_display, image_url, type, status, show_in_store, store_category_id, created_at';
+const PUBLIC_PRODUCT_FIELDS = 'id, name, description, price, price_display, image_url, type, status, show_in_store, store_category_id, store_product_slug, store_description_format, created_at';
 
 function isMissingCustomDomainTable(error: { code?: string; message?: string } | null): boolean {
     return error?.code === '42P01'
@@ -114,6 +119,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
             .from('products')
             .select(PUBLIC_PRODUCT_FIELDS)
             .eq('user_id', user.id)
+            .eq('sales_channel', 'store')
             .eq('status', 'active')
             .eq('type', 'digital')
             .eq('show_in_store', true)
@@ -151,8 +157,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
                 const plansFor = plansByProduct[p.id] || [];
                 const candidate = plansFor.length > 0 ? plansFor[0] : null;
                 const eff = candidate ? candidate.price : p.price;
+                const safeDescription = sanitizeStoreProductDescription(
+                    p.description,
+                    normalizeStoreDescriptionFormat(p.store_description_format),
+                );
                 return {
                     ...p,
+                    description: safeDescription,
+                    description_text: plainStoreProductDescription(safeDescription),
                     price: eff / 100,
                     price_display: (eff / 100).toFixed(2),
                     has_plans: plansFor.length > 1,
