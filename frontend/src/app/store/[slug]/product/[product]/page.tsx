@@ -21,6 +21,7 @@ import {
 import { storeAPI } from '@/lib/api';
 import { useCart } from '@/contexts/CartContext';
 import { normalizeStoreStyle } from '@/lib/store-builder';
+import StoreCartDrawer from '@/components/store/StoreCartDrawer';
 
 const themes = {
     light: {
@@ -62,6 +63,7 @@ export default function StoreProductPage() {
     const [currentProduct, setCurrentProduct] = useState<any>(null);
     const [selectedPlanId, setSelectedPlanId] = useState('');
     const [quantity, setQuantity] = useState(1);
+    const [cartOpen, setCartOpen] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -202,7 +204,7 @@ export default function StoreProductPage() {
                     <button className="product-header-search" onClick={() => router.push(`/store/${encodeURIComponent(canonicalSlug)}`)}>
                         <span>Buscar em {store.name || canonicalSlug}</span><FiChevronRight />
                     </button>
-                    <button className="product-cart-button" onClick={() => router.push(`/store/${encodeURIComponent(canonicalSlug)}/cart`)}>
+                    <button className="product-cart-button" onClick={() => setCartOpen(true)}>
                         <FiShoppingBag /><span>Carrinho</span>{totalItems > 0 && <b>{totalItems}</b>}
                     </button>
                 </div>
@@ -318,6 +320,14 @@ export default function StoreProductPage() {
                     </section>
                 )}
             </main>
+
+            <StoreCartDrawer
+                open={cartOpen}
+                onClose={() => setCartOpen(false)}
+                storeSlug={canonicalSlug}
+                accent={accent}
+                theme={theme}
+            />
 
             <footer className="product-footer"><strong>{store.name || canonicalSlug}</strong><span>Pagamento seguro via GouPay</span></footer>
 

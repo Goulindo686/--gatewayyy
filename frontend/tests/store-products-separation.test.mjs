@@ -69,9 +69,10 @@ test('store editor uses its dedicated API and offers sanitized HTML mode', async
 });
 
 test('store product cards open a full detail page with plans and cart actions', async () => {
-    const [storefront, details] = await Promise.all([
+    const [storefront, details, cartDrawer] = await Promise.all([
         readSource('../src/app/store/[slug]/page.tsx'),
         readSource('../src/app/store/[slug]/product/[product]/page.tsx'),
+        readSource('../src/components/store/StoreCartDrawer.tsx'),
     ]);
 
     assert.match(storefront, /\/product\/\$\{encodeURIComponent\(identifier\)\}/);
@@ -81,4 +82,13 @@ test('store product cards open a full detail page with plans and cart actions', 
     assert.match(details, /Adicionar ao carrinho/);
     assert.match(details, /Comprar agora/);
     assert.match(details, /productPlans\(currentProduct\)/);
+    assert.match(storefront, /<StoreCartDrawer/);
+    assert.match(details, /<StoreCartDrawer/);
+    assert.match(storefront, /setCartOpen\(true\)/);
+    assert.match(details, /setCartOpen\(true\)/);
+    assert.match(cartDrawer, /updateQuantity\(key, -1\)/);
+    assert.match(cartDrawer, /removeItem\(key\)/);
+    assert.match(cartDrawer, /Subtotal/);
+    assert.match(cartDrawer, /Finalizar compra/);
+    assert.match(cartDrawer, /cart\?overlay=1/);
 });

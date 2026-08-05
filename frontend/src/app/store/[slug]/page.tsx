@@ -7,6 +7,7 @@ import { storeAPI } from '@/lib/api';
 import { FiArrowRight, FiBookOpen, FiCheckCircle, FiCreditCard, FiGrid, FiHeadphones, FiInstagram, FiLock, FiMail, FiPackage, FiSearch, FiShield, FiShoppingBag, FiUser, FiZap } from 'react-icons/fi';
 import { useCart } from '@/contexts/CartContext';
 import StoreBannerCarousel from '@/components/store/StoreBannerCarousel';
+import StoreCartDrawer from '@/components/store/StoreCartDrawer';
 import {
     buildAutomaticProductSections,
     buildRenderableStoreSections,
@@ -61,6 +62,7 @@ export default function StorePage() {
     const [products, setProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [cartOpen, setCartOpen] = useState(false);
     const activeCategory = searchParams.get('category') || '';
 
     useEffect(() => {
@@ -305,7 +307,7 @@ export default function StorePage() {
                                 <FiHeadphones /> <span>Atendimento</span>
                             </button>
                         )}
-                        <button className="store-cart-button" onClick={() => router.push(`/store/${slug}/cart`)} style={{ color: theme.text, borderColor: theme.border, background: theme.surface }} aria-label="Abrir carrinho">
+                        <button className="store-cart-button" onClick={() => setCartOpen(true)} style={{ color: theme.text, borderColor: theme.border, background: theme.surface }} aria-label="Abrir carrinho">
                             <FiShoppingBag />
                             {totalItems > 0 && <span style={{ background: accent }}>{totalItems}</span>}
                         </button>
@@ -540,7 +542,7 @@ export default function StorePage() {
                         <button onClick={() => document.getElementById('store-products')?.scrollIntoView({ behavior: 'smooth' })} style={{ background: accent }}>
                             Explorar catálogo <FiArrowRight />
                         </button>
-                        <button onClick={() => router.push(`/store/${slug}/cart`)} style={{ color: theme.text, borderColor: theme.border, background: theme.surfaceAlt }}>
+                        <button onClick={() => setCartOpen(true)} style={{ color: theme.text, borderColor: theme.border, background: theme.surfaceAlt }}>
                             <FiShoppingBag /> Ver carrinho
                         </button>
                     </div>
@@ -577,6 +579,14 @@ export default function StorePage() {
                     </div>
                 </footer>
             )}
+
+            <StoreCartDrawer
+                open={cartOpen}
+                onClose={() => setCartOpen(false)}
+                storeSlug={slug}
+                accent={accent}
+                theme={theme}
+            />
 
             <style jsx global>{`
                 .store-main-header {
