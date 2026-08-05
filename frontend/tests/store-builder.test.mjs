@@ -160,6 +160,16 @@ test('store settings use an organized four-step editor without an embedded previ
     assert.match(source, /store-setup-navigation/);
     assert.match(source, /id="store-identity"/);
     assert.match(source, /id="store-appearance"/);
+    assert.match(source, /type AppearancePanel = 'theme' \| 'finish' \| 'catalog' \| 'payment'/);
+    assert.match(source, /store-appearance-navigation/);
+    assert.match(source, /Tema e cores/);
+    assert.match(source, /Acabamento/);
+    assert.match(source, /Catálogo/);
+    assert.match(source, /Pagamento/);
+    assert.match(source, /appearancePanel === 'theme'/);
+    assert.match(source, /appearancePanel === 'finish'/);
+    assert.match(source, /appearancePanel === 'catalog'/);
+    assert.match(source, /appearancePanel === 'payment'/);
     assert.match(source, /id="store-structure"/);
     assert.match(source, /id="store-footer"/);
     assert.match(source, /store-save-bar/);

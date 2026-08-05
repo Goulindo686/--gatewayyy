@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
     FiCheck,
+    FiCreditCard,
     FiExternalLink,
     FiImage,
     FiInstagram,
@@ -68,6 +69,8 @@ type StoreProduct = {
     show_in_store?: boolean;
 };
 
+type AppearancePanel = 'theme' | 'finish' | 'catalog' | 'payment';
+
 type StoreForm = {
     store_active: boolean;
     store_name: string;
@@ -128,6 +131,7 @@ export default function StoreSettingsPage() {
     const [uploading, setUploading] = useState<string | null>(null);
     const [form, setForm] = useState<StoreForm>(initialForm);
     const [products, setProducts] = useState<StoreProduct[]>([]);
+    const [appearancePanel, setAppearancePanel] = useState<AppearancePanel>('theme');
 
     const headers = () => ({
         Authorization: `Bearer ${localStorage.getItem('token') || ''}`
@@ -535,9 +539,36 @@ export default function StoreSettingsPage() {
                         icon={<FiSliders />}
                         kicker="ETAPA 2"
                         title="Aparência da loja"
-                        description="Escolha uma base visual e aplique as cores da sua marca."
+                        description="Personalize uma área por vez. Todas as opções continuam sendo salvas juntas."
                     />
-                    <div className="store-form-group store-theme-mode-group">
+                    <div className="store-appearance-navigation" role="tablist" aria-label="Áreas da personalização">
+                        <button type="button" role="tab" aria-selected={appearancePanel === 'theme'} className={appearancePanel === 'theme' ? 'active' : ''} onClick={() => setAppearancePanel('theme')}>
+                            <span><FiImage /></span>
+                            <div><strong>Tema e cores</strong><small>Modelo, paleta e fundo</small></div>
+                            <b>1</b>
+                        </button>
+                        <button type="button" role="tab" aria-selected={appearancePanel === 'finish'} className={appearancePanel === 'finish' ? 'active' : ''} onClick={() => setAppearancePanel('finish')}>
+                            <span><FiSliders /></span>
+                            <div><strong>Acabamento</strong><small>Letras, botões e cantos</small></div>
+                            <b>2</b>
+                        </button>
+                        <button type="button" role="tab" aria-selected={appearancePanel === 'catalog'} className={appearancePanel === 'catalog' ? 'active' : ''} onClick={() => setAppearancePanel('catalog')}>
+                            <span><FiPackage /></span>
+                            <div><strong>Catálogo</strong><small>Cards, colunas e itens visíveis</small></div>
+                            <b>3</b>
+                        </button>
+                        <button type="button" role="tab" aria-selected={appearancePanel === 'payment'} className={appearancePanel === 'payment' ? 'active' : ''} onClick={() => setAppearancePanel('payment')}>
+                            <span><FiCreditCard /></span>
+                            <div><strong>Pagamento</strong><small>Métodos aceitos na loja</small></div>
+                            <b>4</b>
+                        </button>
+                    </div>
+                    <div className="store-appearance-context">
+                        <span>EDITANDO AGORA</span>
+                        <strong>{appearancePanel === 'theme' ? 'Tema e identidade visual' : appearancePanel === 'finish' ? 'Acabamento dos elementos' : appearancePanel === 'catalog' ? 'Organização do catálogo' : 'Métodos de pagamento'}</strong>
+                        <p>{appearancePanel === 'theme' ? 'Defina o modelo, o contraste, as cores e o plano de fundo.' : appearancePanel === 'finish' ? 'Ajuste tipografia, capa, cabeçalho, botões, cantos e animações.' : appearancePanel === 'catalog' ? 'Escolha como os produtos e recursos de navegação aparecem.' : 'Controle as opções disponíveis no checkout dos produtos da loja.'}</p>
+                    </div>
+                    {appearancePanel === 'theme' && <div className="store-form-group store-theme-mode-group">
                         <div className="store-form-group-heading">
                             <strong>Tema claro ou escuro</strong>
                             <span>Escolha o contraste principal da vitrine. A opção será aplicada ao cabeçalho, produtos, categorias e rodapé.</span>
@@ -548,8 +579,8 @@ export default function StoreSettingsPage() {
                             options={[{ value: 'light', label: 'Claro' }, { value: 'dark', label: 'Escuro' }]}
                             onChange={updateStoreTheme}
                         />
-                    </div>
-                    <div className="store-form-group store-appearance-palette">
+                    </div>}
+                    {appearancePanel === 'theme' && <div className="store-form-group store-appearance-palette">
                         <div className="store-form-group-heading">
                             <strong>Paleta completa</strong>
                             <span>Mantenha as cores do modelo ou defina cada parte da loja.</span>
@@ -581,8 +612,8 @@ export default function StoreSettingsPage() {
                                 ))}
                             </div>
                         )}
-                    </div>
-                    <div className="store-form-group store-appearance-finish">
+                    </div>}
+                    {appearancePanel === 'finish' && <div className="store-form-group store-appearance-finish">
                         <div className="store-form-group-heading">
                             <strong>Tipografia e acabamento</strong>
                             <span>As escolhas alteram o estilo, sem trocar a estrutura original.</span>
@@ -595,8 +626,8 @@ export default function StoreSettingsPage() {
                             <StyleChoiceGroup label="Cantos" value={form.store_style_config.corner_style} options={[{ value: 'soft', label: 'Suaves' }, { value: 'rounded', label: 'Arredondados' }, { value: 'sharp', label: 'Retos' }]} onChange={value => updateStyle('corner_style', value as StoreStyleConfig['corner_style'])} />
                             <StyleChoiceGroup label="Animações" value={form.store_style_config.animation_level} options={[{ value: 'none', label: 'Nenhuma' }, { value: 'subtle', label: 'Discretas' }, { value: 'expressive', label: 'Expressivas' }]} onChange={value => updateStyle('animation_level', value as StoreStyleConfig['animation_level'])} />
                         </div>
-                    </div>
-                    <div className="store-form-group store-appearance-catalog">
+                    </div>}
+                    {appearancePanel === 'catalog' && <div className="store-form-group store-appearance-catalog">
                         <div className="store-form-group-heading">
                             <strong>Catálogo e elementos visíveis</strong>
                             <span>Controle a densidade dos produtos e o que aparece para o cliente.</span>
@@ -614,8 +645,8 @@ export default function StoreSettingsPage() {
                             <VisibilityToggle label="Busca" checked={form.store_style_config.show_search} onChange={value => updateStyle('show_search', value)} />
                             <VisibilityToggle label="Área do cliente" checked={form.store_style_config.show_account} onChange={value => updateStyle('show_account', value)} />
                         </div>
-                    </div>
-                    <div className="store-form-group">
+                    </div>}
+                    {appearancePanel === 'payment' && <div className="store-form-group store-appearance-payment">
                         <div className="store-form-group-heading">
                             <strong>Métodos de pagamento</strong>
                             <span>Escolha se o cliente poderá pagar com cartão no carrinho da sua loja. O PIX continuará disponível.</span>
@@ -627,8 +658,8 @@ export default function StoreSettingsPage() {
                                 onChange={value => updateStyle('show_credit_card', value)}
                             />
                         </div>
-                    </div>
-                    <div className="store-form-group store-appearance-base">
+                    </div>}
+                    {appearancePanel === 'theme' && <div className="store-form-group store-appearance-base">
                         <div className="store-form-group-heading">
                             <strong>Estilo principal</strong>
                             <span>Escolha o acabamento que melhor combina com seus produtos.</span>
@@ -648,8 +679,8 @@ export default function StoreSettingsPage() {
                                 );
                             })}
                         </div>
-                    </div>
-                    <div className="store-form-group store-appearance-background">
+                    </div>}
+                    {appearancePanel === 'theme' && <div className="store-form-group store-appearance-background">
                         <div className="store-form-group-heading">
                             <strong>Cores e plano de fundo</strong>
                             <span>Use uma cor sólida, o fundo do tema ou uma imagem personalizada.</span>
@@ -721,7 +752,7 @@ export default function StoreSettingsPage() {
                                 </>
                             )}
                         </div>
-                    </div>
+                    </div>}
                 </section>
 
                 <div id="store-structure" className="store-scroll-section">
@@ -975,12 +1006,127 @@ export default function StoreSettingsPage() {
                     flex-direction: column;
                 }
                 #store-appearance .store-section-header { order: 0; }
-                #store-appearance .store-appearance-base { order: 1; margin-top: 0; }
-                #store-appearance .store-appearance-background { order: 2; }
-                #store-appearance .store-appearance-palette { order: 3; }
-                #store-appearance .store-appearance-finish { order: 4; }
-                #store-appearance .store-appearance-catalog { order: 5; }
+                #store-appearance .store-appearance-navigation { order: 1; }
+                #store-appearance .store-appearance-context { order: 2; }
+                #store-appearance .store-appearance-base { order: 3; }
+                #store-appearance .store-theme-mode-group { order: 4; }
+                #store-appearance .store-appearance-background { order: 5; }
+                #store-appearance .store-appearance-palette { order: 6; }
+                #store-appearance .store-appearance-finish,
+                #store-appearance .store-appearance-catalog,
+                #store-appearance .store-appearance-payment { order: 3; }
                 #store-appearance .store-form-group { margin-top: 14px; }
+                .store-appearance-navigation {
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 8px;
+                    margin-bottom: 12px;
+                }
+                .store-appearance-navigation button {
+                    position: relative;
+                    min-width: 0;
+                    min-height: 76px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 14px;
+                    padding: 11px 30px 11px 11px;
+                    display: grid;
+                    grid-template-columns: 34px minmax(0, 1fr);
+                    align-items: center;
+                    gap: 9px;
+                    color: var(--text-primary);
+                    background: var(--bg-secondary);
+                    text-align: left;
+                    cursor: pointer;
+                    transition: border-color .2s, background .2s, box-shadow .2s, transform .2s;
+                }
+                .store-appearance-navigation button:hover {
+                    border-color: rgba(108,92,231,.36);
+                    transform: translateY(-1px);
+                }
+                .store-appearance-navigation button.active {
+                    border-color: var(--accent-primary);
+                    background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-secondary));
+                    box-shadow: 0 8px 20px rgba(108,92,231,.1);
+                }
+                .store-appearance-navigation button > span {
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 10px;
+                    display: grid;
+                    place-items: center;
+                    color: var(--text-secondary);
+                    background: var(--bg-card);
+                    transition: color .2s, background .2s;
+                }
+                .store-appearance-navigation button.active > span {
+                    color: var(--accent-primary);
+                    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-card));
+                }
+                .store-appearance-navigation button strong,
+                .store-appearance-navigation button small {
+                    display: block;
+                }
+                .store-appearance-navigation button strong {
+                    overflow: hidden;
+                    font-size: 11px;
+                    white-space: nowrap;
+                    text-overflow: ellipsis;
+                }
+                .store-appearance-navigation button small {
+                    overflow: hidden;
+                    color: var(--text-muted);
+                    font-size: 8px;
+                    line-height: 1.35;
+                    margin-top: 3px;
+                    white-space: nowrap;
+                    text-overflow: ellipsis;
+                }
+                .store-appearance-navigation button > b {
+                    position: absolute;
+                    top: 8px;
+                    right: 8px;
+                    width: 18px;
+                    height: 18px;
+                    border-radius: 50%;
+                    display: grid;
+                    place-items: center;
+                    color: var(--text-muted);
+                    background: var(--bg-card);
+                    font-size: 8px;
+                }
+                .store-appearance-navigation button.active > b {
+                    color: #fff;
+                    background: var(--accent-primary);
+                }
+                .store-appearance-context {
+                    border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, var(--border-color));
+                    border-left: 3px solid var(--accent-primary);
+                    border-radius: 0 12px 12px 0;
+                    padding: 11px 14px;
+                    background: color-mix(in srgb, var(--accent-primary) 5%, var(--bg-card));
+                }
+                .store-appearance-context span,
+                .store-appearance-context strong,
+                .store-appearance-context p {
+                    display: block;
+                }
+                .store-appearance-context span {
+                    color: var(--accent-primary);
+                    font-size: 8px;
+                    font-weight: 900;
+                    letter-spacing: .12em;
+                    margin-bottom: 3px;
+                }
+                .store-appearance-context strong {
+                    color: var(--text-primary);
+                    font-size: 12px;
+                    margin-bottom: 2px;
+                }
+                .store-appearance-context p {
+                    color: var(--text-muted);
+                    font-size: 10px;
+                    line-height: 1.45;
+                }
                 .store-section-header {
                     display: flex;
                     align-items: flex-start;
@@ -1458,6 +1604,9 @@ export default function StoreSettingsPage() {
                     .store-builder-workspace {
                         grid-template-columns: 190px minmax(0, 1fr);
                     }
+                    .store-appearance-navigation {
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                    }
                     .store-custom-colors,
                     .store-visibility-grid {
                         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1506,6 +1655,18 @@ export default function StoreSettingsPage() {
                     }
                     .store-editor-section {
                         padding: 18px;
+                    }
+                    .store-appearance-navigation {
+                        display: flex;
+                        overflow-x: auto;
+                        padding-bottom: 3px;
+                        scrollbar-width: none;
+                    }
+                    .store-appearance-navigation::-webkit-scrollbar {
+                        display: none;
+                    }
+                    .store-appearance-navigation button {
+                        min-width: 185px;
                     }
                     .store-form-group {
                         padding: 14px;
