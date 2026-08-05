@@ -562,6 +562,7 @@ export default function CartPage() {
                                             maxLength={4}
                                             value={cardCvv}
                                             onFocus={() => setCardPreviewFlipped(true)}
+                                            onClick={() => setCardPreviewFlipped(true)}
                                             onBlur={() => setCardPreviewFlipped(false)}
                                             onChange={event => setCardCvv(onlyDigits(event.target.value).slice(0, 4))}
                                             style={inputStyle}
