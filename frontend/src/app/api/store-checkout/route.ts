@@ -121,7 +121,8 @@ export async function POST(req: NextRequest) {
             .from('products')
             .select('user_id')
             .eq('id', items_cart[0].id)
-            .eq('sales_channel', 'store')
+            .in('sales_channel', ['store', 'checkout'])
+            .eq('show_in_store', true)
             .single();
 
         if (productErr || !firstProduct) {
@@ -196,7 +197,8 @@ export async function POST(req: NextRequest) {
             .from('products')
             .select('id, user_id, name, price, status')
             .in('id', productIds)
-            .eq('sales_channel', 'store')
+            .in('sales_channel', ['store', 'checkout'])
+            .eq('show_in_store', true)
             .eq('status', 'active');
 
         if (dbProductsErr || !dbProducts || dbProducts.length !== productIds.length) {

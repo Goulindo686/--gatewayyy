@@ -47,12 +47,6 @@ BEGIN
     END IF;
 END $$;
 
--- Preserve every product that was already published in a storefront.
-UPDATE public.products
-SET sales_channel = 'store'
-WHERE show_in_store IS TRUE
-  AND sales_channel = 'checkout';
-
 UPDATE public.products
 SET store_product_slug = concat(
     COALESCE(

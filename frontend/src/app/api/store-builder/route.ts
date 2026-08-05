@@ -155,7 +155,7 @@ export async function GET(req: NextRequest) {
             .from('products')
             .select('id, name, image_url, status, show_in_store, type')
             .eq('user_id', auth.user.id)
-            .eq('sales_channel', 'store')
+            .or('sales_channel.eq.store,and(sales_channel.eq.checkout,show_in_store.eq.true)')
             .eq('type', 'digital')
             .order('created_at', { ascending: false })
     ]);
@@ -197,7 +197,7 @@ export async function PUT(req: NextRequest) {
                 .from('products')
                 .select('id')
                 .eq('user_id', auth.user.id)
-                .eq('sales_channel', 'store')
+                .or('sales_channel.eq.store,and(sales_channel.eq.checkout,show_in_store.eq.true)')
                 .in('id', selectedProductIds);
 
             if (productsError) {

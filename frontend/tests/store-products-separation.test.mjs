@@ -49,11 +49,14 @@ test('standalone and storefront management are isolated by sales channel', async
     assert.match(storeProducts, /\.eq\('sales_channel', 'store'\)/);
     assert.match(storeProducts, /sales_channel: 'store'/);
     assert.match(storeProduct, /\.eq\('sales_channel', 'store'\)/);
-    assert.match(storeBuilder, /\.eq\('sales_channel', 'store'\)/);
-    assert.match(publicStore, /\.eq\('sales_channel', 'store'\)/);
-    assert.match(checkout, /\.eq\('sales_channel', 'store'\)/);
+    assert.match(storeBuilder, /sales_channel\.eq\.store/);
+    assert.match(storeBuilder, /sales_channel\.eq\.checkout,show_in_store\.eq\.true/);
+    assert.match(publicStore, /\.in\('sales_channel', \['store', 'checkout'\]\)/);
+    assert.match(checkout, /\.in\('sales_channel', \['store', 'checkout'\]\)/);
+    assert.match(checkout, /\.eq\('show_in_store', true\)/);
     assert.match(checkout, /\.from\('product_plans'\)/);
     assert.match(checkout, /plan\.product_id|planMap\[String\(item\.plan_id\)\]/);
+    assert.doesNotMatch(mainProduct, /body\.show_in_store|body\.store_category_id/);
 });
 
 test('store editor uses its dedicated API and offers sanitized HTML mode', async () => {

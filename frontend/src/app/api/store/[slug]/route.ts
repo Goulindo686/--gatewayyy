@@ -119,7 +119,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
             .from('products')
             .select(PUBLIC_PRODUCT_FIELDS)
             .eq('user_id', user.id)
-            .eq('sales_channel', 'store')
+            .in('sales_channel', ['store', 'checkout'])
             .eq('status', 'active')
             .eq('type', 'digital')
             .eq('show_in_store', true)

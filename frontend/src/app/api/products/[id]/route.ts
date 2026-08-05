@@ -72,10 +72,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         if (facebookSettings.facebook_pixel_id !== undefined) updateData.facebook_pixel_id = facebookSettings.facebook_pixel_id;
         if (facebookSettings.facebook_api_token !== undefined) updateData.facebook_api_token = facebookSettings.facebook_api_token;
 
-        // Novos campos da loja
-        if (body.store_category_id !== undefined) updateData.store_category_id = body.store_category_id;
-        if (body.show_in_store !== undefined) updateData.show_in_store = body.show_in_store;
-
         const { data: products, error } = await supabase.from('products')
             .update(updateData)
             .eq('id', id)
