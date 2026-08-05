@@ -56,3 +56,21 @@ test('store owner can hide credit card in the storefront cart and the server enf
     assert.match(storeCheckout, /store_slug, store_active, store_style_config/);
     assert.match(storeCheckout, /!enableCreditCard \|\| !storeAllowsCreditCard/);
 });
+
+test('store checkout follows the storefront theme and provides an interactive card preview', async () => {
+    const [cart, preview] = await Promise.all([
+        readFile(new URL('../src/app/store/[slug]/cart/page.tsx', import.meta.url), 'utf8'),
+        readFile(new URL('../src/components/store/StoreCreditCardPreview.tsx', import.meta.url), 'utf8'),
+    ]);
+
+    assert.match(cart, /storeAPI\.getStoreBySlug/);
+    assert.match(cart, /normalizeStoreStyle\(store\?\.style\)/);
+    assert.match(cart, /visual\.hero_content\.logo_url/);
+    assert.match(cart, /<StoreCreditCardPreview/);
+    assert.match(cart, /setCardPreviewFlipped\(true\)/);
+    assert.match(cart, /tokenizePagarmeCard/);
+    assert.match(cart, /authenticatePagarme3DS/);
+    assert.match(preview, /visibleNumber\(number\)/);
+    assert.match(preview, /cardBrand\(number\)/);
+    assert.match(preview, /is-flipped/);
+});

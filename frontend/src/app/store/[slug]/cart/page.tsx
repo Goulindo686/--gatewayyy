@@ -1,15 +1,57 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { type CSSProperties, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useCart } from '@/contexts/CartContext';
-import { FiArrowLeft, FiTrash2, FiMinus, FiPlus, FiZap, FiTag, FiPackage, FiCreditCard } from 'react-icons/fi';
+import {
+    FiArrowLeft,
+    FiCheck,
+    FiCreditCard,
+    FiLock,
+    FiMinus,
+    FiPackage,
+    FiPlus,
+    FiShield,
+    FiTrash2,
+    FiZap,
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useCart } from '@/contexts/CartContext';
 import { storeAPI, productsAPI } from '@/lib/api';
 import { isValidCardExpiration } from '@/lib/checkout-validation';
 import { CardTokenizationError, createCheckoutSessionId, getCheckoutDevicePlatform, tokenizePagarmeCard } from '@/lib/pagarme-card';
 import { authenticatePagarme3DS } from '@/lib/pagarme-3ds';
 import { normalizeAffiliateReference } from '@/lib/affiliates-core';
+import { normalizeStoreStyle } from '@/lib/store-builder';
+import StoreCreditCardPreview from '@/components/store/StoreCreditCardPreview';
+
+const checkoutThemes = {
+    light: {
+        bg: '#f4f7fb',
+        surface: '#ffffff',
+        surfaceAlt: '#edf3fc',
+        text: '#0e1526',
+        muted: '#5a6577',
+        border: '#d3dbe8',
+        shadow: '0 24px 80px rgba(30, 64, 175, .11)',
+    },
+    dark: {
+        bg: '#080d18',
+        surface: '#111827',
+        surfaceAlt: '#172033',
+        text: '#f8fafc',
+        muted: '#94a3b8',
+        border: '#29354a',
+        shadow: '0 24px 80px rgba(0, 0, 0, .34)',
+    },
+};
+
+function cartItemKey(item: { id: string; plan_id?: string }) {
+    return item.plan_id ? item.id + '__' + item.plan_id : item.id;
+}
+
+function money(value: number) {
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 export default function CartPage() {
     const params = useParams();
@@ -18,6 +60,7 @@ export default function CartPage() {
     const { items, addItem, updateQuantity, removeItem, totalAmount, clearCart } = useCart();
     const checkoutSessionRef = useRef<string | null>(null);
 
+    const [store, setStore] = useState<any>(null);
     const [cardConfig, setCardConfig] = useState({ enabled: false, publicKey: '' });
     const enableCreditCard = cardConfig.enabled && !!cardConfig.publicKey;
     const [paymentMethod, setPaymentMethod] = useState<'pix' | 'credit_card'>('pix');
@@ -39,52 +82,60 @@ export default function CartPage() {
     const [cardExpYear, setCardExpYear] = useState('');
     const [cardCvv, setCardCvv] = useState('');
     const [installments, setInstallments] = useState(1);
-    const sanitizeCard = (v: string) => (v || '').replace(/\D/g, '');
-    const onlyDigits = (v: string) => (v || '').replace(/\D/g, '');
-    const formatCpf = (v: string) => onlyDigits(v).slice(0, 11).replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-    const formatPhone = (v: string) => {
-        const d = onlyDigits(v).slice(0, 11);
-        if (d.length <= 10) return d.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2');
-        return d.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
+    const [cardPreviewFlipped, setCardPreviewFlipped] = useState(false);
+
+    const sanitizeCard = (value: string) => (value || '').replace(/\D/g, '');
+    const onlyDigits = (value: string) => (value || '').replace(/\D/g, '');
+    const formatCpf = (value: string) => onlyDigits(value).slice(0, 11).replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    const formatPhone = (value: string) => {
+        const digits = onlyDigits(value).slice(0, 11);
+        if (digits.length <= 10) return digits.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2');
+        return digits.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
     };
-    const formatCep = (v: string) => onlyDigits(v).slice(0, 8).replace(/(\d{5})(\d)/, '$1-$2');
-    const formatCardNumber = (v: string) => onlyDigits(v).slice(0, 19).replace(/(.{4})/g, '$1 ').trim();
-    const isValidCard = (v: string) => {
-        const num = sanitizeCard(v);
-        if (num.length < 13 || num.length > 19) return false;
+    const formatCep = (value: string) => onlyDigits(value).slice(0, 8).replace(/(\d{5})(\d)/, '$1-$2');
+    const formatCardNumber = (value: string) => onlyDigits(value).slice(0, 19).replace(/(.{4})/g, '$1 ').trim();
+    const isValidCard = (value: string) => {
+        const digits = sanitizeCard(value);
+        if (digits.length < 13 || digits.length > 19) return false;
         let sum = 0;
-        let dbl = false;
-        for (let i = num.length - 1; i >= 0; i--) {
-            let d = parseInt(num[i]);
-            if (dbl) {
-                d *= 2;
-                if (d > 9) d -= 9;
+        let doubleDigit = false;
+        for (let index = digits.length - 1; index >= 0; index--) {
+            let digit = parseInt(digits[index]);
+            if (doubleDigit) {
+                digit *= 2;
+                if (digit > 9) digit -= 9;
             }
-            sum += d;
-            dbl = !dbl;
+            sum += digit;
+            doubleDigit = !doubleDigit;
         }
         return sum % 10 === 0;
     };
-    const isValidCPF = (v: string) => {
-        const s = (v || '').replace(/\D/g, '');
-        if (!s || s.length !== 11 || /^(\d)\1+$/.test(s)) return false;
-        let sum = 0; for (let i = 0; i < 9; i++) sum += parseInt(s[i]) * (10 - i);
-        let d1 = (sum * 10) % 11; if (d1 === 10) d1 = 0; if (d1 !== parseInt(s[9])) return false;
-        sum = 0; for (let i = 0; i < 10; i++) sum += parseInt(s[i]) * (11 - i);
-        let d2 = (sum * 10) % 11; if (d2 === 10) d2 = 0; return d2 === parseInt(s[10]);
+    const isValidCPF = (value: string) => {
+        const digits = (value || '').replace(/\D/g, '');
+        if (!digits || digits.length !== 11 || /^(\d)\1+$/.test(digits)) return false;
+        let sum = 0;
+        for (let index = 0; index < 9; index++) sum += parseInt(digits[index]) * (10 - index);
+        let firstDigit = (sum * 10) % 11;
+        if (firstDigit === 10) firstDigit = 0;
+        if (firstDigit !== parseInt(digits[9])) return false;
+        sum = 0;
+        for (let index = 0; index < 10; index++) sum += parseInt(digits[index]) * (11 - index);
+        let secondDigit = (sum * 10) % 11;
+        if (secondDigit === 10) secondDigit = 0;
+        return secondDigit === parseInt(digits[10]);
     };
-    const isValidCEP = (v: string) => /^\d{8}$/.test((v || '').replace(/\D/g, ''));
-    const UFs = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
-    const isValidUF = (v: string) => UFs.includes((v || '').toUpperCase());
-    const isValidPhone = (v: string) => {
-        const d = (v || '').replace(/\D/g, '');
-        return d.length >= 10 && d.length <= 11;
+    const isValidCEP = (value: string) => /^\d{8}$/.test((value || '').replace(/\D/g, ''));
+    const validStates = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+    const isValidUF = (value: string) => validStates.includes((value || '').toUpperCase());
+    const isValidPhone = (value: string) => {
+        const digits = (value || '').replace(/\D/g, '');
+        return digits.length >= 10 && digits.length <= 11;
     };
-    const [details, setDetails] = useState<Record<string, any>>({});
-    const isOverlay = searchParams.get('overlay') === '1';
+
     useEffect(() => {
-        const storeSlug = encodeURIComponent(String(params.slug || ''));
-        fetch(`/api/checkout/config?store_slug=${storeSlug}`, { cache: 'no-store' })
+        const rawSlug = String(params.slug || '');
+        const encodedSlug = encodeURIComponent(rawSlug);
+        fetch('/api/checkout/config?store_slug=' + encodedSlug, { cache: 'no-store' })
             .then(response => response.ok ? response.json() : null)
             .then(config => {
                 const creditCard = config?.credit_card;
@@ -94,66 +145,101 @@ export default function CartPage() {
                 });
             })
             .catch(() => setCardConfig({ enabled: false, publicKey: '' }));
+
+        storeAPI.getStoreBySlug(rawSlug)
+            .then(({ data }) => setStore(data?.store || null))
+            .catch(() => setStore(null));
     }, [params.slug]);
+
     useEffect(() => {
         if (!enableCreditCard && paymentMethod !== 'pix') setPaymentMethod('pix');
     }, [enableCreditCard, paymentMethod]);
+
     useEffect(() => {
         const addId = searchParams.get('add');
         const run = async () => {
             if (!addId) return;
             try {
                 const { data } = await productsAPI.getPublic(addId);
-                const p = data.product;
-                if (p) {
-                    const plan = Array.isArray(p.plans) && p.plans.length > 0 ? p.plans[0] : null;
-                    const priceNumber = plan ? (plan.price / 100) : (typeof p.price === 'number' ? p.price : parseFloat(p.price));
-                    addItem({ id: p.id, name: p.name, price: priceNumber, price_display: plan ? plan.price_display : p.price_display, image_url: p.image_url, plan_id: plan ? plan.id : undefined, plan_name: plan ? plan.name : undefined } as any);
-                    toast.success(`${p.name} adicionado!`);
+                const product = data.product;
+                if (product) {
+                    const plan = Array.isArray(product.plans) && product.plans.length > 0 ? product.plans[0] : null;
+                    const priceNumber = plan
+                        ? plan.price / 100
+                        : (typeof product.price === 'number' ? product.price : parseFloat(product.price));
+                    addItem({
+                        id: product.id,
+                        name: product.name,
+                        price: priceNumber,
+                        price_display: plan ? plan.price_display : product.price_display,
+                        image_url: product.image_url,
+                        plan_id: plan ? plan.id : undefined,
+                        plan_name: plan ? plan.name : undefined,
+                    } as any);
+                    toast.success(product.name + ' adicionado!');
                 }
             } catch {}
-            router.replace(`/store/${params.slug}/cart`);
+            router.replace('/store/' + params.slug + '/cart');
         };
         run();
     }, [searchParams]);
 
-    useEffect(() => {
-        let cancelled = false;
-        const fetchDetails = async () => {
-            try {
-                const idsToFetch = items.filter(i => !details[i.id]).map(i => i.id);
-                for (const id of idsToFetch) {
-                    try {
-                        const { data } = await productsAPI.getPublic(id);
-                        if (!cancelled && data?.product) {
-                            setDetails(prev => ({ ...prev, [id]: data.product }));
-                        }
-                    } catch {}
-                }
-            } catch {}
-        };
-        fetchDetails();
-        return () => { cancelled = true; };
-    }, [items]);
+    const visual = normalizeStoreStyle(store?.style);
+    const baseTheme = store?.theme === 'dark' ? checkoutThemes.dark : checkoutThemes.light;
+    const theme = visual.color_mode === 'custom' ? {
+        bg: visual.custom_colors.background,
+        surface: visual.custom_colors.surface,
+        surfaceAlt: visual.custom_colors.surface_alt,
+        text: visual.custom_colors.text,
+        muted: visual.custom_colors.muted,
+        border: visual.custom_colors.border,
+        shadow: baseTheme.shadow,
+    } : baseTheme;
+    const accent = visual.color_mode === 'custom'
+        ? visual.custom_colors.accent
+        : (store?.accent_color || '#0667ef');
+    const canonicalSlug = store?.slug || String(params.slug || '');
+    const heroImage = visual.hero_content.logo_url || store?.banner_url || items[0]?.image_url || '';
+    const storeName = store?.name || 'Sua loja';
+    const cssVariables = {
+        '--checkout-bg': theme.bg,
+        '--checkout-surface': theme.surface,
+        '--checkout-surface-alt': theme.surfaceAlt,
+        '--checkout-text': theme.text,
+        '--checkout-muted': theme.muted,
+        '--checkout-border': theme.border,
+        '--checkout-accent': accent,
+        '--checkout-shadow': theme.shadow,
+    } as CSSProperties;
+    const inputStyle = {
+        background: theme.surfaceAlt,
+        borderColor: theme.border,
+        color: theme.text,
+    };
+    const brandPanelStyle = store?.banner_url ? {
+        backgroundImage: 'linear-gradient(150deg, color-mix(in srgb, ' + accent + ' 68%, rgba(5,10,25,.93)), rgba(5,10,25,.94)), url("' + store.banner_url + '")',
+    } : {
+        backgroundImage: 'radial-gradient(circle at 12% 10%, ' + accent + 'aa, transparent 34%), linear-gradient(145deg, color-mix(in srgb, ' + accent + ' 46%, #0f172a), #090f1f 72%)',
+    };
 
     const handleCheckout = async () => {
-        if (items.length === 0) return toast.error("Carrinho vazio!");
+        if (items.length === 0) return toast.error('Carrinho vazio!');
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) return toast.error("Por favor, insira um e-mail válido!");
-        if (email !== confirmEmail) return toast.error("Os e-mails não coincidem!");
-
-        if (!isValidCPF(cpf)) return toast.error("CPF inválido!");
-        if (!isValidPhone(phone)) return toast.error("Telefone inválido!");
+        if (!name.trim()) return toast.error('Por favor, insira seu nome!');
+        if (!emailRegex.test(email)) return toast.error('Por favor, insira um e-mail válido!');
+        if (email !== confirmEmail) return toast.error('Os e-mails não coincidem!');
+        if (!isValidCPF(cpf)) return toast.error('CPF inválido!');
+        if (!isValidPhone(phone)) return toast.error('Telefone inválido!');
 
         const methodToSend = enableCreditCard ? paymentMethod : 'pix';
         if (methodToSend === 'credit_card') {
-            if (!isValidCEP(cep)) return toast.error("CEP inválido!");
-            if (!city || !isValidUF(state) || !street || !number) return toast.error("Preencha o endereço completo.");
-            if (!cardNumber || !cardHolder || !cardExpMonth || !cardExpYear || !cardCvv) return toast.error("Preencha os dados do cartão.");
-            if (!isValidCard(cardNumber)) return toast.error("Número de cartão inválido");
-            if (!isValidCardExpiration(cardExpMonth, cardExpYear)) return toast.error("Validade do cartão inválida");
-            if (!/^\d{3,4}$/.test(onlyDigits(cardCvv))) return toast.error("CVV inválido");
+            if (!isValidCEP(cep)) return toast.error('CEP inválido!');
+            if (!city || !isValidUF(state) || !street || !number) return toast.error('Preencha o endereço completo.');
+            if (!cardNumber || !cardHolder || !cardExpMonth || !cardExpYear || !cardCvv) return toast.error('Preencha os dados do cartão.');
+            if (!isValidCard(cardNumber)) return toast.error('Número de cartão inválido');
+            if (!isValidCardExpiration(cardExpMonth, cardExpYear)) return toast.error('Validade do cartão inválida');
+            if (!/^\d{3,4}$/.test(onlyDigits(cardCvv))) return toast.error('CVV inválido');
         }
 
         try {
@@ -164,15 +250,10 @@ export default function CartPage() {
             let cardToken: string | undefined;
             let threeDsTransactionId: string | null = null;
             if (methodToSend === 'credit_card') {
-                const expirationYear = Number(cardExpYear.length === 2 ? `20${cardExpYear}` : cardExpYear);
+                const expirationYear = Number(cardExpYear.length === 2 ? '20' + cardExpYear : cardExpYear);
                 threeDsTransactionId = await authenticatePagarme3DS({
                     amountCents: Math.round(totalAmount * 100),
-                    customer: {
-                        name,
-                        email,
-                        cpf,
-                        phone,
-                    },
+                    customer: { name, email, cpf, phone },
                     card: {
                         number: cardNumber,
                         holderName: cardHolder,
@@ -180,7 +261,7 @@ export default function CartPage() {
                         expYear: expirationYear,
                     },
                     billingAddress: {
-                        line_1: `${number || ''}, ${street || ''}, ${neighborhood || ''}`.trim(),
+                        line_1: (number || '') + ', ' + (street || '') + ', ' + (neighborhood || ''),
                         zip_code: (cep || '').replace(/\D/g, ''),
                         city,
                         state: (state || '').toUpperCase(),
@@ -202,7 +283,7 @@ export default function CartPage() {
             }
 
             const payload = {
-                store_slug: params.slug,
+                store_slug: canonicalSlug,
                 affiliate_ref: normalizeAffiliateReference(searchParams.get('aff_ref')) || undefined,
                 buyer: {
                     name,
@@ -218,14 +299,14 @@ export default function CartPage() {
                             city,
                             state: (state || '').toUpperCase(),
                             country: 'BR',
-                            line_1: `${street || ''}, ${number || ''}, ${neighborhood || ''}`
-                        }
-                    } : {})
+                            line_1: (street || '') + ', ' + (number || '') + ', ' + (neighborhood || ''),
+                        },
+                    } : {}),
                 },
-                items: items.map(i => ({
-                    id: i.id,
-                    quantity: i.quantity,
-                    plan_id: i.plan_id,
+                items: items.map(item => ({
+                    id: item.id,
+                    quantity: item.quantity,
+                    plan_id: item.plan_id,
                 })),
                 payment_method: methodToSend,
                 card_token: cardToken,
@@ -233,677 +314,473 @@ export default function CartPage() {
                 checkout_session_id: checkoutSessionId,
                 device_platform: methodToSend === 'credit_card' ? getCheckoutDevicePlatform() : undefined,
                 three_ds_transaction_id: methodToSend === 'credit_card' ? threeDsTransactionId || undefined : undefined,
-                total: totalAmount
+                total: totalAmount,
             };
 
             const { data } = await storeAPI.createOrder(payload);
-
             clearCart();
-            toast.success("Pedido gerado com sucesso!");
-            router.push(`/store/${params.slug}/payment/${data.order.id}`);
-        } catch (err: any) {
-            if (err?.response?.status >= 400 && err?.response?.status < 500 && err?.response?.status !== 409) {
+            toast.success('Pedido gerado com sucesso!');
+            router.push('/store/' + encodeURIComponent(canonicalSlug) + '/payment/' + data.order.id);
+        } catch (error: any) {
+            if (error?.response?.status >= 400 && error?.response?.status < 500 && error?.response?.status !== 409) {
                 checkoutSessionRef.current = null;
             }
-            console.error('Checkout error:', err);
-            toast.error(err instanceof CardTokenizationError ? err.message : err.response?.data?.error || "Erro ao processar pedido");
+            console.error('Checkout error:', error);
+            toast.error(error instanceof CardTokenizationError
+                ? error.message
+                : error.response?.data?.error || 'Erro ao processar pedido');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div style={{ minHeight: '100vh', background: '#0a0a0c', color: '#e2e8f0', fontFamily: 'Outfit, Inter, sans-serif', padding: isOverlay ? '40px 24px' : '80px 24px' }} className="storeCartPage">
-            <div style={{ maxWidth: isOverlay ? 1400 : 1400, margin: '0 auto' }}>
-                <button
-                    onClick={() => router.back()}
-                    style={{ background: 'transparent', border: 'none', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 32, fontWeight: 600 }}
-                >
+        <main className="store-checkout-page" style={cssVariables}>
+            <div className="checkout-shell">
+                <button className="checkout-back" type="button" onClick={() => router.back()}>
                     <FiArrowLeft /> Voltar para a loja
                 </button>
 
-                <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Carrinho de compras</h1>
-                <p style={{ color: '#64748b', marginBottom: 40, fontSize: 14 }}>Nesta página, você encontra os produtos adicionados ao seu carrinho.</p>
+                <div className="checkout-frame">
+                    <aside className="checkout-brand-panel" style={brandPanelStyle}>
+                        <div className="checkout-brand-glow" />
+                        <div className="checkout-brand-top">
+                            <span><FiShield /> Checkout protegido</span>
+                            <b>GouPay</b>
+                        </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: isOverlay ? '420px 420px 560px' : 'minmax(420px, 1.5fr) minmax(380px, 1.2fr) 560px', gap: isOverlay ? 32 : 40, justifyContent: isOverlay ? 'center' : 'stretch', justifyItems: isOverlay ? 'center' : 'stretch' }} className="storeCartGrid">
-
-                    {isOverlay ? (
-                        <>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                                <div style={{ background: '#141417', borderRadius: 24, padding: 32, border: '1px solid rgba(255,255,255,0.03)' }} className="storeCartCard">
-                                    <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 24 }}>Informações de pagamento</h2>
-                                    <div style={{ marginBottom: 24 }}>
-                                        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 12 }}>Método</label>
-                                        <div style={{ display: 'grid', gridTemplateColumns: enableCreditCard ? '1fr 1fr' : '1fr', gap: 12 }} className="storeCartPayMethods">
-                                            <button
-                                                type="button"
-                                                onClick={() => setPaymentMethod('pix')}
-                                                style={{
-                                                    padding: '16px', borderRadius: 12, border: '1px solid',
-                                                    display: 'flex', alignItems: 'center', gap: 12, fontWeight: 700, cursor: 'pointer',
-                                                    background: paymentMethod === 'pix' ? 'rgba(0, 206, 201, 0.12)' : '#0a0a0c',
-                                                    borderColor: paymentMethod === 'pix' ? '#00cec9' : 'rgba(255,255,255,0.08)',
-                                                    color: paymentMethod === 'pix' ? '#00cec9' : '#94a3b8'
-                                                }}
-                                            >
-                                                <div style={{ width: 24, height: 24, borderRadius: '50%', background: paymentMethod === 'pix' ? '#00cec9' : 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: paymentMethod === 'pix' ? 'black' : '#94a3b8' }}>
-                                                    <FiZap size={14} />
-                                                </div>
-                                                Pix
-                                            </button>
-                                            {enableCreditCard && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setPaymentMethod('credit_card')}
-                                                    style={{
-                                                        padding: '16px', borderRadius: 12, border: '1px solid',
-                                                        display: 'flex', alignItems: 'center', gap: 12, fontWeight: 700, cursor: 'pointer',
-                                                        background: paymentMethod === 'credit_card' ? 'rgba(99, 102, 241, 0.12)' : '#0a0a0c',
-                                                        borderColor: paymentMethod === 'credit_card' ? '#6366f1' : 'rgba(255,255,255,0.08)',
-                                                        color: paymentMethod === 'credit_card' ? '#6366f1' : '#94a3b8'
-                                                    }}
-                                                >
-                                                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: paymentMethod === 'credit_card' ? '#6366f1' : 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: paymentMethod === 'credit_card' ? 'white' : '#94a3b8' }}>
-                                                        <FiCreditCard size={14} />
-                                                    </div>
-                                                    Cartão de crédito
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div style={{ marginBottom: 20 }}>
-                                        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Nome completo</label>
-                                            <input
-                                                autoComplete="name"
-                                                placeholder="Seu nome"
-                                                value={name}
-                                                onChange={e => setName(e.target.value)}
-                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                        />
-                                    </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }} className="storeCartGrid2">
-                                        <div>
-                                            <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Email</label>
-                                            <input
-                                                type="email"
-                                                autoComplete="email"
-                                                placeholder="seu@email.com"
-                                                value={email}
-                                                onChange={e => setEmail(e.target.value)}
-                                                style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Confirmar Email</label>
-                                            <input
-                                                type="email"
-                                                autoComplete="email"
-                                                placeholder="seu@email.com"
-                                                value={confirmEmail}
-                                                onChange={e => setConfirmEmail(e.target.value)}
-                                                style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }} className="storeCartGrid2">
-                                        <div>
-                                            <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>CPF</label>
-                                            <input
-                                                inputMode="numeric"
-                                                autoComplete="off"
-                                                placeholder="000.000.000-00"
-                                                value={cpf}
-                                                onChange={e => setCpf(formatCpf(e.target.value))}
-                                                style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Telefone</label>
-                                            <input
-                                                inputMode="tel"
-                                                autoComplete="tel"
-                                                placeholder="(11) 99999-9999"
-                                                value={phone}
-                                                onChange={e => setPhone(formatPhone(e.target.value))}
-                                                style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                            />
-                                        </div>
-                                    </div>
-                                    {enableCreditCard && paymentMethod === 'credit_card' && (
-                                        <>
-                                            <div style={{ marginTop: 20 }}>
-                                                <h3 style={{ fontSize: 13, fontWeight: 800, color: '#94a3b8', marginBottom: 10 }}>Endereço de cobrança</h3>
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                                                    <div>
-                                                        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>CEP</label>
-                                                        <input
-                                                            inputMode="numeric"
-                                                            autoComplete="postal-code"
-                                                            placeholder="00000-000"
-                                                            value={cep}
-                                                            onChange={e => setCep(formatCep(e.target.value))}
-                                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Cidade</label>
-                                                        <input
-                                                            autoComplete="address-level2"
-                                                            placeholder="Cidade"
-                                                            value={city}
-                                                            onChange={e => setCity(e.target.value)}
-                                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 12 }}>
-                                                    <div>
-                                                        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Estado</label>
-                                                        <input
-                                                            autoComplete="address-level1"
-                                                            placeholder="UF"
-                                                            maxLength={2}
-                                                            value={state}
-                                                            onChange={e => setState(e.target.value.toUpperCase())}
-                                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Bairro</label>
-                                                        <input
-                                                            autoComplete="address-line2"
-                                                            placeholder="Bairro"
-                                                            value={neighborhood}
-                                                            onChange={e => setNeighborhood(e.target.value)}
-                                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginTop: 12 }}>
-                                                    <div>
-                                                        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Rua</label>
-                                                        <input
-                                                            autoComplete="address-line1"
-                                                            placeholder="Rua"
-                                                            value={street}
-                                                            onChange={e => setStreet(e.target.value)}
-                                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Número</label>
-                                                        <input
-                                                            placeholder="Nº"
-                                                            value={number}
-                                                            onChange={e => setNumber(e.target.value)}
-                                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div style={{ marginTop: 20 }}>
-                                                <h3 style={{ fontSize: 13, fontWeight: 800, color: '#94a3b8', marginBottom: 10 }}>Dados do cartão</h3>
-                                                <div style={{ marginBottom: 12 }}>
-                                                    <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Número do cartão</label>
-                                                        <input
-                                                            inputMode="numeric"
-                                                            autoComplete="cc-number"
-                                                            placeholder="0000 0000 0000 0000"
-                                                            value={cardNumber}
-                                                            onChange={e => setCardNumber(formatCardNumber(e.target.value))}
-                                                        style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                                    />
-                                                </div>
-                                                <div style={{ marginBottom: 12 }}>
-                                                    <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Nome no cartão</label>
-                                                        <input
-                                                            autoComplete="cc-name"
-                                                            placeholder="Nome como está no cartão"
-                                                        value={cardHolder}
-                                                        onChange={e => setCardHolder(e.target.value)}
-                                                        style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                                    />
-                                                </div>
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
-                                                    <div>
-                                                        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Mês</label>
-                                                            <input
-                                                                inputMode="numeric"
-                                                                autoComplete="cc-exp-month"
-                                                            placeholder="MM"
-                                                            maxLength={2}
-                                                            value={cardExpMonth}
-                                                            onChange={e => setCardExpMonth(onlyDigits(e.target.value).slice(0, 2))}
-                                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Ano</label>
-                                                            <input
-                                                                inputMode="numeric"
-                                                                autoComplete="cc-exp-year"
-                                                            placeholder="AA"
-                                                            maxLength={2}
-                                                            value={cardExpYear}
-                                                            onChange={e => setCardExpYear(onlyDigits(e.target.value).slice(0, 2))}
-                                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>CVV</label>
-                                                            <input
-                                                                inputMode="numeric"
-                                                                autoComplete="cc-csc"
-                                                            placeholder="000"
-                                                            maxLength={4}
-                                                            value={cardCvv}
-                                                            onChange={e => setCardCvv(onlyDigits(e.target.value).slice(0, 4))}
-                                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                                        />
-                                                    </div>
-                 <div>
-                     <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Parcelas</label>
-                                                        <input
-                                                            type="number"
-                                                            min={1}
-                                                            max={12}
-                                                            value={installments}
-                                                            onChange={e => {
-                                                                const v = parseInt(e.target.value) || 1;
-                                                                const clamped = Math.max(1, Math.min(12, v));
-                                                                setInstallments(clamped);
-                                                            }}
-                                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                                        />
-                 </div>
-                                                </div>
-                                            </div>
-                                        </>
-                                    )}
-                                    <button style={{ marginTop: 32, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, color: '#64748b', cursor: 'pointer' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                            <FiTag /> Cupom de desconto
-                                        </div>
-                                        <div style={{ color: 'white', fontWeight: 700 }}>Adicionar</div>
-                                    </button>
+                        <div className="checkout-brand-copy">
+                            {heroImage ? (
+                                <div className="checkout-hero-image">
+                                    <img src={heroImage} alt={'Imagem da ' + storeName} />
                                 </div>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                                <div style={{ background: '#141417', borderRadius: 24, padding: 32, border: '1px solid rgba(255,255,255,0.03)' }} className="storeCartCard">
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-                                        <h2 style={{ fontSize: 18, fontWeight: 700 }}>{'Produtos no carrinho'}</h2>
-                                        <span style={{ color: '#64748b', fontSize: 13, fontWeight: 600 }}>{items.length} itens</span>
-                                    </div>
-                                    {items.length === 0 ? (
-                                        <div style={{ textAlign: 'center', padding: '20px 0', color: '#64748b' }}>Seu carrinho está vazio.</div>
-                                    ) : (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                                            {items.map(item => (
-                                                <div key={item.id} className="storeCartItemRow" style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 16, background: '#0a0a0c', padding: 12, borderRadius: 16, border: '1px solid rgba(255,255,255,0.03)' }}>
-                                                    <div className="storeCartItemImage" style={{ width: 80, height: 80, borderRadius: 12, overflow: 'hidden', background: '#141417' }}>
-                                                        {item.image_url ? <img src={item.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <FiPackage style={{ margin: 28, opacity: 0.1 }} />}
-                                                    </div>
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                                        <div style={{ fontSize: 15, fontWeight: 700, color: 'white' }}>{item.name}</div>
-                                                        {('plan_name' in item) && (item as any).plan_name ? <div style={{ fontSize: 12, color: '#00cec9', fontWeight: 700 }}>{(item as any).plan_name}</div> : null}
+                            ) : (
+                                <div className="checkout-hero-fallback"><FiPackage /></div>
+                            )}
+                            <small>Finalizando sua compra em</small>
+                            <h1>{storeName}</h1>
+                            <p>{store?.description || 'Produtos digitais com pagamento seguro e entrega rápida.'}</p>
+                        </div>
 
-                                                        {details[item.id]?.description && (
-                                                            <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>
-                                                                {details[item.id].description}
-                                                            </div>
-                                                        )}
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#141417', borderRadius: 8, padding: '4px 8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                                                <FiMinus size={14} style={{ cursor: 'pointer' }} onClick={() => updateQuantity(item.id, -1)} />
-                                                                <span style={{ fontSize: 14, fontWeight: 800 }}>{item.quantity}</span>
-                                                                <FiPlus size={14} style={{ cursor: 'pointer' }} onClick={() => updateQuantity(item.id, 1)} />
-                                                            </div>
-                                                            <button onClick={() => removeItem(item.id)} style={{ background: 'transparent', border: 'none', color: '#ff7675', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                                                                <FiTrash2 size={16} /> Remover
-                                                            </button>
-                                                            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 6, whiteSpace: 'nowrap', color: 'white', fontWeight: 800, fontSize: 16 }}>
-                                                                <span>R$</span>
-                                                                <span>{(item.price * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                        <section className="checkout-order-card">
+                            <div className="checkout-order-title">
+                                <strong>Resumo do pedido</strong>
+                                <span>{items.length} {items.length === 1 ? 'item' : 'itens'}</span>
                             </div>
-                            <div style={{ position: 'sticky', top: 40 }} className="storeCartSummaryWrap">
-                                <div style={{ background: '#141417', borderRadius: 24, padding: 40, border: '1px solid rgba(255,255,255,0.03)' }} className="storeCartCard">
-                                    <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 24 }}>Resumo da compra</h2>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginBottom: 32 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', fontWeight: 500 }}>
-                                            <span>Subtotal</span>
-                                            <span style={{ color: 'white', fontWeight: 700 }}>R$ {totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                        </div>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', fontSize: 14, color: '#64748b', fontWeight: 500, columnGap: 16 }}>
-                                            <span style={{ whiteSpace: 'nowrap' }}>Método</span>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, whiteSpace: 'nowrap', fontWeight: 700, color: paymentMethod === 'pix' ? '#00cec9' : '#6366f1', justifySelf: 'start' }}>
-                                                {paymentMethod === 'pix' ? <FiZap size={14} /> : <FiCreditCard size={14} />}
-                                                {paymentMethod === 'pix' ? 'Pix' : 'Cartão de crédito'}
+                            <div className="checkout-order-items">
+                                {items.length === 0 ? (
+                                    <div className="checkout-empty">Seu carrinho está vazio.</div>
+                                ) : items.map(item => {
+                                    const key = cartItemKey(item);
+                                    return (
+                                        <article className="checkout-order-item" key={key}>
+                                            <div className="checkout-order-image">
+                                                {item.image_url
+                                                    ? <img src={item.image_url} alt="" />
+                                                    : <FiPackage />}
                                             </div>
-                                        </div>
-                                        <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '8px 0' }} />
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 800, color: 'white' }}>
-                                            <span>Total</span>
-                                            <span>R$ {totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                        </div>
-                                    </div>
+                                            <div className="checkout-order-info">
+                                                <strong>{item.name}</strong>
+                                                {item.plan_name && <span>{item.plan_name}</span>}
+                                                <div className="checkout-order-controls">
+                                                    <button type="button" onClick={() => updateQuantity(key, -1)} aria-label={'Diminuir quantidade de ' + item.name}><FiMinus /></button>
+                                                    <b>{item.quantity}</b>
+                                                    <button type="button" onClick={() => updateQuantity(key, 1)} aria-label={'Aumentar quantidade de ' + item.name}><FiPlus /></button>
+                                                    <button className="checkout-remove" type="button" onClick={() => removeItem(key)} aria-label={'Remover ' + item.name}><FiTrash2 /></button>
+                                                </div>
+                                            </div>
+                                            <strong className="checkout-order-price">R$ {money(item.price * item.quantity)}</strong>
+                                        </article>
+                                    );
+                                })}
+                            </div>
+                            <div className="checkout-total-row"><span>Total de hoje</span><strong>R$ {money(totalAmount)}</strong></div>
+                        </section>
+
+                        <div className="checkout-trust-line">
+                            <span><FiLock /> Dados protegidos</span>
+                            <span><FiZap /> Confirmação rápida</span>
+                        </div>
+                    </aside>
+
+                    <section className="checkout-payment-panel">
+                        <header className="checkout-payment-header">
+                            <span>Pagamento seguro</span>
+                            <h2>Conclua sua compra</h2>
+                            <p>Escolha o método e preencha os dados abaixo.</p>
+                        </header>
+
+                        <div className="checkout-section">
+                            <div className="checkout-section-heading"><b>1</b><span>Método de pagamento</span></div>
+                            <div className={'checkout-payment-methods ' + (enableCreditCard ? 'has-card' : '')}>
+                                <button
+                                    className={paymentMethod === 'pix' ? 'active' : ''}
+                                    type="button"
+                                    onClick={() => setPaymentMethod('pix')}
+                                >
+                                    <i><FiZap /></i>
+                                    <span><strong>Pix</strong><small>Aprovação em poucos minutos</small></span>
+                                    {paymentMethod === 'pix' && <FiCheck className="method-check" />}
+                                </button>
+                                {enableCreditCard && (
                                     <button
-                                        onClick={handleCheckout}
-                                        disabled={loading || items.length === 0}
-                                        style={{
-                                            width: '100%', padding: '18px', borderRadius: 14, background: 'white', color: '#0a0a0c',
-                                            fontWeight: 800, fontSize: 15, border: 'none', cursor: 'pointer',
-                                            opacity: (loading || items.length === 0) ? 0.5 : 1, transition: 'transform 0.2s'
-                                        }}
+                                        className={paymentMethod === 'credit_card' ? 'active' : ''}
+                                        type="button"
+                                        onClick={() => setPaymentMethod('credit_card')}
                                     >
-                                        {loading ? 'Processando...' : 'Gerar pagamento'}
+                                        <i><FiCreditCard /></i>
+                                        <span><strong>Cartão de crédito</strong><small>Parcele em até 12 vezes</small></span>
+                                        {paymentMethod === 'credit_card' && <FiCheck className="method-check" />}
                                     </button>
-                                </div>
+                                )}
                             </div>
-                        </>
-                    ) : (
-                        <>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                                <div style={{ background: '#141417', borderRadius: 24, padding: 32, border: '1px solid rgba(255,255,255,0.03)' }} className="storeCartCard">
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-                                        <h2 style={{ fontSize: 18, fontWeight: 700 }}>{'Informações do produto'}</h2>
-                                        <span style={{ color: '#64748b', fontSize: 13, fontWeight: 600 }}>{items.length} itens</span>
-                                    </div>
-                                    {items.length === 0 ? (
-                                        <div style={{ textAlign: 'center', padding: '20px 0', color: '#64748b' }}>Seu carrinho está vazio.</div>
-                                    ) : (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                                            {items.map(item => (
-                                                <div key={item.id} className="storeCartItemRow" style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 16, background: '#0a0a0c', padding: 12, borderRadius: 16, border: '1px solid rgba(255,255,255,0.03)' }}>
-                                                    <div className="storeCartItemImage" style={{ width: 80, height: 80, borderRadius: 12, overflow: 'hidden', background: '#141417' }}>
-                                                        {item.image_url ? <img src={item.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <FiPackage style={{ margin: 28, opacity: 0.1 }} />}
-                                                    </div>
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                                        <div style={{ fontSize: 15, fontWeight: 700, color: 'white' }}>{item.name}</div>
-                                                        {('plan_name' in item) && (item as any).plan_name ? <div style={{ fontSize: 12, color: '#00cec9', fontWeight: 700 }}>{(item as any).plan_name}</div> : null}
+                        </div>
 
-                                                        {details[item.id]?.description && (
-                                                            <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>
-                                                                {details[item.id].description}
-                                                            </div>
-                                                        )}
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#141417', borderRadius: 8, padding: '4px 8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                                                <FiMinus size={14} style={{ cursor: 'pointer' }} onClick={() => updateQuantity(item.id, -1)} />
-                                                                <span style={{ fontSize: 14, fontWeight: 800 }}>{item.quantity}</span>
-                                                                <FiPlus size={14} style={{ cursor: 'pointer' }} onClick={() => updateQuantity(item.id, 1)} />
-                                                            </div>
-                                                            <button onClick={() => removeItem(item.id)} style={{ background: 'transparent', border: 'none', color: '#ff7675', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                                                                <FiTrash2 size={16} /> Remover
-                                                            </button>
-                                                            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 6, whiteSpace: 'nowrap', color: 'white', fontWeight: 800, fontSize: 16 }}>
-                                                                <span>R$</span>
-                                                                <span>{(item.price * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                        <div className="checkout-section">
+                            <div className="checkout-section-heading"><b>2</b><span>Seus dados</span></div>
+                            <div className="checkout-fields">
+                                <label className="checkout-field checkout-field-full">
+                                    <span>Nome completo</span>
+                                    <input
+                                        autoComplete="name"
+                                        placeholder="Seu nome"
+                                        value={name}
+                                        onChange={event => setName(event.target.value)}
+                                        style={inputStyle}
+                                    />
+                                </label>
+                                <label className="checkout-field">
+                                    <span>E-mail</span>
+                                    <input
+                                        type="email"
+                                        autoComplete="email"
+                                        placeholder="seu@email.com"
+                                        value={email}
+                                        onChange={event => setEmail(event.target.value)}
+                                        style={inputStyle}
+                                    />
+                                </label>
+                                <label className="checkout-field">
+                                    <span>Confirmar e-mail</span>
+                                    <input
+                                        type="email"
+                                        autoComplete="email"
+                                        placeholder="Repita seu e-mail"
+                                        value={confirmEmail}
+                                        onChange={event => setConfirmEmail(event.target.value)}
+                                        style={inputStyle}
+                                    />
+                                </label>
+                                <label className="checkout-field">
+                                    <span>CPF</span>
+                                    <input
+                                        inputMode="numeric"
+                                        autoComplete="off"
+                                        placeholder="000.000.000-00"
+                                        value={cpf}
+                                        onChange={event => setCpf(formatCpf(event.target.value))}
+                                        style={inputStyle}
+                                    />
+                                </label>
+                                <label className="checkout-field">
+                                    <span>Telefone</span>
+                                    <input
+                                        inputMode="tel"
+                                        autoComplete="tel"
+                                        placeholder="(11) 99999-9999"
+                                        value={phone}
+                                        onChange={event => setPhone(formatPhone(event.target.value))}
+                                        style={inputStyle}
+                                    />
+                                </label>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                                <div style={{ background: '#141417', borderRadius: 24, padding: 32, border: '1px solid rgba(255,255,255,0.03)' }} className="storeCartCard">
-                                    <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 24 }}>Informações de pagamento</h2>
-                                    <div style={{ marginBottom: 24 }}>
-                                        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 12 }}>Método</label>
-                                        <div style={{ display: 'grid', gridTemplateColumns: enableCreditCard ? '1fr 1fr' : '1fr', gap: 12 }} className="storeCartPayMethods">
-                                            <button
-                                                type="button"
-                                                onClick={() => setPaymentMethod('pix')}
-                                                style={{
-                                                    padding: '16px', borderRadius: 12, border: '1px solid',
-                                                    display: 'flex', alignItems: 'center', gap: 12, fontWeight: 700, cursor: 'pointer',
-                                                    background: paymentMethod === 'pix' ? 'rgba(0, 206, 201, 0.12)' : '#0a0a0c',
-                                                    borderColor: paymentMethod === 'pix' ? '#00cec9' : 'rgba(255,255,255,0.08)',
-                                                    color: paymentMethod === 'pix' ? '#00cec9' : '#94a3b8'
-                                                }}
-                                            >
-                                                <div style={{ width: 24, height: 24, borderRadius: '50%', background: paymentMethod === 'pix' ? '#00cec9' : 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: paymentMethod === 'pix' ? 'black' : '#94a3b8' }}>
-                                                    <FiZap size={14} />
-                                                </div>
-                                                Pix
-                                            </button>
-                                            {enableCreditCard && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setPaymentMethod('credit_card')}
-                                                    style={{
-                                                        padding: '16px', borderRadius: 12, border: '1px solid',
-                                                        display: 'flex', alignItems: 'center', gap: 12, fontWeight: 700, cursor: 'pointer',
-                                                        background: paymentMethod === 'credit_card' ? 'rgba(99, 102, 241, 0.12)' : '#0a0a0c',
-                                                        borderColor: paymentMethod === 'credit_card' ? '#6366f1' : 'rgba(255,255,255,0.08)',
-                                                        color: paymentMethod === 'credit_card' ? '#6366f1' : '#94a3b8'
-                                                    }}
-                                                >
-                                                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: paymentMethod === 'credit_card' ? '#6366f1' : 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: paymentMethod === 'credit_card' ? 'white' : '#94a3b8' }}>
-                                                        <FiCreditCard size={14} />
-                                                    </div>
-                                                    Cartão de crédito
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div style={{ marginBottom: 20 }}>
-                                        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Nome completo</label>
+                        </div>
+
+                        {enableCreditCard && paymentMethod === 'credit_card' && (
+                            <div className="checkout-section checkout-card-section">
+                                <div className="checkout-section-heading"><b>3</b><span>Dados do cartão</span></div>
+                                <StoreCreditCardPreview
+                                    accent={accent}
+                                    number={cardNumber}
+                                    holder={cardHolder}
+                                    expMonth={cardExpMonth}
+                                    expYear={cardExpYear}
+                                    flipped={cardPreviewFlipped}
+                                />
+                                <div className="checkout-fields">
+                                    <label className="checkout-field checkout-field-full">
+                                        <span>Número do cartão</span>
                                         <input
-                                            autoComplete="name"
-                                            placeholder="Seu nome"
-                                            value={name}
-                                            onChange={e => setName(e.target.value)}
-                                            style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
+                                            inputMode="numeric"
+                                            autoComplete="cc-number"
+                                            placeholder="0000 0000 0000 0000"
+                                            value={cardNumber}
+                                            onChange={event => setCardNumber(formatCardNumber(event.target.value))}
+                                            style={inputStyle}
                                         />
-                                    </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }} className="storeCartGrid2">
-                                        <div>
-                                            <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Email</label>
-                                            <input
-                                                type="email"
-                                                autoComplete="email"
-                                                placeholder="seu@email.com"
-                                                value={email}
-                                                onChange={e => setEmail(e.target.value)}
-                                                style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Confirmar Email</label>
-                                            <input
-                                                type="email"
-                                                autoComplete="email"
-                                                placeholder="seu@email.com"
-                                                value={confirmEmail}
-                                                onChange={e => setConfirmEmail(e.target.value)}
-                                                style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }} className="storeCartGrid2">
-                                        <div>
-                                            <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>CPF</label>
+                                    </label>
+                                    <label className="checkout-field checkout-field-full">
+                                        <span>Nome impresso no cartão</span>
+                                        <input
+                                            autoComplete="cc-name"
+                                            placeholder="Nome como está no cartão"
+                                            value={cardHolder}
+                                            onChange={event => setCardHolder(event.target.value)}
+                                            style={inputStyle}
+                                        />
+                                    </label>
+                                    <label className="checkout-field">
+                                        <span>Validade</span>
+                                        <div className="checkout-expiration">
                                             <input
                                                 inputMode="numeric"
-                                                autoComplete="off"
-                                                placeholder="000.000.000-00"
-                                                value={cpf}
-                                                onChange={e => setCpf(formatCpf(e.target.value))}
-                                                style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
+                                                autoComplete="cc-exp-month"
+                                                placeholder="MM"
+                                                maxLength={2}
+                                                value={cardExpMonth}
+                                                onChange={event => setCardExpMonth(onlyDigits(event.target.value).slice(0, 2))}
+                                                style={inputStyle}
                                             />
-                                        </div>
-                                        <div>
-                                            <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Telefone</label>
+                                            <em>/</em>
                                             <input
-                                                inputMode="tel"
-                                                autoComplete="tel"
-                                                placeholder="(11) 99999-9999"
-                                                value={phone}
-                                                onChange={e => setPhone(formatPhone(e.target.value))}
-                                                style={{ width: '100%', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px', color: 'white', boxSizing: 'border-box' }}
+                                                inputMode="numeric"
+                                                autoComplete="cc-exp-year"
+                                                placeholder="AA"
+                                                maxLength={2}
+                                                value={cardExpYear}
+                                                onChange={event => setCardExpYear(onlyDigits(event.target.value).slice(0, 2))}
+                                                style={inputStyle}
                                             />
                                         </div>
-                                    </div>
-                                    <button style={{ marginTop: 32, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, color: '#64748b', cursor: 'pointer' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                            <FiTag /> Cupom de desconto
-                                        </div>
-                                        <div style={{ color: 'white', fontWeight: 700 }}>Adicionar</div>
-                                    </button>
+                                    </label>
+                                    <label className="checkout-field">
+                                        <span>CVV</span>
+                                        <input
+                                            inputMode="numeric"
+                                            autoComplete="cc-csc"
+                                            placeholder="000"
+                                            maxLength={4}
+                                            value={cardCvv}
+                                            onFocus={() => setCardPreviewFlipped(true)}
+                                            onBlur={() => setCardPreviewFlipped(false)}
+                                            onChange={event => setCardCvv(onlyDigits(event.target.value).slice(0, 4))}
+                                            style={inputStyle}
+                                        />
+                                    </label>
+                                    <label className="checkout-field checkout-field-full">
+                                        <span>Parcelas</span>
+                                        <select
+                                            value={installments}
+                                            onChange={event => setInstallments(Number(event.target.value))}
+                                            style={inputStyle}
+                                        >
+                                            {Array.from({ length: 12 }, (_, index) => index + 1).map(value => (
+                                                <option key={value} value={value}>
+                                                    {value}x de R$ {money(totalAmount / value)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
                                 </div>
-                            </div>
-                            <div style={{ position: 'sticky', top: 40 }} className="storeCartSummaryWrap">
-                                <div style={{ background: '#141417', borderRadius: 24, padding: 40, border: '1px solid rgba(255,255,255,0.03)' }} className="storeCartCard">
-                                    <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 24 }}>Resumo da compra</h2>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginBottom: 32 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', fontWeight: 500 }}>
-                                            <span>Subtotal</span>
-                                            <span style={{ color: 'white', fontWeight: 700 }}>R$ {totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                        </div>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', fontSize: 14, color: '#64748b', fontWeight: 500, columnGap: 16 }}>
-                                            <span style={{ whiteSpace: 'nowrap' }}>Método</span>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, whiteSpace: 'nowrap', fontWeight: 700, color: paymentMethod === 'pix' ? '#00cec9' : '#6366f1', justifySelf: 'start' }}>
-                                                {paymentMethod === 'pix' ? <FiZap size={14} /> : <FiCreditCard size={14} />}
-                                                {paymentMethod === 'pix' ? 'Pix' : 'Cartão de crédito'}
-                                            </div>
-                                        </div>
-                                        <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '8px 0' }} />
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 800, color: 'white' }}>
-                                            <span>Total</span>
-                                            <span>R$ {totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={handleCheckout}
-                                        disabled={loading || items.length === 0}
-                                        style={{
-                                            width: '100%', padding: '18px', borderRadius: 14, background: 'white', color: '#0a0a0c',
-                                            fontWeight: 800, fontSize: 15, border: 'none', cursor: 'pointer',
-                                            opacity: (loading || items.length === 0) ? 0.5 : 1, transition: 'transform 0.2s'
-                                        }}
-                                    >
-                                        {loading ? 'Processando...' : 'Gerar pagamento'}
-                                    </button>
-                                </div>
-                            </div>
-                        </>
-                    )}
 
+                                <div className="checkout-subheading">Endereço de cobrança</div>
+                                <div className="checkout-fields">
+                                    <label className="checkout-field">
+                                        <span>CEP</span>
+                                        <input
+                                            inputMode="numeric"
+                                            autoComplete="postal-code"
+                                            placeholder="00000-000"
+                                            value={cep}
+                                            onChange={event => setCep(formatCep(event.target.value))}
+                                            style={inputStyle}
+                                        />
+                                    </label>
+                                    <label className="checkout-field">
+                                        <span>Cidade</span>
+                                        <input
+                                            autoComplete="address-level2"
+                                            placeholder="Cidade"
+                                            value={city}
+                                            onChange={event => setCity(event.target.value)}
+                                            style={inputStyle}
+                                        />
+                                    </label>
+                                    <label className="checkout-field">
+                                        <span>Estado</span>
+                                        <input
+                                            autoComplete="address-level1"
+                                            placeholder="UF"
+                                            maxLength={2}
+                                            value={state}
+                                            onChange={event => setState(event.target.value.toUpperCase())}
+                                            style={inputStyle}
+                                        />
+                                    </label>
+                                    <label className="checkout-field">
+                                        <span>Bairro</span>
+                                        <input
+                                            autoComplete="address-line2"
+                                            placeholder="Bairro"
+                                            value={neighborhood}
+                                            onChange={event => setNeighborhood(event.target.value)}
+                                            style={inputStyle}
+                                        />
+                                    </label>
+                                    <label className="checkout-field checkout-field-street">
+                                        <span>Rua</span>
+                                        <input
+                                            autoComplete="address-line1"
+                                            placeholder="Rua"
+                                            value={street}
+                                            onChange={event => setStreet(event.target.value)}
+                                            style={inputStyle}
+                                        />
+                                    </label>
+                                    <label className="checkout-field checkout-field-number">
+                                        <span>Número</span>
+                                        <input
+                                            placeholder="Nº"
+                                            value={number}
+                                            onChange={event => setNumber(event.target.value)}
+                                            style={inputStyle}
+                                        />
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+
+                        <footer className="checkout-payment-footer">
+                            <div>
+                                <span>Total a pagar</span>
+                                <strong>R$ {money(totalAmount)}</strong>
+                                <small>{paymentMethod === 'pix' ? 'Pagamento via Pix' : installments + 'x no cartão'}</small>
+                            </div>
+                            <button type="button" onClick={handleCheckout} disabled={loading || items.length === 0}>
+                                <FiLock />
+                                {loading ? 'Processando...' : paymentMethod === 'pix' ? 'Gerar Pix' : 'Pagar com cartão'}
+                            </button>
+                        </footer>
+                        <p className="checkout-security-note"><FiShield /> Seus dados são criptografados e processados em ambiente seguro.</p>
+                    </section>
                 </div>
             </div>
+
             <style jsx>{`
-                .storeCartPage {
+                .store-checkout-page {
+                    min-height: 100vh;
+                    padding: 42px 24px;
+                    color: var(--checkout-text);
                     background:
-                        radial-gradient(circle at top left, rgba(0,206,201,0.08), transparent 32%),
-                        radial-gradient(circle at top right, rgba(99,102,241,0.08), transparent 30%),
-                        #0a0a0c !important;
+                        radial-gradient(circle at 5% 0%, color-mix(in srgb, var(--checkout-accent) 13%, transparent), transparent 27%),
+                        radial-gradient(circle at 98% 15%, color-mix(in srgb, var(--checkout-accent) 9%, transparent), transparent 25%),
+                        var(--checkout-bg);
+                    font-family: Outfit, Inter, sans-serif;
                 }
-                .storeCartCard {
-                    box-shadow: 0 20px 70px rgba(0,0,0,0.22);
-                }
-                .storeCartPage input,
-                .storeCartPage select {
-                    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
-                }
-                .storeCartPage input:focus,
-                .storeCartPage select:focus {
-                    outline: none;
-                    border-color: rgba(0,206,201,0.55) !important;
-                    box-shadow: 0 0 0 3px rgba(0,206,201,0.10);
-                    background: #0d0d10 !important;
-                }
-                .storeCartPayMethods button {
-                    min-height: 58px;
-                }
-                .storeCartPayMethods button:hover,
-                .storeCartItemRow:hover {
-                    border-color: rgba(255,255,255,0.12) !important;
-                }
-                .storeCartSummaryWrap .storeCartCard {
-                    border-color: rgba(0,206,201,0.12) !important;
-                }
-                .storeCartSummaryWrap button:hover:not(:disabled) {
-                    transform: translateY(-1px);
-                }
+                .store-checkout-page * { box-sizing: border-box; }
+                .checkout-shell { width: min(1180px, 100%); margin: 0 auto; }
+                .checkout-back { margin-bottom: 18px; border: 0; padding: 9px 0; display: inline-flex; align-items: center; gap: 8px; color: var(--checkout-muted); background: transparent; font-size: 13px; font-weight: 750; cursor: pointer; }
+                .checkout-back:hover { color: var(--checkout-accent); }
+                .checkout-frame { min-height: 730px; border: 1px solid var(--checkout-border); border-radius: 28px; display: grid; grid-template-columns: minmax(360px, .82fr) minmax(520px, 1.18fr); overflow: hidden; background: var(--checkout-surface); box-shadow: var(--checkout-shadow); }
+                .checkout-brand-panel { position: relative; min-width: 0; padding: 34px; display: flex; flex-direction: column; overflow: hidden; color: white; background-position: center; background-size: cover; }
+                .checkout-brand-panel::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(5,10,25,.06), rgba(5,10,25,.32)); pointer-events: none; }
+                .checkout-brand-glow { position: absolute; width: 350px; height: 350px; right: -160px; top: -150px; border-radius: 50%; background: color-mix(in srgb, var(--checkout-accent) 42%, transparent); filter: blur(40px); opacity: .7; }
+                .checkout-brand-top, .checkout-brand-copy, .checkout-order-card, .checkout-trust-line { position: relative; z-index: 1; }
+                .checkout-brand-top { display: flex; align-items: center; justify-content: space-between; color: rgba(255,255,255,.76); font-size: 10px; letter-spacing: .05em; text-transform: uppercase; }
+                .checkout-brand-top span { display: inline-flex; align-items: center; gap: 7px; }
+                .checkout-brand-top b { font-size: 12px; letter-spacing: .08em; }
+                .checkout-brand-copy { padding: 44px 4px 34px; text-align: center; }
+                .checkout-hero-image, .checkout-hero-fallback { width: 150px; height: 150px; margin: 0 auto 21px; border: 1px solid rgba(255,255,255,.24); border-radius: 34px; display: grid; place-items: center; overflow: hidden; background: rgba(255,255,255,.10); box-shadow: 0 22px 58px rgba(0,0,0,.24); backdrop-filter: blur(14px); }
+                .checkout-hero-image img { width: 100%; height: 100%; object-fit: cover; }
+                .checkout-hero-fallback { font-size: 48px; color: rgba(255,255,255,.8); }
+                .checkout-brand-copy small { display: block; color: rgba(255,255,255,.68); font-size: 10px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+                .checkout-brand-copy h1 { margin: 7px 0 9px; color: white; font-size: 34px; font-weight: 900; letter-spacing: -.04em; }
+                .checkout-brand-copy p { max-width: 330px; margin: 0 auto; color: rgba(255,255,255,.72); font-size: 12px; line-height: 1.55; }
+                .checkout-order-card { margin-top: auto; border: 1px solid rgba(255,255,255,.18); border-radius: 20px; padding: 18px; background: rgba(6,11,25,.48); backdrop-filter: blur(17px); }
+                .checkout-order-title { padding-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+                .checkout-order-title strong { font-size: 13px; }
+                .checkout-order-title span { color: rgba(255,255,255,.58); font-size: 10px; }
+                .checkout-order-items { max-height: 204px; overflow-y: auto; }
+                .checkout-empty { padding: 22px 0; color: rgba(255,255,255,.62); text-align: center; font-size: 11px; }
+                .checkout-order-item { border-top: 1px solid rgba(255,255,255,.10); padding: 12px 0; display: grid; grid-template-columns: 48px minmax(0,1fr) auto; gap: 11px; align-items: center; }
+                .checkout-order-image { width: 48px; height: 48px; border-radius: 10px; display: grid; place-items: center; overflow: hidden; color: rgba(255,255,255,.45); background: rgba(255,255,255,.08); }
+                .checkout-order-image img { width: 100%; height: 100%; object-fit: cover; }
+                .checkout-order-info { min-width: 0; }
+                .checkout-order-info > strong { display: block; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+                .checkout-order-info > span { display: block; margin-top: 2px; color: color-mix(in srgb, var(--checkout-accent) 65%, white); font-size: 9px; font-weight: 750; }
+                .checkout-order-controls { margin-top: 6px; display: flex; align-items: center; gap: 5px; }
+                .checkout-order-controls button { width: 21px; height: 21px; border: 1px solid rgba(255,255,255,.14); border-radius: 6px; display: grid; place-items: center; color: white; background: rgba(255,255,255,.07); font-size: 10px; cursor: pointer; }
+                .checkout-order-controls b { min-width: 18px; text-align: center; font-size: 10px; }
+                .checkout-order-controls .checkout-remove { margin-left: 3px; border: 0; color: #fecaca; background: rgba(239,68,68,.13); }
+                .checkout-order-price { font-size: 11px; white-space: nowrap; }
+                .checkout-total-row { border-top: 1px solid rgba(255,255,255,.15); padding-top: 15px; display: flex; align-items: baseline; justify-content: space-between; }
+                .checkout-total-row span { color: rgba(255,255,255,.68); font-size: 11px; }
+                .checkout-total-row strong { font-size: 21px; }
+                .checkout-trust-line { padding: 16px 4px 0; display: flex; justify-content: center; gap: 22px; color: rgba(255,255,255,.58); font-size: 9px; }
+                .checkout-trust-line span { display: inline-flex; align-items: center; gap: 5px; }
+                .checkout-payment-panel { min-width: 0; padding: 44px 52px 36px; background: var(--checkout-surface); }
+                .checkout-payment-header > span { color: var(--checkout-accent); font-size: 10px; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+                .checkout-payment-header h2 { margin: 7px 0 7px; color: var(--checkout-text); font-size: 29px; letter-spacing: -.035em; }
+                .checkout-payment-header p { margin: 0; color: var(--checkout-muted); font-size: 12px; }
+                .checkout-section { border-top: 1px solid var(--checkout-border); margin-top: 28px; padding-top: 25px; }
+                .checkout-section-heading { margin-bottom: 18px; display: flex; align-items: center; gap: 10px; color: var(--checkout-text); font-size: 13px; font-weight: 850; }
+                .checkout-section-heading b { width: 25px; height: 25px; border-radius: 8px; display: grid; place-items: center; color: var(--checkout-accent); background: color-mix(in srgb, var(--checkout-accent) 11%, var(--checkout-surface)); font-size: 10px; }
+                .checkout-payment-methods { display: grid; grid-template-columns: 1fr; gap: 12px; }
+                .checkout-payment-methods.has-card { grid-template-columns: repeat(2, 1fr); }
+                .checkout-payment-methods button { position: relative; min-height: 67px; border: 1px solid var(--checkout-border); border-radius: 13px; padding: 11px 36px 11px 12px; display: flex; align-items: center; gap: 11px; color: var(--checkout-text); background: var(--checkout-surface-alt); text-align: left; cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+                .checkout-payment-methods button:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--checkout-accent) 35%, var(--checkout-border)); }
+                .checkout-payment-methods button.active { border-color: var(--checkout-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--checkout-accent) 9%, transparent); }
+                .checkout-payment-methods button > i { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--checkout-accent); background: color-mix(in srgb, var(--checkout-accent) 10%, var(--checkout-surface)); font-size: 16px; }
+                .checkout-payment-methods button > span { display: grid; gap: 3px; }
+                .checkout-payment-methods strong { font-size: 11px; }
+                .checkout-payment-methods small { color: var(--checkout-muted); font-size: 8px; }
+                .method-check { position: absolute; right: 13px; color: var(--checkout-accent); }
+                .checkout-fields { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 15px; }
+                .checkout-field { min-width: 0; display: grid; gap: 7px; }
+                .checkout-field > span { color: var(--checkout-muted); font-size: 10px; font-weight: 750; }
+                .checkout-field-full { grid-column: 1 / -1; }
+                .checkout-field input, .checkout-field select { width: 100%; height: 44px; border: 1px solid; border-radius: 10px; padding: 0 13px; font: inherit; font-size: 12px; transition: border-color .18s ease, box-shadow .18s ease; }
+                .checkout-field input::placeholder { color: color-mix(in srgb, var(--checkout-muted) 68%, transparent); }
+                .checkout-field input:focus, .checkout-field select:focus { outline: none; border-color: var(--checkout-accent) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--checkout-accent) 10%, transparent); }
+                .checkout-expiration { display: grid; grid-template-columns: 1fr auto 1fr; gap: 7px; align-items: center; }
+                .checkout-expiration em { color: var(--checkout-muted); font-style: normal; }
+                .checkout-subheading { margin: 26px 0 14px; color: var(--checkout-text); font-size: 11px; font-weight: 850; }
+                .checkout-payment-footer { border-top: 1px solid var(--checkout-border); margin-top: 30px; padding-top: 25px; display: grid; grid-template-columns: 1fr minmax(210px, auto); gap: 24px; align-items: center; }
+                .checkout-payment-footer > div { display: grid; gap: 2px; }
+                .checkout-payment-footer span { color: var(--checkout-muted); font-size: 9px; }
+                .checkout-payment-footer strong { color: var(--checkout-text); font-size: 25px; letter-spacing: -.03em; }
+                .checkout-payment-footer small { color: var(--checkout-accent); font-size: 8px; font-weight: 750; }
+                .checkout-payment-footer button { height: 51px; border: 0; border-radius: 12px; padding: 0 22px; display: flex; align-items: center; justify-content: center; gap: 8px; color: white; background: var(--checkout-accent); font-size: 11px; font-weight: 900; cursor: pointer; box-shadow: 0 14px 30px color-mix(in srgb, var(--checkout-accent) 26%, transparent); transition: transform .18s ease; }
+                .checkout-payment-footer button:hover:not(:disabled) { transform: translateY(-1px); }
+                .checkout-payment-footer button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+                .checkout-security-note { margin: 15px 0 0; display: flex; align-items: center; justify-content: flex-end; gap: 6px; color: var(--checkout-muted); font-size: 8px; }
+                .checkout-security-note :global(svg) { color: #10b981; }
                 @media (max-width: 980px) {
-                    .storeCartPage {
-                        -webkit-text-size-adjust: 100% !important;
-                        text-size-adjust: 100% !important;
-                    }
-                    .storeCartGrid {
-                        grid-template-columns: 1fr !important;
-                        justify-content: center !important;
-                        justify-items: stretch !important;
-                        gap: 18px !important;
-                    }
-                    .storeCartPage input,
-                    .storeCartPage select,
-                    .storeCartPage textarea {
-                        font-size: 16px !important;
-                    }
-                    .storeCartSummaryWrap {
-                        position: static !important;
-                        top: auto !important;
-                    }
-                    .storeCartCard {
-                        width: 100% !important;
-                        max-width: 560px !important;
-                        margin: 0 auto !important;
-                    }
+                    .store-checkout-page { padding: 24px 16px; }
+                    .checkout-frame { grid-template-columns: 1fr; }
+                    .checkout-brand-panel { min-height: 620px; }
+                    .checkout-brand-copy { padding-top: 34px; }
+                    .checkout-order-card { width: min(520px,100%); margin-right: auto; margin-left: auto; }
+                    .checkout-payment-panel { padding: 38px; }
                 }
-                @media (max-width: 640px) {
-                    .storeCartPage {
-                        padding: 22px 12px !important;
-                    }
-                    .storeCartPage h1 {
-                        font-size: 20px !important;
-                    }
-                    .storeCartPage p {
-                        margin-bottom: 24px !important;
-                    }
-                    .storeCartCard {
-                        padding: 15px !important;
-                        border-radius: 18px !important;
-                    }
-                    .storeCartCard h2 {
-                        font-size: 16px !important;
-                        margin-bottom: 16px !important;
-                    }
-                    .storeCartPayMethods {
-                        grid-template-columns: 1fr !important;
-                        gap: 10px !important;
-                    }
-                    .storeCartGrid2 {
-                        grid-template-columns: 1fr !important;
-                        gap: 12px !important;
-                    }
-                    .storeCartItemRow {
-                        grid-template-columns: 58px 1fr !important;
-                        gap: 12px !important;
-                        padding: 10px !important;
-                        border-radius: 12px !important;
-                    }
-                    .storeCartItemImage {
-                        width: 58px !important;
-                        height: 58px !important;
-                        border-radius: 10px !important;
-                    }
-                    .storeCartItemRow button {
-                        font-size: 12px !important;
-                    }
+                @media (max-width: 620px) {
+                    .store-checkout-page { padding: 14px 10px; }
+                    .checkout-back { margin-left: 6px; }
+                    .checkout-frame { border-radius: 20px; }
+                    .checkout-brand-panel { min-height: 580px; padding: 24px 18px; }
+                    .checkout-brand-copy { padding: 30px 0 25px; }
+                    .checkout-hero-image, .checkout-hero-fallback { width: 118px; height: 118px; border-radius: 27px; }
+                    .checkout-brand-copy h1 { font-size: 27px; }
+                    .checkout-payment-panel { padding: 28px 18px; }
+                    .checkout-payment-header h2 { font-size: 24px; }
+                    .checkout-payment-methods.has-card, .checkout-fields { grid-template-columns: 1fr; }
+                    .checkout-field, .checkout-field-full, .checkout-field-street, .checkout-field-number { grid-column: 1; }
+                    .checkout-field input, .checkout-field select { height: 47px; font-size: 16px; }
+                    .checkout-payment-footer { grid-template-columns: 1fr; }
+                    .checkout-payment-footer button { width: 100%; }
+                    .checkout-security-note { justify-content: center; text-align: center; }
                 }
             `}</style>
-        </div>
+        </main>
     );
 }
