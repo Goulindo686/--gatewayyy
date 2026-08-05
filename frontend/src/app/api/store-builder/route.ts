@@ -9,6 +9,7 @@ import {
     DEFAULT_STORE_BACKGROUND,
     DEFAULT_STORE_FOOTER,
     DEFAULT_STORE_STYLE,
+    filterStoreLayoutProductIds,
     normalizeStoreBackground,
     normalizeStoreFooter,
     normalizeStoreLayoutSections,
@@ -169,10 +170,16 @@ export async function GET(req: NextRequest) {
         return jsonError('Erro ao carregar os produtos da loja', 500);
     }
 
-    return jsonSuccess({
-        store: formatStore(row, migrationFile),
-        products: productsQuery.data || []
-    });
+    const products = productsQuery.data || [];
+    const store = formatStore(row, migrationFile);
+    store.store_layout_sections = filterStoreLayoutProductIds(
+        store.store_layout_sections,
+        products
+            .filter(product => product.status === 'active' && product.show_in_store === true)
+            .map(product => String(product.id))
+    );
+
+    return jsonSuccess({ store, products });
 }
 
 export async function PUT(req: NextRequest) {
@@ -186,7 +193,7 @@ export async function PUT(req: NextRequest) {
         if (!storeName) return jsonError('Informe o nome da loja');
         if (!storeSlug) return jsonError('Informe um link válido para a loja');
 
-        const sections = normalizeStoreLayoutSections(body.store_layout_sections, { strict: true });
+        let sections = normalizeStoreLayoutSections(body.store_layout_sections, { strict: true });
         const footer = normalizeStoreFooter(body.store_footer_config, { strict: true });
         const background = normalizeStoreBackground(body.store_background_config, { strict: true });
         const style = normalizeStoreStyle(body.store_style_config, { strict: true });
@@ -195,9 +202,8 @@ export async function PUT(req: NextRequest) {
         if (selectedProductIds.length > 0) {
             const { data: ownedProducts, error: productsError } = await supabase
                 .from('products')
-                .select('id')
+                .select('id, sales_channel, show_in_store, status, type')
                 .eq('user_id', auth.user.id)
-                .or('sales_channel.eq.store,and(sales_channel.eq.checkout,show_in_store.eq.true)')
                 .in('id', selectedProductIds);
 
             if (productsError) {
@@ -209,6 +215,15 @@ export async function PUT(req: NextRequest) {
             if (selectedProductIds.some(productId => !ownedIds.has(productId))) {
                 return jsonError('Um ou mais produtos selecionados não pertencem à sua conta', 403);
             }
+
+            const availableProductIds = (ownedProducts || [])
+                .filter(product => product.sales_channel === 'store'
+                    || product.sales_channel === 'checkout')
+                .filter(product => product.show_in_store === true
+                    && product.status === 'active'
+                    && product.type === 'digital')
+                .map(product => String(product.id));
+            sections = filterStoreLayoutProductIds(sections, availableProductIds);
         }
 
         const { data: slugOwners, error: slugError } = await supabase

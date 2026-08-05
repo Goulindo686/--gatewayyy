@@ -518,6 +518,17 @@ export function collectStoreProductIds(sections: StoreLayoutSection[]): string[]
     ));
 }
 
+export function filterStoreLayoutProductIds(
+    sections: StoreLayoutSection[],
+    availableProductIds: string[]
+): StoreLayoutSection[] {
+    const available = new Set(availableProductIds);
+    return sections.map(section => section.type === 'products'
+        ? { ...section, product_ids: section.product_ids.filter(id => available.has(id)) }
+        : section
+    );
+}
+
 export function createStoreBuilderId(prefix: string): string {
     const random = typeof globalThis.crypto?.randomUUID === 'function'
         ? globalThis.crypto.randomUUID()

@@ -3,12 +3,42 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
     buildRenderableStoreSections,
+    filterStoreLayoutProductIds,
     normalizeStoreBackground,
     normalizeStoreFooter,
     normalizeStoreLayoutSections,
     normalizeStoreStyle,
     StoreBuilderValidationError
 } from '../src/lib/store-builder.ts';
+
+test('store builder removes only unavailable product references', () => {
+    const sections = normalizeStoreLayoutSections([
+        {
+            id: 'row-1',
+            type: 'products',
+            title: 'Produtos',
+            subtitle: '',
+            product_ids: ['available-1', 'legacy-hidden', 'available-2']
+        },
+        {
+            id: 'carousel-1',
+            type: 'banner_carousel',
+            title: 'Destaques',
+            slides: [{
+                id: 'slide-1',
+                image_url: 'https://cdn.example.com/banner.jpg',
+                title: '',
+                description: '',
+                button_text: '',
+                button_url: ''
+            }]
+        }
+    ]);
+
+    const filtered = filterStoreLayoutProductIds(sections, ['available-1', 'available-2']);
+    assert.deepEqual(filtered[0].product_ids, ['available-1', 'available-2']);
+    assert.deepEqual(filtered[1], sections[1]);
+});
 
 test('store builder preserves configured order and appends products not yet assigned', () => {
     const sections = normalizeStoreLayoutSections([
@@ -140,6 +170,7 @@ test('store builder API requires authentication and validates product ownership'
     assert.match(source, /getAuthUser\(req\)/);
     assert.match(source, /\.eq\('user_id', auth\.user\.id\)/);
     assert.match(source, /não pertencem à sua conta/);
+    assert.match(source, /filterStoreLayoutProductIds/);
     assert.doesNotMatch(source, /SUPABASE_SERVICE_KEY.*jsonSuccess/s);
 });
 
