@@ -2,8 +2,9 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { dashboardAPI } from '@/lib/api';
+import { getDashboardPeriodRequest } from '@/lib/dashboard-period';
 import { useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
@@ -85,15 +86,26 @@ export default function DashboardPage() {
     const { resolvedTheme } = useTheme();
     const isDark = resolvedTheme === 'dark';
 
-    useEffect(() => {
-        const start = searchParams.get('start') || undefined;
-        const end = searchParams.get('end') || undefined;
-        if (start || end) loadPeriod({ start, end });
-        else {
-            setPeriod(null);
-            loadStats();
+    const loadPeriod = useCallback(async (params?: any) => {
+        setLoading(true);
+        try {
+            const [{ data }, conversionResponse] = await Promise.all([
+                dashboardAPI.getStats(params || {}),
+                dashboardAPI.getConversion(params || {}).catch(() => null),
+            ]);
+            setPeriod({ monthly_sales: data?.monthly_sales || [], recent_orders: data?.recent_orders || [] });
+            setStats(data);
+            if (conversionResponse?.data) setConversion(conversionResponse.data);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
         }
-    }, [searchParams]);
+    }, []);
+
+    useEffect(() => {
+        loadPeriod(getDashboardPeriodRequest(searchParams));
+    }, [loadPeriod, searchParams]);
 
     useEffect(() => {
         let disposed = false;
@@ -102,12 +114,11 @@ export default function DashboardPage() {
         const refreshConversion = async () => {
             if (document.visibilityState !== 'visible' || requestInFlight) return;
 
-            const start = searchParams.get('start') || undefined;
-            const end = searchParams.get('end') || undefined;
+            const params = getDashboardPeriodRequest(searchParams);
 
             requestInFlight = true;
             try {
-                const { data } = await dashboardAPI.getConversion({ start, end });
+                const { data } = await dashboardAPI.getConversion(params);
                 if (!disposed) setConversion(data);
             } catch (err) {
                 if (!disposed) console.error('Erro ao atualizar taxa de conversao:', err);
@@ -129,39 +140,6 @@ export default function DashboardPage() {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
     }, [searchParams]);
-
-    const loadStats = async (params?: any) => {
-        setLoading(true);
-        try {
-            const [{ data }, conversionResponse] = await Promise.all([
-                dashboardAPI.getStats(params || {}),
-                dashboardAPI.getConversion(params || {}).catch(() => null),
-            ]);
-            setStats(data);
-            if (conversionResponse?.data) setConversion(conversionResponse.data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const loadPeriod = async (params?: any) => {
-        setLoading(true);
-        try {
-            const [{ data }, conversionResponse] = await Promise.all([
-                dashboardAPI.getStats(params || {}),
-                dashboardAPI.getConversion(params || {}).catch(() => null),
-            ]);
-            setPeriod({ monthly_sales: data?.monthly_sales || [], recent_orders: data?.recent_orders || [] });
-            setStats(data);
-            if (conversionResponse?.data) setConversion(conversionResponse.data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const monthlySalesData = calculateDerivedMetrics(period?.monthly_sales || stats?.monthly_sales || []);
     const recentOrders = period?.recent_orders || stats?.recent_orders || [];

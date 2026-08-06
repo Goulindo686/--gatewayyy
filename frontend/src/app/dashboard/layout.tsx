@@ -6,10 +6,18 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 import { FiHome, FiPackage, FiDollarSign, FiSettings, FiLogOut, FiMenu, FiX, FiPercent, FiBookOpen, FiMessageCircle, FiShoppingBag, FiShoppingCart, FiCalendar, FiChevronLeft, FiChevronRight, FiShield, FiRepeat, FiCreditCard, FiMail, FiCode, FiBell, FiCheckCircle, FiClock, FiXCircle, FiUser, FiUsers, FiKey } from 'react-icons/fi';
 import { ThemeToggle } from '@/components/theme-toggle';
 import OnboardingBar from '@/components/OnboardingBar';
 import { dashboardAPI } from '@/lib/api';
+import {
+    buildDashboardPeriod,
+    DEFAULT_DASHBOARD_PERIOD,
+    inferDashboardPeriodPreset,
+    toDashboardDateInput,
+    type DashboardPeriodPreset,
+} from '@/lib/dashboard-period';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -28,7 +36,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const avatarRef = useRef<HTMLButtonElement>(null);
     const notificationsRef = useRef<HTMLDivElement>(null);
     const bellRef = useRef<HTMLButtonElement>(null);
-    const [rangePreset, setRangePreset] = useState('last7');
+    const [rangePreset, setRangePreset] = useState<DashboardPeriodPreset>(DEFAULT_DASHBOARD_PERIOD);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [applying, setApplying] = useState(false);
@@ -174,137 +182,74 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         router.push('/admin/sellers');
     };
 
-    const applyDashboardFilters = async () => {
+    const applyDashboardFilters = () => {
         if (pathname !== '/dashboard') return;
         setApplying(true);
         try {
-            const now = new Date();
-            const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-            const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
-            const params: Record<string, string> = {};
-            if (rangePreset !== 'custom') {
-                if (rangePreset === 'today') {
-                    params.start = startOfDay(now).toISOString();
-                    params.end = endOfDay(now).toISOString();
-                } else if (rangePreset === 'yesterday') {
-                    const y = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-                    params.start = startOfDay(y).toISOString();
-                    params.end = endOfDay(y).toISOString();
-                } else if (rangePreset === 'last7') {
-                    const s = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                    params.start = startOfDay(s).toISOString();
-                    params.end = endOfDay(now).toISOString();
-                } else if (rangePreset === 'thisMonth') {
-                    const s = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-                    const e = endOfDay(now);
-                    params.start = s.toISOString();
-                    params.end = e.toISOString();
-                } else if (rangePreset === 'lastMonth') {
-                    const s = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
-                    const e = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-                    params.start = s.toISOString();
-                    params.end = e.toISOString();
-                }
-            } else {
-                if (startDate) params.start = new Date(startDate + 'T00:00:00').toISOString();
-                if (endDate) params.end = new Date(endDate + 'T23:59:59').toISOString();
-            }
+            const period = buildDashboardPeriod(rangePreset, { startDate, endDate });
+            const params = { start: period.start, end: period.end };
             const qs = new URLSearchParams(params).toString();
-            router.replace(qs ? `/dashboard?${qs}` : '/dashboard');
+            setStartDate(period.startDate);
+            setEndDate(period.endDate);
+            router.replace(`/dashboard?${qs}`);
             setShowConfig(false);
-            try { router.refresh?.(); } catch {}
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Nao foi possivel aplicar o periodo');
         } finally {
             setApplying(false);
         }
     };
 
     const getDisplayRange = () => {
-        const now = new Date();
-        const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-        const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
-        let s = startDate ? new Date(startDate + 'T00:00:00') : startOfDay(now);
-        let e = endDate ? new Date(endDate + 'T23:59:59') : endOfDay(now);
-        if (rangePreset !== 'custom') {
-            if (rangePreset === 'today') {
-                s = startOfDay(now);
-                e = endOfDay(now);
-            } else if (rangePreset === 'yesterday') {
-                const y = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-                s = startOfDay(y);
-                e = endOfDay(y);
-            } else if (rangePreset === 'last7') {
-                const seven = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                s = startOfDay(seven);
-                e = endOfDay(now);
-            } else if (rangePreset === 'thisMonth') {
-                s = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-                e = endOfDay(now);
-            } else if (rangePreset === 'lastMonth') {
-                s = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
-                e = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-            }
-        }
         const fmt = (d: Date) => {
             const m = d.toLocaleString('en-US', { month: 'short' }).toLowerCase();
             const day = d.toLocaleString('en-US', { day: '2-digit' });
             const y = d.getFullYear();
             return `${m} ${day}, ${y}`;
         };
-        return `${fmt(s)} - ${fmt(e)}`;
-    };
 
-    const toISODate = (d: Date) => {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-    };
-
-    const setPresetRange = (preset: string) => {
-        const now = new Date();
-        if (preset === 'today') {
-            setStartDate(toISODate(now));
-            setEndDate(toISODate(now));
-        } else if (preset === 'yesterday') {
-            const y = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-            setStartDate(toISODate(y));
-            setEndDate(toISODate(y));
-        } else if (preset === 'last7') {
-            const s = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            setStartDate(toISODate(s));
-            setEndDate(toISODate(now));
-        } else if (preset === 'last30') {
-            const s = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            setStartDate(toISODate(s));
-            setEndDate(toISODate(now));
-        } else if (preset === 'thisWeek') {
-            const d = new Date(now);
-            const day = d.getDay();
-            const sunday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day);
-            const saturday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + (6 - day));
-            setStartDate(toISODate(sunday));
-            setEndDate(toISODate(saturday));
-        } else if (preset === 'lastWeek') {
-            const d = new Date(now);
-            const day = d.getDay();
-            const sundayLast = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day - 7);
-            const saturdayLast = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day - 1);
-            setStartDate(toISODate(sundayLast));
-            setEndDate(toISODate(saturdayLast));
-        } else if (preset === 'thisMonth') {
-            const s = new Date(now.getFullYear(), now.getMonth(), 1);
-            const e = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-            setStartDate(toISODate(s));
-            setEndDate(toISODate(e));
-        } else if (preset === 'lastMonth') {
-            const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            const e = new Date(now.getFullYear(), now.getMonth(), 0);
-            setStartDate(toISODate(s));
-            setEndDate(toISODate(e));
+        try {
+            const period = buildDashboardPeriod(rangePreset, { startDate, endDate });
+            return `${fmt(new Date(period.start))} - ${fmt(new Date(period.end))}`;
+        } catch {
+            return startDate ? `${fmt(new Date(`${startDate}T00:00:00`))} - selecione o fim` : 'Selecione um periodo';
         }
-        setRangePreset(preset);
-        setViewDate(now);
     };
+
+    const setPresetRange = (preset: DashboardPeriodPreset) => {
+        const now = new Date();
+        const period = buildDashboardPeriod(preset, { now });
+        setStartDate(period.startDate);
+        setEndDate(period.endDate);
+        setRangePreset(preset);
+        setViewDate(new Date(period.start));
+    };
+
+    useEffect(() => {
+        if (pathname !== '/dashboard') return;
+
+        const syncPeriodFromUrl = () => {
+            const params = new URLSearchParams(window.location.search);
+            const queryStart = params.get('start');
+            const queryEnd = params.get('end');
+            if (!queryStart || !queryEnd) return;
+
+            const parsedStart = new Date(queryStart);
+            const parsedEnd = new Date(queryEnd);
+            if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime())) return;
+
+            const nextStartDate = toDashboardDateInput(parsedStart);
+            const nextEndDate = toDashboardDateInput(parsedEnd);
+            setStartDate(nextStartDate);
+            setEndDate(nextEndDate);
+            setRangePreset(inferDashboardPeriodPreset(nextStartDate, nextEndDate));
+            setViewDate(parsedStart);
+        };
+
+        syncPeriodFromUrl();
+        window.addEventListener('popstate', syncPeriodFromUrl);
+        return () => window.removeEventListener('popstate', syncPeriodFromUrl);
+    }, [pathname]);
 
     const monthLabelPT = (d: Date) => {
         const month = d.toLocaleString('pt-BR', { month: 'long' }).toLowerCase();
@@ -808,7 +753,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     >
                         <div className="dashboard-period-content" style={{ display: 'flex', gap: 16 }}>
                             <div className="dashboard-period-presets" style={{ width: 180, borderRight: '1px solid var(--border-color)', paddingRight: 12 }}>
-                                {[
+                                {([
                                     {key:'today', label:'Hoje'},
                                     {key:'yesterday', label:'Ontem'},
                                     {key:'last7', label:'Últimos 7 dias'},
@@ -817,7 +762,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     {key:'lastWeek', label:'Última semana'},
                                     {key:'thisMonth', label:'Este mês'},
                                     {key:'lastMonth', label:'Último mês'},
-                                ].map(item => (
+                                ] as const).map(item => (
                                     <button
                                         key={item.key}
                                         onClick={() => setPresetRange(item.key)}
@@ -855,12 +800,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     const cells: Array<number | null> = [];
                                     for (let i = 0; i < startOffset; i++) cells.push(null);
                                     for (let d = 1; d <= lastDay; d++) cells.push(d);
-                                    const selectedDay = startDate ? new Date(startDate + 'T00:00:00') : null;
+                                    const selectedStart = startDate ? new Date(startDate + 'T00:00:00') : null;
+                                    const selectedEnd = endDate ? new Date(endDate + 'T23:59:59') : null;
                                     const isSelected = (d: number) => {
-                                        if (!selectedDay) return false;
-                                        return selectedDay.getFullYear() === year &&
-                                            selectedDay.getMonth() === month &&
-                                            selectedDay.getDate() === d;
+                                        const candidate = new Date(year, month, d);
+                                        return Boolean(
+                                            (selectedStart && toDashboardDateInput(selectedStart) === toDashboardDateInput(candidate)) ||
+                                            (selectedEnd && toDashboardDateInput(selectedEnd) === toDashboardDateInput(candidate))
+                                        );
+                                    };
+                                    const isInRange = (d: number) => {
+                                        if (!selectedStart || !selectedEnd) return false;
+                                        const candidate = new Date(year, month, d);
+                                        return candidate >= selectedStart && candidate <= selectedEnd;
                                     };
                                     return (
                                         <div className="dashboard-period-days" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
@@ -869,15 +821,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                             ) : (
                                                 <button
                                                     key={idx}
-                                                    onClick={() => { 
+                                                    onClick={() => {
                                                         const picked = new Date(year, month, c);
-                                                        setStartDate(toISODate(picked));
-                                                        setEndDate(toISODate(picked));
+                                                        const pickedDate = toDashboardDateInput(picked);
+                                                        if (rangePreset !== 'custom' || !startDate || endDate) {
+                                                            setStartDate(pickedDate);
+                                                            setEndDate('');
+                                                        } else if (pickedDate < startDate) {
+                                                            setStartDate(pickedDate);
+                                                            setEndDate(startDate);
+                                                        } else {
+                                                            setEndDate(pickedDate);
+                                                        }
                                                         setRangePreset('custom');
                                                     }}
                                                     style={{
                                                         height: 36, borderRadius: 12, border: '1px solid var(--border-color)',
-                                                        background: isSelected(c) ? 'var(--accent-gradient)' : 'transparent',
+                                                        background: isSelected(c)
+                                                            ? 'var(--accent-gradient)'
+                                                            : isInRange(c)
+                                                                ? 'rgba(139,92,246,0.14)'
+                                                                : 'transparent',
                                                         color: isSelected(c) ? 'white' : 'var(--text-primary)',
                                                         cursor: 'pointer', fontWeight: 700
                                                     }}
@@ -888,12 +852,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                         </div>
                                     );
                                 })()}
+                                <div style={{ color: 'var(--text-secondary)', fontSize: 11, marginTop: 12 }}>
+                                    {rangePreset === 'custom'
+                                        ? endDate
+                                            ? `${startDate} ate ${endDate}`
+                                            : 'Agora selecione a data final'
+                                        : 'Escolha um atalho ou selecione um intervalo no calendario'}
+                                </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
                                     <button onClick={() => setShowConfig(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 700 }}>
                                         Cancelar
                                     </button>
-                                    <button onClick={() => setShowConfig(false)} className="btn-primary" style={{ height: 38, padding: '0 16px', borderRadius: 12, fontWeight: 700 }}>
-                                        Confirmar
+                                    <button
+                                        onClick={applyDashboardFilters}
+                                        disabled={applying || (rangePreset === 'custom' && (!startDate || !endDate))}
+                                        className="btn-primary"
+                                        style={{ height: 38, padding: '0 16px', borderRadius: 12, fontWeight: 700 }}
+                                    >
+                                        {applying ? 'Aplicando...' : 'Confirmar'}
                                     </button>
                                 </div>
                             </div>

@@ -97,6 +97,10 @@ export async function GET(req: NextRequest) {
         return jsonError('Período inválido', 400);
     }
 
+    if (startDate && endDate && startDate > endDate) {
+        return jsonError('O início do período deve ser anterior ao fim', 400);
+    }
+
     const isWithinPeriod = (row: { created_at?: string | null }) => {
         if (!row.created_at) return !startDate && !endDate;
         const createdAt = new Date(row.created_at);

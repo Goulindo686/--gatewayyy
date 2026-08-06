@@ -18,6 +18,7 @@ type ProductRow = {
     price_display?: string;
     image_url?: string;
     status: string;
+    checkout_settings?: { hide_phone?: boolean } | null;
 };
 
 type WhatsappRecoveryOrder = {
@@ -30,13 +31,6 @@ type WhatsappRecoveryOrder = {
     amount_display?: string | null;
     pix_expires_at?: string | null;
     created_at: string;
-    products?: {
-        name?: string | null;
-        checkout_settings?: { hide_phone?: boolean } | null;
-    } | Array<{
-        name?: string | null;
-        checkout_settings?: { hide_phone?: boolean } | null;
-    }>;
 };
 
 export async function GET(req: NextRequest) {
@@ -46,7 +40,7 @@ export async function GET(req: NextRequest) {
     const [{ data: products, error: productsError }, { data: settings, error: settingsError }, { data: sentEmails }, { data: whatsappOrders, error: whatsappError }] = await Promise.all([
         supabase
             .from('products')
-            .select('id, name, price, price_display, image_url, status')
+            .select('id, name, price, price_display, image_url, status, checkout_settings')
             .eq('user_id', auth.user.id)
             .order('created_at', { ascending: false }),
         supabase
@@ -59,7 +53,7 @@ export async function GET(req: NextRequest) {
             .eq('user_id', auth.user.id),
         supabase
             .from('orders')
-            .select('id, product_id, buyer_name, buyer_email, buyer_phone, amount, amount_display, pix_expires_at, created_at, products(name, checkout_settings)')
+            .select('id, product_id, buyer_name, buyer_email, buyer_phone, amount, amount_display, pix_expires_at, created_at')
             .eq('seller_id', auth.user.id)
             .eq('payment_method', 'pix')
             .eq('status', 'pending')
@@ -74,6 +68,9 @@ export async function GET(req: NextRequest) {
     }
 
     const settingsByProduct = Object.fromEntries((settings || []).map((item: RecoverySetting) => [item.product_id, item]));
+    const productById = new Map(
+        ((products || []) as ProductRow[]).map((product) => [product.id, product]),
+    );
     const sentByProduct = (sentEmails || []).reduce((acc: Record<string, number>, item: { product_id: string }) => {
         acc[item.product_id] = (acc[item.product_id] || 0) + 1;
         return acc;
@@ -81,10 +78,7 @@ export async function GET(req: NextRequest) {
 
     const now = new Date();
     const whatsapp_recoveries = ((whatsappOrders || []) as WhatsappRecoveryOrder[])
-        .map(order => {
-            const product = Array.isArray(order.products) ? order.products[0] : order.products;
-            return { order, product };
-        })
+        .map(order => ({ order, product: productById.get(order.product_id) }))
         .filter(({ order, product }) => {
             const digits = String(order.buyer_phone || '').replace(/\D/g, '');
             if (!digits) return false;
@@ -106,7 +100,10 @@ export async function GET(req: NextRequest) {
 
     return jsonSuccess({
         products: (products || []).map((product: ProductRow) => ({
-            ...product,
+            id: product.id,
+            name: product.name,
+            image_url: product.image_url,
+            status: product.status,
             price_display: product.price_display || (product.price / 100).toFixed(2),
             recovery: settingsByProduct[product.id] || {
                 product_id: product.id,
