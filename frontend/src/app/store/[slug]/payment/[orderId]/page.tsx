@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { FiCopy, FiCheck, FiSmartphone, FiClock, FiShield, FiCheckCircle, FiPackage, FiArrowLeft, FiUser, FiCreditCard } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSmartphone, FiClock, FiShield, FiCheckCircle, FiPackage, FiArrowLeft, FiUser, FiCreditCard, FiMessageCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
-import { checkoutAPI } from '@/lib/api';
+import { checkoutAPI, supportAPI } from '@/lib/api';
 export default function PaymentPage() {
     const params = useParams();
     const router = useRouter();
@@ -14,6 +14,7 @@ export default function PaymentPage() {
     const [order, setOrder] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [paid, setPaid] = useState(false);
+    const [openingSupport, setOpeningSupport] = useState(false);
     const pollingRef = useRef<any>(null);
     const pollingInFlightRef = useRef(false);
 
@@ -131,6 +132,19 @@ export default function PaymentPage() {
         setTimeout(() => setCopied(false), 2000);
     };
 
+    const openSupport = async () => {
+        if (!order?.id || openingSupport) return;
+        setOpeningSupport(true);
+        try {
+            const { data } = await supportAPI.createBuyerThread(order.id);
+            router.push(`/support/${data.thread.id}?token=${encodeURIComponent(data.token)}`);
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Nao foi possivel abrir o suporte.');
+        } finally {
+            setOpeningSupport(false);
+        }
+    };
+
     if (loading) {
         return (
             <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0c' }}>
@@ -184,6 +198,22 @@ export default function PaymentPage() {
                         border: '1px solid rgba(255,255,255,0.12)', cursor: 'pointer', fontWeight: 800
                     }}>
                         Já tenho conta
+                    </button>
+                    <button onClick={openSupport} disabled={openingSupport} style={{
+                        width: '100%', padding: '14px', marginTop: 10, fontSize: 14,
+                        background: 'rgba(0,206,201,0.12)', color: '#00cec9', borderRadius: 14,
+                        border: '1px solid rgba(0,206,201,0.22)', cursor: openingSupport ? 'not-allowed' : 'pointer',
+                        fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                        opacity: openingSupport ? .65 : 1
+                    }}>
+                        <FiMessageCircle size={18} /> {openingSupport ? 'Abrindo suporte...' : 'Falar com o vendedor'}
+                    </button>
+                    <button onClick={() => router.push('/minhas-entregas')} style={{
+                        width: '100%', padding: '14px', marginTop: 10, fontSize: 14,
+                        background: 'transparent', color: '#00cec9', borderRadius: 14,
+                        border: '1px solid rgba(0,206,201,0.22)', cursor: 'pointer', fontWeight: 800
+                    }}>
+                        Ver minhas entregas
                     </button>
                     <p style={{ color: '#64748b', fontSize: 12, marginTop: 12 }}>Nenhum login é feito automaticamente.</p>
                 </div>

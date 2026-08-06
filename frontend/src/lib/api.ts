@@ -145,6 +145,20 @@ export const myUniqueDeliveryAPI = {
     list: () => internalApi.get('/my-unique-deliveries'),
 };
 
+export const supportAPI = {
+    createBuyerThread: (orderId: string) => internalApi.post('/support/public/thread', { order_id: orderId }),
+    getBuyerThread: (threadId: string, token: string) =>
+        internalApi.get(`/support/public/thread/${threadId}`, { params: { token } }),
+    sendBuyerMessage: (threadId: string, token: string, message: string) =>
+        internalApi.post(`/support/public/thread/${threadId}`, { message }, { headers: { 'x-support-token': token } }),
+    listSellerThreads: (status?: string) => internalApi.get('/support/threads', { params: { status } }),
+    getSellerThread: (threadId: string) => internalApi.get(`/support/threads/${threadId}`),
+    sendSellerMessage: (threadId: string, message: string) =>
+        internalApi.post(`/support/threads/${threadId}`, { message }),
+    updateSellerThread: (threadId: string, data: { status: string }) =>
+        internalApi.patch(`/support/threads/${threadId}`, data),
+};
+
 // Dashboard
 export const dashboardAPI = {
     getStats: (params?: Record<string, unknown>) => getDashboardResource('/dashboard/stats', params),

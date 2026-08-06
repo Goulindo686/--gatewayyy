@@ -327,6 +327,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: '/dashboard/products', icon: <FiPackage size={18} />, label: 'Produtos' },
         { href: '/minhas-entregas', icon: <FiKey size={18} />, label: 'Minhas Entregas' },
         { href: '/dashboard/sales', icon: <FiShoppingCart size={18} />, label: 'Vendas' },
+        { href: '/dashboard/support', icon: <FiMessageCircle size={18} />, label: 'Suporte' },
         { href: '/dashboard/affiliates', icon: <FiUsers size={18} />, label: 'Afiliados' },
         { href: '/dashboard/sales-recovery', icon: <FiMail size={18} />, label: 'Recuperação' },
         { href: '/dashboard/billings', icon: <FiCreditCard size={18} />, label: 'Cobranças' },

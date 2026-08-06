@@ -13,10 +13,11 @@ import {
     FiExternalLink,
     FiKey,
     FiLock,
+    FiMessageCircle,
     FiPackage,
     FiShield,
 } from 'react-icons/fi';
-import { myUniqueDeliveryAPI } from '@/lib/api';
+import { myUniqueDeliveryAPI, supportAPI } from '@/lib/api';
 
 function formatDate(value: string) {
     return new Date(value).toLocaleString('pt-BR');
@@ -27,6 +28,7 @@ export default function MyUniqueDeliveriesPage() {
     const [deliveries, setDeliveries] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState<string | null>(null);
+    const [openingSupport, setOpeningSupport] = useState<string | null>(null);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -63,6 +65,18 @@ export default function MyUniqueDeliveriesPage() {
         setCopied(id);
         toast.success('Copiado com segurança.');
         window.setTimeout(() => setCopied((current) => current === id ? null : current), 2500);
+    };
+
+    const openSupport = async (orderId: string) => {
+        setOpeningSupport(orderId);
+        try {
+            const { data } = await supportAPI.createBuyerThread(orderId);
+            router.push(`/support/${data.thread.id}?token=${encodeURIComponent(data.token)}`);
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Nao foi possivel abrir o suporte.');
+        } finally {
+            setOpeningSupport(null);
+        }
     };
 
     return (
@@ -163,6 +177,22 @@ export default function MyUniqueDeliveriesPage() {
                                         Abrir link de acesso
                                     </a>
                                 )}
+                                <div className="myDeliveryActions">
+                                    {delivery.seller?.store_url && delivery.seller?.store_active && (
+                                        <Link href={delivery.seller.store_url}>
+                                            <FiExternalLink size={15} />
+                                            Acessar loja do vendedor
+                                        </Link>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => openSupport(delivery.order_id)}
+                                        disabled={openingSupport === delivery.order_id}
+                                    >
+                                        <FiMessageCircle size={15} />
+                                        {openingSupport === delivery.order_id ? 'Abrindo...' : 'Falar com vendedor'}
+                                    </button>
+                                </div>
                                 {delivery.notes && (
                                     <section className="myDeliveryText myDeliveryNotes">
                                         <h3>Observações</h3>
@@ -404,6 +434,39 @@ export default function MyUniqueDeliveriesPage() {
                     margin:4px 0 14px;
                     padding:10px 13px;
                     text-decoration:none;
+                }
+                .myDeliveryActions {
+                    display:flex;
+                    flex-wrap:wrap;
+                    gap:9px;
+                    margin:4px 0 14px;
+                }
+                .myDeliveryActions a,
+                .myDeliveryActions button {
+                    align-items:center;
+                    border-radius:10px;
+                    cursor:pointer;
+                    display:inline-flex;
+                    font-size:11px;
+                    font-weight:800;
+                    gap:7px;
+                    min-height:38px;
+                    padding:10px 13px;
+                    text-decoration:none;
+                }
+                .myDeliveryActions a {
+                    background:var(--card-bg);
+                    border:1px solid var(--border-color);
+                    color:var(--text-primary);
+                }
+                .myDeliveryActions button {
+                    background:#00b894;
+                    border:0;
+                    color:#fff;
+                }
+                .myDeliveryActions button:disabled {
+                    cursor:not-allowed;
+                    opacity:.65;
                 }
                 .myDeliveriesEmpty {
                     background:var(--card-bg);

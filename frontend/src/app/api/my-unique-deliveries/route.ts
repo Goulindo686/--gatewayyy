@@ -113,6 +113,16 @@ export async function GET(req: NextRequest) {
 
         const itemsById = new Map((itemsResult.data || []).map((item: any) => [item.id, item]));
         const productsById = new Map((productsResult.data || []).map((product: any) => [product.id, product]));
+        const sellerIds = Array.from(new Set(
+            (productsResult.data || []).map((product: any) => product.user_id).filter(Boolean),
+        ));
+        const sellersResult = sellerIds.length
+            ? await supabase
+                .from('users')
+                .select('id, name, store_name, store_slug, store_active')
+                .in('id', sellerIds)
+            : { data: [] };
+        const sellersById = new Map((sellersResult.data || []).map((seller: any) => [seller.id, seller]));
 
         // A descriptografia acontece somente aqui, depois de comprovar:
         // token valido, e-mail verificado, e-mail da compra, pedido pago,
@@ -135,6 +145,7 @@ export async function GET(req: NextRequest) {
                 item.id,
                 encryptedPayload(item),
             );
+            const seller: any = sellersById.get(product.user_id);
 
             return {
                 id: fulfillment.id,
@@ -145,6 +156,13 @@ export async function GET(req: NextRequest) {
                     id: product.id,
                     name: product.name,
                 },
+                seller: seller ? {
+                    id: seller.id,
+                    name: seller.store_name || seller.name || 'Vendedor',
+                    store_slug: seller.store_slug,
+                    store_active: seller.store_active === true,
+                    store_url: seller.store_slug ? `/store/${seller.store_slug}` : null,
+                } : null,
                 access: payload.access,
                 instructions: payload.instructions,
                 custom_text: payload.customText,
