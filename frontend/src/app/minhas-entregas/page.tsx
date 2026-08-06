@@ -27,6 +27,7 @@ export default function MyUniqueDeliveriesPage() {
     const router = useRouter();
     const [deliveries, setDeliveries] = useState<any[]>([]);
     const [supportConversations, setSupportConversations] = useState<any[]>([]);
+    const [supportOrders, setSupportOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState<string | null>(null);
     const [openingSupport, setOpeningSupport] = useState<string | null>(null);
@@ -44,6 +45,7 @@ export default function MyUniqueDeliveriesPage() {
                 if (!cancelled) {
                     setDeliveries(data.deliveries || []);
                     setSupportConversations(data.support_conversations || []);
+                    setSupportOrders(data.support_orders || []);
                 }
             })
             .catch((error: any) => {
@@ -62,6 +64,7 @@ export default function MyUniqueDeliveriesPage() {
             cancelled = true;
             setDeliveries([]);
             setSupportConversations([]);
+            setSupportOrders([]);
         };
     }, [router]);
 
@@ -139,6 +142,47 @@ export default function MyUniqueDeliveriesPage() {
                                     <button type="button" onClick={() => router.push(`/support/${conversation.id}`)}>
                                         <FiMessageCircle size={15} /> Abrir conversa
                                     </button>
+                                </article>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {supportOrders.length > 0 && (
+                    <section className="mySupportConversations">
+                        <div className="mySupportConversationsTitle">
+                            <span><FiMessageCircle size={16} /> Suporte das suas compras</span>
+                            <small>Pedidos pagos com este e-mail verificado</small>
+                        </div>
+                        <div className="mySupportConversationList">
+                            {supportOrders.map((order) => (
+                                <article key={order.id} className="mySupportConversationCard">
+                                    <div>
+                                        <strong>{order.product?.name || 'Compra na loja'}</strong>
+                                        <p>
+                                            {order.seller?.name || 'Vendedor'}
+                                            {' Â· '}
+                                            Pedido #{String(order.id || '').slice(0, 8)}
+                                        </p>
+                                        <small>{order.support_thread_id ? 'Conversa ja iniciada.' : 'Abra uma conversa com o vendedor quando precisar.'}</small>
+                                    </div>
+                                    <div className="mySupportOrderActions">
+                                        {order.seller?.store_url && order.seller?.store_active && (
+                                            <Link href={order.seller.store_url}>
+                                                <FiExternalLink size={15} /> Loja
+                                            </Link>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => order.support_thread_id
+                                                ? router.push(`/support/${order.support_thread_id}`)
+                                                : openSupport(order.id)}
+                                            disabled={openingSupport === order.id}
+                                        >
+                                            <FiMessageCircle size={15} />
+                                            {openingSupport === order.id ? 'Abrindo...' : order.support_thread_id ? 'Abrir conversa' : 'Falar com vendedor'}
+                                        </button>
+                                    </div>
                                 </article>
                             ))}
                         </div>
@@ -235,7 +279,7 @@ export default function MyUniqueDeliveriesPage() {
                             </article>
                         ))}
                     </div>
-                ) : !supportConversations.length ? (
+                ) : !supportConversations.length && !supportOrders.length ? (
                     <section className="myDeliveriesEmpty">
                         <FiKey size={45} />
                         <h2>Nenhuma entrega exclusiva encontrada</h2>
@@ -555,12 +599,10 @@ export default function MyUniqueDeliveriesPage() {
                     line-height:1.45;
                     margin:0;
                 }
-                .mySupportConversationCard button {
+                .mySupportConversationCard button,
+                .mySupportOrderActions a {
                     align-items:center;
-                    background:#00b894;
-                    border:0;
                     border-radius:10px;
-                    color:#fff;
                     cursor:pointer;
                     display:flex;
                     flex:0 0 auto;
@@ -569,6 +611,22 @@ export default function MyUniqueDeliveriesPage() {
                     gap:7px;
                     min-height:38px;
                     padding:9px 12px;
+                    text-decoration:none;
+                }
+                .mySupportConversationCard button {
+                    background:#00b894;
+                    border:0;
+                    color:#fff;
+                }
+                .mySupportOrderActions {
+                    display:flex;
+                    flex:0 0 auto;
+                    gap:8px;
+                }
+                .mySupportOrderActions a {
+                    background:var(--card-bg);
+                    border:1px solid var(--border-color);
+                    color:var(--text-primary);
                 }
                 .myDeliveriesEmpty {
                     background:var(--card-bg);
@@ -610,7 +668,11 @@ export default function MyUniqueDeliveriesPage() {
                         align-items:stretch;
                         flex-direction:column;
                     }
-                    .mySupportConversationCard button {
+                    .mySupportOrderActions {
+                        width:100%;
+                    }
+                    .mySupportConversationCard button,
+                    .mySupportOrderActions a {
                         justify-content:center;
                         width:100%;
                     }

@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
             .order('created_at', { ascending: false });
         if (ordersError) throw ordersError;
         if (!orders?.length) {
-            return withSensitiveResponseHeaders(jsonSuccess({ deliveries: [], support_conversations: [] }));
+            return withSensitiveResponseHeaders(jsonSuccess({ deliveries: [], support_conversations: [], support_orders: [] }));
         }
 
         const ordersById = new Map(orders.map((order: any) => [order.id, order]));
@@ -78,8 +78,16 @@ export async function GET(req: NextRequest) {
             .in('order_id', orderIds)
             .order('updated_at', { ascending: false });
         const supportThreads = supportResult.error ? [] : (supportResult.data || []);
-        const supportProductIds = Array.from(new Set(supportThreads.map((thread: any) => thread.product_id).filter(Boolean)));
-        const supportSellerIds = Array.from(new Set(supportThreads.map((thread: any) => thread.seller_id).filter(Boolean)));
+        const orderProductIds = Array.from(new Set(orders.map((order: any) => order.product_id).filter(Boolean)));
+        const orderSellerIds = Array.from(new Set(orders.map((order: any) => order.seller_id).filter(Boolean)));
+        const supportProductIds = Array.from(new Set([
+            ...supportThreads.map((thread: any) => thread.product_id).filter(Boolean),
+            ...orderProductIds,
+        ]));
+        const supportSellerIds = Array.from(new Set([
+            ...supportThreads.map((thread: any) => thread.seller_id).filter(Boolean),
+            ...orderSellerIds,
+        ]));
         const [supportProductsResult, supportSellersResult] = await Promise.all([
             supportProductIds.length
                 ? supabase.from('products').select('id, name').in('id', supportProductIds)
@@ -90,6 +98,7 @@ export async function GET(req: NextRequest) {
         ]);
         const supportProductsById = new Map((supportProductsResult.data || []).map((product: any) => [product.id, product]));
         const supportSellersById = new Map((supportSellersResult.data || []).map((seller: any) => [seller.id, seller]));
+        const threadByOrderId = new Map(supportThreads.map((thread: any) => [thread.order_id, thread]));
         const supportConversations = supportThreads
             .filter((thread: any) => {
                 const order: any = ordersById.get(thread.order_id);
@@ -122,6 +131,24 @@ export async function GET(req: NextRequest) {
                     },
                 };
             });
+        const supportOrders = orders.map((order: any) => {
+            const product: any = supportProductsById.get(order.product_id);
+            const seller: any = supportSellersById.get(order.seller_id);
+            const thread: any = threadByOrderId.get(order.id);
+            return {
+                id: order.id,
+                created_at: order.created_at,
+                product: product ? { id: product.id, name: product.name } : null,
+                seller: seller ? {
+                    id: seller.id,
+                    name: seller.store_name || seller.name || 'Vendedor',
+                    store_slug: seller.store_slug,
+                    store_active: seller.store_active === true,
+                    store_url: seller.store_slug ? `/store/${seller.store_slug}` : null,
+                } : null,
+                support_thread_id: thread?.id || null,
+            };
+        });
         const { data: fulfillments, error: fulfillmentError } = await supabase
             .from('unique_delivery_fulfillments')
             .select('id, order_id, product_id, seller_id, item_id, assigned_at, first_viewed_at, view_count')
@@ -130,7 +157,7 @@ export async function GET(req: NextRequest) {
             .order('assigned_at', { ascending: false });
         if (fulfillmentError) throw fulfillmentError;
         if (!fulfillments?.length) {
-            return withSensitiveResponseHeaders(jsonSuccess({ deliveries: [], support_conversations: supportConversations }));
+            return withSensitiveResponseHeaders(jsonSuccess({ deliveries: [], support_conversations: supportConversations, support_orders: supportOrders }));
         }
 
         const validFulfillments = fulfillments.filter((fulfillment: any) => {
@@ -140,7 +167,7 @@ export async function GET(req: NextRequest) {
                 && fulfillment.item_id;
         });
         if (!validFulfillments.length) {
-            return withSensitiveResponseHeaders(jsonSuccess({ deliveries: [], support_conversations: supportConversations }));
+            return withSensitiveResponseHeaders(jsonSuccess({ deliveries: [], support_conversations: supportConversations, support_orders: supportOrders }));
         }
 
         const itemIds = validFulfillments.map((entry: any) => entry.item_id);
@@ -237,7 +264,7 @@ export async function GET(req: NextRequest) {
             ),
         ]);
 
-        return withSensitiveResponseHeaders(jsonSuccess({ deliveries, support_conversations: supportConversations }));
+        return withSensitiveResponseHeaders(jsonSuccess({ deliveries, support_conversations: supportConversations, support_orders: supportOrders }));
     } catch (error: any) {
         if (/UNIQUE_DELIVERY_ENCRYPTION_KEY/.test(String(error?.message || ''))) {
             return withSensitiveResponseHeaders(

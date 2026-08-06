@@ -7,6 +7,9 @@ import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
 import { enqueueAndProcessOrderWebhook } from '@/lib/outgoing-webhooks';
 import { grantPaidOrderMemberEntitlement } from '@/lib/member-entitlements';
+import { sendPurchaseApprovedEmail } from '@/lib/email';
+import { orderUsesUniqueDelivery } from '@/lib/unique-deliveries';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 type ReconciliationStatus =
     | 'not_found'
@@ -117,6 +120,40 @@ async function notifyReconciledSale(order: any) {
     });
 }
 
+async function notifyReconciledBuyer(order: any) {
+    const buyerEmail = String(order.buyer_email || '').toLowerCase().trim();
+    if (!buyerEmail) return false;
+
+    const rl = await checkRateLimit({
+        key: `email:purchase:order:${order.id}`,
+        limit: 1,
+        windowSecs: 86400,
+        failOpen: true,
+    });
+    if (!rl.allowed) return false;
+
+    const { data: product } = order.product_id
+        ? await supabase
+            .from('products')
+            .select('name')
+            .eq('id', order.product_id)
+            .maybeSingle()
+        : { data: null };
+
+    await sendPurchaseApprovedEmail({
+        buyerName: order.buyer_name || 'cliente',
+        buyerEmail,
+        productName: product?.name || 'Sua compra',
+        amount: order.amount_display || ((Number(order.amount) || 0) / 100).toFixed(2),
+        paymentMethod: order.payment_method || 'pix',
+        orderId: order.id,
+        hasUniqueDelivery: order.product_id
+            ? await orderUsesUniqueDelivery(order.id, order.product_id)
+            : false,
+    });
+    return true;
+}
+
 async function ensureMerchantWebhook(
     order: Parameters<typeof enqueueAndProcessOrderWebhook>[0],
     status: string,
@@ -175,6 +212,11 @@ async function performOrderPaymentReconciliation(
                 notificationAttempted = await notifyReconciledSale(currentOrder);
             } catch (error) {
                 console.error('[PAYMENT RECONCILIATION] Failed to recover paid notification:', error);
+            }
+            try {
+                await notifyReconciledBuyer(currentOrder);
+            } catch (error) {
+                console.error('[PAYMENT RECONCILIATION] Failed to recover buyer email:', error);
             }
         }
         await ensureMerchantWebhook(currentOrder, 'paid');
@@ -266,6 +308,11 @@ async function performOrderPaymentReconciliation(
         notificationAttempted = await notifyReconciledSale(refreshedOrder);
     } catch (error) {
         console.error('[PAYMENT RECONCILIATION] Failed to notify paid order:', error);
+    }
+    try {
+        await notifyReconciledBuyer(refreshedOrder);
+    } catch (error) {
+        console.error('[PAYMENT RECONCILIATION] Failed to send buyer email:', error);
     }
     await ensureMerchantWebhook(refreshedOrder, 'paid');
 

@@ -228,6 +228,20 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         }
 
         const createdRows = created || [];
+        if (createdRows.length > 0) {
+            const firstCreatedAt = new Date().toISOString();
+            const { error: settingsError } = await supabase
+                .from('unique_delivery_settings')
+                .upsert({
+                    product_id: productId,
+                    seller_id: authorization.auth.user.id,
+                    enabled: true,
+                    enabled_at: firstCreatedAt,
+                }, { onConflict: 'product_id', ignoreDuplicates: true });
+            if (settingsError) {
+                console.error('[UNIQUE DELIVERY] Failed to auto-enable settings:', settingsError.message);
+            }
+        }
         const response = jsonSuccess({
             created: createdRows.map((item: any) => ({
                 id: item.id,

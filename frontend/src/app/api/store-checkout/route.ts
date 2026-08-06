@@ -3,6 +3,7 @@ import { supabase } from '@/lib/db';
 import { CARD_PLATFORM_FEE_PERCENTAGE, PagarmeService } from '@/lib/pagarme';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { normalizeInstallments, validateCreditCardBuyer } from '@/lib/checkout-validation';
+import { sendPurchaseApprovedEmail } from '@/lib/email';
 import { sendApprovedSaleNotification } from '@/lib/sale-notifications';
 import { classifyCardPaymentFailure, classifyCardProviderRequestError, isPagarmePaymentFailed } from '@/lib/card-payment-failure';
 import { formatPixFeeLabel, resolveSellerPixFee } from '@/lib/seller-pix-fee';
@@ -23,7 +24,7 @@ import {
 } from '@/lib/payment-security';
 import { saveTransactionByProviderEvent } from '@/lib/transaction-ledger';
 import { grantPaidOrderMemberEntitlement } from '@/lib/member-entitlements';
-import { getUniqueDeliveryStock } from '@/lib/unique-deliveries';
+import { getUniqueDeliveryStock, orderUsesUniqueDelivery } from '@/lib/unique-deliveries';
 import { normalizeStoreStyle } from '@/lib/store-builder';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -702,6 +703,30 @@ export async function POST(req: NextRequest) {
                 });
             } catch (notificationError) {
                 console.error('[STORE CHECKOUT] Approved sale notification error:', notificationError);
+            }
+
+            try {
+                const buyerEmail = String(buyer.email || '').toLowerCase().trim();
+                const rlEmailSend = await checkRateLimit({
+                    key: `email:purchase:order:${order.id}`,
+                    limit: 1,
+                    windowSecs: 86400,
+                    failOpen: true,
+                });
+                if (buyerEmail && rlEmailSend.allowed) {
+                    await sendPurchaseApprovedEmail({
+                        buyerName: buyer.name || 'cliente',
+                        buyerEmail,
+                        productName: validatedCart.length === 1 ? validatedCart[0].name : `${validatedCart.length} produtos`,
+                        amount: order.amount_display || (totalAmountCents / 100).toFixed(2),
+                        paymentMethod: method,
+                        orderId: order.id,
+                        hasUniqueDelivery: await orderUsesUniqueDelivery(order.id, order.product_id),
+                    });
+                    console.log(`[EMAIL] Email de compra da loja enviado para ${buyerEmail}`);
+                }
+            } catch (emailError: any) {
+                console.error('[STORE CHECKOUT] Purchase email error:', emailError?.message);
             }
         }
 
