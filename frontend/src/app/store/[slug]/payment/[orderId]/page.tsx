@@ -1,20 +1,24 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { FiCopy, FiCheck, FiSmartphone, FiClock, FiShield, FiCheckCircle, FiPackage, FiArrowLeft, FiCreditCard, FiMessageCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { checkoutAPI } from '@/lib/api';
-import { buildAuthUrl } from '@/lib/auth-return';
+import BuyerAuthChoiceModal from '@/components/BuyerAuthChoiceModal';
+import { buyerProductDestination, buyerSupportDestination } from '@/lib/buyer-access';
 export default function PaymentPage() {
     const params = useParams();
-    const router = useRouter();
     const [copied, setCopied] = useState(false);
     const [timeLeft, setTimeLeft] = useState(0);
     const [order, setOrder] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [paid, setPaid] = useState(false);
+    const [buyerAuthChoice, setBuyerAuthChoice] = useState<{
+        label: string;
+        returnTo: string;
+    } | null>(null);
     const pollingRef = useRef<any>(null);
     const pollingInFlightRef = useRef(false);
 
@@ -132,15 +136,16 @@ export default function PaymentPage() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const goToBuyerSupport = () => {
+    const openBuyerAuthChoice = (action: 'product' | 'support') => {
         if (!order?.id) return;
 
-        const returnTo = `/minhas-entregas?order=${encodeURIComponent(order.id)}`;
-        router.push(
-            localStorage.getItem('token')
-                ? returnTo
-                : buildAuthUrl('/login', returnTo),
-        );
+        const accessProduct = action === 'product';
+        setBuyerAuthChoice({
+            label: accessProduct ? 'Acessar produto' : 'Falar com o vendedor',
+            returnTo: accessProduct
+                ? buyerProductDestination(order.id, order.has_unique_delivery === true)
+                : buyerSupportDestination(order.id),
+        });
     };
 
     if (loading) {
@@ -184,18 +189,40 @@ export default function PaymentPage() {
                         <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, marginBottom: 6 }}>Valor pago</div>
                         <div style={{ fontSize: 32, fontWeight: 900, color: '#00cec9' }}>R$ {order.amount_display}</div>
                     </div>
-                    <button onClick={goToBuyerSupport} style={{
-                        width: '100%', padding: '16px', fontSize: 14,
-                        background: '#00cec9', color: '#071a1a', borderRadius: 14,
-                        border: 'none', cursor: 'pointer', fontWeight: 900,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                    }}>
-                        <FiMessageCircle size={18} /> Ir para o suporte
-                    </button>
+                    <div className="storePaidActions" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 10 }}>
+                        <button onClick={() => openBuyerAuthChoice('product')} style={{
+                            minHeight: 50, padding: '0 14px', fontSize: 14,
+                            background: '#00cec9', color: '#071a1a', borderRadius: 12,
+                            border: 'none', cursor: 'pointer', fontWeight: 900,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+                        }}>
+                            <FiPackage size={18} /> Acessar produto
+                        </button>
+                        <button onClick={() => openBuyerAuthChoice('support')} style={{
+                            minHeight: 50, padding: '0 14px', fontSize: 14,
+                            background: 'transparent', color: '#e2e8f0', borderRadius: 12,
+                            border: '1px solid rgba(255,255,255,0.14)', cursor: 'pointer', fontWeight: 900,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+                        }}>
+                            <FiMessageCircle size={18} /> Suporte
+                        </button>
+                    </div>
                     <p style={{ color: '#64748b', fontSize: 12, marginTop: 12 }}>
-                        Entre ou crie sua conta com o mesmo e-mail da compra para continuar.
+                        O acesso fica vinculado ao mesmo e-mail usado nesta compra.
                     </p>
                 </div>
+                {buyerAuthChoice && (
+                    <BuyerAuthChoiceModal
+                        actionLabel={buyerAuthChoice.label}
+                        returnTo={buyerAuthChoice.returnTo}
+                        onClose={() => setBuyerAuthChoice(null)}
+                    />
+                )}
+                <style jsx>{`
+                    @media (max-width:520px) {
+                        .storePaidActions { grid-template-columns:1fr !important; }
+                    }
+                `}</style>
             </div>
         );
     }

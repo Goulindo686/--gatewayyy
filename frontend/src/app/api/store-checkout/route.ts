@@ -736,7 +736,8 @@ export async function POST(req: NextRequest) {
                 id: order.id,
                 status: order.status,
                 amount_display: order.amount_display,
-                payment_method: order.payment_method
+                payment_method: order.payment_method,
+                has_unique_delivery: uniqueDeliveryProductIds.length > 0,
             }
         };
 

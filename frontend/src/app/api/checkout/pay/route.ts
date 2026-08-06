@@ -835,6 +835,7 @@ export async function POST(req: NextRequest) {
                 id: orderId,
                 status: charge?.status || 'pending',
                 amount_display: amountDisplay,
+                has_unique_delivery: uniqueDeliveryProductIds.includes(product.id),
                 payment_method: normalizedPaymentMethod,
             }
         };

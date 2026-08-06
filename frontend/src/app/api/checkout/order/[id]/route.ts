@@ -3,6 +3,7 @@ import { supabase } from '@/lib/db';
 import { jsonError, jsonSuccess } from '@/lib/auth';
 import { sendPaidOrderToUtmify } from '@/lib/utmify';
 import { reconcileOrderPayment } from '@/lib/order-payment-reconciliation';
+import { getUniqueDeliveryPurchaseKeys } from '@/lib/unique-deliveries';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -25,6 +26,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (!order) return jsonError('Pedido não encontrado', 404);
 
+    let hasUniqueDelivery = false;
+    if (order.status === 'paid') {
+        try {
+            const uniquePurchaseKeys = await getUniqueDeliveryPurchaseKeys([order.id]);
+            hasUniqueDelivery = Array.from(uniquePurchaseKeys).some((key) => (
+                key.startsWith(`${order.id}:`)
+            ));
+        } catch (error) {
+            console.error('[CHECKOUT STATUS] Failed to resolve delivery destination:', error);
+        }
+    }
+
     const response: any = {
         order: {
             id: order.id,
@@ -39,6 +52,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             card_brand: order.card_brand,
             installments: order.installments,
             created_at: order.created_at,
+            has_unique_delivery: hasUniqueDelivery,
         }
     };
 

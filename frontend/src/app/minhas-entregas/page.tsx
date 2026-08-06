@@ -9,7 +9,6 @@ import toast from 'react-hot-toast';
 import {
     FiArrowLeft,
     FiCheck,
-    FiChevronDown,
     FiCopy,
     FiExternalLink,
     FiKey,
@@ -29,7 +28,7 @@ export default function MyUniqueDeliveriesPage() {
     const router = useRouter();
     const [deliveries, setDeliveries] = useState<any[]>([]);
     const [supportOrders, setSupportOrders] = useState<any[]>([]);
-    const [selectedSupportOrderId, setSelectedSupportOrderId] = useState('');
+    const [focusedSupportOrderId, setFocusedSupportOrderId] = useState('');
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState<string | null>(null);
     const [openingSupport, setOpeningSupport] = useState<string | null>(null);
@@ -52,13 +51,19 @@ export default function MyUniqueDeliveriesPage() {
                     const orders = data.support_orders || [];
                     const requestedOrderId = new URLSearchParams(window.location.search).get('order');
                     setSupportOrders(orders);
-                    setSelectedSupportOrderId((current) => {
-                        if (current && orders.some((order: any) => order.id === current)) return current;
-                        if (requestedOrderId && orders.some((order: any) => order.id === requestedOrderId)) {
-                            return requestedOrderId;
-                        }
-                        return orders.find((order: any) => order.support_thread_id)?.id || orders[0]?.id || '';
-                    });
+                    const focusedOrderId = requestedOrderId
+                        && orders.some((order: any) => order.id === requestedOrderId)
+                        ? requestedOrderId
+                        : '';
+                    setFocusedSupportOrderId(focusedOrderId);
+                    if (focusedOrderId && new URLSearchParams(window.location.search).get('view') === 'support') {
+                        window.setTimeout(() => {
+                            document.getElementById(`support-${focusedOrderId}`)?.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center',
+                            });
+                        }, 100);
+                    }
                 }
             })
             .catch((error: any) => {
@@ -77,7 +82,7 @@ export default function MyUniqueDeliveriesPage() {
             cancelled = true;
             setDeliveries([]);
             setSupportOrders([]);
-            setSelectedSupportOrderId('');
+            setFocusedSupportOrderId('');
         };
     }, [router]);
 
@@ -88,16 +93,13 @@ export default function MyUniqueDeliveriesPage() {
         window.setTimeout(() => setCopied((current) => current === id ? null : current), 2500);
     };
 
-    const selectedSupportOrder = supportOrders.find((order) => order.id === selectedSupportOrderId);
-
-    const openSupport = async () => {
-        if (!selectedSupportOrder) return;
-        if (selectedSupportOrder.support_thread_id) {
-            router.push(`/support/${selectedSupportOrder.support_thread_id}`);
+    const openSupport = async (order: any) => {
+        if (order.support_thread_id) {
+            router.push(`/support/${order.support_thread_id}`);
             return;
         }
 
-        const orderId = selectedSupportOrder.id;
+        const orderId = order.id;
         setOpeningSupport(orderId);
         try {
             const { data } = await supportAPI.createBuyerThread(orderId);
@@ -144,60 +146,56 @@ export default function MyUniqueDeliveriesPage() {
                 </section>
 
                 {supportOrders.length > 0 && (
-                    <section className="mySupportHub">
-                        <div className="mySupportHubIntro">
-                            <span><FiMessageCircle size={21} /></span>
+                    <section className="mySupportArea">
+                        <header className="mySupportAreaTitle">
                             <div>
-                                <p>Central de atendimento</p>
-                                <h2>Converse com seus vendedores</h2>
-                                <small>Escolha uma compra para abrir ou continuar o atendimento.</small>
+                                <p>Atendimento das suas compras</p>
+                                <h2>Suporte por produto</h2>
                             </div>
-                        </div>
+                            <small>Cada conversa fica vinculada ao pedido e ao vendedor corretos.</small>
+                        </header>
 
-                        <div className="mySupportHubControls">
-                            <label>
-                                <span>Compra para atendimento</span>
-                                <div className="mySupportSelect">
-                                    <select
-                                        value={selectedSupportOrderId}
-                                        onChange={(event) => setSelectedSupportOrderId(event.target.value)}
+                        <div className="mySupportHubList">
+                            {supportOrders.map((order) => (
+                                <article
+                                    id={`support-${order.id}`}
+                                    key={order.id}
+                                    className={`mySupportHub${focusedSupportOrderId === order.id ? ' focused' : ''}`}
+                                >
+                                    <div className="mySupportHubIntro">
+                                        <span><FiMessageCircle size={21} /></span>
+                                        <div>
+                                            <p>Central de atendimento</p>
+                                            <h2>{order.product?.name || 'Compra na loja'}</h2>
+                                            <small>Atendimento com {order.seller?.name || 'Vendedor'}</small>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => openSupport(order)}
+                                        disabled={openingSupport === order.id}
                                     >
-                                        {supportOrders.map((order) => (
-                                            <option key={order.id} value={order.id}>
-                                                {order.product?.name || 'Compra na loja'} - {order.seller?.name || 'Vendedor'} - #{String(order.id).slice(0, 8)}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <FiChevronDown size={17} aria-hidden="true" />
-                                </div>
-                            </label>
-                            <button
-                                type="button"
-                                onClick={openSupport}
-                                disabled={!selectedSupportOrder || openingSupport === selectedSupportOrderId}
-                            >
-                                <FiMessageCircle size={17} />
-                                {openingSupport === selectedSupportOrderId
-                                    ? 'Abrindo...'
-                                    : selectedSupportOrder?.support_thread_id
-                                        ? 'Abrir conversa'
-                                        : 'Iniciar conversa'}
-                            </button>
-                        </div>
+                                        <FiMessageCircle size={17} />
+                                        {openingSupport === order.id
+                                            ? 'Abrindo...'
+                                            : order.support_thread_id
+                                                ? 'Abrir conversa'
+                                                : 'Iniciar conversa'}
+                                    </button>
 
-                        {selectedSupportOrder && (
-                            <div className="mySupportHubStatus">
-                                <strong>{selectedSupportOrder.product?.name || 'Compra na loja'}</strong>
-                                <span>
-                                    {selectedSupportOrder.seller?.name || 'Vendedor'} · Pedido #{String(selectedSupportOrder.id).slice(0, 8)}
-                                </span>
-                                <small>
-                                    {selectedSupportOrder.support_thread_id
-                                        ? 'Seu histórico está salvo e pronto para continuar.'
-                                        : 'Uma nova conversa será vinculada a esta compra.'}
-                                </small>
-                            </div>
-                        )}
+                                    <div className="mySupportHubStatus">
+                                        <strong>Pedido #{String(order.id).slice(0, 8)}</strong>
+                                        <span>{new Date(order.created_at).toLocaleDateString('pt-BR')}</span>
+                                        <small>
+                                            {order.support_thread_id
+                                                ? 'Seu histórico está salvo e pronto para continuar.'
+                                                : 'Uma nova conversa será vinculada a esta compra.'}
+                                        </small>
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
                     </section>
                 )}
 
@@ -507,18 +505,46 @@ export default function MyUniqueDeliveriesPage() {
                     padding:10px 13px;
                     text-decoration:none;
                 }
+                .mySupportArea { margin-bottom:26px; }
+                .mySupportAreaTitle {
+                    align-items:end;
+                    display:flex;
+                    gap:18px;
+                    justify-content:space-between;
+                    margin:0 2px 13px;
+                }
+                .mySupportAreaTitle p {
+                    color:#00b894;
+                    font-size:9px;
+                    font-weight:900;
+                    letter-spacing:.08em;
+                    margin:0 0 3px;
+                    text-transform:uppercase;
+                }
+                .mySupportAreaTitle h2 { color:var(--text-primary); font-size:18px; margin:0; }
+                .mySupportAreaTitle small { color:var(--text-muted); font-size:10px; }
+                .mySupportHubList { display:grid; gap:14px; }
                 .mySupportHub {
                     background:var(--card-bg);
                     border:1px solid var(--border-color);
-                    border-radius:16px;
+                    border-radius:14px;
                     box-shadow:0 18px 50px rgba(20,15,45,.06);
-                    margin-bottom:26px;
+                    display:grid;
+                    gap:16px;
+                    grid-template-columns:minmax(0,1fr) auto;
                     padding:20px;
+                    scroll-margin-top:90px;
+                    transition:border-color .2s,box-shadow .2s;
+                }
+                .mySupportHub.focused {
+                    border-color:rgba(0,184,148,.55);
+                    box-shadow:0 0 0 3px rgba(0,184,148,.08),0 18px 50px rgba(20,15,45,.08);
                 }
                 .mySupportHubIntro {
                     align-items:center;
                     display:flex;
                     gap:13px;
+                    min-width:0;
                 }
                 .mySupportHubIntro > span {
                     align-items:center;
@@ -543,50 +569,14 @@ export default function MyUniqueDeliveriesPage() {
                     color:var(--text-primary);
                     font-size:17px;
                     margin:0 0 3px;
+                    overflow-wrap:anywhere;
                 }
                 .mySupportHubIntro small {
                     color:var(--text-muted);
                     font-size:10px;
                 }
-                .mySupportHubControls {
-                    align-items:end;
-                    display:grid;
-                    gap:12px;
-                    grid-template-columns:minmax(0,1fr) auto;
-                    margin-top:18px;
-                }
-                .mySupportHubControls label > span {
-                    color:var(--text-secondary);
-                    display:block;
-                    font-size:10px;
-                    font-weight:800;
-                    margin-bottom:7px;
-                    text-transform:uppercase;
-                }
-                .mySupportSelect { position:relative; }
-                .mySupportSelect select {
-                    appearance:none;
-                    background:var(--bg-secondary);
-                    border:1px solid var(--border-color);
-                    border-radius:10px;
-                    color:var(--text-primary);
-                    cursor:pointer;
-                    font-size:12px;
-                    font-weight:700;
-                    min-height:46px;
-                    padding:0 42px 0 13px;
-                    text-overflow:ellipsis;
-                    width:100%;
-                }
-                .mySupportSelect svg {
-                    color:var(--text-muted);
-                    pointer-events:none;
-                    position:absolute;
-                    right:14px;
-                    top:50%;
-                    transform:translateY(-50%);
-                }
-                .mySupportHubControls > button {
+                .mySupportHub > button {
+                    align-self:center;
                     align-items:center;
                     background:#00b894;
                     border:0;
@@ -602,20 +592,22 @@ export default function MyUniqueDeliveriesPage() {
                     padding:0 18px;
                     white-space:nowrap;
                 }
-                .mySupportHubControls > button:disabled {
+                .mySupportHub > button:disabled {
                     cursor:not-allowed;
                     opacity:.65;
                 }
                 .mySupportHubStatus {
                     border-top:1px solid var(--border-color);
                     display:grid;
-                    gap:2px;
-                    margin-top:16px;
+                    gap:12px;
+                    grid-column:1 / -1;
+                    grid-template-columns:auto auto minmax(0,1fr);
                     padding-top:14px;
                 }
                 .mySupportHubStatus strong { color:var(--text-primary); font-size:12px; }
                 .mySupportHubStatus span,
                 .mySupportHubStatus small { color:var(--text-muted); font-size:10px; }
+                .mySupportHubStatus small { text-align:right; }
                 .myDeliveriesEmpty {
                     background:var(--card-bg);
                     border:1px solid var(--border-color);
@@ -651,9 +643,15 @@ export default function MyUniqueDeliveriesPage() {
                     .myDeliveryCard { padding:18px 14px; }
                     .myDeliveryBadge { display:none; }
                     .myDeliveriesEmpty > div { flex-direction:column; }
-                    .mySupportHub { padding:17px 14px; }
-                    .mySupportHubControls { grid-template-columns:1fr; }
-                    .mySupportHubControls > button { width:100%; }
+                    .mySupportAreaTitle { align-items:flex-start; flex-direction:column; gap:4px; }
+                    .mySupportHub { grid-template-columns:1fr; padding:17px 14px; }
+                    .mySupportHub > button { width:100%; }
+                    .mySupportHubStatus {
+                        display:flex;
+                        flex-direction:column;
+                        gap:3px;
+                    }
+                    .mySupportHubStatus small { margin-top:4px; text-align:left; }
                 }
             `}</style>
         </main>

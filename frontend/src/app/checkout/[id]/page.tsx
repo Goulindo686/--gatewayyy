@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { productsAPI, checkoutAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { FiShoppingCart, FiCreditCard, FiSmartphone, FiCheck, FiCopy, FiPackage, FiClock, FiLock, FiChevronDown, FiTag, FiPlusCircle, FiMessageCircle } from 'react-icons/fi';
@@ -23,7 +23,8 @@ import {
 } from '@/lib/pagarme-card';
 import { authenticatePagarme3DS } from '@/lib/pagarme-3ds';
 import { normalizeAffiliateReference } from '@/lib/affiliates-core';
-import { buildAuthUrl } from '@/lib/auth-return';
+import BuyerAuthChoiceModal from '@/components/BuyerAuthChoiceModal';
+import { buyerProductDestination, buyerSupportDestination } from '@/lib/buyer-access';
 
 const DEFAULT_SETTINGS = {
     theme: 'light', // Alterado para light por padrão conforme a imagem
@@ -219,7 +220,6 @@ function OrderSummary({
 
 export default function CheckoutPage() {
     const params = useParams();
-    const router = useRouter();
     const [cardConfig, setCardConfig] = useState({ enabled: false, publicKey: '' });
     const enableCreditCard = cardConfig.enabled && !!cardConfig.publicKey;
     const [product, setProduct] = useState<any>(null);
@@ -236,6 +236,10 @@ export default function CheckoutPage() {
     const [paymentMethod, setPaymentMethod] = useState('pix');
     const [result, setResult] = useState<any>(null);
     const [pixPaid, setPixPaid] = useState(false);
+    const [buyerAuthChoice, setBuyerAuthChoice] = useState<{
+        label: string;
+        returnTo: string;
+    } | null>(null);
     const pollingRef = useRef<any>(null);
     const purchaseTrackedRef = useRef(false);
     const checkoutSessionRef = useRef<string | null>(null);
@@ -457,6 +461,10 @@ export default function CheckoutPage() {
             try {
                 const { data } = await checkoutAPI.getOrderStatus(orderId);
                 if (data.order?.status === 'paid') {
+                    setResult((current: any) => ({
+                        ...current,
+                        order: { ...current?.order, ...data.order },
+                    }));
                     setPixPaid(true);
                     trackPurchaseOnce(data.order);
                     toast.success('Pagamento confirmado! 🎉');
@@ -658,16 +666,17 @@ export default function CheckoutPage() {
     const bannerHeightDesktop = settings.banner_height_desktop || 300;
     const bannerHeightMobile = settings.banner_height_mobile || 200;
 
-    const goToBuyerSupport = () => {
+    const openBuyerAuthChoice = (action: 'product' | 'support') => {
         const orderId = result?.order?.id;
         if (!orderId) return;
 
-        const returnTo = `/minhas-entregas?order=${encodeURIComponent(orderId)}`;
-        router.push(
-            localStorage.getItem('token')
-                ? returnTo
-                : buildAuthUrl('/login', returnTo),
-        );
+        const accessProduct = action === 'product';
+        setBuyerAuthChoice({
+            label: accessProduct ? 'Acessar produto' : 'Falar com o vendedor',
+            returnTo: accessProduct
+                ? buyerProductDestination(orderId, result.order?.has_unique_delivery === true)
+                : buyerSupportDestination(orderId),
+        });
     };
 
     if (loading) {
@@ -711,18 +720,35 @@ export default function CheckoutPage() {
                         <div className="text-4xl font-black" style={{ color: accent }}>R$ {result.order.amount_display}</div>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={goToBuyerSupport}
-                        className="w-full py-4 px-6 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                        style={{ background: accent }}
-                    >
-                        <FiMessageCircle size={20} /> Ir para o suporte
-                    </button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button
+                            type="button"
+                            onClick={() => openBuyerAuthChoice('product')}
+                            className="w-full py-4 px-5 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                            style={{ background: accent }}
+                        >
+                            <FiPackage size={19} /> Acessar produto
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => openBuyerAuthChoice('support')}
+                            className="w-full py-4 px-5 rounded-xl font-bold border flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                            style={{ color: textPrimary, borderColor }}
+                        >
+                            <FiMessageCircle size={19} /> Suporte
+                        </button>
+                    </div>
                     <p className="mt-4 text-xs opacity-60" style={{ color: textMuted }}>
-                        Entre ou crie sua conta com o mesmo e-mail da compra para continuar.
+                        O acesso fica vinculado ao mesmo e-mail usado nesta compra.
                     </p>
                 </div>
+                {buyerAuthChoice && (
+                    <BuyerAuthChoiceModal
+                        actionLabel={buyerAuthChoice.label}
+                        returnTo={buyerAuthChoice.returnTo}
+                        onClose={() => setBuyerAuthChoice(null)}
+                    />
+                )}
             </div>
         );
     }
