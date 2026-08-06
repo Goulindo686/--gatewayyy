@@ -67,19 +67,70 @@ export async function GET(req: NextRequest) {
             .order('created_at', { ascending: false });
         if (ordersError) throw ordersError;
         if (!orders?.length) {
-            return withSensitiveResponseHeaders(jsonSuccess({ deliveries: [] }));
+            return withSensitiveResponseHeaders(jsonSuccess({ deliveries: [], support_conversations: [] }));
         }
 
         const ordersById = new Map(orders.map((order: any) => [order.id, order]));
+        const orderIds = orders.map((order: any) => order.id);
+        const supportResult = await supabase
+            .from('support_threads')
+            .select('id, order_id, product_id, seller_id, store_slug, subject, status, last_message_at, last_message_preview, updated_at, created_at')
+            .in('order_id', orderIds)
+            .order('updated_at', { ascending: false });
+        const supportThreads = supportResult.error ? [] : (supportResult.data || []);
+        const supportProductIds = Array.from(new Set(supportThreads.map((thread: any) => thread.product_id).filter(Boolean)));
+        const supportSellerIds = Array.from(new Set(supportThreads.map((thread: any) => thread.seller_id).filter(Boolean)));
+        const [supportProductsResult, supportSellersResult] = await Promise.all([
+            supportProductIds.length
+                ? supabase.from('products').select('id, name').in('id', supportProductIds)
+                : Promise.resolve({ data: [] }),
+            supportSellerIds.length
+                ? supabase.from('users').select('id, name, store_name, store_slug, store_active').in('id', supportSellerIds)
+                : Promise.resolve({ data: [] }),
+        ]);
+        const supportProductsById = new Map((supportProductsResult.data || []).map((product: any) => [product.id, product]));
+        const supportSellersById = new Map((supportSellersResult.data || []).map((seller: any) => [seller.id, seller]));
+        const supportConversations = supportThreads
+            .filter((thread: any) => {
+                const order: any = ordersById.get(thread.order_id);
+                return order && order.seller_id === thread.seller_id;
+            })
+            .map((thread: any) => {
+                const order: any = ordersById.get(thread.order_id);
+                const product: any = supportProductsById.get(thread.product_id);
+                const seller: any = supportSellersById.get(thread.seller_id);
+                return {
+                    id: thread.id,
+                    order_id: thread.order_id,
+                    subject: thread.subject,
+                    status: thread.status,
+                    last_message_at: thread.last_message_at,
+                    last_message_preview: thread.last_message_preview,
+                    updated_at: thread.updated_at,
+                    created_at: thread.created_at,
+                    product: product ? { id: product.id, name: product.name } : null,
+                    seller: seller ? {
+                        id: seller.id,
+                        name: seller.store_name || seller.name || 'Vendedor',
+                        store_slug: seller.store_slug,
+                        store_active: seller.store_active === true,
+                        store_url: seller.store_slug ? `/store/${seller.store_slug}` : null,
+                    } : null,
+                    order: {
+                        id: order.id,
+                        created_at: order.created_at,
+                    },
+                };
+            });
         const { data: fulfillments, error: fulfillmentError } = await supabase
             .from('unique_delivery_fulfillments')
             .select('id, order_id, product_id, seller_id, item_id, assigned_at, first_viewed_at, view_count')
-            .in('order_id', orders.map((order: any) => order.id))
+            .in('order_id', orderIds)
             .eq('status', 'assigned')
             .order('assigned_at', { ascending: false });
         if (fulfillmentError) throw fulfillmentError;
         if (!fulfillments?.length) {
-            return withSensitiveResponseHeaders(jsonSuccess({ deliveries: [] }));
+            return withSensitiveResponseHeaders(jsonSuccess({ deliveries: [], support_conversations: supportConversations }));
         }
 
         const validFulfillments = fulfillments.filter((fulfillment: any) => {
@@ -89,7 +140,7 @@ export async function GET(req: NextRequest) {
                 && fulfillment.item_id;
         });
         if (!validFulfillments.length) {
-            return withSensitiveResponseHeaders(jsonSuccess({ deliveries: [] }));
+            return withSensitiveResponseHeaders(jsonSuccess({ deliveries: [], support_conversations: supportConversations }));
         }
 
         const itemIds = validFulfillments.map((entry: any) => entry.item_id);
@@ -186,7 +237,7 @@ export async function GET(req: NextRequest) {
             ),
         ]);
 
-        return withSensitiveResponseHeaders(jsonSuccess({ deliveries }));
+        return withSensitiveResponseHeaders(jsonSuccess({ deliveries, support_conversations: supportConversations }));
     } catch (error: any) {
         if (/UNIQUE_DELIVERY_ENCRYPTION_KEY/.test(String(error?.message || ''))) {
             return withSensitiveResponseHeaders(

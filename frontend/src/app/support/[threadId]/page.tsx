@@ -2,8 +2,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import {
@@ -27,10 +27,8 @@ function formatTime(value: string) {
 
 export default function BuyerSupportPage() {
     const params = useParams();
-    const searchParams = useSearchParams();
     const router = useRouter();
     const threadId = String(params.threadId || '');
-    const token = useMemo(() => String(searchParams.get('token') || ''), [searchParams]);
     const [thread, setThread] = useState<any>(null);
     const [messages, setMessages] = useState<any[]>([]);
     const [message, setMessage] = useState('');
@@ -39,12 +37,16 @@ export default function BuyerSupportPage() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const load = async (showError = false) => {
-        if (!threadId || !token) {
+        if (!threadId) {
             setLoading(false);
             return;
         }
+        if (!localStorage.getItem('token')) {
+            router.replace('/login?returnTo=%2Fminhas-entregas');
+            return;
+        }
         try {
-            const { data } = await supportAPI.getBuyerThread(threadId, token);
+            const { data } = await supportAPI.getBuyerThread(threadId);
             setThread(data.thread);
             setMessages(data.messages || []);
         } catch (error: any) {
@@ -60,7 +62,7 @@ export default function BuyerSupportPage() {
         void load(true);
         const id = window.setInterval(() => void load(false), 5000);
         return () => window.clearInterval(id);
-    }, [threadId, token]);
+    }, [threadId]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -72,7 +74,7 @@ export default function BuyerSupportPage() {
         if (!text || sending) return;
         setSending(true);
         try {
-            await supportAPI.sendBuyerMessage(threadId, token, text);
+            await supportAPI.sendBuyerMessage(threadId, text);
             setMessage('');
             await load(false);
         } catch (error: any) {
@@ -86,13 +88,13 @@ export default function BuyerSupportPage() {
         return <main className="buyerSupportPage"><div className="buyerSupportLoader" /></main>;
     }
 
-    if (!token || !thread) {
+    if (!thread) {
         return (
             <main className="buyerSupportPage">
                 <section className="buyerSupportEmpty">
                     <FiMessageCircle size={42} />
                     <h1>Atendimento nao encontrado</h1>
-                    <p>Abra o suporte novamente pela tela de pagamento ou por Minhas Entregas.</p>
+                    <p>Entre na conta GouPay usada na compra e abra o suporte por Minhas Entregas.</p>
                     <button onClick={() => router.push('/minhas-entregas')}>Ir para Minhas Entregas</button>
                 </section>
                 <SupportStyles />

@@ -134,10 +134,15 @@ export default function PaymentPage() {
 
     const openSupport = async () => {
         if (!order?.id || openingSupport) return;
+        if (!localStorage.getItem('token')) {
+            toast('Crie ou entre na sua conta GouPay para guardar a conversa.');
+            router.push('/register');
+            return;
+        }
         setOpeningSupport(true);
         try {
             const { data } = await supportAPI.createBuyerThread(order.id);
-            router.push(`/support/${data.thread.id}?token=${encodeURIComponent(data.token)}`);
+            router.push(`/support/${data.thread.id}`);
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Nao foi possivel abrir o suporte.');
         } finally {
@@ -206,7 +211,7 @@ export default function PaymentPage() {
                         fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                         opacity: openingSupport ? .65 : 1
                     }}>
-                        <FiMessageCircle size={18} /> {openingSupport ? 'Abrindo suporte...' : 'Falar com o vendedor'}
+                        <FiMessageCircle size={18} /> {openingSupport ? 'Abrindo suporte...' : 'Criar conta e falar com vendedor'}
                     </button>
                     <button onClick={() => router.push('/minhas-entregas')} style={{
                         width: '100%', padding: '14px', marginTop: 10, fontSize: 14,

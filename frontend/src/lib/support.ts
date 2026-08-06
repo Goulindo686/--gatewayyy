@@ -20,6 +20,95 @@ export function supportPreview(value: string) {
     return value.replace(/\s+/g, ' ').trim().slice(0, 180);
 }
 
+function normalizedEmail(value: unknown) {
+    return String(value || '').toLowerCase().trim();
+}
+
+export async function getOrCreateSupportThreadForBuyer(orderId: string, buyerUser: any) {
+    const buyerEmail = normalizedEmail(buyerUser?.email);
+    if (!buyerUser?.id || !buyerEmail) {
+        return { error: 'Entre na sua conta GouPay para acessar o suporte.', status: 401 as const };
+    }
+    if (buyerUser.email_verified !== true) {
+        return { error: 'Confirme seu e-mail antes de abrir o suporte da compra.', status: 403 as const };
+    }
+
+    const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('id, seller_id, product_id, buyer_name, buyer_email, buyer_email_normalized, buyer_phone, status')
+        .eq('id', orderId)
+        .maybeSingle();
+
+    if (orderError) throw orderError;
+    if (!order) return { error: 'Pedido nao encontrado', status: 404 as const };
+    if (order.status !== 'paid') {
+        return { error: 'O suporte fica disponivel depois da confirmacao do pagamento.', status: 403 as const };
+    }
+    const orderEmail = normalizedEmail(order.buyer_email_normalized || order.buyer_email);
+    if (!orderEmail || orderEmail !== buyerEmail) {
+        return { error: 'Esta compra pertence a outro e-mail.', status: 403 as const };
+    }
+
+    const [{ data: seller }, { data: product }] = await Promise.all([
+        supabase
+            .from('users')
+            .select('id, store_slug, store_name, name')
+            .eq('id', order.seller_id)
+            .maybeSingle(),
+        supabase
+            .from('products')
+            .select('id, name')
+            .eq('id', order.product_id)
+            .maybeSingle(),
+    ]);
+
+    const subject = product?.name ? `Suporte - ${product.name}` : 'Suporte da compra';
+
+    const { data: existing, error: existingError } = await supabase
+        .from('support_threads')
+        .select('*')
+        .eq('order_id', order.id)
+        .maybeSingle();
+    if (existingError) throw existingError;
+
+    if (existing) {
+        const { data: updated, error: updateError } = await supabase
+            .from('support_threads')
+            .update({
+                buyer_user_id: buyerUser.id,
+                status: existing.status === 'archived' ? 'open' : existing.status,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', existing.id)
+            .select('*')
+            .single();
+        if (updateError) throw updateError;
+        return { thread: updated, seller, product };
+    }
+
+    const { data: created, error: createError } = await supabase
+        .from('support_threads')
+        .insert({
+            seller_id: order.seller_id,
+            order_id: order.id,
+            product_id: order.product_id,
+            store_slug: seller?.store_slug || null,
+            buyer_name: order.buyer_name || 'Cliente',
+            buyer_email: order.buyer_email,
+            buyer_phone: order.buyer_phone || null,
+            buyer_user_id: buyerUser.id,
+            subject,
+            status: 'open',
+            priority: 'normal',
+            source: 'store',
+        })
+        .select('*')
+        .single();
+    if (createError) throw createError;
+
+    return { thread: created, seller, product };
+}
+
 export async function getOrCreateSupportThreadForOrder(orderId: string) {
     const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -113,6 +202,40 @@ export async function validateBuyerThreadAccess(threadId: string, token: string)
     const expectedBuffer = Buffer.from(expected, 'hex');
     if (providedBuffer.length !== expectedBuffer.length) return null;
     if (!crypto.timingSafeEqual(providedBuffer, expectedBuffer)) return null;
+
+    return thread;
+}
+
+export async function validateBuyerThreadUser(threadId: string, buyerUser: any) {
+    const buyerEmail = normalizedEmail(buyerUser?.email);
+    if (!buyerUser?.id || !buyerEmail || buyerUser.email_verified !== true) return null;
+
+    const { data: thread, error } = await supabase
+        .from('support_threads')
+        .select('*')
+        .eq('id', threadId)
+        .maybeSingle();
+
+    if (error) throw error;
+    if (!thread) return null;
+
+    const threadEmail = normalizedEmail(thread.buyer_email);
+    if (thread.buyer_user_id && thread.buyer_user_id !== buyerUser.id) return null;
+    if (!thread.buyer_user_id && threadEmail !== buyerEmail) return null;
+
+    if (!thread.buyer_user_id) {
+        const { data: updated, error: updateError } = await supabase
+            .from('support_threads')
+            .update({
+                buyer_user_id: buyerUser.id,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', thread.id)
+            .select('*')
+            .single();
+        if (updateError) throw updateError;
+        return updated;
+    }
 
     return thread;
 }

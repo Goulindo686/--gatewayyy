@@ -26,6 +26,7 @@ function formatDate(value: string) {
 export default function MyUniqueDeliveriesPage() {
     const router = useRouter();
     const [deliveries, setDeliveries] = useState<any[]>([]);
+    const [supportConversations, setSupportConversations] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState<string | null>(null);
     const [openingSupport, setOpeningSupport] = useState<string | null>(null);
@@ -40,7 +41,10 @@ export default function MyUniqueDeliveriesPage() {
         let cancelled = false;
         myUniqueDeliveryAPI.list()
             .then(({ data }) => {
-                if (!cancelled) setDeliveries(data.deliveries || []);
+                if (!cancelled) {
+                    setDeliveries(data.deliveries || []);
+                    setSupportConversations(data.support_conversations || []);
+                }
             })
             .catch((error: any) => {
                 if (error.response?.status !== 401) {
@@ -57,6 +61,7 @@ export default function MyUniqueDeliveriesPage() {
         return () => {
             cancelled = true;
             setDeliveries([]);
+            setSupportConversations([]);
         };
     }, [router]);
 
@@ -71,7 +76,7 @@ export default function MyUniqueDeliveriesPage() {
         setOpeningSupport(orderId);
         try {
             const { data } = await supportAPI.createBuyerThread(orderId);
-            router.push(`/support/${data.thread.id}?token=${encodeURIComponent(data.token)}`);
+            router.push(`/support/${data.thread.id}`);
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Nao foi possivel abrir o suporte.');
         } finally {
@@ -112,6 +117,33 @@ export default function MyUniqueDeliveriesPage() {
                         <p>Não compartilhe senhas ou keys. A GouPay não envia essas credenciais por APIs públicas.</p>
                     </div>
                 </section>
+
+                {supportConversations.length > 0 && (
+                    <section className="mySupportConversations">
+                        <div className="mySupportConversationsTitle">
+                            <span><FiMessageCircle size={16} /> Conversas de suporte</span>
+                            <small>Histórico salvo na sua conta GouPay</small>
+                        </div>
+                        <div className="mySupportConversationList">
+                            {supportConversations.map((conversation) => (
+                                <article key={conversation.id} className="mySupportConversationCard">
+                                    <div>
+                                        <strong>{conversation.product?.name || conversation.subject}</strong>
+                                        <p>
+                                            {conversation.seller?.name || 'Vendedor'}
+                                            {' · '}
+                                            Pedido #{String(conversation.order_id || '').slice(0, 8)}
+                                        </p>
+                                        <small>{conversation.last_message_preview || 'Conversa iniciada.'}</small>
+                                    </div>
+                                    <button type="button" onClick={() => router.push(`/support/${conversation.id}`)}>
+                                        <FiMessageCircle size={15} /> Abrir conversa
+                                    </button>
+                                </article>
+                            ))}
+                        </div>
+                    </section>
+                )}
 
                 {loading ? (
                     <div className="myDeliveriesLoading"><span /></div>
@@ -203,7 +235,7 @@ export default function MyUniqueDeliveriesPage() {
                             </article>
                         ))}
                     </div>
-                ) : (
+                ) : !supportConversations.length ? (
                     <section className="myDeliveriesEmpty">
                         <FiKey size={45} />
                         <h2>Nenhuma entrega exclusiva encontrada</h2>
@@ -216,7 +248,7 @@ export default function MyUniqueDeliveriesPage() {
                             <Link href="/dashboard">Ir para o painel</Link>
                         </div>
                     </section>
-                )}
+                ) : null}
             </div>
 
             <style>{`
@@ -468,6 +500,76 @@ export default function MyUniqueDeliveriesPage() {
                     cursor:not-allowed;
                     opacity:.65;
                 }
+                .mySupportConversations {
+                    background:var(--card-bg);
+                    border:1px solid var(--border-color);
+                    border-radius:20px;
+                    margin-bottom:22px;
+                    padding:18px;
+                }
+                .mySupportConversationsTitle {
+                    align-items:center;
+                    display:flex;
+                    justify-content:space-between;
+                    gap:12px;
+                    margin-bottom:14px;
+                }
+                .mySupportConversationsTitle span {
+                    align-items:center;
+                    color:var(--text-primary);
+                    display:flex;
+                    font-size:13px;
+                    font-weight:900;
+                    gap:8px;
+                }
+                .mySupportConversationsTitle small {
+                    color:var(--text-muted);
+                    font-size:10px;
+                    font-weight:700;
+                }
+                .mySupportConversationList {
+                    display:grid;
+                    gap:10px;
+                }
+                .mySupportConversationCard {
+                    align-items:center;
+                    background:var(--bg-secondary);
+                    border:1px solid var(--border-color);
+                    border-radius:14px;
+                    display:flex;
+                    gap:14px;
+                    justify-content:space-between;
+                    padding:14px;
+                }
+                .mySupportConversationCard strong {
+                    color:var(--text-primary);
+                    display:block;
+                    font-size:13px;
+                    margin-bottom:4px;
+                }
+                .mySupportConversationCard p,
+                .mySupportConversationCard small {
+                    color:var(--text-muted);
+                    display:block;
+                    font-size:10px;
+                    line-height:1.45;
+                    margin:0;
+                }
+                .mySupportConversationCard button {
+                    align-items:center;
+                    background:#00b894;
+                    border:0;
+                    border-radius:10px;
+                    color:#fff;
+                    cursor:pointer;
+                    display:flex;
+                    flex:0 0 auto;
+                    font-size:11px;
+                    font-weight:850;
+                    gap:7px;
+                    min-height:38px;
+                    padding:9px 12px;
+                }
                 .myDeliveriesEmpty {
                     background:var(--card-bg);
                     border:1px solid var(--border-color);
@@ -503,6 +605,15 @@ export default function MyUniqueDeliveriesPage() {
                     .myDeliveryCard { padding:18px 14px; }
                     .myDeliveryBadge { display:none; }
                     .myDeliveriesEmpty > div { flex-direction:column; }
+                    .mySupportConversationsTitle,
+                    .mySupportConversationCard {
+                        align-items:stretch;
+                        flex-direction:column;
+                    }
+                    .mySupportConversationCard button {
+                        justify-content:center;
+                        width:100%;
+                    }
                 }
             `}</style>
         </main>
