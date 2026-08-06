@@ -1,10 +1,10 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { CSSProperties, useEffect, useMemo, useState } from 'react';
+import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { storeAPI } from '@/lib/api';
-import { FiArrowRight, FiBookOpen, FiCheckCircle, FiCreditCard, FiGrid, FiHeadphones, FiInstagram, FiLock, FiMail, FiPackage, FiSearch, FiShield, FiShoppingBag, FiUser, FiZap } from 'react-icons/fi';
+import { FiArrowRight, FiBookOpen, FiCheckCircle, FiChevronLeft, FiChevronRight, FiCreditCard, FiGrid, FiHeadphones, FiInstagram, FiLock, FiMail, FiPackage, FiSearch, FiShield, FiShoppingBag, FiUser, FiZap } from 'react-icons/fi';
 import { useCart } from '@/contexts/CartContext';
 import StoreBannerCarousel from '@/components/store/StoreBannerCarousel';
 import StoreCartDrawer from '@/components/store/StoreCartDrawer';
@@ -56,6 +56,7 @@ export default function StorePage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { totalItems } = useCart();
+    const categoryRailRef = useRef<HTMLDivElement | null>(null);
 
     const [store, setStore] = useState<any>(null);
     const [categories, setCategories] = useState<any[]>([]);
@@ -134,6 +135,13 @@ export default function StorePage() {
 
     const handleCategoryClick = (catSlug: string) => {
         router.push(catSlug === activeCategory ? storeHomePath : `${storeHomePath}?category=${catSlug}`);
+    };
+
+    const scrollCategoryRail = (direction: -1 | 1) => {
+        const rail = categoryRailRef.current;
+        if (!rail) return;
+        const amount = Math.max(rail.clientWidth * 0.78, 320);
+        rail.scrollBy({ left: amount * direction, behavior: 'smooth' });
     };
 
     const handleNavClick = (url: string) => {
@@ -283,7 +291,11 @@ export default function StorePage() {
             >
                 <div className="store-main-header-inner">
                     <button className="store-brand" onClick={() => router.push(storeHomePath)} style={{ color: theme.text }}>
-                        <span className="store-brand-mark" style={{ background: `linear-gradient(145deg, ${accent}, ${accent}99)` }}>{storeInitials}</span>
+                        <span className="store-brand-mark" style={{ background: `linear-gradient(145deg, ${accent}, ${accent}99)` }}>
+                            {heroContent.logo_url
+                                ? <img src={heroContent.logo_url} alt="" />
+                                : storeInitials}
+                        </span>
                         <span className="store-brand-name">{store.name || slug}</span>
                         <FiCheckCircle className="store-brand-check" style={{ color: accent }} />
                     </button>
@@ -412,30 +424,54 @@ export default function StorePage() {
                             Ver catálogo completo <FiArrowRight />
                         </button>
                     </div>
-                    <div className="store-category-cards">
-                        {categoryStats.slice(0, 6).map((category, index) => (
+                    <div className="store-category-carousel">
+                        {categoryStats.length > 4 && (
                             <button
-                                key={category.id}
-                                onClick={() => handleCategoryClick(category.slug)}
+                                type="button"
+                                className="store-category-nav previous"
+                                onClick={() => scrollCategoryRail(-1)}
+                                aria-label="Ver categorias anteriores"
                                 style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}
                             >
-                                <span className="store-category-visual">
-                                    {category.image_url ? (
-                                        <img src={category.image_url} alt="" />
-                                    ) : (
-                                        <span className="store-category-fallback" style={{ background: `linear-gradient(145deg, ${accent}cc, ${theme.surfaceAlt})` }}>
-                                            {index % 3 === 0 ? <FiGrid /> : index % 3 === 1 ? <FiBookOpen /> : <FiZap />}
-                                        </span>
-                                    )}
-                                    <span className="store-category-shade" />
-                                </span>
-                                <span className="store-category-copy">
-                                    <strong>{category.name}</strong>
-                                    <small style={{ color: theme.muted }}>{category.productCount} produto{category.productCount === 1 ? '' : 's'}</small>
-                                </span>
-                                <FiArrowRight className="store-category-arrow" />
+                                <FiChevronLeft />
                             </button>
-                        ))}
+                        )}
+                        <div className="store-category-cards" ref={categoryRailRef}>
+                            {categoryStats.map((category, index) => (
+                                <button
+                                    key={category.id}
+                                    onClick={() => handleCategoryClick(category.slug)}
+                                    style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}
+                                >
+                                    <span className="store-category-visual">
+                                        {category.image_url ? (
+                                            <img src={category.image_url} alt="" />
+                                        ) : (
+                                            <span className="store-category-fallback" style={{ background: `linear-gradient(145deg, ${accent}cc, ${theme.surfaceAlt})` }}>
+                                                {index % 3 === 0 ? <FiGrid /> : index % 3 === 1 ? <FiBookOpen /> : <FiZap />}
+                                            </span>
+                                        )}
+                                        <span className="store-category-shade" />
+                                    </span>
+                                    <span className="store-category-copy">
+                                        <strong>{category.name}</strong>
+                                        <small style={{ color: theme.muted }}>{category.productCount} produto{category.productCount === 1 ? '' : 's'}</small>
+                                    </span>
+                                    <FiArrowRight className="store-category-arrow" />
+                                </button>
+                            ))}
+                        </div>
+                        {categoryStats.length > 4 && (
+                            <button
+                                type="button"
+                                className="store-category-nav next"
+                                onClick={() => scrollCategoryRail(1)}
+                                aria-label="Ver proximas categorias"
+                                style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}
+                            >
+                                <FiChevronRight />
+                            </button>
+                        )}
                     </div>
                 </section>
             )}
@@ -631,11 +667,18 @@ export default function StorePage() {
                     display: grid;
                     place-items: center;
                     flex: 0 0 auto;
+                    overflow: hidden;
                     color: white;
                     font-size: 12px;
                     font-weight: 950;
                     letter-spacing: -.02em;
                     box-shadow: inset 0 1px 0 rgba(255,255,255,.24);
+                }
+                .store-brand-mark img {
+                    width: 100%;
+                    height: 100%;
+                    display: block;
+                    object-fit: cover;
                 }
                 .store-brand-name {
                     min-width: 0;
@@ -1007,14 +1050,24 @@ export default function StorePage() {
                     font-weight: 850;
                     cursor: pointer;
                 }
+                .store-category-carousel {
+                    position: relative;
+                }
                 .store-category-cards {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(142px, 172px));
-                    justify-content: center;
+                    display: flex;
                     gap: 16px;
+                    overflow-x: auto;
+                    scroll-behavior: smooth;
+                    scroll-snap-type: x mandatory;
+                    scrollbar-width: none;
+                    padding: 2px 2px 12px;
+                }
+                .store-category-cards::-webkit-scrollbar {
+                    display: none;
                 }
                 .store-category-cards > button {
                     position: relative;
+                    flex: 0 0 160px;
                     aspect-ratio: 5 / 7;
                     min-height: 0;
                     border: 1px solid;
@@ -1026,6 +1079,7 @@ export default function StorePage() {
                     text-align: center;
                     cursor: pointer;
                     transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+                    scroll-snap-align: start;
                 }
                 .store-category-cards > button:hover {
                     transform: translateY(-3px);
@@ -1111,6 +1165,32 @@ export default function StorePage() {
                 .store-category-cards > button:hover .store-category-arrow {
                     opacity: 1;
                     transform: translate(2px, -2px);
+                }
+                .store-category-nav {
+                    position: absolute;
+                    top: 50%;
+                    z-index: 3;
+                    width: 42px;
+                    height: 42px;
+                    border: 1px solid;
+                    border-radius: 999px;
+                    display: grid;
+                    place-items: center;
+                    cursor: pointer;
+                    transform: translateY(-50%);
+                    box-shadow: 0 14px 32px rgba(0,0,0,.18);
+                    backdrop-filter: blur(12px);
+                    transition: transform .2s ease, border-color .2s ease;
+                }
+                .store-category-nav:hover {
+                    border-color: ${accent};
+                    transform: translateY(-50%) scale(1.04);
+                }
+                .store-category-nav.previous {
+                    left: -20px;
+                }
+                .store-category-nav.next {
+                    right: -20px;
                 }
                 .store-catalog-toolbar {
                     display: flex;
@@ -1577,9 +1657,6 @@ export default function StorePage() {
                     .store-hero h1 {
                         font-size: clamp(40px, 8vw, 62px);
                     }
-                    .store-category-cards {
-                        grid-template-columns: repeat(auto-fit, minmax(138px, 166px));
-                    }
                     .store-catalog-toolbar {
                         align-items: flex-start;
                         flex-direction: column;
@@ -1750,9 +1827,6 @@ export default function StorePage() {
                     }
                     .store-categories-heading > button {
                         align-self: flex-start;
-                    }
-                    .store-category-cards {
-                        grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
                     }
                     .store-category-cards > button {
                         aspect-ratio: 5 / 7;
@@ -2024,8 +2098,6 @@ export default function StorePage() {
                     letter-spacing: .10em;
                 }
                 .store-category-cards {
-                    grid-template-columns: repeat(auto-fit, minmax(150px, 176px));
-                    justify-content: center;
                     gap: 17px;
                 }
                 .store-category-cards > button {
@@ -2249,9 +2321,6 @@ export default function StorePage() {
                     .store-main-nav button {
                         padding-inline: 9px;
                     }
-                    .store-category-cards {
-                        grid-template-columns: repeat(auto-fit, minmax(138px, 166px));
-                    }
                     .store-product-section {
                         padding: 24px;
                     }
@@ -2344,6 +2413,16 @@ export default function StorePage() {
                         flex: 0 0 150px;
                         aspect-ratio: 5 / 7;
                         scroll-snap-align: center;
+                    }
+                    .store-category-nav {
+                        width: 36px;
+                        height: 36px;
+                    }
+                    .store-category-nav.previous {
+                        left: 2px;
+                    }
+                    .store-category-nav.next {
+                        right: 2px;
                     }
                     .storefront-content {
                         padding-top: 34px !important;
