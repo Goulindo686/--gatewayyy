@@ -15,6 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const router = useRouter();
     const pathname = usePathname();
     const [user, setUser] = useState<any>(null);
+    const [authChecked, setAuthChecked] = useState(false);
     const [isImpersonating, setIsImpersonating] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -38,23 +39,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const popoverRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const userData = localStorage.getItem('user');
-        const token = localStorage.getItem('token');
-        const sc = localStorage.getItem('sidebarCollapsed');
-        if (!token || !userData) {
-            router.push('/login');
-            return;
+        try {
+            const userData = localStorage.getItem('user');
+            const token = localStorage.getItem('token');
+            const sc = localStorage.getItem('sidebarCollapsed');
+            if (!token || !userData) {
+                router.replace('/login');
+                return;
+            }
+
+            const parsedUser = JSON.parse(userData);
+            if (!parsedUser?.id && !parsedUser?.email) {
+                throw new Error('Invalid stored user');
+            }
+
+            setUser(parsedUser);
+            setIsImpersonating(!!localStorage.getItem('admin_token'));
+            if (sc) setSidebarCollapsed(sc === '1' || sc === 'true');
+        } catch {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('admin_token');
+            localStorage.removeItem('admin_user');
+            router.replace('/login');
+        } finally {
+            setAuthChecked(true);
         }
-        setUser(JSON.parse(userData));
-        setIsImpersonating(!!localStorage.getItem('admin_token'));
-        if (sc) setSidebarCollapsed(sc === '1' || sc === 'true');
     }, [router]);
 
     useEffect(() => {
         const onUserUpdated = (event: Event) => {
             const customEvent = event as CustomEvent<any>;
-            const nextUser = customEvent.detail || JSON.parse(localStorage.getItem('user') || 'null');
-            if (nextUser) setUser(nextUser);
+            try {
+                const nextUser = customEvent.detail || JSON.parse(localStorage.getItem('user') || 'null');
+                if (nextUser) setUser(nextUser);
+            } catch {
+                localStorage.removeItem('user');
+            }
         };
         window.addEventListener('goupay:user-updated', onUserUpdated);
         return () => window.removeEventListener('goupay:user-updated', onUserUpdated);
@@ -340,7 +361,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: '/dashboard/contact', icon: <FiMessageCircle size={18} />, label: 'Falar com a gente' },
     ];
 
-    if (!user) return null;
+    if (!user) {
+        return (
+            <div style={{
+                minHeight: '100vh',
+                display: 'grid',
+                placeItems: 'center',
+                background: 'var(--bg-secondary)',
+                color: 'var(--text-primary)',
+                padding: 24,
+            }}>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{
+                        width: 40,
+                        height: 40,
+                        border: '3px solid var(--border-color)',
+                        borderTopColor: 'var(--accent-primary)',
+                        borderRadius: '50%',
+                        animation: 'dashboardAuthSpin .8s linear infinite',
+                        margin: '0 auto 14px',
+                    }} />
+                    <strong style={{ display: 'block', fontSize: 14 }}>
+                        {authChecked ? 'Redirecionando para o login...' : 'Carregando painel...'}
+                    </strong>
+                </div>
+                <style jsx global>{`
+                    @keyframes dashboardAuthSpin { to { transform: rotate(360deg); } }
+                `}</style>
+            </div>
+        );
+    }
 
     const current = salesTotal ?? 0;
     const targets = [10_000, 100_000, 500_000, 1_000_000];
