@@ -142,7 +142,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
             }
         }
 
-        let { data: products, error: prodError } = await query;
+        const productsResult = await query;
+        let products: any[] | null = productsResult.data;
+        let prodError = productsResult.error;
         if (prodError && /store_sort_order/i.test(prodError.message || '')) {
             let fallbackQuery = supabase
                 .from('products')
@@ -158,7 +160,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
                 if (category) fallbackQuery = fallbackQuery.eq('store_category_id', category.id);
             }
             const fallback = await fallbackQuery;
-            products = fallback.data;
+            products = fallback.data as any[] | null;
             prodError = fallback.error;
         }
 
