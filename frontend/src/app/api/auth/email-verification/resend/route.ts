@@ -39,6 +39,6 @@ export async function POST(req: NextRequest) {
     } catch (error) {
         if (error instanceof EmailVerificationError) return jsonError(error.message, error.status);
         console.error('[EMAIL VERIFICATION] Resend error:', error);
-        return jsonError('Nao foi possivel reenviar o codigo agora', 500);
+        return jsonError('Servico de email temporariamente indisponivel. Tente novamente em alguns minutos ou avise o suporte.', 503);
     }
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { adminAPI } from '@/lib/api';
-import { FiDollarSign, FiInfo, FiCreditCard, FiSmartphone, FiPercent } from 'react-icons/fi';
+import { FiDollarSign, FiInfo, FiCreditCard, FiSmartphone, FiPercent, FiMail, FiRefreshCw } from 'react-icons/fi';
 
 const PIX_PLATFORM_FEE = 2.00;
 const CARD_PLATFORM_PERCENT = 2.00;
@@ -33,6 +33,9 @@ export default function AdminSettingsPage() {
     const [activeTab, setActiveTab] = useState<'pix' | 'card'>('pix');
     const [simValue, setSimValue] = useState(100);
     const [discordWebhookUrl, setDiscordWebhookUrl] = useState('');
+    const [emailTestTo, setEmailTestTo] = useState('');
+    const [emailTesting, setEmailTesting] = useState<'verify' | 'send' | null>(null);
+    const [emailTestResult, setEmailTestResult] = useState<any>(null);
 
     useEffect(() => {
         adminAPI.getSettings()
@@ -55,6 +58,23 @@ export default function AdminSettingsPage() {
             alert('Erro ao salvar configurações');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleEmailTest = async (mode: 'verify' | 'send') => {
+        try {
+            setEmailTesting(mode);
+            setEmailTestResult(null);
+            const { data } = await adminAPI.testEmailSettings({ mode, to: emailTestTo });
+            setEmailTestResult({ ok: true, ...data });
+        } catch (error: any) {
+            setEmailTestResult({
+                ok: false,
+                error: error.response?.data?.error || 'Falha no teste de email',
+                diagnostic: error.response?.data?.diagnostic || null,
+            });
+        } finally {
+            setEmailTesting(null);
         }
     };
 
@@ -136,6 +156,121 @@ export default function AdminSettingsPage() {
                             {saving ? 'Salvando webhook...' : 'Salvar webhook do Discord'}
                         </button>
                     </div>
+                </div>
+
+                {/* Card: Diagnostico de e-mail */}
+                <div className="glass-card" style={{ padding: 28 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                        <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(0,206,201,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--success)' }}>
+                            <FiMail size={20} />
+                        </div>
+                        <div>
+                            <h3 style={{ fontSize: 16, fontWeight: 600 }}>Diagnostico de Email</h3>
+                            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Teste o SMTP usado nos codigos de verificacao</p>
+                        </div>
+                    </div>
+
+                    <div style={{ marginBottom: 14 }}>
+                        <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8, color: 'var(--text-primary)' }}>
+                            Email para receber o teste
+                        </label>
+                        <input
+                            type="email"
+                            placeholder="seu@email.com"
+                            value={emailTestTo}
+                            onChange={e => setEmailTestTo(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '12px 16px',
+                                borderRadius: 10,
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--bg-secondary)',
+                                color: 'var(--text-primary)',
+                                fontSize: 14,
+                                outline: 'none'
+                            }}
+                        />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <button
+                            type="button"
+                            onClick={() => handleEmailTest('verify')}
+                            disabled={Boolean(emailTesting)}
+                            style={{
+                                background: 'rgba(108,92,231,0.12)',
+                                color: 'var(--accent-primary)',
+                                border: '1px solid rgba(108,92,231,0.22)',
+                                padding: '12px 16px',
+                                borderRadius: 8,
+                                fontWeight: 700,
+                                fontSize: 13,
+                                cursor: emailTesting ? 'not-allowed' : 'pointer',
+                                opacity: emailTesting ? 0.7 : 1
+                            }}
+                        >
+                            {emailTesting === 'verify' ? 'Verificando...' : 'Verificar conexao'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleEmailTest('send')}
+                            disabled={Boolean(emailTesting)}
+                            style={{
+                                background: 'var(--success)',
+                                color: '#091816',
+                                border: 'none',
+                                padding: '12px 16px',
+                                borderRadius: 8,
+                                fontWeight: 800,
+                                fontSize: 13,
+                                cursor: emailTesting ? 'not-allowed' : 'pointer',
+                                opacity: emailTesting ? 0.7 : 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 8
+                            }}
+                        >
+                            <FiRefreshCw size={14} style={{ animation: emailTesting === 'send' ? 'spin 0.8s linear infinite' : undefined }} />
+                            {emailTesting === 'send' ? 'Enviando...' : 'Enviar teste'}
+                        </button>
+                    </div>
+
+                    {emailTestResult && (
+                        <div style={{
+                            marginTop: 16,
+                            padding: 14,
+                            borderRadius: 10,
+                            border: emailTestResult.ok ? '1px solid rgba(0,206,201,0.22)' : '1px solid rgba(255,107,107,0.25)',
+                            background: emailTestResult.ok ? 'rgba(0,206,201,0.07)' : 'rgba(255,107,107,0.08)',
+                            color: 'var(--text-secondary)',
+                            fontSize: 12,
+                            lineHeight: 1.7,
+                            wordBreak: 'break-word'
+                        }}>
+                            <strong style={{ color: emailTestResult.ok ? 'var(--success)' : 'var(--danger)' }}>
+                                {emailTestResult.ok ? 'SMTP funcionando' : emailTestResult.error}
+                            </strong>
+                            {emailTestResult.ok && emailTestResult.result && (
+                                <div style={{ marginTop: 8 }}>
+                                    Host: {emailTestResult.result.host}:{emailTestResult.result.port}<br />
+                                    Secure: {String(emailTestResult.result.secure)}<br />
+                                    Usuario: {emailTestResult.result.userMasked}<br />
+                                    Remetente: {emailTestResult.result.from}<br />
+                                    {emailTestResult.result.messageId && <>Message ID: {emailTestResult.result.messageId}<br /></>}
+                                    {emailTestResult.result.accepted?.length > 0 && <>Aceito por: {emailTestResult.result.accepted.join(', ')}</>}
+                                </div>
+                            )}
+                            {!emailTestResult.ok && emailTestResult.diagnostic && (
+                                <div style={{ marginTop: 8 }}>
+                                    Mensagem: {emailTestResult.diagnostic.message}<br />
+                                    Codigo: {emailTestResult.diagnostic.code || 'n/a'}<br />
+                                    Comando: {emailTestResult.diagnostic.command || 'n/a'}<br />
+                                    Resposta: {emailTestResult.diagnostic.response || 'n/a'}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Card: Taxa da plataforma */}
