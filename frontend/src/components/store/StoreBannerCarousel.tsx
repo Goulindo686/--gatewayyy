@@ -39,7 +39,7 @@ export default function StoreBannerCarousel({
                     key={slide.id}
                     className={`store-banner-slide ${index === safeActiveSlide ? 'active' : ''}`}
                     style={{
-                        backgroundImage: `linear-gradient(90deg,rgba(6,8,15,.90) 0%,rgba(6,8,15,.62) 52%,rgba(6,8,15,.16) 100%),url("${slide.image_url}")`
+                        backgroundImage: `url("${slide.image_url}")`
                     }}
                     aria-hidden={index !== safeActiveSlide}
                 >
@@ -102,6 +102,7 @@ export default function StoreBannerCarousel({
                 .store-banner-copy {
                     max-width: 600px;
                     color: white;
+                    text-shadow: 0 2px 12px rgba(0, 0, 0, .78);
                 }
                 .store-banner-copy span {
                     display: block;
