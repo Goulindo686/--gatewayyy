@@ -483,16 +483,6 @@ export default function StorePage() {
                         <h2>Explore a loja</h2>
                         <p style={{ color: theme.muted }}>{filteredProducts.length} produto{filteredProducts.length === 1 ? '' : 's'} disponíve{filteredProducts.length === 1 ? 'l' : 'is'}</p>
                     </div>
-                    {visual.show_categories && <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }} className="category-row">
-                        <button className="category-button" onClick={() => handleCategoryClick('')} style={{ ...categoryButtonStyle(!activeCategory, accent, theme) }}>
-                            <FiGrid size={14} /> Todos
-                        </button>
-                        {categories.map(cat => (
-                            <button className="category-button" key={cat.id} onClick={() => handleCategoryClick(cat.slug)} style={{ ...categoryButtonStyle(activeCategory === cat.slug, accent, theme) }}>
-                                {cat.name}
-                            </button>
-                        ))}
-                    </div>}
                 </div>
 
                 {filteredProducts.length === 0 ? (
@@ -1533,7 +1523,6 @@ export default function StorePage() {
                 .store-button-style-pill .store-categories-heading > button,
                 .store-button-style-pill .store-product-purchase button,
                 .store-button-style-pill .store-closing-card button,
-                .store-button-style-pill .category-button,
                 .store-button-style-pill .product-modal button {
                     border-radius: 999px !important;
                 }
@@ -1544,7 +1533,6 @@ export default function StorePage() {
                 .store-button-style-square .store-categories-heading > button,
                 .store-button-style-square .store-product-purchase button,
                 .store-button-style-square .store-closing-card button,
-                .store-button-style-square .category-button,
                 .store-button-style-square .product-modal button {
                     border-radius: 4px !important;
                 }
@@ -1830,14 +1818,6 @@ export default function StorePage() {
                     }
                     .store-category-cards > button {
                         aspect-ratio: 5 / 7;
-                    }
-                    .category-row {
-                        margin-left: -2px;
-                        padding-bottom: 8px !important;
-                    }
-                    .category-button {
-                        padding: 8px 12px !important;
-                        font-size: 12px !important;
                     }
                     .products-grid {
                         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -2488,21 +2468,4 @@ export default function StorePage() {
             `}</style>
         </div>
     );
-}
-
-function categoryButtonStyle(active: boolean, accent: string, theme: typeof storeThemePresets.light): React.CSSProperties {
-    return {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        border: `1px solid ${active ? accent : theme.border}`,
-        background: active ? accent : theme.surface,
-        color: active ? 'white' : theme.text,
-        borderRadius: 999,
-        padding: '10px 16px',
-        fontSize: 13,
-        fontWeight: 850,
-        whiteSpace: 'nowrap',
-        cursor: 'pointer'
-    };
 }
