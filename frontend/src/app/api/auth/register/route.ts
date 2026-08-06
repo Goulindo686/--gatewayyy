@@ -4,7 +4,11 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { hashPassword, jsonError, jsonSuccess } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
-import { requestEmailVerification } from '@/lib/email-verification';
+import {
+    createEmailVerificationChallenge,
+    maskEmail,
+    requestEmailVerification,
+} from '@/lib/email-verification';
 import { v4 as uuidv4 } from 'uuid';
 import { notifyNewAccountOnDiscord } from '@/lib/discord-webhook';
 
@@ -37,17 +41,18 @@ export async function POST(req: NextRequest) {
         // reivindicadas somente pelo cadastro normal + confirmação do e-mail.
         const { data: existingUser } = await supabase
             .from('users')
-            .select('id, role, email_verified')
+            .select('id, name, role, status, email_verified, email_verification_token')
             .ilike('email', normalizedEmail)
             .single();
 
-        const isLegacyCheckoutAccount = Boolean(
+        const isClaimableUnverifiedAccount = Boolean(
             existingUser
-            && existingUser.role === 'customer'
+            && existingUser.status !== 'blocked'
             && existingUser.email_verified !== true
+            && ['customer', 'seller'].includes(existingUser.role || '')
         );
 
-        if (existingUser && !isLegacyCheckoutAccount) {
+        if (existingUser && !isClaimableUnverifiedAccount) {
             return jsonError('Email já cadastrado');
         }
 
@@ -71,7 +76,7 @@ export async function POST(req: NextRequest) {
         let user: any = null;
         let error: any = null;
 
-        const persistUser = (payload: Record<string, unknown>) => isLegacyCheckoutAccount
+        const persistUser = (payload: Record<string, unknown>) => isClaimableUnverifiedAccount
             ? supabase.from('users').update(payload).eq('id', userId).select().single()
             : supabase.from('users').insert({ id: userId, ...payload }).select().single();
 
@@ -112,21 +117,36 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        const verification = await requestEmailVerification({
-            id: userId,
-            name,
-            email: normalizedEmail,
-            role: 'seller',
-            email_verified: false,
-            email_verification_token: user?.email_verification_token,
-        });
+        let verification = {
+            sent: false,
+            retryAfter: 0,
+            verificationToken: createEmailVerificationChallenge(userId),
+            emailMasked: maskEmail(normalizedEmail),
+        };
 
-        await notifyNewAccountOnDiscord(req, {
-            name,
-            email: normalizedEmail,
-            phone,
-            cpf_cnpj,
-        });
+        try {
+            verification = await requestEmailVerification({
+                id: userId,
+                name,
+                email: normalizedEmail,
+                role: 'seller',
+                email_verified: false,
+                email_verification_token: user?.email_verification_token,
+            });
+        } catch (verificationError) {
+            console.error('[REGISTER] Email verification send failed:', verificationError);
+        }
+
+        try {
+            await notifyNewAccountOnDiscord(req, {
+                name,
+                email: normalizedEmail,
+                phone,
+                cpf_cnpj,
+            });
+        } catch (discordError) {
+            console.error('[REGISTER] Discord account notification failed:', discordError);
+        }
 
         return jsonSuccess({
             verification_required: true,
@@ -134,7 +154,8 @@ export async function POST(req: NextRequest) {
             email_masked: verification.emailMasked,
             code_sent: verification.sent,
             retry_after: verification.retryAfter,
-        }, 201);
+            account_recovered: Boolean(existingUser),
+        }, existingUser ? 200 : 201);
     } catch (err: any) {
         console.error('Register error:', err);
         return jsonError('Erro interno do servidor', 500);

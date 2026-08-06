@@ -65,7 +65,17 @@ export default function RegisterPage() {
                 emailMasked: data.email_masked,
                 retryAfter: Number(data.retry_after) || 0,
             });
-            toast.success('Conta criada. Enviamos o código de verificação!');
+            if (data.account_recovered) {
+                toast.success(data.code_sent
+                    ? 'Cadastro encontrado. Enviamos um novo codigo de verificacao!'
+                    : 'Cadastro encontrado. Tente reenviar o codigo em instantes.'
+                );
+            } else {
+                toast.success(data.code_sent
+                    ? 'Conta criada. Enviamos o codigo de verificacao!'
+                    : 'Conta criada. Tente reenviar o codigo em instantes.'
+                );
+            }
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Erro ao criar conta');
         } finally {
