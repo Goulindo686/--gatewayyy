@@ -1,16 +1,25 @@
 const { supabase } = require('../config/database');
 
+function cleanCategoryImageUrl(value) {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (!/^https?:\/\//i.test(trimmed)) return null;
+    return trimmed.slice(0, 1000);
+}
+
 class StoreCategoryController {
     async create(req, res, next) {
         try {
-            const { name, slug } = req.body;
+            const { name, slug, image_url } = req.body;
 
             const { data: categories, error } = await supabase
                 .from('store_categories')
                 .insert({
                     user_id: req.user.id,
                     name,
-                    slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, '')
+                    slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+                    image_url: cleanCategoryImageUrl(image_url)
                 })
                 .select();
 
@@ -41,10 +50,11 @@ class StoreCategoryController {
 
     async update(req, res, next) {
         try {
-            const { name, slug } = req.body;
+            const { name, slug, image_url } = req.body;
             const updates = {};
             if (name !== undefined) updates.name = name;
             if (slug !== undefined) updates.slug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
+            if (image_url !== undefined) updates.image_url = cleanCategoryImageUrl(image_url);
 
             const { data: categories, error } = await supabase
                 .from('store_categories')

@@ -21,7 +21,7 @@ class StoreController {
             // Fetch categories for this user
             const { data: categories } = await supabase
                 .from('store_categories')
-                .select('id, name, slug')
+                .select('id, name, slug, image_url')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 

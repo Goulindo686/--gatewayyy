@@ -5,6 +5,14 @@ import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 
+function cleanCategoryImageUrl(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (!/^https?:\/\//i.test(trimmed)) return null;
+    return trimmed.slice(0, 1000);
+}
+
 export async function GET(req: NextRequest) {
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Não autorizado', 401);
@@ -28,7 +36,7 @@ export async function POST(req: NextRequest) {
     if (!auth) return jsonError('Não autorizado', 401);
 
     try {
-        const { name, slug } = await req.json();
+        const { name, slug, image_url } = await req.json();
 
         if (!name || !slug) return jsonError('Nome e slug são obrigatórios');
 
@@ -36,7 +44,8 @@ export async function POST(req: NextRequest) {
             id: uuidv4(),
             user_id: auth.user.id,
             name,
-            slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, '')
+            slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+            image_url: cleanCategoryImageUrl(image_url)
         }).select();
 
         if (error) {

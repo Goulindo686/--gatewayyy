@@ -4,6 +4,14 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/db';
 import { getAuthUser, jsonError, jsonSuccess } from '@/lib/auth';
 
+function cleanCategoryImageUrl(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (!/^https?:\/\//i.test(trimmed)) return null;
+    return trimmed.slice(0, 1000);
+}
+
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Não autorizado', 401);
@@ -11,10 +19,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
 
     try {
-        const { name, slug } = await req.json();
+        const { name, slug, image_url } = await req.json();
         const updates: any = {};
         if (name !== undefined) updates.name = name;
         if (slug !== undefined) updates.slug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        if (image_url !== undefined) updates.image_url = cleanCategoryImageUrl(image_url);
 
         const { data: category, error } = await supabase
             .from('store_categories')

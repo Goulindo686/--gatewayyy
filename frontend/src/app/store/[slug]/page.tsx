@@ -419,14 +419,21 @@ export default function StorePage() {
                                 onClick={() => handleCategoryClick(category.slug)}
                                 style={{ color: theme.text, borderColor: theme.border, background: theme.surface }}
                             >
-                                <span className="store-category-icon" style={{ color: accent, background: `${accent}${index % 2 === 0 ? '16' : '0d'}` }}>
-                                    {index % 3 === 0 ? <FiGrid /> : index % 3 === 1 ? <FiBookOpen /> : <FiZap />}
+                                <span className="store-category-visual">
+                                    {category.image_url ? (
+                                        <img src={category.image_url} alt="" />
+                                    ) : (
+                                        <span className="store-category-fallback" style={{ background: `linear-gradient(145deg, ${accent}cc, ${theme.surfaceAlt})` }}>
+                                            {index % 3 === 0 ? <FiGrid /> : index % 3 === 1 ? <FiBookOpen /> : <FiZap />}
+                                        </span>
+                                    )}
+                                    <span className="store-category-shade" />
                                 </span>
                                 <span className="store-category-copy">
                                     <strong>{category.name}</strong>
                                     <small style={{ color: theme.muted }}>{category.productCount} produto{category.productCount === 1 ? '' : 's'}</small>
                                 </span>
-                                <FiArrowRight className="store-category-arrow" style={{ color: theme.muted }} />
+                                <FiArrowRight className="store-category-arrow" />
                             </button>
                         ))}
                     </div>
@@ -1002,18 +1009,21 @@ export default function StorePage() {
                 }
                 .store-category-cards {
                     display: grid;
-                    grid-template-columns: repeat(3, minmax(0, 1fr));
-                    gap: 11px;
+                    grid-template-columns: repeat(auto-fit, minmax(142px, 172px));
+                    justify-content: center;
+                    gap: 16px;
                 }
                 .store-category-cards > button {
-                    min-height: 88px;
+                    position: relative;
+                    aspect-ratio: 5 / 7;
+                    min-height: 0;
                     border: 1px solid;
-                    border-radius: 18px;
-                    padding: 14px;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    text-align: left;
+                    border-radius: 14px;
+                    padding: 18px 12px;
+                    display: grid;
+                    place-items: end center;
+                    overflow: hidden;
+                    text-align: center;
                     cursor: pointer;
                     transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
                 }
@@ -1022,39 +1032,85 @@ export default function StorePage() {
                     border-color: ${accent};
                     box-shadow: 0 16px 38px rgba(0,0,0,.12);
                 }
-                .store-category-icon {
-                    width: 46px;
-                    height: 46px;
-                    border-radius: 14px;
+                .store-category-visual {
+                    position: absolute;
+                    inset: 0;
                     display: grid;
                     place-items: center;
-                    flex: 0 0 auto;
-                    font-size: 18px;
+                    overflow: hidden;
+                    background: var(--store-surface-alt);
+                }
+                .store-category-visual img,
+                .store-category-fallback {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    transition: transform .28s ease;
+                }
+                .store-category-fallback {
+                    display: grid;
+                    place-items: center;
+                    color: rgba(255,255,255,.92);
+                    font-size: 46px;
+                }
+                .store-category-shade {
+                    position: absolute;
+                    inset: 0;
+                    background:
+                        radial-gradient(circle at 50% 38%, rgba(255,255,255,.10), transparent 28%),
+                        linear-gradient(180deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.30) 42%, rgba(0,0,0,.78) 100%);
+                }
+                .store-category-cards > button:hover .store-category-visual img,
+                .store-category-cards > button:hover .store-category-fallback {
+                    transform: scale(1.06);
                 }
                 .store-category-copy {
+                    position: relative;
+                    z-index: 1;
                     min-width: 0;
+                    width: 100%;
                 }
                 .store-category-copy strong,
                 .store-category-copy small {
                     display: block;
                 }
                 .store-category-copy strong {
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                    font-size: 13px;
-                    margin-bottom: 4px;
+                    color: #fff;
+                    font-size: 20px;
+                    font-weight: 950;
+                    line-height: .95;
+                    text-transform: uppercase;
+                    text-shadow: 0 2px 14px rgba(0,0,0,.55);
+                    word-break: break-word;
                 }
                 .store-category-copy small {
-                    font-size: 10px;
+                    position: absolute;
+                    width: 1px;
+                    height: 1px;
+                    padding: 0;
+                    margin: -1px;
+                    overflow: hidden;
+                    clip: rect(0, 0, 0, 0);
+                    white-space: nowrap;
+                    border: 0;
                 }
                 .store-category-arrow {
-                    margin-left: auto;
-                    flex: 0 0 auto;
+                    position: absolute;
+                    z-index: 1;
+                    top: 10px;
+                    right: 10px;
+                    width: 28px;
+                    height: 28px;
+                    padding: 7px;
+                    border-radius: 999px;
+                    color: #fff;
+                    background: rgba(0,0,0,.34);
+                    opacity: 0;
                     transition: transform .2s ease;
                 }
                 .store-category-cards > button:hover .store-category-arrow {
-                    transform: translateX(3px);
+                    opacity: 1;
+                    transform: translate(2px, -2px);
                 }
                 .store-catalog-toolbar {
                     display: flex;
@@ -1433,7 +1489,6 @@ export default function StorePage() {
                 .store-corner-style-rounded .store-hero-logo span,
                 .store-corner-style-rounded .store-hero-logo img,
                 .store-corner-style-rounded .store-category-cards > button,
-                .store-corner-style-rounded .store-category-icon,
                 .store-corner-style-rounded .store-catalog-toolbar,
                 .store-corner-style-rounded .store-closing-card,
                 .store-corner-style-rounded .product-modal {
@@ -1444,7 +1499,6 @@ export default function StorePage() {
                 .store-corner-style-sharp .store-hero-logo span,
                 .store-corner-style-sharp .store-hero-logo img,
                 .store-corner-style-sharp .store-category-cards > button,
-                .store-corner-style-sharp .store-category-icon,
                 .store-corner-style-sharp .store-catalog-toolbar,
                 .store-corner-style-sharp .store-closing-card,
                 .store-corner-style-sharp .product-modal {
@@ -1524,7 +1578,7 @@ export default function StorePage() {
                         font-size: clamp(40px, 8vw, 62px);
                     }
                     .store-category-cards {
-                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                        grid-template-columns: repeat(auto-fit, minmax(138px, 166px));
                     }
                     .store-catalog-toolbar {
                         align-items: flex-start;
@@ -1698,10 +1752,10 @@ export default function StorePage() {
                         align-self: flex-start;
                     }
                     .store-category-cards {
-                        grid-template-columns: 1fr;
+                        grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
                     }
                     .store-category-cards > button {
-                        min-height: 76px;
+                        aspect-ratio: 5 / 7;
                     }
                     .category-row {
                         margin-left: -2px;
@@ -1970,22 +2024,18 @@ export default function StorePage() {
                     letter-spacing: .10em;
                 }
                 .store-category-cards {
-                    grid-template-columns: repeat(3, minmax(0, 1fr));
-                    gap: 15px;
+                    grid-template-columns: repeat(auto-fit, minmax(150px, 176px));
+                    justify-content: center;
+                    gap: 17px;
                 }
                 .store-category-cards > button {
-                    min-height: 112px;
-                    border-radius: 18px;
-                    padding: 16px;
+                    min-height: 0;
+                    border-radius: 14px;
+                    padding: 18px 12px;
                     box-shadow: 0 8px 24px rgba(39, 57, 86, ${themeMode === 'light' ? '.05' : '.16'});
                 }
-                .store-category-icon {
-                    width: 66px;
-                    height: 66px;
-                    border-radius: 15px;
-                }
                 .store-category-copy strong {
-                    font-size: 15px;
+                    font-size: 20px;
                 }
                 .storefront-content {
                     padding: 42px 0 78px !important;
@@ -2200,7 +2250,7 @@ export default function StorePage() {
                         padding-inline: 9px;
                     }
                     .store-category-cards {
-                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                        grid-template-columns: repeat(auto-fit, minmax(138px, 166px));
                     }
                     .store-product-section {
                         padding: 24px;
@@ -2291,8 +2341,8 @@ export default function StorePage() {
                         display: none;
                     }
                     .store-category-cards > button {
-                        flex: 0 0 84%;
-                        min-height: 106px;
+                        flex: 0 0 150px;
+                        aspect-ratio: 5 / 7;
                         scroll-snap-align: center;
                     }
                     .storefront-content {
