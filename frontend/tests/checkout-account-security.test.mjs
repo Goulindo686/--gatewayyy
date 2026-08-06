@@ -38,13 +38,13 @@ test('payment pages never store an authentication token or auto-redirect', () =>
         const source = read(path);
         assert.doesNotMatch(source, /autoLoginAndRedirect/, path);
         assert.doesNotMatch(source, /localStorage\.setItem\(['"]token['"]/, path);
-        assert.match(source, /Criar conta para acessar/, path);
+        assert.match(source, /Criar conta para acessar|Ir para o suporte/, path);
     }
 });
 
 test('legacy checkout accounts still require registration and email verification', () => {
     const source = read('../src/app/api/auth/register/route.ts');
-    assert.match(source, /isLegacyCheckoutAccount/);
+    assert.match(source, /isClaimableUnverifiedAccount/);
     assert.match(source, /email_verified !== true/);
     assert.match(source, /requestEmailVerification/);
     assert.doesNotMatch(source, /syncMemberEntitlements/);

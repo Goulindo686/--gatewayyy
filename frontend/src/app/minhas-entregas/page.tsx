@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import {
     FiArrowLeft,
     FiCheck,
+    FiChevronDown,
     FiCopy,
     FiExternalLink,
     FiKey,
@@ -18,6 +19,7 @@ import {
     FiShield,
 } from 'react-icons/fi';
 import { myUniqueDeliveryAPI, supportAPI } from '@/lib/api';
+import { buildAuthUrl } from '@/lib/auth-return';
 
 function formatDate(value: string) {
     return new Date(value).toLocaleString('pt-BR');
@@ -26,8 +28,8 @@ function formatDate(value: string) {
 export default function MyUniqueDeliveriesPage() {
     const router = useRouter();
     const [deliveries, setDeliveries] = useState<any[]>([]);
-    const [supportConversations, setSupportConversations] = useState<any[]>([]);
     const [supportOrders, setSupportOrders] = useState<any[]>([]);
+    const [selectedSupportOrderId, setSelectedSupportOrderId] = useState('');
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState<string | null>(null);
     const [openingSupport, setOpeningSupport] = useState<string | null>(null);
@@ -35,7 +37,10 @@ export default function MyUniqueDeliveriesPage() {
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (!token) {
-            router.replace('/login?returnTo=%2Fminhas-entregas');
+            router.replace(buildAuthUrl(
+                '/login',
+                `${window.location.pathname}${window.location.search}`,
+            ));
             return;
         }
 
@@ -44,8 +49,16 @@ export default function MyUniqueDeliveriesPage() {
             .then(({ data }) => {
                 if (!cancelled) {
                     setDeliveries(data.deliveries || []);
-                    setSupportConversations(data.support_conversations || []);
-                    setSupportOrders(data.support_orders || []);
+                    const orders = data.support_orders || [];
+                    const requestedOrderId = new URLSearchParams(window.location.search).get('order');
+                    setSupportOrders(orders);
+                    setSelectedSupportOrderId((current) => {
+                        if (current && orders.some((order: any) => order.id === current)) return current;
+                        if (requestedOrderId && orders.some((order: any) => order.id === requestedOrderId)) {
+                            return requestedOrderId;
+                        }
+                        return orders.find((order: any) => order.support_thread_id)?.id || orders[0]?.id || '';
+                    });
                 }
             })
             .catch((error: any) => {
@@ -63,8 +76,8 @@ export default function MyUniqueDeliveriesPage() {
         return () => {
             cancelled = true;
             setDeliveries([]);
-            setSupportConversations([]);
             setSupportOrders([]);
+            setSelectedSupportOrderId('');
         };
     }, [router]);
 
@@ -75,7 +88,16 @@ export default function MyUniqueDeliveriesPage() {
         window.setTimeout(() => setCopied((current) => current === id ? null : current), 2500);
     };
 
-    const openSupport = async (orderId: string) => {
+    const selectedSupportOrder = supportOrders.find((order) => order.id === selectedSupportOrderId);
+
+    const openSupport = async () => {
+        if (!selectedSupportOrder) return;
+        if (selectedSupportOrder.support_thread_id) {
+            router.push(`/support/${selectedSupportOrder.support_thread_id}`);
+            return;
+        }
+
+        const orderId = selectedSupportOrder.id;
         setOpeningSupport(orderId);
         try {
             const { data } = await supportAPI.createBuyerThread(orderId);
@@ -121,71 +143,61 @@ export default function MyUniqueDeliveriesPage() {
                     </div>
                 </section>
 
-                {supportConversations.length > 0 && (
-                    <section className="mySupportConversations">
-                        <div className="mySupportConversationsTitle">
-                            <span><FiMessageCircle size={16} /> Conversas de suporte</span>
-                            <small>Histórico salvo na sua conta GouPay</small>
-                        </div>
-                        <div className="mySupportConversationList">
-                            {supportConversations.map((conversation) => (
-                                <article key={conversation.id} className="mySupportConversationCard">
-                                    <div>
-                                        <strong>{conversation.product?.name || conversation.subject}</strong>
-                                        <p>
-                                            {conversation.seller?.name || 'Vendedor'}
-                                            {' · '}
-                                            Pedido #{String(conversation.order_id || '').slice(0, 8)}
-                                        </p>
-                                        <small>{conversation.last_message_preview || 'Conversa iniciada.'}</small>
-                                    </div>
-                                    <button type="button" onClick={() => router.push(`/support/${conversation.id}`)}>
-                                        <FiMessageCircle size={15} /> Abrir conversa
-                                    </button>
-                                </article>
-                            ))}
-                        </div>
-                    </section>
-                )}
-
                 {supportOrders.length > 0 && (
-                    <section className="mySupportConversations">
-                        <div className="mySupportConversationsTitle">
-                            <span><FiMessageCircle size={16} /> Suporte das suas compras</span>
-                            <small>Pedidos pagos com este e-mail verificado</small>
+                    <section className="mySupportHub">
+                        <div className="mySupportHubIntro">
+                            <span><FiMessageCircle size={21} /></span>
+                            <div>
+                                <p>Central de atendimento</p>
+                                <h2>Converse com seus vendedores</h2>
+                                <small>Escolha uma compra para abrir ou continuar o atendimento.</small>
+                            </div>
                         </div>
-                        <div className="mySupportConversationList">
-                            {supportOrders.map((order) => (
-                                <article key={order.id} className="mySupportConversationCard">
-                                    <div>
-                                        <strong>{order.product?.name || 'Compra na loja'}</strong>
-                                        <p>
-                                            {order.seller?.name || 'Vendedor'}
-                                            {' Â· '}
-                                            Pedido #{String(order.id || '').slice(0, 8)}
-                                        </p>
-                                        <small>{order.support_thread_id ? 'Conversa ja iniciada.' : 'Abra uma conversa com o vendedor quando precisar.'}</small>
-                                    </div>
-                                    <div className="mySupportOrderActions">
-                                        {order.seller?.store_url && order.seller?.store_active && (
-                                            <Link href={order.seller.store_url}>
-                                                <FiExternalLink size={15} /> Loja
-                                            </Link>
-                                        )}
-                                        <button
-                                            type="button"
-                                            onClick={() => order.support_thread_id
-                                                ? router.push(`/support/${order.support_thread_id}`)
-                                                : openSupport(order.id)}
-                                            disabled={openingSupport === order.id}
-                                        >
-                                            <FiMessageCircle size={15} />
-                                            {openingSupport === order.id ? 'Abrindo...' : order.support_thread_id ? 'Abrir conversa' : 'Falar com vendedor'}
-                                        </button>
-                                    </div>
-                                </article>
-                            ))}
+
+                        <div className="mySupportHubControls">
+                            <label>
+                                <span>Compra para atendimento</span>
+                                <div className="mySupportSelect">
+                                    <select
+                                        value={selectedSupportOrderId}
+                                        onChange={(event) => setSelectedSupportOrderId(event.target.value)}
+                                    >
+                                        {supportOrders.map((order) => (
+                                            <option key={order.id} value={order.id}>
+                                                {order.product?.name || 'Compra na loja'} - {order.seller?.name || 'Vendedor'} - #{String(order.id).slice(0, 8)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <FiChevronDown size={17} aria-hidden="true" />
+                                </div>
+                            </label>
+                            <button
+                                type="button"
+                                onClick={openSupport}
+                                disabled={!selectedSupportOrder || openingSupport === selectedSupportOrderId}
+                            >
+                                <FiMessageCircle size={17} />
+                                {openingSupport === selectedSupportOrderId
+                                    ? 'Abrindo...'
+                                    : selectedSupportOrder?.support_thread_id
+                                        ? 'Abrir conversa'
+                                        : 'Iniciar conversa'}
+                            </button>
                         </div>
+
+                        {selectedSupportOrder && (
+                            <div className="mySupportHubStatus">
+                                <strong>{selectedSupportOrder.product?.name || 'Compra na loja'}</strong>
+                                <span>
+                                    {selectedSupportOrder.seller?.name || 'Vendedor'} · Pedido #{String(selectedSupportOrder.id).slice(0, 8)}
+                                </span>
+                                <small>
+                                    {selectedSupportOrder.support_thread_id
+                                        ? 'Seu histórico está salvo e pronto para continuar.'
+                                        : 'Uma nova conversa será vinculada a esta compra.'}
+                                </small>
+                            </div>
+                        )}
                     </section>
                 )}
 
@@ -253,22 +265,6 @@ export default function MyUniqueDeliveriesPage() {
                                         Abrir link de acesso
                                     </a>
                                 )}
-                                <div className="myDeliveryActions">
-                                    {delivery.seller?.store_url && delivery.seller?.store_active && (
-                                        <Link href={delivery.seller.store_url}>
-                                            <FiExternalLink size={15} />
-                                            Acessar loja do vendedor
-                                        </Link>
-                                    )}
-                                    <button
-                                        type="button"
-                                        onClick={() => openSupport(delivery.order_id)}
-                                        disabled={openingSupport === delivery.order_id}
-                                    >
-                                        <FiMessageCircle size={15} />
-                                        {openingSupport === delivery.order_id ? 'Abrindo...' : 'Falar com vendedor'}
-                                    </button>
-                                </div>
                                 {delivery.notes && (
                                     <section className="myDeliveryText myDeliveryNotes">
                                         <h3>Observações</h3>
@@ -279,7 +275,7 @@ export default function MyUniqueDeliveriesPage() {
                             </article>
                         ))}
                     </div>
-                ) : !supportConversations.length && !supportOrders.length ? (
+                ) : !supportOrders.length ? (
                     <section className="myDeliveriesEmpty">
                         <FiKey size={45} />
                         <h2>Nenhuma entrega exclusiva encontrada</h2>
@@ -511,123 +507,115 @@ export default function MyUniqueDeliveriesPage() {
                     padding:10px 13px;
                     text-decoration:none;
                 }
-                .myDeliveryActions {
-                    display:flex;
-                    flex-wrap:wrap;
-                    gap:9px;
-                    margin:4px 0 14px;
-                }
-                .myDeliveryActions a,
-                .myDeliveryActions button {
-                    align-items:center;
-                    border-radius:10px;
-                    cursor:pointer;
-                    display:inline-flex;
-                    font-size:11px;
-                    font-weight:800;
-                    gap:7px;
-                    min-height:38px;
-                    padding:10px 13px;
-                    text-decoration:none;
-                }
-                .myDeliveryActions a {
+                .mySupportHub {
                     background:var(--card-bg);
                     border:1px solid var(--border-color);
-                    color:var(--text-primary);
+                    border-radius:16px;
+                    box-shadow:0 18px 50px rgba(20,15,45,.06);
+                    margin-bottom:26px;
+                    padding:20px;
                 }
-                .myDeliveryActions button {
+                .mySupportHubIntro {
+                    align-items:center;
+                    display:flex;
+                    gap:13px;
+                }
+                .mySupportHubIntro > span {
+                    align-items:center;
+                    background:rgba(0,184,148,.1);
+                    border-radius:12px;
+                    color:#00b894;
+                    display:flex;
+                    flex:0 0 auto;
+                    height:48px;
+                    justify-content:center;
+                    width:48px;
+                }
+                .mySupportHubIntro p {
+                    color:#00b894;
+                    font-size:9px;
+                    font-weight:900;
+                    letter-spacing:.08em;
+                    margin:0 0 3px;
+                    text-transform:uppercase;
+                }
+                .mySupportHubIntro h2 {
+                    color:var(--text-primary);
+                    font-size:17px;
+                    margin:0 0 3px;
+                }
+                .mySupportHubIntro small {
+                    color:var(--text-muted);
+                    font-size:10px;
+                }
+                .mySupportHubControls {
+                    align-items:end;
+                    display:grid;
+                    gap:12px;
+                    grid-template-columns:minmax(0,1fr) auto;
+                    margin-top:18px;
+                }
+                .mySupportHubControls label > span {
+                    color:var(--text-secondary);
+                    display:block;
+                    font-size:10px;
+                    font-weight:800;
+                    margin-bottom:7px;
+                    text-transform:uppercase;
+                }
+                .mySupportSelect { position:relative; }
+                .mySupportSelect select {
+                    appearance:none;
+                    background:var(--bg-secondary);
+                    border:1px solid var(--border-color);
+                    border-radius:10px;
+                    color:var(--text-primary);
+                    cursor:pointer;
+                    font-size:12px;
+                    font-weight:700;
+                    min-height:46px;
+                    padding:0 42px 0 13px;
+                    text-overflow:ellipsis;
+                    width:100%;
+                }
+                .mySupportSelect svg {
+                    color:var(--text-muted);
+                    pointer-events:none;
+                    position:absolute;
+                    right:14px;
+                    top:50%;
+                    transform:translateY(-50%);
+                }
+                .mySupportHubControls > button {
+                    align-items:center;
                     background:#00b894;
                     border:0;
+                    border-radius:10px;
                     color:#fff;
+                    cursor:pointer;
+                    display:flex;
+                    font-size:12px;
+                    font-weight:900;
+                    gap:8px;
+                    justify-content:center;
+                    min-height:46px;
+                    padding:0 18px;
+                    white-space:nowrap;
                 }
-                .myDeliveryActions button:disabled {
+                .mySupportHubControls > button:disabled {
                     cursor:not-allowed;
                     opacity:.65;
                 }
-                .mySupportConversations {
-                    background:var(--card-bg);
-                    border:1px solid var(--border-color);
-                    border-radius:20px;
-                    margin-bottom:22px;
-                    padding:18px;
-                }
-                .mySupportConversationsTitle {
-                    align-items:center;
-                    display:flex;
-                    justify-content:space-between;
-                    gap:12px;
-                    margin-bottom:14px;
-                }
-                .mySupportConversationsTitle span {
-                    align-items:center;
-                    color:var(--text-primary);
-                    display:flex;
-                    font-size:13px;
-                    font-weight:900;
-                    gap:8px;
-                }
-                .mySupportConversationsTitle small {
-                    color:var(--text-muted);
-                    font-size:10px;
-                    font-weight:700;
-                }
-                .mySupportConversationList {
+                .mySupportHubStatus {
+                    border-top:1px solid var(--border-color);
                     display:grid;
-                    gap:10px;
+                    gap:2px;
+                    margin-top:16px;
+                    padding-top:14px;
                 }
-                .mySupportConversationCard {
-                    align-items:center;
-                    background:var(--bg-secondary);
-                    border:1px solid var(--border-color);
-                    border-radius:14px;
-                    display:flex;
-                    gap:14px;
-                    justify-content:space-between;
-                    padding:14px;
-                }
-                .mySupportConversationCard strong {
-                    color:var(--text-primary);
-                    display:block;
-                    font-size:13px;
-                    margin-bottom:4px;
-                }
-                .mySupportConversationCard p,
-                .mySupportConversationCard small {
-                    color:var(--text-muted);
-                    display:block;
-                    font-size:10px;
-                    line-height:1.45;
-                    margin:0;
-                }
-                .mySupportConversationCard button,
-                .mySupportOrderActions a {
-                    align-items:center;
-                    border-radius:10px;
-                    cursor:pointer;
-                    display:flex;
-                    flex:0 0 auto;
-                    font-size:11px;
-                    font-weight:850;
-                    gap:7px;
-                    min-height:38px;
-                    padding:9px 12px;
-                    text-decoration:none;
-                }
-                .mySupportConversationCard button {
-                    background:#00b894;
-                    border:0;
-                    color:#fff;
-                }
-                .mySupportOrderActions {
-                    display:flex;
-                    flex:0 0 auto;
-                    gap:8px;
-                }
-                .mySupportOrderActions a {
-                    background:var(--card-bg);
-                    border:1px solid var(--border-color);
-                    color:var(--text-primary);
-                }
+                .mySupportHubStatus strong { color:var(--text-primary); font-size:12px; }
+                .mySupportHubStatus span,
+                .mySupportHubStatus small { color:var(--text-muted); font-size:10px; }
                 .myDeliveriesEmpty {
                     background:var(--card-bg);
                     border:1px solid var(--border-color);
@@ -663,19 +651,9 @@ export default function MyUniqueDeliveriesPage() {
                     .myDeliveryCard { padding:18px 14px; }
                     .myDeliveryBadge { display:none; }
                     .myDeliveriesEmpty > div { flex-direction:column; }
-                    .mySupportConversationsTitle,
-                    .mySupportConversationCard {
-                        align-items:stretch;
-                        flex-direction:column;
-                    }
-                    .mySupportOrderActions {
-                        width:100%;
-                    }
-                    .mySupportConversationCard button,
-                    .mySupportOrderActions a {
-                        justify-content:center;
-                        width:100%;
-                    }
+                    .mySupportHub { padding:17px 14px; }
+                    .mySupportHubControls { grid-template-columns:1fr; }
+                    .mySupportHubControls > button { width:100%; }
                 }
             `}</style>
         </main>

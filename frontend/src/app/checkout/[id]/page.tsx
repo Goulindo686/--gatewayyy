@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { productsAPI, checkoutAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiShoppingCart, FiCreditCard, FiSmartphone, FiCheck, FiCopy, FiPackage, FiArrowRight, FiClock, FiLock, FiChevronDown, FiTag, FiPlusCircle } from 'react-icons/fi';
+import { FiShoppingCart, FiCreditCard, FiSmartphone, FiCheck, FiCopy, FiPackage, FiClock, FiLock, FiChevronDown, FiTag, FiPlusCircle, FiMessageCircle } from 'react-icons/fi';
 import FacebookPixel, { getFacebookCookies, trackFacebookPurchase } from '@/components/FacebookPixel';
 import {
     isValidBrazilianState,
@@ -23,6 +23,7 @@ import {
 } from '@/lib/pagarme-card';
 import { authenticatePagarme3DS } from '@/lib/pagarme-3ds';
 import { normalizeAffiliateReference } from '@/lib/affiliates-core';
+import { buildAuthUrl } from '@/lib/auth-return';
 
 const DEFAULT_SETTINGS = {
     theme: 'light', // Alterado para light por padrão conforme a imagem
@@ -657,6 +658,18 @@ export default function CheckoutPage() {
     const bannerHeightDesktop = settings.banner_height_desktop || 300;
     const bannerHeightMobile = settings.banner_height_mobile || 200;
 
+    const goToBuyerSupport = () => {
+        const orderId = result?.order?.id;
+        if (!orderId) return;
+
+        const returnTo = `/minhas-entregas?order=${encodeURIComponent(orderId)}`;
+        router.push(
+            localStorage.getItem('token')
+                ? returnTo
+                : buildAuthUrl('/login', returnTo),
+        );
+    };
+
     if (loading) {
         return (
             <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: bgPrimary }}>
@@ -698,16 +711,16 @@ export default function CheckoutPage() {
                         <div className="text-4xl font-black" style={{ color: accent }}>R$ {result.order.amount_display}</div>
                     </div>
 
-                    <div className="grid gap-3">
-                        <button onClick={() => router.push('/register')} className="w-full py-4 px-6 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]" style={{ background: accent }}>
-                            Criar conta para acessar <FiArrowRight size={20} />
-                        </button>
-                        <button onClick={() => router.push('/login')} className="w-full py-4 px-6 rounded-xl font-bold border flex items-center justify-center gap-2" style={{ color: textPrimary, borderColor }}>
-                            Já tenho conta
-                        </button>
-                    </div>
+                    <button
+                        type="button"
+                        onClick={goToBuyerSupport}
+                        className="w-full py-4 px-6 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ background: accent }}
+                    >
+                        <FiMessageCircle size={20} /> Ir para o suporte
+                    </button>
                     <p className="mt-4 text-xs opacity-60" style={{ color: textMuted }}>
-                        Nenhum login é feito automaticamente após o pagamento.
+                        Entre ou crie sua conta com o mesmo e-mail da compra para continuar.
                     </p>
                 </div>
             </div>

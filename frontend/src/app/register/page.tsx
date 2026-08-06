@@ -9,6 +9,7 @@ import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { FiArrowRight, FiCreditCard, FiDollarSign, FiFileText, FiHeadphones, FiLock, FiMail, FiPhone, FiShield, FiShoppingBag, FiUser, FiZap } from 'react-icons/fi';
 import EmailVerificationModal, { EmailVerificationSession } from '@/components/EmailVerificationModal';
+import { buildAuthUrl, getSafeReturnTo } from '@/lib/auth-return';
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -29,12 +30,7 @@ export default function RegisterPage() {
         localStorage.setItem('user', JSON.stringify(data.user));
         toast.success('Email confirmado. Sua conta esta pronta!');
         const pendingAffiliateInvite = localStorage.getItem('pending_affiliate_invite');
-        const requestedReturnTo = new URLSearchParams(window.location.search).get('returnTo');
-        const safeReturnTo = requestedReturnTo
-            && requestedReturnTo.startsWith('/')
-            && !requestedReturnTo.startsWith('//')
-            ? requestedReturnTo
-            : null;
+        const safeReturnTo = getSafeReturnTo(window.location.search);
         router.push(
             pendingAffiliateInvite
                 ? `/dashboard/affiliates?invite=${encodeURIComponent(pendingAffiliateInvite)}`
@@ -177,7 +173,20 @@ export default function RegisterPage() {
 
                         <footer className="authFooter">
                             <span>Ja possui conta?</span>
-                            <Link href="/login">Entrar</Link>
+                            <Link
+                                href="/login"
+                                onClick={(event) => {
+                                    const destination = buildAuthUrl(
+                                        '/login',
+                                        getSafeReturnTo(window.location.search),
+                                    );
+                                    if (destination === '/login') return;
+                                    event.preventDefault();
+                                    router.push(destination);
+                                }}
+                            >
+                                Entrar
+                            </Link>
                         </footer>
                     </section>
                 </main>

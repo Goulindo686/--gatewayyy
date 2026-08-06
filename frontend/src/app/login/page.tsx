@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { FiArrowRight, FiCreditCard, FiDollarSign, FiHeadphones, FiLock, FiMail, FiShield, FiShoppingBag, FiZap } from 'react-icons/fi';
 import EmailVerificationModal, { EmailVerificationSession } from '@/components/EmailVerificationModal';
 import TwoFactorLoginModal from '@/components/TwoFactorLoginModal';
+import { buildAuthUrl, getSafeReturnTo } from '@/lib/auth-return';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -31,12 +32,7 @@ export default function LoginPage() {
             router.push(`/dashboard/affiliates?invite=${encodeURIComponent(pendingAffiliateInvite)}`);
             return;
         }
-        const requestedReturnTo = new URLSearchParams(window.location.search).get('returnTo');
-        const safeReturnTo = requestedReturnTo
-            && requestedReturnTo.startsWith('/')
-            && !requestedReturnTo.startsWith('//')
-            ? requestedReturnTo
-            : null;
+        const safeReturnTo = getSafeReturnTo(window.location.search);
         if (data.user.role === 'admin') {
             router.push('/admin');
         } else if (safeReturnTo) {
@@ -169,7 +165,20 @@ export default function LoginPage() {
 
                         <footer className="authFooter">
                             <span>Nao tem uma conta?</span>
-                            <Link href="/register">Criar conta</Link>
+                            <Link
+                                href="/register"
+                                onClick={(event) => {
+                                    const destination = buildAuthUrl(
+                                        '/register',
+                                        getSafeReturnTo(window.location.search),
+                                    );
+                                    if (destination === '/register') return;
+                                    event.preventDefault();
+                                    router.push(destination);
+                                }}
+                            >
+                                Criar conta
+                            </Link>
                         </footer>
                     </section>
                 </main>

@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { FiCopy, FiCheck, FiSmartphone, FiClock, FiShield, FiCheckCircle, FiPackage, FiArrowLeft, FiUser, FiCreditCard, FiMessageCircle } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSmartphone, FiClock, FiShield, FiCheckCircle, FiPackage, FiArrowLeft, FiCreditCard, FiMessageCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
-import { checkoutAPI, supportAPI } from '@/lib/api';
+import { checkoutAPI } from '@/lib/api';
+import { buildAuthUrl } from '@/lib/auth-return';
 export default function PaymentPage() {
     const params = useParams();
     const router = useRouter();
@@ -14,7 +15,6 @@ export default function PaymentPage() {
     const [order, setOrder] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [paid, setPaid] = useState(false);
-    const [openingSupport, setOpeningSupport] = useState(false);
     const pollingRef = useRef<any>(null);
     const pollingInFlightRef = useRef(false);
 
@@ -132,22 +132,15 @@ export default function PaymentPage() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const openSupport = async () => {
-        if (!order?.id || openingSupport) return;
-        if (!localStorage.getItem('token')) {
-            toast('Crie ou entre na sua conta GouPay para guardar a conversa.');
-            router.push('/register');
-            return;
-        }
-        setOpeningSupport(true);
-        try {
-            const { data } = await supportAPI.createBuyerThread(order.id);
-            router.push(`/support/${data.thread.id}`);
-        } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Nao foi possivel abrir o suporte.');
-        } finally {
-            setOpeningSupport(false);
-        }
+    const goToBuyerSupport = () => {
+        if (!order?.id) return;
+
+        const returnTo = `/minhas-entregas?order=${encodeURIComponent(order.id)}`;
+        router.push(
+            localStorage.getItem('token')
+                ? returnTo
+                : buildAuthUrl('/login', returnTo),
+        );
     };
 
     if (loading) {
@@ -191,36 +184,17 @@ export default function PaymentPage() {
                         <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, marginBottom: 6 }}>Valor pago</div>
                         <div style={{ fontSize: 32, fontWeight: 900, color: '#00cec9' }}>R$ {order.amount_display}</div>
                     </div>
-                    <button onClick={() => router.push('/register')} style={{
-                        width: '100%', padding: '16px', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                        background: 'white', color: '#0a0a0c', borderRadius: 14, border: 'none', cursor: 'pointer', fontWeight: 900
+                    <button onClick={goToBuyerSupport} style={{
+                        width: '100%', padding: '16px', fontSize: 14,
+                        background: '#00cec9', color: '#071a1a', borderRadius: 14,
+                        border: 'none', cursor: 'pointer', fontWeight: 900,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                     }}>
-                        <FiUser size={18} /> Criar conta para acessar
+                        <FiMessageCircle size={18} /> Ir para o suporte
                     </button>
-                    <button onClick={() => router.push('/login')} style={{
-                        width: '100%', padding: '14px', marginTop: 10, fontSize: 14,
-                        background: 'transparent', color: '#e2e8f0', borderRadius: 14,
-                        border: '1px solid rgba(255,255,255,0.12)', cursor: 'pointer', fontWeight: 800
-                    }}>
-                        Já tenho conta
-                    </button>
-                    <button onClick={openSupport} disabled={openingSupport} style={{
-                        width: '100%', padding: '14px', marginTop: 10, fontSize: 14,
-                        background: 'rgba(0,206,201,0.12)', color: '#00cec9', borderRadius: 14,
-                        border: '1px solid rgba(0,206,201,0.22)', cursor: openingSupport ? 'not-allowed' : 'pointer',
-                        fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                        opacity: openingSupport ? .65 : 1
-                    }}>
-                        <FiMessageCircle size={18} /> {openingSupport ? 'Abrindo suporte...' : 'Criar conta e falar com vendedor'}
-                    </button>
-                    <button onClick={() => router.push('/minhas-entregas')} style={{
-                        width: '100%', padding: '14px', marginTop: 10, fontSize: 14,
-                        background: 'transparent', color: '#00cec9', borderRadius: 14,
-                        border: '1px solid rgba(0,206,201,0.22)', cursor: 'pointer', fontWeight: 800
-                    }}>
-                        Ver minhas entregas
-                    </button>
-                    <p style={{ color: '#64748b', fontSize: 12, marginTop: 12 }}>Nenhum login é feito automaticamente.</p>
+                    <p style={{ color: '#64748b', fontSize: 12, marginTop: 12 }}>
+                        Entre ou crie sua conta com o mesmo e-mail da compra para continuar.
+                    </p>
                 </div>
             </div>
         );
