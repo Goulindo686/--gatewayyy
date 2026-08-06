@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { storeCategoriesAPI, storeProductsAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiArrowDown, FiArrowUp, FiCheck, FiEdit2, FiEye, FiEyeOff, FiImage, FiLayers, FiPlus, FiRefreshCw, FiX } from 'react-icons/fi';
+import { FiArrowDown, FiArrowUp, FiCheck, FiEdit2, FiEye, FiEyeOff, FiImage, FiKey, FiLayers, FiPlus, FiRefreshCw, FiX } from 'react-icons/fi';
 import axios from 'axios';
 
 export default function StoreProductsPage() {
@@ -308,6 +308,14 @@ export default function StoreProductsPage() {
                                             >
                                                 <FiEdit2 size={14} />
                                             </button>
+                                            <button
+                                                className="store-product-stock"
+                                                onClick={() => window.location.href = `/dashboard/store/products/${product.id}/unique-deliveries`}
+                                                aria-label={`Gerenciar entregas unicas de ${product.name}`}
+                                            >
+                                                <FiKey size={14} />
+                                                Estoque
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -369,6 +377,7 @@ export default function StoreProductsPage() {
                 .store-product-visibility { min-height: 32px; border: 1px solid var(--border-color); border-radius: 999px; padding: 0 10px; display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); background: var(--bg-secondary); font-size: 10px; font-weight: 750; cursor: pointer; }
                 .store-product-visibility.visible { border-color: rgba(0,206,201,.3); color: var(--success); background: rgba(0,206,201,.1); }
                 .store-product-edit { width: 32px; height: 32px; border: 1px solid var(--border-color); border-radius: 9px; display: grid; place-items: center; color: var(--text-primary); background: var(--bg-secondary); cursor: pointer; }
+                .store-product-stock { min-height: 32px; border: 1px solid rgba(108,92,231,.25); border-radius: 9px; display: inline-flex; align-items: center; gap: 6px; color: var(--accent-primary); background: rgba(108,92,231,.09); cursor: pointer; font-size: 10px; font-weight: 800; padding: 0 10px; }
                 .store-products-empty { min-height: 230px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: var(--text-muted); }
                 .store-products-empty > svg { font-size: 30px; opacity: .55; margin-bottom: 10px; }
                 .store-products-empty strong { color: var(--text-primary); font-size: 13px; margin-bottom: 5px; }
