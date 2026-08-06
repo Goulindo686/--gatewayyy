@@ -17,6 +17,11 @@ import {
 
 const MAX_BODY_BYTES = 80_000;
 
+function cleanStoreSortOrder(value: unknown): number {
+    const order = Number(value);
+    return Number.isFinite(order) && order >= 0 ? Math.floor(order) : 0;
+}
+
 function normalizePlans(value: unknown): Array<{ id: string; name: string; price: number; sort_order: number }> {
     if (!Array.isArray(value) || value.length === 0) {
         throw new SecurityValidationError('Informe ao menos um plano de preço válido');
@@ -125,6 +130,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         }
         if (body.status !== undefined) updates.status = body.status === 'inactive' ? 'inactive' : 'active';
         if (body.show_in_store !== undefined) updates.show_in_store = Boolean(body.show_in_store);
+        if (body.store_sort_order !== undefined) updates.store_sort_order = cleanStoreSortOrder(body.store_sort_order);
         if (body.store_category_id !== undefined) {
             updates.store_category_id = await normalizeCategory(auth.user.id, body.store_category_id);
         }

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS store_categories (
     name TEXT NOT NULL,
     slug TEXT NOT NULL,
     image_url TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     UNIQUE(user_id, slug)
 );
@@ -29,6 +30,7 @@ USING (true);
 -- 4. Adicionar colunas necessárias na tabela de produtos (se não existirem)
 ALTER TABLE products ADD COLUMN IF NOT EXISTS store_category_id UUID REFERENCES store_categories(id) ON DELETE SET NULL;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS show_in_store BOOLEAN DEFAULT true;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS store_sort_order INTEGER NOT NULL DEFAULT 0;
 
 -- 5. Adicionar colunas de loja na tabela de usuários (se não existirem)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS store_name TEXT;

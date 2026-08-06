@@ -23,6 +23,7 @@ class StoreController {
                 .from('store_categories')
                 .select('id, name, slug, image_url')
                 .eq('user_id', user.id)
+                .order('sort_order', { ascending: true })
                 .order('created_at', { ascending: false });
 
             // Fetch products for this user that are active and set to show in store
@@ -32,6 +33,7 @@ class StoreController {
                 .eq('user_id', user.id)
                 .eq('status', 'active')
                 .eq('show_in_store', true)
+                .order('store_sort_order', { ascending: true })
                 .order('created_at', { ascending: false });
 
             // If a category slug is provided in the query, filter products

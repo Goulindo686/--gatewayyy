@@ -8,10 +8,15 @@ function cleanCategoryImageUrl(value) {
     return trimmed.slice(0, 1000);
 }
 
+function cleanSortOrder(value) {
+    const order = Number(value);
+    return Number.isFinite(order) && order >= 0 ? Math.floor(order) : 0;
+}
+
 class StoreCategoryController {
     async create(req, res, next) {
         try {
-            const { name, slug, image_url } = req.body;
+            const { name, slug, image_url, sort_order } = req.body;
 
             const { data: categories, error } = await supabase
                 .from('store_categories')
@@ -19,7 +24,8 @@ class StoreCategoryController {
                     user_id: req.user.id,
                     name,
                     slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, ''),
-                    image_url: cleanCategoryImageUrl(image_url)
+                    image_url: cleanCategoryImageUrl(image_url),
+                    sort_order: cleanSortOrder(sort_order)
                 })
                 .select();
 
@@ -39,6 +45,7 @@ class StoreCategoryController {
                 .from('store_categories')
                 .select('*')
                 .eq('user_id', req.user.id)
+                .order('sort_order', { ascending: true })
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -50,11 +57,12 @@ class StoreCategoryController {
 
     async update(req, res, next) {
         try {
-            const { name, slug, image_url } = req.body;
+            const { name, slug, image_url, sort_order } = req.body;
             const updates = {};
             if (name !== undefined) updates.name = name;
             if (slug !== undefined) updates.slug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
             if (image_url !== undefined) updates.image_url = cleanCategoryImageUrl(image_url);
+            if (sort_order !== undefined) updates.sort_order = cleanSortOrder(sort_order);
 
             const { data: categories, error } = await supabase
                 .from('store_categories')

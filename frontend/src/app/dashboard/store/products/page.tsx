@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { storeCategoriesAPI, storeProductsAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiCheck, FiEdit2, FiEye, FiEyeOff, FiImage, FiLayers, FiPlus, FiRefreshCw, FiX } from 'react-icons/fi';
+import { FiArrowDown, FiArrowUp, FiCheck, FiEdit2, FiEye, FiEyeOff, FiImage, FiLayers, FiPlus, FiRefreshCw, FiX } from 'react-icons/fi';
 import axios from 'axios';
 
 export default function StoreProductsPage() {
@@ -12,6 +12,7 @@ export default function StoreProductsPage() {
     const [categories, setCategories] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [updatingParams, setUpdatingParams] = useState<string | null>(null);
+    const [ordering, setOrdering] = useState(false);
 
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState<any>(null);
@@ -71,6 +72,34 @@ export default function StoreProductsPage() {
             toast.error('Erro ao mudar categoria');
         } finally {
             setUpdatingParams(null);
+        }
+    };
+
+    const orderedProducts = [...products].sort((a, b) => {
+        const aOrder = Number.isFinite(Number(a.store_sort_order)) ? Number(a.store_sort_order) : 0;
+        const bOrder = Number.isFinite(Number(b.store_sort_order)) ? Number(b.store_sort_order) : 0;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+    });
+
+    const moveProduct = async (productId: string, direction: -1 | 1) => {
+        const currentIndex = orderedProducts.findIndex(product => product.id === productId);
+        const targetIndex = currentIndex + direction;
+        if (currentIndex < 0 || targetIndex < 0 || targetIndex >= orderedProducts.length) return;
+
+        const next = [...orderedProducts];
+        [next[currentIndex], next[targetIndex]] = [next[targetIndex], next[currentIndex]];
+        const normalized = next.map((product, index) => ({ ...product, store_sort_order: index }));
+        setProducts(normalized);
+        setOrdering(true);
+        try {
+            await Promise.all(normalized.map(product => storeProductsAPI.update(product.id, { store_sort_order: product.store_sort_order })));
+            toast.success('Ordem dos produtos atualizada');
+        } catch {
+            toast.error('Erro ao salvar ordem dos produtos');
+            await loadData();
+        } finally {
+            setOrdering(false);
         }
     };
 
@@ -163,6 +192,7 @@ export default function StoreProductsPage() {
                 show_in_store: editing ? undefined : true,
                 store_category_id: form.store_category_id || null,
                 store_description_format: form.store_description_format,
+                store_sort_order: editing ? editing.store_sort_order : products.length,
             };
 
             if (editing) {
@@ -220,6 +250,7 @@ export default function StoreProductsPage() {
                     <table className="data-table store-products-table">
                         <thead>
                             <tr>
+                                <th>Ordem</th>
                                 <th>Produto</th>
                                 <th>Preço</th>
                                 <th>Categoria na Loja</th>
@@ -227,8 +258,15 @@ export default function StoreProductsPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {products.map(product => (
+                            {orderedProducts.map((product, index) => (
                                 <tr key={product.id} className={updatingParams === product.id ? 'updating' : ''}>
+                                    <td>
+                                        <div className="store-product-order-cell">
+                                            <span>{String(index + 1).padStart(2, '0')}</span>
+                                            <button type="button" onClick={() => moveProduct(product.id, -1)} disabled={ordering || index === 0} aria-label={`Mover ${product.name} para cima`}><FiArrowUp /></button>
+                                            <button type="button" onClick={() => moveProduct(product.id, 1)} disabled={ordering || index === orderedProducts.length - 1} aria-label={`Mover ${product.name} para baixo`}><FiArrowDown /></button>
+                                        </div>
+                                    </td>
                                     <td>
                                         <div className="store-product-cell">
                                             {product.image_url ? (
@@ -313,9 +351,13 @@ export default function StoreProductsPage() {
                 .store-products-guide { border: 1px solid rgba(108,92,231,.18); border-radius: 11px; padding: 9px 11px; display: flex; align-items: center; gap: 8px; color: var(--accent-primary); background: rgba(108,92,231,.055); font-size: 9px; margin: 12px 0; }
                 .store-products-guide span { color: var(--text-secondary); line-height: 1.4; }
                 .store-products-table-wrap { overflow-x: auto; }
-                .store-products-table { min-width: 700px; }
+                .store-products-table { min-width: 790px; }
                 .store-products-table tr.updating { opacity: .5; }
                 .store-products-table th:last-child, .store-products-table td:last-child { text-align: center; }
+                .store-product-order-cell { display: flex; align-items: center; gap: 5px; min-width: 100px; }
+                .store-product-order-cell span { color: var(--text-muted); font-size: 10px; font-weight: 900; margin-right: 3px; }
+                .store-product-order-cell button { width: 28px; height: 28px; border: 1px solid var(--border-color); border-radius: 8px; display: grid; place-items: center; color: var(--text-muted); background: var(--bg-secondary); cursor: pointer; }
+                .store-product-order-cell button:disabled { opacity: .35; cursor: not-allowed; }
                 .store-product-cell { display: flex; align-items: center; gap: 11px; min-width: 190px; }
                 .store-product-cell img, .store-product-placeholder { width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto; }
                 .store-product-cell img { object-fit: cover; }

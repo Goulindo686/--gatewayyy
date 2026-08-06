@@ -17,6 +17,11 @@ import {
 
 const MAX_BODY_BYTES = 80_000;
 
+function cleanStoreSortOrder(value: unknown): number {
+    const order = Number(value);
+    return Number.isFinite(order) && order >= 0 ? Math.floor(order) : 0;
+}
+
 function storeProductSlug(name: string, id: string): string {
     const base = name
         .normalize('NFD')
@@ -83,12 +88,24 @@ export async function GET(req: NextRequest) {
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Não autorizado', 401);
 
-    const { data: products, error } = await supabase
+    let productsQuery = await supabase
         .from('products')
         .select('*')
         .eq('user_id', auth.user.id)
         .eq('sales_channel', 'store')
+        .order('store_sort_order', { ascending: true })
         .order('created_at', { ascending: false });
+
+    if (productsQuery.error && /store_sort_order/i.test(productsQuery.error.message || '')) {
+        productsQuery = await supabase
+            .from('products')
+            .select('*')
+            .eq('user_id', auth.user.id)
+            .eq('sales_channel', 'store')
+            .order('created_at', { ascending: false });
+    }
+
+    const { data: products, error } = productsQuery;
 
     if (error) {
         console.error('Store products list error:', error);
@@ -156,6 +173,7 @@ export async function POST(req: NextRequest) {
                 show_in_store: body.show_in_store !== false,
                 store_category_id: categoryId,
                 sales_channel: 'store',
+                store_sort_order: cleanStoreSortOrder(body.store_sort_order),
                 store_product_slug: storeProductSlug(name, id),
                 store_description_format: descriptionFormat,
             })

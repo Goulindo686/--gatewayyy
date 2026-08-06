@@ -12,6 +12,11 @@ function cleanCategoryImageUrl(value: unknown): string | null {
     return trimmed.slice(0, 1000);
 }
 
+function cleanSortOrder(value: unknown): number {
+    const order = Number(value);
+    return Number.isFinite(order) && order >= 0 ? Math.floor(order) : 0;
+}
+
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Não autorizado', 401);
@@ -19,11 +24,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
 
     try {
-        const { name, slug, image_url } = await req.json();
+        const { name, slug, image_url, sort_order } = await req.json();
         const updates: any = {};
         if (name !== undefined) updates.name = name;
         if (slug !== undefined) updates.slug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
         if (image_url !== undefined) updates.image_url = cleanCategoryImageUrl(image_url);
+        if (sort_order !== undefined) updates.sort_order = cleanSortOrder(sort_order);
 
         const { data: category, error } = await supabase
             .from('store_categories')

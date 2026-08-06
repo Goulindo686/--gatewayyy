@@ -13,15 +13,31 @@ function cleanCategoryImageUrl(value: unknown): string | null {
     return trimmed.slice(0, 1000);
 }
 
+function cleanSortOrder(value: unknown): number {
+    const order = Number(value);
+    return Number.isFinite(order) && order >= 0 ? Math.floor(order) : 0;
+}
+
 export async function GET(req: NextRequest) {
     const auth = await getAuthUser(req);
     if (!auth) return jsonError('Não autorizado', 401);
 
-    const { data: categories, error } = await supabase
+    let categoriesQuery = await supabase
         .from('store_categories')
         .select('*')
         .eq('user_id', auth.user.id)
+        .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
+
+    if (categoriesQuery.error && /sort_order/i.test(categoriesQuery.error.message || '')) {
+        categoriesQuery = await supabase
+            .from('store_categories')
+            .select('*')
+            .eq('user_id', auth.user.id)
+            .order('created_at', { ascending: false });
+    }
+
+    const { data: categories, error } = categoriesQuery;
 
     if (error) {
         console.error('Supabase categories error:', error);
@@ -36,7 +52,7 @@ export async function POST(req: NextRequest) {
     if (!auth) return jsonError('Não autorizado', 401);
 
     try {
-        const { name, slug, image_url } = await req.json();
+        const { name, slug, image_url, sort_order } = await req.json();
 
         if (!name || !slug) return jsonError('Nome e slug são obrigatórios');
 
@@ -45,7 +61,8 @@ export async function POST(req: NextRequest) {
             user_id: auth.user.id,
             name,
             slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, ''),
-            image_url: cleanCategoryImageUrl(image_url)
+            image_url: cleanCategoryImageUrl(image_url),
+            sort_order: cleanSortOrder(sort_order)
         }).select();
 
         if (error) {

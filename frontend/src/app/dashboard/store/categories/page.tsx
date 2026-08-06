@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { storeCategoriesAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { FiEdit2, FiGrid, FiImage, FiLink, FiPlus, FiTag, FiTrash2, FiUpload, FiX } from 'react-icons/fi';
+import { FiArrowDown, FiArrowUp, FiEdit2, FiGrid, FiImage, FiLink, FiPlus, FiTag, FiTrash2, FiUpload, FiX } from 'react-icons/fi';
 
 type CategoryForm = {
     name: string;
@@ -25,6 +25,7 @@ export default function StoreCategoriesPage() {
     const [categories, setCategories] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
+    const [ordering, setOrdering] = useState(false);
     const [isEditing, setIsEditing] = useState<any>(null);
     const [form, setForm] = useState<CategoryForm>(emptyForm);
 
@@ -76,7 +77,7 @@ export default function StoreCategoriesPage() {
         if (!name || !slug) return toast.error('Preencha nome e slug');
 
         try {
-            const payload = { name, slug, image_url: form.image_url.trim() };
+            const payload = { name, slug, image_url: form.image_url.trim(), sort_order: isEditing?.sort_order ?? categories.length };
             if (isEditing) {
                 await storeCategoriesAPI.update(isEditing.id, payload);
                 toast.success('Categoria atualizada');
@@ -107,6 +108,34 @@ export default function StoreCategoriesPage() {
         setForm({ name: cat.name || '', slug: cat.slug || '', image_url: cat.image_url || '' });
     };
 
+    const orderedCategories = [...categories].sort((a, b) => {
+        const aOrder = Number.isFinite(Number(a.sort_order)) ? Number(a.sort_order) : 0;
+        const bOrder = Number.isFinite(Number(b.sort_order)) ? Number(b.sort_order) : 0;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+    });
+
+    const moveCategory = async (categoryId: string, direction: -1 | 1) => {
+        const currentIndex = orderedCategories.findIndex(category => category.id === categoryId);
+        const targetIndex = currentIndex + direction;
+        if (currentIndex < 0 || targetIndex < 0 || targetIndex >= orderedCategories.length) return;
+
+        const next = [...orderedCategories];
+        [next[currentIndex], next[targetIndex]] = [next[targetIndex], next[currentIndex]];
+        const normalized = next.map((category, index) => ({ ...category, sort_order: index }));
+        setCategories(normalized);
+        setOrdering(true);
+        try {
+            await Promise.all(normalized.map(category => storeCategoriesAPI.update(category.id, { sort_order: category.sort_order })));
+            toast.success('Ordem das categorias atualizada');
+        } catch (error) {
+            toast.error('Erro ao salvar ordem das categorias');
+            await loadCategories();
+        } finally {
+            setOrdering(false);
+        }
+    };
+
     if (loading) return <div className="store-subpage-loading">Carregando categorias...</div>;
 
     return (
@@ -120,7 +149,7 @@ export default function StoreCategoriesPage() {
                 </div>
                 <div className="store-subpage-stat">
                     <strong>{categories.length}</strong>
-                    <span>categoria{categories.length === 1 ? '' : 's'} criada{categories.length === 1 ? '' : 's'}</span>
+                    <span>categoria{orderedCategories.length === 1 ? '' : 's'} criada{orderedCategories.length === 1 ? '' : 's'}</span>
                 </div>
             </section>
 
@@ -212,7 +241,7 @@ export default function StoreCategoriesPage() {
                         <small>As imagens aparecem na loja quando categorias estiverem ativas.</small>
                     </div>
 
-                    {categories.length === 0 ? (
+                    {orderedCategories.length === 0 ? (
                         <div className="store-categories-empty">
                             <FiTag />
                             <strong>Nenhuma categoria criada</strong>
@@ -220,7 +249,7 @@ export default function StoreCategoriesPage() {
                         </div>
                     ) : (
                         <div className="store-category-list">
-                            {categories.map((cat, index) => (
+                            {orderedCategories.map((cat, index) => (
                                 <article key={cat.id} className={`store-category-item ${isEditing?.id === cat.id ? 'editing' : ''}`}>
                                     <span className="store-category-order">{String(index + 1).padStart(2, '0')}</span>
                                     <span className="store-category-symbol">
@@ -229,6 +258,10 @@ export default function StoreCategoriesPage() {
                                     <div className="store-category-info">
                                         <strong>{cat.name}</strong>
                                         <small><FiLink /> /{cat.slug}</small>
+                                    </div>
+                                    <div className="store-category-move-actions">
+                                        <button type="button" onClick={() => moveCategory(cat.id, -1)} disabled={ordering || index === 0} aria-label={`Mover ${cat.name} para cima`}><FiArrowUp /></button>
+                                        <button type="button" onClick={() => moveCategory(cat.id, 1)} disabled={ordering || index === orderedCategories.length - 1} aria-label={`Mover ${cat.name} para baixo`}><FiArrowDown /></button>
                                     </div>
                                     <div className="store-category-actions">
                                         <button type="button" onClick={() => editCategory(cat)} aria-label={`Editar ${cat.name}`}><FiEdit2 /></button>
@@ -290,7 +323,10 @@ export default function StoreCategoriesPage() {
                 .store-category-info { min-width: 0; }
                 .store-category-info strong { display: block; overflow: hidden; color: var(--text-primary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 4px; }
                 .store-category-info small { display: flex; align-items: center; gap: 4px; color: var(--text-muted); font-size: 9px; }
-                .store-category-actions { display: flex; gap: 6px; margin-left: auto; }
+                .store-category-move-actions { display: flex; gap: 5px; margin-left: auto; }
+                .store-category-move-actions button { width: 29px; height: 29px; border: 1px solid var(--border-color); border-radius: 9px; display: grid; place-items: center; color: var(--text-muted); background: var(--bg-card); cursor: pointer; }
+                .store-category-move-actions button:disabled { opacity: .35; cursor: not-allowed; }
+                .store-category-actions { display: flex; gap: 6px; }
                 .store-category-actions button { width: 32px; height: 32px; border: 1px solid var(--border-color); border-radius: 9px; display: grid; place-items: center; color: var(--text-secondary); background: var(--bg-card); cursor: pointer; }
                 .store-category-actions button.danger { color: var(--danger); border-color: rgba(255,107,107,.22); }
                 .store-categories-empty { min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: var(--text-muted); }

@@ -26,7 +26,7 @@ const LEGACY_PUBLIC_STORE_FIELDS = 'id, name, store_name, store_slug, store_desc
 // and older production schemas may not have that denormalized dashboard field.
 // Keeping the public projection to fields the storefront actually consumes also
 // prevents one optional analytics column from taking every store offline.
-const PUBLIC_PRODUCT_FIELDS = 'id, name, description, price, price_display, image_url, type, status, show_in_store, store_category_id, store_product_slug, store_description_format, created_at';
+const PUBLIC_PRODUCT_FIELDS = 'id, name, description, price, price_display, image_url, type, status, show_in_store, store_category_id, store_product_slug, store_description_format, store_sort_order, created_at';
 
 function isMissingCustomDomainTable(error: { code?: string; message?: string } | null): boolean {
     return error?.code === '42P01'
@@ -108,11 +108,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
         }
 
         // 2. Get categories
-        const { data: categories } = await supabase
+        let categoriesResult = await supabase
             .from('store_categories')
             .select('*')
             .eq('user_id', user.id)
+            .order('sort_order', { ascending: true })
             .order('name');
+        if (categoriesResult.error && /sort_order/i.test(categoriesResult.error.message || '')) {
+            categoriesResult = await supabase
+                .from('store_categories')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('name');
+        }
+        const categories = categoriesResult.data;
 
         // 3. Get products
         let query = supabase
@@ -123,6 +132,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
             .eq('status', 'active')
             .eq('type', 'digital')
             .eq('show_in_store', true)
+            .order('store_sort_order', { ascending: true })
             .order('created_at', { ascending: false });
 
         if (categorySlug) {
@@ -132,7 +142,25 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
             }
         }
 
-        const { data: products, error: prodError } = await query;
+        let { data: products, error: prodError } = await query;
+        if (prodError && /store_sort_order/i.test(prodError.message || '')) {
+            let fallbackQuery = supabase
+                .from('products')
+                .select(PUBLIC_PRODUCT_FIELDS.replace(', store_sort_order', ''))
+                .eq('user_id', user.id)
+                .in('sales_channel', ['store', 'checkout'])
+                .eq('status', 'active')
+                .eq('type', 'digital')
+                .eq('show_in_store', true)
+                .order('created_at', { ascending: false });
+            if (categorySlug) {
+                const category = categories?.find(c => c.slug === categorySlug);
+                if (category) fallbackQuery = fallbackQuery.eq('store_category_id', category.id);
+            }
+            const fallback = await fallbackQuery;
+            products = fallback.data;
+            prodError = fallback.error;
+        }
 
         if (prodError) throw prodError;
 
